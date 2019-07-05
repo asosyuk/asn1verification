@@ -1,26 +1,20 @@
 (** This is a toy example to demonstrate how to specify and prove correct a C function using C light *)
 
-
 From Coq Require Import String List ZArith Psatz.
 From compcert Require Import Coqlib Integers Floats AST Ctypes Cop Clight Clightdefs Memory Values ClightBigstep Events Maps.
-(* Local Open Scope Z_scope.*)
-
 
 (* Specification of the strlen function *)
-
-
 Inductive strlen_mem (m : mem) (b : block) (ofs : ptrofs) : nat -> Prop :=
 | LengthZeroMem: Mem.loadv Mint8unsigned m (Vptr b ofs) = Some (Vint Int.zero) -> strlen_mem m b ofs 0
 | LengthSuccMem: forall n c,
-    Z.of_nat (S n) < Int.modulus ->
-    Ptrofs.unsigned ofs + Z.of_nat (S n) < Ptrofs.modulus -> 
+    Z.of_nat (S n) < Int.modulus -> (* no int overflow *)
+    Ptrofs.unsigned ofs + 1 < Ptrofs.modulus -> (* no ofs overflow *)
     strlen_mem m b (Ptrofs.add ofs Ptrofs.one) n ->
     Mem.loadv Mint8unsigned m (Vptr b ofs)  = Some (Vint c) ->
     c <> Int.zero ->
     strlen_mem m b ofs (S n).
 
 (* strlen C light AST *)
-
 Definition _output : ident := 4%positive.
 Definition _input : ident := 3%positive.
 Definition _t'1 : ident := 7%positive.
@@ -138,11 +132,8 @@ Qed.
 
 (* Test *)
 Lemma strlen_correct_test: forall ge e m b ofs le,
-
     strlen_mem m b ofs 2%nat ->
-
     le!_input = Some (Vptr b ofs) ->
-
     (* C light expression f_strlen returns O and assigns O to output variable *)
     exists t le', exec_stmt ge e le m f_strlen.(fn_body) t le' m (Out_return (Some ((VintZ 2),tuint))) /\ (le'!_output) = Some (VintZ 2).
 Proof.
@@ -207,10 +198,10 @@ Qed.
 (* Helper lemmas about the specification *)
 
  (* add more lemmas from Compcert to ptrofs hints *)
-Proposition int_ptrofs_mod_eq : (Int.modulus <= Ptrofs.modulus).
+Lemma int_ptrofs_mod_eq : (Int.modulus = Ptrofs.modulus).
 Proof.
-  cbv. destruct Archi.ptr64; congruence.
-  Qed.
+  cbv; split; congruence.
+Qed.
 
 Hint Resolve Ptrofs.mul_one Ptrofs.add_zero int_ptrofs_mod_eq : ptrofs.
 
@@ -226,22 +217,15 @@ Proof.
     apply (IHlen m b (Ptrofs.add ofs Ptrofs.one) H2).
     { rewrite Nat2Z.inj_succ.
       replace  (Z.succ (Z.of_nat len)) with ((Z.of_nat len) + 1) by (auto with zarith).
-
-      unfold Ptrofs.add; unfold Ptrofs.mul;
-      unfold Ptrofs.of_intu; unfold Ptrofs.of_int;
-      repeat rewrite Ptrofs.unsigned_repr_eq;
-      repeat rewrite Int.unsigned_repr_eq.
+      unfold Ptrofs.one.
+      symmetry.
+      rewrite Ptrofs.add_assoc.
       f_equal.
-      replace (Ptrofs.unsigned Ptrofs.one) with 1 by (auto with ptrofs).
-      rewrite Zplus_mod.
-      pose (Ptrofs.intrange ofs).
-      unfold Ptrofs.unsigned in *.
-       
-      repeat ptrofs_compute_add_mul.
-      replace (Ptrofs.intval Ptrofs.one) with 1 by (auto with ptrofs).
-       all: nia.
-        }
+      ptrofs_compute_add_mul.
+      all: pose  int_ptrofs_mod_eq; try nia.
+      f_equal. auto with zarith. }
 Qed.
+
 
 Lemma strlen_to_mem : forall len m b ofs, strlen_mem m b ofs len ->
                                      forall i, (i < len)%nat -> exists c, Mem.loadv chunk m (Vptr b (Ptrofs.add ofs (Ptrofs.repr (Z.of_nat i)))) = Some (Vint c) /\ c <> Int.zero.
@@ -258,32 +242,23 @@ Proof.
        {
          rewrite Nat2Z.inj_succ.
          replace  (Z.succ (Z.of_nat i)) with ((Z.of_nat i) + 1) by (auto with zarith).
-
-         unfold Ptrofs.add; unfold Ptrofs.mul;
-         unfold Ptrofs.of_intu; unfold Ptrofs.of_int;
-         repeat rewrite Ptrofs.unsigned_repr_eq;
-         repeat rewrite Int.unsigned_repr_eq.
+         unfold Ptrofs.one.
+         ptrofs_compute_add_mul.
          f_equal.
-         replace (Ptrofs.unsigned Ptrofs.one) with 1 by (auto with ptrofs).
-         rewrite Zplus_mod.
-         pose (Ptrofs.intrange ofs).
-         unfold Ptrofs.unsigned in *.
-       
-         repeat ptrofs_compute_add_mul.
-         all: nia.
+         nia.
+         all: pose int_ptrofs_mod_eq; try nia.
+         destruct ofs; simpl in *.
+         nia.
        }
-Qed. (* Need a way to manipulate nat within ptrofs. *)
+Qed. 
 
 (* Correctness statements *)
 
 (* A generalization of loop correctness *)
-
 Lemma strlen_loop_correct_gen :
   forall len i ge e m b ofs le,
     (* we read a C string of length len + i from memory and len + i is a valid integer *)
-
-    strlen_mem m b ofs (len + i) ->
-    
+    strlen_mem m b ofs (len + i) ->   
     (* THEN there is a trace t and local environment le' such that: *)
     exists t le',
       (* if output equals i in the starting local environment le *)
@@ -374,11 +349,9 @@ Proof.
   unfold le''. rewrite gso. rewrite gso. apply gss.
   1-2: cbv; congruence.
 
-  {  inversion Spec.
-
+  { inversion Spec.
     unfold le''.
     replace (Vint (Int.add (Int.repr (Z.of_nat i)) (Int.repr 1))) with (VintN (S i)).
-
     replace (Ptrofs.add
                 (Ptrofs.add ofs (Ptrofs.repr (Z.of_nat i)))
                 (Ptrofs.mul (Ptrofs.repr (sizeof ge tuchar))
@@ -390,20 +363,14 @@ Proof.
       replace  (Ptrofs.repr 1) with Ptrofs.one by (auto with ptrofs).
       replace  (Ptrofs.of_ints (Int.repr 1)) with Ptrofs.one by (auto with ptrofs).
       replace  (Ptrofs.mul Ptrofs.one Ptrofs.one) with (Ptrofs.one) by (auto with ptrofs).
-      Print ptrofs_compute_add_mul.
-       unfold Ptrofs.add; unfold Ptrofs.mul;
-   unfold Ptrofs.of_intu; unfold Ptrofs.of_int;
-   repeat rewrite Ptrofs.unsigned_repr_eq;
-   repeat rewrite Int.unsigned_repr_eq.
-       f_equal.
-       rewrite Zplus_mod.
-       pose (Ptrofs.intrange ofs).
-       unfold Ptrofs.unsigned in *.
-       
-       repeat ptrofs_compute_add_mul.
-       replace (Ptrofs.intval Ptrofs.one) with 1 by (auto with ptrofs). lia.
-       all: nia.
-      + unfold VintN.
+      unfold Ptrofs.one.
+      symmetry.
+      rewrite Ptrofs.add_assoc.
+      f_equal.
+      ptrofs_compute_add_mul.
+      auto.
+      all: pose int_ptrofs_mod_eq; try nia.
+    + unfold VintN.
       f_equal.
       ints_compute_add_mul.
       f_equal.
@@ -418,25 +385,6 @@ Proof.
   replace (S len + i)%nat with (len + S i)%nat by omega.
   assumption.
 Qed.      
-
-(* On empty string C light function evaluates to 0 *)
-
-Lemma strlen_correct_loop_empty_string :
-  forall ge e m b ofs le,                                           
-    strlen_mem m b ofs O ->
-
-    exists t le',
-      le!_output = Some (VintN O) ->
-      le!_input = Some (Vptr b ofs) ->
-      exec_stmt ge e le m f_strlen_loop t le' m Out_normal /\ le'!_output = Some (VintN O).
-Proof.
-  intros.
-  replace O with (0 + 0)%nat by lia.
-  replace ofs with (Ptrofs.add ofs Ptrofs.zero) by (auto with ptrofs).
-  eapply strlen_loop_correct_gen.
-  simpl.
-  assumption.
-Qed.    
 
 (* Correctness of the loop execution *)
 Lemma strlen_loop_correct: forall len ge e m b ofs le, strlen_mem m b ofs len -> exists t le', le!_output = Some (VintN O) ->
@@ -476,9 +424,26 @@ Qed.
 
 (* Conditions about the f_strlen loop: maybe keep as an illustration *)
 
+(* On empty string C light function evaluates to 0 *)
+Lemma strlen_correct_loop_empty_string :
+  forall ge e m b ofs le,                                           
+    strlen_mem m b ofs O ->
+
+    exists t le',
+      le!_output = Some (VintN O) ->
+      le!_input = Some (Vptr b ofs) ->
+      exec_stmt ge e le m f_strlen_loop t le' m Out_normal /\ le'!_output = Some (VintN O).
+Proof.
+  intros.
+  replace O with (0 + 0)%nat by lia.
+  replace ofs with (Ptrofs.add ofs Ptrofs.zero) by (auto with ptrofs).
+  eapply strlen_loop_correct_gen.
+  simpl.
+  assumption.
+Qed.   
+
 (* If 0 is read from memory at [b,ofs + len] the output is set to len *)
-Lemma strlen_loop_break_correct:  forall ge e m b ofs outp le,
-      
+Lemma strlen_loop_break_correct:  forall ge e m b ofs outp le,      
       ofs + Z.of_nat outp < Ptrofs.modulus ->
       0 <= ofs < Ptrofs.modulus ->
       0 <= Z.of_nat outp < Ptrofs.modulus ->
