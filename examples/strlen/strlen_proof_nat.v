@@ -4,15 +4,15 @@ From Coq Require Import String List ZArith Psatz.
 From compcert Require Import Coqlib Integers Floats AST Ctypes Cop Clight Clightdefs Memory Values ClightBigstep Events Maps.
 
 (* Specification of the strlen function *)
-Inductive strlen_mem (m : mem) (b : block) (ofs : ptrofs) : nat -> Prop :=
-| LengthZeroMem: Mem.loadv Mint8unsigned m (Vptr b ofs) = Some (Vint Int.zero) -> strlen_mem m b ofs 0
-| LengthSuccMem: forall n c,
+Inductive strlen (m : mem) (b : block) (ofs : ptrofs) : nat -> Prop :=
+| LengthZero: Mem.loadv Mint8signed m (Vptr b ofs) = Some (Vint Int.zero) -> strlen m b ofs 0
+| LengthSucc: forall n c,
     Z.of_nat (S n) < Int.modulus -> (* no int overflow *)
     Ptrofs.unsigned ofs + 1 < Ptrofs.modulus -> (* no ofs overflow *)
-    strlen_mem m b (Ptrofs.add ofs Ptrofs.one) n ->
-    Mem.loadv Mint8unsigned m (Vptr b ofs)  = Some (Vint c) ->
+    strlen m b (Ptrofs.add ofs Ptrofs.one) n ->
+    Mem.loadv Mint8signed m (Vptr b ofs)  = Some (Vint c) ->
     c <> Int.zero ->
-    strlen_mem m b ofs (S n).
+    strlen m b ofs (S n).
 
 (* strlen C light AST *)
 Definition _output : ident := 4%positive.
@@ -25,7 +25,7 @@ Definition f_strlen := {|
   fn_callconv := cc_default;
   fn_params := ((_input, (tptr tuchar)) :: nil);
   fn_vars := nil;
-  fn_temps := ((_output, tuint) :: (_t'1, (tptr tuchar)) :: (_t'2, tuchar) :: nil);
+  fn_temps := ((_output, tuint) :: (_t'1, (tptr tschar)) :: (_t'2, tschar) :: nil);
   fn_body :=
 (Ssequence
   (Sset _output (Econst_int (Int.repr 0) tint))
@@ -34,13 +34,13 @@ Definition f_strlen := {|
       (Ssequence
         (Ssequence
           (Ssequence
-            (Sset _t'1 (Etempvar _input (tptr tuchar)))
+            (Sset _t'1 (Etempvar _input (tptr tschar)))
             (Sset _input
-              (Ebinop Oadd (Etempvar _t'1 (tptr tuchar))
-                (Econst_int (Int.repr 1) tint) (tptr tuchar))))
+              (Ebinop Oadd (Etempvar _t'1 (tptr tschar))
+                (Econst_int (Int.repr 1) tint) (tptr tschar))))
           (Ssequence
-            (Sset _t'2 (Ederef (Etempvar _t'1 (tptr tuchar)) tuchar))
-            (Sifthenelse (Etempvar _t'2 tuchar) Sskip Sbreak)))
+            (Sset _t'2 (Ederef (Etempvar _t'1 (tptr tschar)) tschar))
+            (Sifthenelse (Etempvar _t'2 tschar) Sskip Sbreak)))
         (Sset _output
           (Ebinop Oadd (Etempvar _output tuint) (Econst_int (Int.repr 1) tint)
             tuint)))
@@ -53,13 +53,13 @@ Definition f_strlen_loop :=
       (Ssequence
         (Ssequence
           (Ssequence
-            (Sset _t'1 (Etempvar _input (tptr tuchar)))
+            (Sset _t'1 (Etempvar _input (tptr tschar)))
             (Sset _input
-              (Ebinop Oadd (Etempvar _t'1 (tptr tuchar))
-                (Econst_int (Int.repr 1) tint) (tptr tuchar))))
+              (Ebinop Oadd (Etempvar _t'1 (tptr tschar))
+                (Econst_int (Int.repr 1) tint) (tptr tschar))))
           (Ssequence
-            (Sset _t'2 (Ederef (Etempvar _t'1 (tptr tuchar)) tuchar))
-            (Sifthenelse (Etempvar _t'2 tuchar) Sskip Sbreak)))
+            (Sset _t'2 (Ederef (Etempvar _t'1 (tptr tschar)) tschar))
+            (Sifthenelse (Etempvar _t'2 tschar) Sskip Sbreak)))
         (Sset _output
           (Ebinop Oadd (Etempvar _output tuint) (Econst_int (Int.repr 1) tint)
             tuint)))
@@ -69,13 +69,13 @@ Definition f_strlen_loop :=
 Definition f_strlen_loop_body := (Ssequence
         (Ssequence
           (Ssequence
-            (Sset _t'1 (Etempvar _input (tptr tuchar)))
+            (Sset _t'1 (Etempvar _input (tptr tschar)))
             (Sset _input
-              (Ebinop Oadd (Etempvar _t'1 (tptr tuchar))
-                (Econst_int (Int.repr 1) tint) (tptr tuchar))))
+              (Ebinop Oadd (Etempvar _t'1 (tptr tschar))
+                (Econst_int (Int.repr 1) tint) (tptr tschar))))
           (Ssequence
-            (Sset _t'2 (Ederef (Etempvar _t'1 (tptr tuchar)) tuchar))
-            (Sifthenelse (Etempvar _t'2 tuchar) Sskip Sbreak)))
+            (Sset _t'2 (Ederef (Etempvar _t'1 (tptr tschar)) tschar))
+            (Sifthenelse (Etempvar _t'2 tschar) Sskip Sbreak)))
         (Sset _output
           (Ebinop Oadd (Etempvar _output tuint) (Econst_int (Int.repr 1) tint)
                   tuint))).
@@ -86,7 +86,7 @@ Definition f_strlen_loop_body := (Ssequence
 
 (* Some useful notation and tactics *)
 
-Definition chunk : memory_chunk := Mint8unsigned.
+Definition chunk : memory_chunk := Mint8signed.
 Definition VintZ := fun (z : Z) => Vint (Int.repr z).
 Definition VintN:= fun n => Vint (Int.repr(Z_of_nat n)).
 
@@ -132,7 +132,7 @@ Qed.
 
 (* Test *)
 Lemma strlen_correct_test: forall ge e m b ofs le,
-    strlen_mem m b ofs 2%nat ->
+    strlen m b ofs 2%nat ->
     le!_input = Some (Vptr b ofs) ->
     (* C light expression f_strlen returns O and assigns O to output variable *)
     exists t le', exec_stmt ge e le m f_strlen.(fn_body) t le' m (Out_return (Some ((VintZ 2),tuint))) /\ (le'!_output) = Some (VintZ 2).
@@ -159,7 +159,7 @@ Proof.
         repeat econstructor.
         rewrite gso. apply gss. cbv; congruence.
         replace (Ptrofs.add ofs
-          (Ptrofs.mul (Ptrofs.repr (sizeof ge tuchar))
+          (Ptrofs.mul (Ptrofs.repr (sizeof ge tschar))
              (ptrofs_of_int Signed (Int.repr 1)))) with (Ptrofs.add ofs Ptrofs.one) by (auto with ptrofs).
         apply H7.
         apply gss.
@@ -179,9 +179,9 @@ Proof.
         rewrite gso. apply gss. cbv ; congruence.
         replace (Ptrofs.add
           (Ptrofs.add ofs
-             (Ptrofs.mul (Ptrofs.repr (sizeof ge tuchar))
+             (Ptrofs.mul (Ptrofs.repr (sizeof ge tschar))
                 (ptrofs_of_int Signed (Int.repr 1))))
-          (Ptrofs.mul (Ptrofs.repr (sizeof ge tuchar))
+          (Ptrofs.mul (Ptrofs.repr (sizeof ge tschar))
              (ptrofs_of_int Signed (Int.repr 1))))  with (Ptrofs.add (Ptrofs.add ofs Ptrofs.one) Ptrofs.one) by (auto with ptrofs).
         apply H1.
         repeat econstructor.
@@ -205,7 +205,7 @@ Qed.
 
 Hint Resolve Ptrofs.mul_one Ptrofs.add_zero int_ptrofs_mod_eq : ptrofs.
 
-Lemma strlen_to_len_0 : forall len m b ofs, strlen_mem m b ofs len -> strlen_mem m b (Ptrofs.add ofs (Ptrofs.repr (Z.of_nat len))) O.
+Lemma strlen_to_len_0 : forall len m b ofs, strlen m b ofs len -> strlen m b (Ptrofs.add ofs (Ptrofs.repr (Z.of_nat len))) O.
 Proof.
   induction len; intros.
   - simpl.  replace (Ptrofs.repr 0) with Ptrofs.zero by (auto with ptrofs).
@@ -227,7 +227,7 @@ Proof.
 Qed.
 
 
-Lemma strlen_to_mem : forall len m b ofs, strlen_mem m b ofs len ->
+Lemma strlen_to_mem : forall len m b ofs, strlen m b ofs len ->
                                      forall i, (i < len)%nat -> exists c, Mem.loadv chunk m (Vptr b (Ptrofs.add ofs (Ptrofs.repr (Z.of_nat i)))) = Some (Vint c) /\ c <> Int.zero.
 Proof.
   induction len.
@@ -258,7 +258,7 @@ Qed.
 Lemma strlen_loop_correct_gen :
   forall len i ge e m b ofs le,
     (* we read a C string of length len + i from memory and len + i is a valid integer *)
-    strlen_mem m b ofs (len + i) ->   
+    strlen m b ofs (len + i) ->   
     (* THEN there is a trace t and local environment le' such that: *)
     exists t le',
       (* if output equals i in the starting local environment le *)
@@ -293,7 +293,7 @@ Proof.
     assumption.
     1-3: cbv; congruence.
   - (* Ind. Step *)
-    assert (exists char, Mem.loadv Mint8unsigned m (Vptr b  (Ptrofs.add ofs (Ptrofs.repr (Z.of_nat i)))) = Some (Vint char) /\ char <> Int.zero) as Mem. 
+    assert (exists char, Mem.loadv Mint8signed m (Vptr b  (Ptrofs.add ofs (Ptrofs.repr (Z.of_nat i)))) = Some (Vint char) /\ char <> Int.zero) as Mem. 
     { refine (strlen_to_mem (S len + i) m b ofs Spec i _). omega. }
     destruct Mem as [char Mem].
     (* apply I.H. to le' after one step when starting with i and [b,ofs + i]  *)
@@ -338,7 +338,7 @@ Proof.
                 (Ptrofs.add
                    (Ptrofs.add ofs (Ptrofs.repr (Z.of_nat i)))
                    (Ptrofs.mul
-                      (Ptrofs.repr (sizeof ge tuchar))
+                      (Ptrofs.repr (sizeof ge tschar))
                       (ptrofs_of_int Signed (Int.repr 1)))))
              (PTree.set _t'1
                 (Vptr b
@@ -354,7 +354,7 @@ Proof.
     replace (Vint (Int.add (Int.repr (Z.of_nat i)) (Int.repr 1))) with (VintN (S i)).
     replace (Ptrofs.add
                 (Ptrofs.add ofs (Ptrofs.repr (Z.of_nat i)))
-                (Ptrofs.mul (Ptrofs.repr (sizeof ge tuchar))
+                (Ptrofs.mul (Ptrofs.repr (sizeof ge tschar))
                             (ptrofs_of_int Signed (Int.repr 1)))) with (Ptrofs.add ofs (Ptrofs.repr (Z.of_nat (S i)))).
     reflexivity.
     + rewrite Nat2Z.inj_succ.
@@ -387,7 +387,7 @@ Proof.
 Qed.      
 
 (* Correctness of the loop execution *)
-Lemma strlen_loop_correct: forall len ge e m b ofs le, strlen_mem m b ofs len -> exists t le', le!_output = Some (VintN O) ->
+Lemma strlen_loop_correct: forall len ge e m b ofs le, strlen m b ofs len -> exists t le', le!_output = Some (VintN O) ->
                                                                                     le!_input = Some (Vptr b ofs) ->
       
       exec_stmt ge e le m f_strlen_loop t le' m Out_normal /\ le'!_output = Some (VintN len).
@@ -401,7 +401,7 @@ Proof.
 Qed.
   
 (* Full correctness statement *)
-Lemma strlen_correct: forall len ge e m b ofs le, strlen_mem m b ofs len -> exists t le', le!_input = Some (Vptr b ofs) ->
+Lemma strlen_correct: forall len ge e m b ofs le, strlen m b ofs len -> exists t le', le!_input = Some (Vptr b ofs) ->
                                                                                exec_stmt ge e le  m f_strlen.(fn_body) t le' m (Out_return (Some ((VintN len),tuint))).
 Proof.
   intros.
@@ -422,12 +422,97 @@ Proof.
   eapply Out.
 Qed.
 
+
+(* Specification of the strlen function on integers *)
+
+Definition no_int_overflow (i : int) := 0 < Int.unsigned i + 1 < Int.modulus.
+Definition no_pointer_overflow (i : ptrofs) := 0 < Ptrofs.unsigned i + 1 < Int.modulus.
+
+Definition Int_succ := fun i : int => Int.add i Int.one.
+
+Inductive strlen_int (m : mem) (b : block) (ofs : ptrofs) : int -> Prop :=
+| LengthZeroInt: Mem.loadv Mint8signed m (Vptr b ofs) = Some (Vint Int.zero) -> strlen_int m b ofs Int.zero
+| LengthSuccInt: forall n c,
+    no_pointer_overflow ofs -> (* this condition is superflous *)
+    no_int_overflow n ->
+    Mem.loadv Mint8signed m (Vptr b ofs)  = Some (Vint c) ->
+    c <> Int.zero ->
+    strlen_int m b (Ptrofs.add ofs Ptrofs.one) n ->
+    strlen_int m b ofs (Int_succ n).
+
+Lemma strlen_refine : forall m b ofs i, strlen_int m b ofs i -> strlen m b ofs (Z.to_nat (Int.unsigned i)).
+Proof.
+  intros.
+  induction H.
+  replace (Z.to_nat (Int.unsigned Int.zero)) with O by (auto with ints; nia).
+  econstructor.
+  assumption.
+  replace (Z.to_nat (Int.unsigned (Int_succ n))) with (S (Z.to_nat (Int.unsigned n))).
+  econstructor.
+  unfold no_int_overflow in H0.
+  replace  (S (Z.to_nat (Int.unsigned n))) with  ((Z.to_nat (Int.unsigned n)) + 1)%nat by omega.
+  destruct n; simpl in *; try nia.
+  Search Z.of_nat.
+  rewrite Nat2Z.inj_add.
+  Search Z.of_nat (Z.to_nat _).
+  
+  replace (Z.of_nat (Z.to_nat intval)) with intval.
+  replace (Z.of_nat 1) with 1 by nia.
+  nia.
+  symmetry.
+  (eapply Z2Nat.id).
+  nia.
+  unfold no_pointer_overflow in H.
+  pose int_ptrofs_mod_eq;   nia.
+  (* true *)
+  assumption.
+  apply H1.
+  assumption.
+
+  unfold no_int_overflow in H.
+  unfold Int_succ.
+  replace  (Int.unsigned (Int.add n Int.one)) with (Int.unsigned n + 1).
+  replace  (S (Z.to_nat (Int.unsigned n))) with  ((Z.to_nat (Int.unsigned n)) + 1)%nat by omega.
+  Search Z.to_nat.
+  rewrite Z2Nat.inj_add.
+  replace  (Z.to_nat 1) with 1%nat.
+  auto.
+  symmetry.
+  unfold Z.to_nat.
+  nia.
+  destruct n; simpl in *; nia.
+  nia.
+  ints_compute_add_mul.
+  all: replace (Int.unsigned Int.one) with 1 by (auto with ints).
+  auto. unfold no_int_overflow in H0. nia.
+  Qed.
+
+(* Full correctness statement *)
+Lemma strlen_correct_int: forall ge e len m b ofs le,
+      strlen_int m b ofs len -> exists t le',
+      le!_input = Some (Vptr b ofs) ->
+      exec_stmt ge e le  m f_strlen.(fn_body) t le' m (Out_return (Some ((Vint len),tuint))).
+Proof.
+  intros until le; intro Spec.
+  pose (strlen_refine _ _ _ _  Spec) as S.
+  pose (strlen_correct _ ge e _ _  _  le   S).
+  replace (VintN (Z.to_nat (Int.unsigned len))) with (Vint len) in e0.
+  assumption.
+  unfold VintN.
+  f_equal.
+  replace (Z.of_nat (Z.to_nat (Int.unsigned len))) with (Int.unsigned len).
+  auto with ints.
+  rewrite Z2Nat.id.
+  auto.
+  destruct len; simpl in *. nia.
+  Qed.
+
 (* Conditions about the f_strlen loop: maybe keep as an illustration *)
 
 (* On empty string C light function evaluates to 0 *)
 Lemma strlen_correct_loop_empty_string :
   forall ge e m b ofs le,                                           
-    strlen_mem m b ofs O ->
+    strlen m b ofs O ->
 
     exists t le',
       le!_output = Some (VintN O) ->
@@ -453,7 +538,7 @@ Lemma strlen_loop_break_correct:  forall ge e m b ofs outp le,
       le!_output = Some (VintN outp) ->
       
       (* and the guard condition is false *)
-      Mem.load Mint8unsigned m b (ofs + (Z_of_nat outp)) = Some (Vint (Int.repr 0)) ->
+      Mem.load Mint8signed m b (ofs + (Z_of_nat outp)) = Some (Vint (Int.repr 0)) ->
 
       (* THEN loop executes to an environment with i = outp [i.e., i stays unchanged] + memory is unchanged *)
       exists t le', exec_stmt ge e le m f_strlen_loop t le' m Out_normal /\ (le'!_output) = Some (VintN outp).
