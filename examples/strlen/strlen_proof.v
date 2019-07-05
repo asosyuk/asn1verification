@@ -18,6 +18,8 @@ Inductive strlen (m : mem) (b : block) (ofs : ptrofs) : int -> Prop :=
     strlen m b (Ptrofs.add ofs Ptrofs.one) n ->
     strlen m b ofs (Int_succ n).
 
+
+
 (* strlen C light AST *)
 
 Definition _output : ident := 4%positive.
@@ -322,7 +324,88 @@ Lemma int_overflow_unsigned_to_add : forall z, 0 < Int.unsigned z + 1 < Int.modu
   assumption. 
 Qed.
 
+(* Refinement lemma. To avoid the need to work on int *)
+Inductive strlen_nat (m : mem) (b : block) (ofs : ptrofs) : nat -> Prop :=
+| LengthZeroNat: Mem.loadv Mint8signed m (Vptr b ofs) = Some (Vint Int.zero) -> strlen_nat m b ofs 0
+| LengthSuccNat: forall n c,
+    Z.of_nat (S n) < Int.modulus ->
+   (* Ptrofs.unsigned ofs + Z.of_nat (S n) < Ptrofs.modulus -> can remove this assumption by using Ptrofs.agree32 in arithmetic proofs *)
+    strlen_nat m b (Ptrofs.add ofs Ptrofs.one) n ->
+    Mem.loadv Mint8signed m (Vptr b ofs)  = Some (Vint c) ->
+    c <> Int.zero ->
+    strlen_nat m b ofs (S n).
 
+Lemma strlen_refine : forall m b ofs i, strlen m b ofs i -> strlen_nat m b ofs (Z.to_nat (Int.unsigned i)).
+Proof.
+ 
+  intros.
+  induction H.
+  replace (Z.to_nat (Int.unsigned Int.zero)) with O by (auto with ints; nia).
+  econstructor.
+  assumption.
+  replace (Z.to_nat (Int.unsigned (Int_succ n))) with (S (Z.to_nat (Int.unsigned n))).
+  econstructor.
+  unfold no_int_overflow in H.
+  replace  (S (Z.to_nat (Int.unsigned n))) with  ((Z.to_nat (Int.unsigned n)) + 1)%nat by omega.
+  destruct n; simpl in *; try nia.
+  Search Z.of_nat.
+  rewrite Nat2Z.inj_add.
+  Search Z.of_nat (Z.to_nat _).
+  
+  replace (Z.of_nat (Z.to_nat intval)) with intval.
+  replace (Z.of_nat 1) with 1 by nia.
+  nia.
+  symmetry.
+  (eapply Z2Nat.id).
+  nia.
+
+  (* true *)
+  assumption.
+  apply H0.
+  assumption.
+
+  unfold no_int_overflow in H.
+  unfold Int_succ.
+  replace  (Int.unsigned (Int.add n Int.one)) with (Int.unsigned n + 1).
+  replace  (S (Z.to_nat (Int.unsigned n))) with  ((Z.to_nat (Int.unsigned n)) + 1)%nat by omega.
+  Search Z.to_nat.
+  rewrite Z2Nat.inj_add.
+  replace  (Z.to_nat 1) with 1%nat.
+  auto.
+  symmetry.
+  unfold Z.to_nat.
+  nia.
+  destruct n; simpl in *; nia.
+  nia.
+  ints_compute_add_mul.
+  all: replace (Int.unsigned Int.one) with 1 by (auto with ints).
+  auto. nia.
+  Qed.
+
+Definition VintN:= fun n => Vint (Int.repr(Z_of_nat n)).
+Lemma strlen_nat_correct: forall len ge e m b ofs le, strlen_nat m b ofs len -> exists t le', le!_input = Some (Vptr b ofs) -> exec_stmt ge e le  m f_strlen.(fn_body) t le' m (Out_return (Some ((VintN len),tuint))).
+  Admitted.
+
+(* Full correctness statement *)
+Lemma strlen_correct: forall ge e len m b ofs le,
+      strlen m b ofs len -> exists t le',
+      le!_input = Some (Vptr b ofs) ->
+      exec_stmt ge e le  m f_strlen.(fn_body) t le' m (Out_return (Some ((Vint len),tuint))).
+Proof.
+  intros until le; intro Spec.
+  pose (strlen_refine _ _ _ _  Spec) as S.
+  pose (strlen_nat_correct _ ge e _ _  _  le   S).
+  replace (VintN (Z.to_nat (Int.unsigned len))) with (Vint len) in e0.
+  assumption.
+  unfold VintN.
+  f_equal.
+  replace (Z.of_nat (Z.to_nat (Int.unsigned len))) with (Int.unsigned len).
+  auto with ints.
+  rewrite Z2Nat.id.
+  auto.
+  destruct len; simpl in *. nia.
+  Qed.
+  
 (* Lemmas about the specification *)
 
 (* Inversion lemma. This doesn't hold for a spec with wrapping. Counterexample: Int_succ i = Int.zero, there is an empty string at ofs *)
