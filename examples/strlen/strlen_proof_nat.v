@@ -130,8 +130,10 @@ Proof.
   rewrite Int.eq_false; intuition.
 Qed.  
 
+Parameter ge : genv.
+Parameter e : env.
 (* Test *)
-Lemma strlen_correct_test: forall ge e m b ofs le,
+Lemma strlen_correct_test: forall m b ofs le,
     strlen m b ofs 2%nat ->
     le!_input = Some (Vptr b ofs) ->
     (* C light expression f_strlen returns O and assigns O to output variable *)
@@ -256,7 +258,7 @@ Qed.
 
 (* A generalization of loop correctness *)
 Lemma strlen_loop_correct_gen :
-  forall len i ge e m b ofs le,
+  forall len i m b ofs le,
     (* we read a C string of length len + i from memory and len + i is a valid integer *)
     strlen m b ofs (len + i) ->   
     (* THEN there is a trace t and local environment le' such that: *)
@@ -303,7 +305,7 @@ Proof.
           (PTree.set _t'1
                (Vptr b  (Ptrofs.add ofs (Ptrofs.repr (Z.of_nat i))))
                       le))))).
-    pose (IH := IHlen (S i) ge e m b ofs le'').
+    pose (IH := IHlen (S i)  m b ofs le'').
     assert ( exists (t : trace) (le' : temp_env),
        le'' ! _output = Some (VintN (S i)) -> 
        le''! _input = Some (Vptr b  (Ptrofs.add ofs (Ptrofs.repr (Z.of_nat (S i))))) ->               
@@ -387,7 +389,7 @@ Proof.
 Qed.      
 
 (* Correctness of the loop execution *)
-Lemma strlen_loop_correct: forall len ge e m b ofs le, strlen m b ofs len -> exists t le', le!_output = Some (VintN O) ->
+Lemma strlen_loop_correct: forall len m b ofs le, strlen m b ofs len -> exists t le', le!_output = Some (VintN O) ->
                                                                                     le!_input = Some (Vptr b ofs) ->
       
       exec_stmt ge e le m f_strlen_loop t le' m Out_normal /\ le'!_output = Some (VintN len).
@@ -401,11 +403,11 @@ Proof.
 Qed.
   
 (* Full correctness statement *)
-Lemma strlen_correct: forall len ge e m b ofs le, strlen m b ofs len -> exists t le', le!_input = Some (Vptr b ofs) ->
+Lemma strlen_correct: forall len m b ofs le, strlen m b ofs len -> exists t le', le!_input = Some (Vptr b ofs) ->
                                                                                exec_stmt ge e le  m f_strlen.(fn_body) t le' m (Out_return (Some ((VintN len),tuint))).
 Proof.
   intros.
-  pose (Loop := strlen_loop_correct len ge e  _ _ _ (PTree.set _output (Vint Int.zero) le) H). destruct Loop as [t Loop]. destruct Loop as [le' Loop].
+  pose (Loop := strlen_loop_correct len  _ _ _ (PTree.set _output (Vint Int.zero) le) H). destruct Loop as [t Loop]. destruct Loop as [le' Loop].
   repeat eexists.
   intro input.
   assert ((PTree.set _output (Vint Int.zero) le) ! _output =
@@ -488,14 +490,14 @@ Proof.
   Qed.
 
 (* Full correctness statement *)
-Lemma strlen_correct_int: forall ge e len m b ofs le,
+Lemma strlen_correct_int: forall len m b ofs le,
       strlen_int m b ofs len -> exists t le',
       le!_input = Some (Vptr b ofs) ->
       exec_stmt ge e le  m f_strlen.(fn_body) t le' m (Out_return (Some ((Vint len),tuint))).
 Proof.
   intros until le; intro Spec.
   pose (strlen_refine _ _ _ _  Spec) as S.
-  pose (strlen_correct _ ge e _ _  _  le   S).
+  pose (strlen_correct _ _ _  _  le   S).
   replace (VintN (Z.to_nat (Int.unsigned len))) with (Vint len) in e0.
   assumption.
   unfold VintN.
@@ -505,9 +507,39 @@ Proof.
   rewrite Z2Nat.id.
   auto.
   destruct len; simpl in *. nia.
-  Qed.
+Qed.
 
-(* Conditions about the f_strlen loop: maybe keep as an illustration *)
+(* Functional spec *)
+(* true if the integer value read is zero - end of string *)
+
+Definition is_null (v : Values.val) :=
+  match v with
+  | Vint zero => true
+  | _ => false
+  end.
+
+Definition INTSIZE := (nat_of_Z Int.modulus).
+
+Fixpoint strlen_fun_spec (m : mem) (b : block) (ofs : ptrofs) (l: Z) (intrange : nat) {struct intrange} : option int := 
+      match intrange with
+      | O => None (* out of intrange *)
+      | S n => match Mem.loadv chunk m (Vptr b ofs) with 
+              | Some v =>
+                if is_null v
+                then Some (Int.repr l) else strlen_fun_spec m b (Ptrofs.add ofs Ptrofs.one) (l + 1) n  
+              | None => None 
+              end
+      end.
+
+Definition strlen_fun (m : mem) (b: block) (ofs : ptrofs) :=  strlen_fun_spec m b ofs 0 INTSIZE.
+
+(* Full correctness statement *)
+Lemma strlen_correct_fun: forall len m b ofs le, strlen_fun m b ofs = Some len ->
+                                            exists t le', le!_input = Some (Vptr b ofs) ->
+      exec_stmt ge e le  m f_strlen.(fn_body) t le' m (Out_return (Some ((Vint len),tuint))).
+Admitted.
+
+(* Conditions about the f_strlen loop: an illustration *)
 
 (* On empty string C light function evaluates to 0 *)
 Lemma strlen_correct_loop_empty_string :
