@@ -7,17 +7,19 @@ From compcert Require Import Coqlib Integers Floats AST Ctypes Cop Clight Clight
 (* Specification of the strlen function *)
 
 Definition no_int_overflow (i : int) := 0 < Int.unsigned i + 1 < Int.modulus.
+Definition no_pointer_overflow (i : ptrofs) := 0 < Ptrofs.unsigned i + 1 < Int.modulus.
+
 Definition Int_succ := fun i : int => Int.add i Int.one.
 
 Inductive strlen (m : mem) (b : block) (ofs : ptrofs) : int -> Prop :=
 | LengthZero: Mem.loadv Mint8signed m (Vptr b ofs) = Some (Vint Int.zero) -> strlen m b ofs Int.zero
 | LengthSucc: forall n c,
+    no_pointer_overflow ofs -> (* this condition is superflous *)
     no_int_overflow n ->
     Mem.loadv Mint8signed m (Vptr b ofs)  = Some (Vint c) ->
     c <> Int.zero ->
     strlen m b (Ptrofs.add ofs Ptrofs.one) n ->
     strlen m b ofs (Int_succ n).
-
 
 
 (* strlen C light AST *)
@@ -210,10 +212,10 @@ Proof.
         rewrite e0 in y.
         congruence.
       }
-       rewrite Nlen in H3.
+       rewrite Nlen in H4.
           replace (Ptrofs.add ofs (Ptrofs.of_int (Int.add len Int.one))) with (Ptrofs.add (Ptrofs.add ofs Ptrofs.one) (Ptrofs.of_int len)).
      
-      apply (IHlen m b (Ptrofs.add ofs Ptrofs.one) H3).
+      apply (IHlen m b (Ptrofs.add ofs Ptrofs.one) H4).
       {
         rewrite Ptrofs.add_assoc.
         f_equal.
@@ -345,7 +347,7 @@ Proof.
   assumption.
   replace (Z.to_nat (Int.unsigned (Int_succ n))) with (S (Z.to_nat (Int.unsigned n))).
   econstructor.
-  unfold no_int_overflow in H.
+  unfold no_int_overflow in H0.
   replace  (S (Z.to_nat (Int.unsigned n))) with  ((Z.to_nat (Int.unsigned n)) + 1)%nat by omega.
   destruct n; simpl in *; try nia.
   Search Z.of_nat.
@@ -361,7 +363,7 @@ Proof.
 
   (* true *)
   assumption.
-  apply H0.
+  apply H1.
   assumption.
 
   unfold no_int_overflow in H.
@@ -379,7 +381,7 @@ Proof.
   nia.
   ints_compute_add_mul.
   all: replace (Int.unsigned Int.one) with 1 by (auto with ints).
-  auto. nia.
+  auto. unfold no_int_overflow in H0. nia.
   Qed.
 
 Definition VintN:= fun n => Vint (Int.repr(Z_of_nat n)).
@@ -466,7 +468,7 @@ Proof.
           replace (Int.unsigned Int.zero) with 0 in H1 by (auto with ints).          
           nia.
         *  replace (Ptrofs.add ofs (Ptrofs.repr 0)) with ofs by (auto with ptrofs).
-          exists c.  apply (conj H1 H2).  
+          exists c.  apply (conj H2 H3).  
       + (* I.S. i *)
         intros.
         inversion Spec.
@@ -486,9 +488,9 @@ Proof.
             unfold Int_succ in J.
             congruence.
           }
-          rewrite E in H3.
+          rewrite E in H4.
           
-        pose (impl_spec  _ _ _  _ H3 Spec) as Spec_impl.
+        pose (impl_spec  _ _ _  _ H4 Spec) as Spec_impl.
         pose (IHlen m b (Ptrofs.add ofs Ptrofs.one) Spec_impl x) as IHip.
         replace (Ptrofs.add ofs (Ptrofs.repr (Z.succ x)))  with (Ptrofs.add (Ptrofs.add ofs Ptrofs.one)
                (Ptrofs.repr x)).
@@ -496,7 +498,7 @@ Proof.
         ** assumption.
         ** unfold Int.add in H1.
            rewrite Int.unsigned_repr_eq in H1.
-           unfold no_int_overflow  in H3.
+           unfold no_int_overflow  in H4.
            rewrite Zmod_small in H1.
            replace (Int.unsigned Int.one) with 1 in * by (auto with ints). nia.
            replace (Int.unsigned Int.one) with 1 in * by (auto with ints).  nia.
@@ -532,7 +534,7 @@ Lemma strlen_to_mem_0 : forall m b ofs, strlen m b ofs Int.zero -> Mem.loadv Min
     inversion H.
     * assumption.
     * pose (intval_eq (Int_succ n) Int.zero H0) as A.
-      pose (int_overflow_unsigned_to_add _ H1).
+      pose (int_overflow_unsigned_to_add _ H2).
       unfold Int_succ in A.
        congruence.
   Qed.
@@ -634,8 +636,8 @@ Lemma strlen_loop_correct_gen : forall len i m b ofs le,
             unfold Int_succ in J.
             congruence.
           }             
-      rewrite E in H0.
-      unfold no_int_overflow in H0.
+      rewrite E in H1.
+      unfold no_int_overflow in H1.
       ints_compute_add_mul.  
       1: destruct i; destruct len ;replace (Int.unsigned Int.one) with 1 by (auto with ints); simpl in *; nia.      
       assert ( (Int.unsigned (Int.add len Int.one)) <> (Int.unsigned Int.zero)).     
@@ -646,9 +648,9 @@ Lemma strlen_loop_correct_gen : forall len i m b ofs le,
         congruence.
         assumption.     
       }
-      unfold Int.add in H0.     
-      rewrite Int.unsigned_repr_eq in H0.
-      replace  (Int.unsigned Int.zero) with 0 in H4 by (auto with ints).
+      unfold Int.add in H1.     
+      rewrite Int.unsigned_repr_eq in H1.
+      replace  (Int.unsigned Int.zero) with 0 in H5 by (auto with ints).
       assert ( Int.unsigned (Int.add len Int.one) > 0).
       { destruct (Int.add len Int.one); simpl in *.
         nia.
@@ -768,7 +770,7 @@ Qed.
 
 
 (* Full correctness statement *)
-Lemma strlen_correct: forall len m b ofs le,
+Lemma strlen_correct_tedious: forall len m b ofs le,
       strlen m b ofs len -> exists t le',
       le!_input = Some (Vptr b ofs) ->
       exec_stmt ge e le  m f_strlen.(fn_body) t le' m (Out_return (Some ((Vint len),tuint))).
