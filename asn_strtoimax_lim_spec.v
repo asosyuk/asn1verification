@@ -3,6 +3,8 @@ From compcert Require Import Coqlib Integers Floats AST Ctypes Cop Clight Clight
 Local Open Scope Z_scope.
 Import ListNotations.
 
+(* Notations for integers *)
+
 Delimit Scope IntScope with int.
 Infix "==" := Int.eq (at level 70) : IntScope.
 Notation "x ~= y" := (negb Int.eq x y) (at level 70) : IntScope.
@@ -17,7 +19,6 @@ Notation "x <= y" := (negb (Int.lt y x)) (at level 70) : IntScope.
 Infix "%" := Int.mods (at level 70) : IntScope.
 Infix "//" := Int.divs (at level 70) : IntScope.
 Local Open Scope IntScope.
-
 
 (* Functional specification of INTEGER.asn_strtoimax_lim
  
@@ -45,35 +46,6 @@ Definition asn_strtox_result_e_to_int (s : asn_strtox_result_e) : int :=
 
 Definition addr : Type := (block*ptrofs).
 
-(* Predicate stating that there is a C string of length n at address a1 
-Inductive Cstring (m : mem) (b : block) (ofs : ptrofs) : nat -> Prop :=
-| EmptyString: Mem.loadv Mint8signed m (Vptr b ofs) = Some (Vint Int.zero) -> Cstring m b ofs O
-| SuccString: forall n c, Mem.loadv Mint8signed m (Vptr b ofs)  = Some (Vint c) ->
-                        c <> Int.zero ->
-                        Cstring m b (Ptrofs.add ofs Ptrofs.one) n ->
-                        Cstring m b ofs (S n). *)
-  
-(* Formalize intmax_t and uintmax_t ??? Maybe use module types? *)
-
-(* /* Largest integral types.  */
-#if __WORDSIZE == 64
-typedef long int		intmax_t;
-typedef unsigned long int	uintmax_t;
-#else
-__extension__
-typedef long long int		intmax_t;
-__extension__
-typedef unsigned long long int	uintmax_t;
-#endif 
-*)
-
-Inductive intsize : Type :=
-  | I8: intsize
-  | I32: intsize
-  | I64 : intsize.
-
-Definition intmax_t (s : intsize) := match s with | I64 => Int64.int | I32 => Int.int | I8 => Byte.int end.
-
 (* Placeholder for pointer comparison *)
 Hypothesis ptr_ge : addr -> addr -> bool.
 Parameter m : mem.
@@ -87,30 +59,48 @@ Notation minus_char := (Int.repr 45).
 Notation plus_char := (Int.repr 43).
 Notation zero_char := (Int.repr 48).
 
-
 Definition ASN1_INTMAX_MAX :=(Int.not 0) >> 1.
 Definition upper_boundary := ASN1_INTMAX_MAX // (Int.repr 10).
 Definition last_digit_max_plus := ASN1_INTMAX_MAX % (Int.repr 10).
 Definition last_digit_max_minus := (ASN1_INTMAX_MAX % (Int.repr 10)) + 1.
 (* [0-9]*)
 Definition digits := map Int.repr [48;49;50;51;52;53;54;55;56;57].
-
 Definition distance (a1 a2 : addr) : nat :=
   ((Z.to_nat (Ptrofs.unsigned (snd a1))) - (Z.to_nat (Ptrofs.unsigned (snd a1))))%nat.
 
-Program Fixpoint loop_spec (str : addr) (fin : addr) (value : int) (s: signedness) {measure (distance str fin) } : option (asn_strtox_result_e*addr*int*signedness)  :=
+(* The spec close to C code *)
+
+Program Fixpoint asn_strtoimax_lim_loop (str : addr) (fin : addr) (value : int) (s: signedness) (last_digit_m : int) {measure (distance str fin) } : option (asn_strtox_result_e*addr*int*signedness)  :=
   if Nat.eq_dec (distance str fin) O then Some (ASN_STRTOX_OK, str, value, s) else
   match load_addr m str with
   | Some (Vint i) => if existsb (fun j => Int.eq i j) digits then
                       let d := i - zero_char in
                       let v := (value*(Int.repr 10) + d) in
-                      if value < upper_boundary then loop_spec (str++) fin v s
-                      else if (value == upper_boundary) && (d <= last_digit_max_plus)
-                           then loop_spec (str++) fin v s
+                      if value < upper_boundary then asn_strtoimax_lim_loop (str++) fin v s last_digit_m
+                      else if (value == upper_boundary) && (d <= last_digit_m)
+                           then  asn_strtoimax_lim_loop (str++) fin v s last_digit_m
                            else Some (ASN_STRTOX_ERROR_RANGE,str,value,s) 
                       else Some (ASN_STRTOX_EXTRA_DATA, str,value,s)
   | _  => None (* fail of memory load: wrong type or not enough permission *)
   end.
+Admit Obligations.
+
+Definition asn_strtoimax_lim (str : addr) (fin : addr) (last_digit_max: int) : option (asn_strtox_result_e*addr*int*signedness) :=
+  if (O <=? (distance str fin))%nat then None (* error *)
+  else match load_addr m str with
+       | Some (Vint i) => if (i == minus_char) then asn_strtoimax_lim_loop (str++) fin 0 Signed (last_digit_max + 1)
+                         else if (i == plus_char) then asn_strtoimax_lim_loop (str++) fin 0 Unsigned last_digit_max
+                             else asn_strtoimax_lim_loop str fin 0 Unsigned last_digit_max                      
+       | _ => None (* fail of memory load: wrong type or not enough permission *)
+       end.
+         
+       
+
+                         
+                                                    
+  
+
+
 
 (* Program Fixpoint asn_strtoimax_lim_spec (str : addr) (fin : addr) (value : int) (last_digit_max: int) : option (asn_strtox_result_e*addr*int*signedness) :=
   if ptr_ge str p_end then (Some ASN_STRTOX_ERROR_INVAL,None)
