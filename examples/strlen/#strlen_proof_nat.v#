@@ -256,20 +256,6 @@ Qed.
 
 (* Correctness statements *)
 
-
-Lemma strlen_loop_correct_gen :
-  forall len i m b ofs le,
-    (* we read a C string of length len + i from memory and len + i is a valid integer *)
-    strlen m b ofs (len + i) ->   
-    (* THEN there is a trace t and local environment le' such that: *)
-    forall t le',
-      (* if output equals i in the starting local environment le *)
-      le!_output = Some (VintN i) ->
-      (* if input is an address [b,ofs + i] in the starting local environment *)
-      le!_input = Some (Vptr b (Ptrofs.add ofs (Ptrofs.repr (Z.of_nat i)))) ->     (* then loop of strlen function executes to le' with output assigned len + i *)
-      exec_stmt ge e le m f_strlen_loop t le' m Out_normal /\ le'!_output = Some (VintN (len + i)).
-Proof.
-
 (* A generalization of loop correctness *)
 Lemma strlen_loop_correct_gen :
   forall len i m b ofs le,
