@@ -45,10 +45,102 @@ Definition asn_strtox_result_e_to_int (s : asn_strtox_result_e) : int :=
   end.
 
 Definition addr : Type := (block*ptrofs).
-
-(* Placeholder for pointer comparison *)
-Hypothesis ptr_ge : addr -> addr -> bool.
 Parameter m : mem.
+Parameter ge : genv.
+Parameter e : env.
+Parameter le : temp_env.
+
+(* Pointer comparison *)
+Definition ptr_ge (a1 a2: addr) : option bool :=
+ match a1,a2 with (b1,ofs1), (b2,ofs2) =>
+                  if Archi.ptr64                                                   then Val.cmplu_bool (Mem.valid_pointer m) Cge (Vptr b1 ofs1) (Vptr b2 ofs2)                                                       else Val.cmpu_bool (Mem.valid_pointer m) Cge (Vptr b1 ofs1) (Vptr b2 ofs2)
+ end.
+
+Definition _end : ident := 152%positive.
+Definition _str : ident := 151%positive.
+Definition _t'6 : ident := 165%positive.
+
+Definition f_ptr_ge := (Sifthenelse (Ebinop Oge (Etempvar _str (tptr tschar))
+                         (Etempvar _end (tptr tschar)) tint)
+            (Sreturn (Some (Econst_int (Int.repr (-2)) tint)))
+            Sskip).
+
+(** [break_if] finds instances of [if _ then _ else _] in your goal or
+    context, and destructs the discriminee, while retaining the
+    information about the discriminee's value leading to the branch
+    being taken. *)
+Ltac break_if :=
+  match goal with
+    | [ |- context [ if ?X then _ else _ ] ] =>
+      match type of X with
+        | sumbool _ _ => destruct X
+        | _ => destruct X eqn:?
+      end
+    | [ H : context [ if ?X then _ else _ ] |- _] =>
+      match type of X with
+        | sumbool _ _ => destruct X
+        | _ => destruct X eqn:?
+      end
+  end.
+
+(** [break_let] breaks a destructuring [let] for a pair. *)
+Ltac break_let :=
+  match goal with
+    | [ H : context [ (let (_,_) := ?X in _) ] |- _ ] => destruct X eqn:?
+    | [ |- context [ (let (_,_) := ?X in _) ] ] => destruct X eqn:?
+end.
+
+Ltac break_match_hyp :=
+  match goal with
+    | [ H : context [ match ?X with _ => _ end ] |- _] =>
+      match type of X with
+        | sumbool _ _ => destruct X
+        | _ => destruct X eqn:?
+      end
+  end.
+
+Proposition ptr_ge_corr : forall a1 a2, ptr_ge a1 a2 = Some true -> exists t le',
+      le!_str = Some (Vptr (fst a1) (snd a1)) ->
+      le!_end = Some (Vptr (fst a2) (snd a2)) ->                  
+      exec_stmt ge e le m f_ptr_ge t le' m (Out_return (Some (Vint (Int.repr (-2)),tint))).
+Proof.
+  intros str fin Spec.
+   unfold ptr_ge in Spec.
+  (*assert (Archi.ptr64 = false) as A by (simpl; auto); rewrite A in Spec. *)
+  repeat break_let.
+  (* repeat break_if. subst. *)
+  repeat eexists.
+  intros Fin Str.
+  repeat econstructor.
+  apply Fin.
+  apply Str.
+  simpl.
+  unfold sem_cmp.
+  simpl.
+  unfold cmp_ptr.
+  pose (option_map Val.of_bool (if Archi.ptr64
+          then
+           Val.cmplu_bool (Mem.valid_pointer m) Cge 
+             (Vptr b i) (Vptr b0 i0)
+          else
+           Val.cmpu_bool (Mem.valid_pointer m) Cge 
+             (Vptr b i) (Vptr b0 i0))).
+    assert ( (option_map Val.of_bool (if Archi.ptr64
+          then
+           Val.cmplu_bool (Mem.valid_pointer m) Cge 
+             (Vptr b i) (Vptr b0 i0)
+          else
+           Val.cmpu_bool (Mem.valid_pointer m) Cge 
+                         (Vptr b i) (Vptr b0 i0))) = (option_map Val.of_bool (Some true))).
+    f_equal.
+    assumption.
+    eapply H.
+    simpl.
+    econstructor.
+    econstructor.
+    econstructor.
+    Qed.
+    
 (* we are reading a char type from the memory *)
 Definition chunk := Mint8signed : memory_chunk.
 
@@ -85,100 +177,27 @@ Program Fixpoint asn_strtoimax_lim_loop (str : addr) (fin : addr) (value : int) 
   end.
 Admit Obligations.
 
-Definition asn_strtoimax_lim (str : addr) (fin : addr) (last_digit_max: int) : option (asn_strtox_result_e*addr*int*signedness) :=
-  if (O <=? (distance str fin))%nat then None (* error *)
-  else match load_addr m str with
-       | Some (Vint i) => if (i == minus_char) then asn_strtoimax_lim_loop (str++) fin 0 Signed (last_digit_max + 1)
-                         else if (i == plus_char) then asn_strtoimax_lim_loop (str++) fin 0 Unsigned last_digit_max
-                             else asn_strtoimax_lim_loop str fin 0 Unsigned last_digit_max                      
-       | _ => None (* fail of memory load: wrong type or not enough permission *)
-       end.
-         
-       
-
-                         
-                                                    
-  
-
-
-
-(* Program Fixpoint asn_strtoimax_lim_spec (str : addr) (fin : addr) (value : int) (last_digit_max: int) : option (asn_strtox_result_e*addr*int*signedness) :=
-  if ptr_ge str p_end then (Some ASN_STRTOX_ERROR_INVAL,None)
-  else match load_addr m str with
-       | Some (Vint i) =>
-         if (Int.eq i minus_char)
-         then asn_strtoimax_lim_spec m (str++) fin value last_digit_max_minus
-         else if (Int.eq i minus_char) then
-         asn_strtoimax_lim_spec m (str++) fin value last_digit_max_plus
-       | _ => (None, None)(* do loop *)   
-      end          
-  end. *)
-
-
-
-Variable valid_ptr: block -> Z -> bool.
-
-
-Definition asn_strtoimax_lim_spec_64 (m : Mem.mem) (b_str : block) (ofs_str : ptrofs)
-           (b_end : block) (ofs_end : ptrofs) : option (Int.int*val) :=
-  
-  let ASN1_INTMAX_MAX := Int64.shru (Int64.not Int64.zero) Int64.one in
-  
-  match  Val.cmpu_bool valid_ptr Cge (Vptr b_str ofs_str) (Vptr b_end ofs_str) with
-    
-  | Some true => Some (asn_strtox_result_e_to_int ASN_STRTOX_ERROR_INVAL,  (Vptr b_end ofs_str))   
-  | None => None (* failed comparison *)
-        end.
-
-Definition asn_strtoimax_lim_spec_INT_TYPE (s : intsize) (m : Mem.mem) (pstr : addr) (pend : addr) : option (Int.int*addr) :=
-  match s with
-  | I64 => asn_strtoimax_lim_spec_64 m pstr pend
-  | _ =>  Some (Int.zero, pend)
+Definition asn_strtoimax_lim (str fin : addr) (last_digit_max: int) : option (asn_strtox_result_e*addr*int*signedness) :=
+  match ptr_ge str fin with
+  | Some true => None (* error *)
+  | Some false => match load_addr m str with
+                 | Some (Vint i) =>
+                   if (i == minus_char)
+                   then asn_strtoimax_lim_loop (str++) fin 0 Signed (last_digit_max + 1)
+                   else if (i == plus_char)
+                        then asn_strtoimax_lim_loop (str++) fin 0 Unsigned last_digit_max
+                        else asn_strtoimax_lim_loop str fin 0 Unsigned last_digit_max                      
+                 | _ => None (* fail of memory load: wrong type or not enough permission *)
+                 end
+  | None => None (* error in pointer comparison *)
   end.
-  
+
+
   
 Fact shift_pow2_div :  (Int64.shru (Int64.not Int64.zero) Int64.one) = Int64.repr (Int64.max_unsigned / 2).
   replace (Int64.not Int64.zero) with (Int64.repr Int64.max_unsigned) by (auto with ints).
   unfold Int64.shru.
   f_equal.
   Qed.
-  
-  
-  
 
 
-
-
-(* STRTOIMAX(3)               Linux Programmer's Manual              STRTOIMAX(3)
-
-NAME
-       strtoimax, strtoumax - convert string to integer
-
-SYNOPSIS
-       #include <inttypes.h>
-
-       intmax_t strtoimax(const char *nptr, char **endptr, int base);
-       uintmax_t strtoumax(const char *nptr, char **endptr, int base);
-
-DESCRIPTION
-       These  functions  are  just  like strtol(3) and strtoul(3), except that
-       they return a value of type intmax_t and uintmax_t, respectively.
-
-RETURN VALUE
-       On success, the converted value is returned.  If nothing was  found  to
-       convert, zero is returned.  On overflow or underflow INTMAX_MAX or INT‐
-       MAX_MIN or UINTMAX_MAX is returned, and errno is set to ERANGE.
- *)
-
-(* /* Largest integral types.  */
-#if __WORDSIZE == 64
-typedef long int		intmax_t;
-typedef unsigned long int	uintmax_t;
-#else
-__extension__
-typedef long long int		intmax_t;
-__extension__
-typedef unsigned long long int	uintmax_t;
-#endif 
-
-*)
