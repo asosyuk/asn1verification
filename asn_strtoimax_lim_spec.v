@@ -145,6 +145,8 @@ Proof.
 Definition chunk := Mint8signed : memory_chunk.
 Definition load_addr (m : mem) (a : addr) := match a with (b,ofs) =>  Mem.loadv chunk m (Vptr b ofs) end.
 Definition next_addr (a : addr) := match a with (b,ofs) => (b, Ptrofs.add ofs Ptrofs.one) end.
+Definition add_addr (a : addr) (i : ptrofs) := match a with (b,ofs) => (b, Ptrofs.add ofs i) end.
+
 Notation "a ++" := (next_addr a) (at level 20).
 Notation minus_char := (Int.repr 45).
 Notation plus_char := (Int.repr 43).
@@ -163,7 +165,6 @@ Definition last_digit_max_plus := ASN1_INTMAX_MAX % (Int.repr 10).
 Definition last_digit_max_minus := (ASN1_INTMAX_MAX % (Int.repr 10)) + 1.
 (* [0-9]*)
 Definition digits := map Int.repr [48;49;50;51;52;53;54;55;56;57].
-
 Definition distance (a1 a2 : addr) : nat :=
   ((Z.to_nat (Ptrofs.unsigned (snd a1))) - (Z.to_nat (Ptrofs.unsigned (snd a1))))%nat.
 
@@ -202,6 +203,62 @@ Definition asn_strtoimax_lim (str fin : addr) : option (asn_strtox_result_e*(opt
   | None => None (* error in pointer comparison *)
   end.
 
+(* Useful lemmas about the spec *)
+
+(* Inversion lemmas *)
+Lemma strtoimax_inv_ge : forall str fin outp, 
+  asn_strtoimax_lim str fin = Some (ASN_STRTOX_OK,outp) ->
+  addr_ge str fin = Some false.
+Proof.
+  intros until outp; intro Spec.
+  unfold asn_strtoimax_lim in Spec.
+  break_match.
+  destruct b.
+  1,3: congruence.
+  auto.
+Qed.
+
+Lemma strtoimax_loop_inv : forall n str fin outp value,
+    asn_strtoimax_lim_loop str fin value Signed last_digit_max_minus (S n) =
+    Some (ASN_STRTOX_OK, outp) ->
+    exists i, asn_strtoimax_lim_loop (str ++) fin  (value * Int.repr 10 + (i - zero_char)) Signed last_digit_max_minus n =
+    Some (ASN_STRTOX_OK, outp).
+Proof.
+  intros.
+  simpl in H.
+  break_if.
+  all: repeat break_match; try congruence; exists i; assumption.
+Qed.
+
+Lemma Mem_inversion_test: forall str fin value,
+    asn_strtoimax_lim str fin = Some (ASN_STRTOX_OK, Some (str, value, Unsigned)) ->
+    exists v, load_addr m str = Some v.
+Proof.
+  intros.
+ 
+  unfold asn_strtoimax_lim in H.
+  unfold asn_strtoimax_lim_loop in H.
+  break_match.
+  break_if.
+  congruence.
+  break_match.
+  exists v. auto.
+  congruence.
+  congruence.
+Qed.
+
+Lemma strtoimax_inv_mem : forall n str fin outp value, 
+  asn_strtoimax_lim_loop str fin value Signed last_digit_max_minus n = Some (ASN_STRTOX_OK, outp) ->
+  forall i, (i < n)%nat -> exists v, load_addr m (add_addr str (Ptrofs.repr (Z.of_nat i))) = Some (Vint v) /\ existsb (fun j => Int.eq v j) digits = true.
+Proof.
+  induction n.
+  - intros. nia.
+  - intros until value; intro H.
+    pose (strtoimax_loop_inv _ _ _ _ _ H) as S.
+    destruct S as [j S].
+    pose (IHn (str++) fin  outp (value * Int.repr 10 + (j - zero_char)) S) as N.
+    Admitted.
+    
 Definition _last_digit_max : ident := 155%positive.
 Definition _upper_boundary : ident := 155%positive.
 Definition _value : ident := 29%positive.
@@ -421,6 +478,149 @@ Definition f_asn_strtoimax_lim := {|
 
 Definition vptr (a : addr) := match a with (b,ofs) => Vptr b ofs end.
 
+Definition f_asn_strtoimax_lim_loop :=
+(Sloop
+                (Ssequence
+                  (Ssequence
+                    (Sset _t'3
+                      (Ederef (Etempvar _end (tptr (tptr tschar)))
+                        (tptr tschar)))
+                    (Sifthenelse (Ebinop Olt (Etempvar _str (tptr tschar))
+                                   (Etempvar _t'3 (tptr tschar)) tint)
+                      Sskip
+                      Sbreak))
+                  (Ssequence
+                    (Sset _t'1 (Ederef (Etempvar _str (tptr tschar)) tschar))
+                    (Sswitch (Ederef (Etempvar _str (tptr tschar)) tschar)
+                      (LScons (Some 48)
+                        Sskip
+                        (LScons (Some 49)
+                          Sskip
+                          (LScons (Some 50)
+                            Sskip
+                            (LScons (Some 51)
+                              Sskip
+                              (LScons (Some 52)
+                                Sskip
+                                (LScons (Some 53)
+                                  Sskip
+                                  (LScons (Some 54)
+                                    Sskip
+                                    (LScons (Some 55)
+                                      Sskip
+                                      (LScons (Some 56)
+                                        Sskip
+                                        (LScons (Some 57)
+                                          (Ssequence
+                                            (Ssequence
+                                              (Sset _t'2
+                                                (Ederef
+                                                  (Etempvar _str (tptr tschar))
+                                                  tschar))
+                                              (Sset _d
+                                                (Ebinop Osub
+                                                  (Etempvar _t'2 tschar)
+                                                  (Econst_int (Int.repr 48) tint)
+                                                  tint)))
+                                            (Ssequence
+                                              (Sifthenelse (Ebinop Olt
+                                                             (Etempvar _value tlong)
+                                                             (Etempvar _upper_boundary tlong)
+                                                             tint)
+                                                (Sset _value
+                                                  (Ebinop Oadd
+                                                    (Ebinop Omul
+                                                      (Etempvar _value tlong)
+                                                      (Econst_int (Int.repr 10) tint)
+                                                      tlong)
+                                                    (Etempvar _d tint) tlong))
+                                                (Sifthenelse (Ebinop Oeq
+                                                               (Etempvar _value tlong)
+                                                               (Etempvar _upper_boundary tlong)
+                                                               tint)
+                                                  (Sifthenelse (Ebinop Ole
+                                                                 (Etempvar _d tint)
+                                                                 (Etempvar _last_digit_max tlong)
+                                                                 tint)
+                                                    (Sifthenelse (Ebinop Ogt
+                                                                   (Etempvar _sign tint)
+                                                                   (Econst_int (Int.repr 0) tint)
+                                                                   tint)
+                                                      (Sset _value
+                                                        (Ebinop Oadd
+                                                          (Ebinop Omul
+                                                            (Etempvar _value tlong)
+                                                            (Econst_int (Int.repr 10) tint)
+                                                            tlong)
+                                                          (Etempvar _d tint)
+                                                          tlong))
+                                                      (Ssequence
+                                                        (Sset _sign
+                                                          (Econst_int (Int.repr 1) tint))
+                                                        (Sset _value
+                                                          (Ebinop Osub
+                                                            (Ebinop Omul
+                                                              (Eunop Oneg
+                                                                (Etempvar _value tlong)
+                                                                tlong)
+                                                              (Econst_int (Int.repr 10) tint)
+                                                              tlong)
+                                                            (Etempvar _d tint)
+                                                            tlong))))
+                                                    (Ssequence
+                                                      (Sassign
+                                                        (Ederef
+                                                          (Etempvar _end (tptr (tptr tschar)))
+                                                          (tptr tschar))
+                                                        (Etempvar _str (tptr tschar)))
+                                                      (Sreturn (Some (Econst_int (Int.repr (-3)) tint)))))
+                                                  (Ssequence
+                                                    (Sassign
+                                                      (Ederef
+                                                        (Etempvar _end (tptr (tptr tschar)))
+                                                        (tptr tschar))
+                                                      (Etempvar _str (tptr tschar)))
+                                                    (Sreturn (Some (Econst_int (Int.repr (-3)) tint))))))
+                                              Scontinue))
+                                          (LScons None
+                                            (Ssequence
+                                              (Sassign
+                                                (Ederef
+                                                  (Etempvar _end (tptr (tptr tschar)))
+                                                  (tptr tschar))
+                                                (Etempvar _str (tptr tschar)))
+                                              (Ssequence
+                                                (Sassign
+                                                  (Ederef
+                                                    (Etempvar _intp (tptr tlong))
+                                                    tlong)
+                                                  (Ebinop Omul
+                                                    (Etempvar _sign tint)
+                                                    (Etempvar _value tlong)
+                                                    tlong))
+                                                (Sreturn (Some (Econst_int (Int.repr 1) tint)))))
+                                            LSnil))))))))))))))
+                (Sset _str
+                  (Ebinop Oadd (Etempvar _str (tptr tschar))
+                    (Econst_int (Int.repr 1) tint) (tptr tschar)))).
+
+
+
+
+Lemma asn_strtoimax_lim_loop_correct : forall str fin value, 
+    asn_strtoimax_lim str fin = Some (ASN_STRTOX_OK, Some (str, value, Unsigned)) ->
+    exists t le', le!_str = Some (vptr str)  ->
+             le!_end = Some (vptr fin) ->
+      
+             exec_stmt ge e le m f_asn_strtoimax_lim_loop t le' m (Out_return (Some (Vint (asn_strtox_result_e_to_int ASN_STRTOX_OK), tint)))
+             /\ le'!_intp = Some (Vint value)
+             /\ le'!_end = Some (vptr str).
+Proof.
+  Admitted.
+
+
+
+  
 Theorem asn_strtoimax_lim_correct : forall str fin value, 
     asn_strtoimax_lim str fin = Some (ASN_STRTOX_OK, Some (str, value, Unsigned)) ->
     exists t le', le!_str = Some (vptr str)  ->
@@ -429,9 +629,84 @@ Theorem asn_strtoimax_lim_correct : forall str fin value,
              exec_stmt ge e le m f_asn_strtoimax_lim.(fn_body) t le' m (Out_return (Some (Vint (asn_strtox_result_e_to_int ASN_STRTOX_OK), tint)))
              /\ le'!_intp = Some (Vint value)
              /\ le'!_end = Some (vptr str).
+Proof.
+  intros until value; intro Spec.
+  unfold vptr.
+  repeat break_let.
+  repeat eexists.
+  econstructor.
+  repeat econstructor.
+  econstructor.
+    econstructor.
+
+    econstructor.
+      econstructor.
+  econstructor.
+  econstructor.
+  econstructor.
+  econstructor.
+  econstructor.
+  econstructor.
+  econstructor.
+  econstructor.
+  econstructor.
+  econstructor.
+  - repeat   econstructor.
+  - econstructor.
+   repeat econstructor. 
+
+  rewrite PTree.gso.
+  rewrite PTree.gso.
+  rewrite PTree.gso.
+  eapply H0.
+  1-3: cbv; congruence.
+  (* dereferencing double pointer *)
+  assert  (Mem.loadv Mptr m (Vptr b0 i0)  =  Some (Vptr b0 i0)) by admit.            
+  apply H1.
+ rewrite PTree.gso.
+  rewrite PTree.gso.
+  rewrite PTree.gso.
+  rewrite PTree.gso.
+  apply H.
+  1-4: cbv; congruence.
+  apply PTree.gss.
+  simpl.
+  assert (sem_cmp Cge (Vptr b i) (tptr tschar) (Vptr b0 i0) (tptr tschar) m = Some Vfalse) by admit. (* follows from spec: TODO*)
+  apply H1.
+  econstructor.
+  econstructor.
+   econstructor.
+    econstructor. repeat econstructor. 
+
+  rewrite PTree.gso.
+  rewrite PTree.gso.
+  rewrite PTree.gso.
+    rewrite PTree.gso.
+    eapply H.
+    1-4: cbv; congruence.
+    (* assumptions about what we read from spec *)
+    (* case 1: a digit *)
+    assert (Mem.loadv Mint8signed m (Vptr b i) = Some (Vint (Int.repr 50))) by admit.
+    apply H1.
+    Print exec_stmt.
+    Print outcome_switch.
+    replace Out_normal with (outcome_switch Out_normal).
+    econstructor.
+    repeat econstructor.
+    rewrite PTree.gso.
+  rewrite PTree.gso.
+  rewrite PTree.gso.
+  rewrite PTree.gso.
+    rewrite PTree.gso.
   
-              
-
-
-
-
+    eapply H.
+    1-5: cbv; congruence.
+    assert (Mem.loadv Mint8signed m (Vptr b i) = Some (Vint (Int.repr 50))) by admit.
+    eapply H1.
+    econstructor.
+    econstructor.
+    econstructor.
+    (* passed the switch statement *)
+    Admitted.
+    
+    
