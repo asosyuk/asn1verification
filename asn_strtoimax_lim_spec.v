@@ -35,6 +35,7 @@ Notation "x <= y" := (negb (Ptrofs.ltu y x)) (at level 70) : PtrofsScope.
 Infix "%" := Ptrofs.mods (at level 70) : PtrofsScope.
 Infix "//" := Ptrofs.divs (at level 70) : PtrofsScope.
 
+
 Local Open Scope IntScope.
 
 (* Functional specification of INTEGER.asn_strtoimax_lim
@@ -54,9 +55,9 @@ Inductive asn_strtox_result_e :=
 
 Definition asn_strtox_result_e_to_int (s : asn_strtox_result_e) : int :=
   match s with
-    | ASN_STRTOX_ERROR_RANGE => Int.repr (-1)  
-    | ASN_STRTOX_ERROR_INVAL => Int.repr (-3)
-    | ASN_STRTOX_EXPECT_MORE => Int.repr (-2)
+    | ASN_STRTOX_ERROR_RANGE => Int.repr (-3)  
+    | ASN_STRTOX_ERROR_INVAL => Int.repr (-2)
+    | ASN_STRTOX_EXPECT_MORE => Int.repr (-1)
     | ASN_STRTOX_EXTRA_DATA => Int.repr 1 
     | ASN_STRTOX_OK => Int.repr 0
   end.
@@ -78,7 +79,8 @@ Definition ptr_ge_spec (b1 b2 : block) (ofs1 ofs2 : ptrofs) :=
 (* Concrete spec using Compcert semantic values *)
 
 Definition ptr_ge (b1 b2 : block) (ofs1 ofs2 : ptrofs) := if Archi.ptr64
-  then Val.cmplu_bool (Mem.valid_pointer m) Cge (Vptr b1 ofs1) (Vptr b2 ofs2)                        else Val.cmpu_bool (Mem.valid_pointer m) Cge (Vptr b1 ofs1) (Vptr b2 ofs2).
+                                                          then Val.cmplu_bool (Mem.valid_pointer m) Cge (Vptr b1 ofs1) (Vptr b2 ofs2)
+                                                          else Val.cmpu_bool (Mem.valid_pointer m) Cge (Vptr b1 ofs1) (Vptr b2 ofs2).
 
 
 Proposition ptr_ge_refine : forall (b1 b2 : block) (ofs1 ofs2 : ptrofs),
@@ -142,8 +144,8 @@ Proof.
     Qed.
     
 (* We are reading a char type from the memory *)
-Definition chunk := Mint8signed : memory_chunk.
-Definition load_addr (m : mem) (a : addr) := match a with (b,ofs) =>  Mem.loadv chunk m (Vptr b ofs) end.
+Definition load_addr (chunk : memory_chunk) (m : mem) (a : addr) := match a with (b,ofs) =>  Mem.loadv chunk m (Vptr b ofs) end.
+
 Definition next_addr (a : addr) := match a with (b,ofs) => (b, Ptrofs.add ofs Ptrofs.one) end.
 Definition add_addr (a : addr) (i : ptrofs) := match a with (b,ofs) => (b, Ptrofs.add ofs i) end.
 
@@ -173,34 +175,40 @@ Definition distance (a1 a2 : addr) : nat :=
 Fixpoint asn_strtoimax_lim_loop (str : addr) (fin : addr) (value : int) (s: signedness) (last_digit : int) (dist : nat) {struct dist} : option (asn_strtox_result_e*option (addr*int*signedness))  :=
    match dist with
    | O => Some (ASN_STRTOX_OK, Some (str, value, s))
-   | S n => match load_addr m str with
-           | Some (Vint i) => if existsb (fun j => Int.eq i j) digits then
-                      let d := i - zero_char in
-                      let v := (value*(Int.repr 10) + d) in
-                      if value < upper_boundary
-                      then asn_strtoimax_lim_loop (str++) fin v s last_digit n
-                      else if (value == upper_boundary) && (d <= last_digit)
-                           then asn_strtoimax_lim_loop (str++) fin v s last_digit n
-                           else Some (ASN_STRTOX_ERROR_RANGE, Some (str,value,s)) 
-                      else Some (ASN_STRTOX_EXTRA_DATA, Some (str,value,s))
-           | _  => None (* fail of memory load: wrong type or not enough permission *)
+   | S n => match load_addr Mint8signed m str with
+            | Some (Vint i) =>
+              if existsb (fun j => Int.eq i j) digits
+              then
+                let d := i - zero_char in
+                let v := (value*(Int.repr 10) + d) in
+                if value < upper_boundary
+                then asn_strtoimax_lim_loop (str++) fin v s last_digit n
+                else if (value == upper_boundary) && (d <= last_digit)
+                     then asn_strtoimax_lim_loop (str++) fin v s last_digit n
+                     else Some (ASN_STRTOX_ERROR_RANGE, Some (str,value,s)) 
+              else Some (ASN_STRTOX_EXTRA_DATA, Some (str,value,s))
+            | _  => None (* fail of memory load: wrong type or not enough permission *)
             end
   end.
 
 Definition asn_strtoimax_lim (str fin : addr) : option (asn_strtox_result_e*(option(addr*int*signedness))) :=
-  match addr_ge str fin with (* compare str and fin *)
-  | Some true => Some (ASN_STRTOX_ERROR_INVAL, None)
-  | Some false => let dist := distance str fin in
-                 match load_addr m str with
-                 | Some (Vint i) =>
-                   if (i == minus_char)
-                   then asn_strtoimax_lim_loop (str++) fin 0 Signed last_digit_max_minus dist
-                   else if (i == plus_char)
-                        then asn_strtoimax_lim_loop (str++) fin 0 Unsigned last_digit_max_plus dist
-                        else asn_strtoimax_lim_loop str fin 0 Unsigned last_digit_max_plus dist
-                 | _ => None (* fail of memory load on str: wrong type or not enough permission *)
-                 end
-  | None => None (* error in pointer comparison *)
+  match load_addr Mptr m fin with (* derefencing **fin *)
+  | Some (Vptr b ofs) =>  
+             match addr_ge str (b,ofs) with (* compare str and *fin *)
+             | Some true => Some (ASN_STRTOX_ERROR_INVAL, None)
+             | Some false => let dist := distance str (b,ofs) in
+                            match load_addr Mint8signed m str with
+                            | Some (Vint i) =>
+                              if (i == minus_char)
+                              then asn_strtoimax_lim_loop (str++) (b,ofs) 0 Signed last_digit_max_minus dist
+                              else if (i == plus_char)
+                                   then asn_strtoimax_lim_loop (str++) (b,ofs) 0 Unsigned last_digit_max_plus dist
+                                   else asn_strtoimax_lim_loop str (b,ofs) 0 Unsigned last_digit_max_plus dist
+                            | _ => None (* fail of memory load on str: wrong type or not enough permission *)
+                            end
+             | None => None (* error in pointer comparison *)
+             end
+   | _ => None (* fail of pointer to fin *) 
   end.
 
 (* Useful lemmas about the spec *)
@@ -210,13 +218,7 @@ Lemma strtoimax_inv_ge : forall str fin outp,
   asn_strtoimax_lim str fin = Some (ASN_STRTOX_OK,outp) ->
   addr_ge str fin = Some false.
 Proof.
-  intros until outp; intro Spec.
-  unfold asn_strtoimax_lim in Spec.
-  break_match.
-  destruct b.
-  1,3: congruence.
-  auto.
-Qed.
+Admitted.
 
 Lemma strtoimax_loop_inv : forall n str fin outp value,
     asn_strtoimax_lim_loop str fin value Signed last_digit_max_minus (S n) =
@@ -230,26 +232,9 @@ Proof.
   all: repeat break_match; try congruence; exists i; assumption.
 Qed.
 
-Lemma Mem_inversion_test: forall str fin value,
-    asn_strtoimax_lim str fin = Some (ASN_STRTOX_OK, Some (str, value, Unsigned)) ->
-    exists v, load_addr m str = Some v.
-Proof.
-  intros.
- 
-  unfold asn_strtoimax_lim in H.
-  unfold asn_strtoimax_lim_loop in H.
-  break_match.
-  break_if.
-  congruence.
-  break_match.
-  exists v. auto.
-  congruence.
-  congruence.
-Qed.
-
 Lemma strtoimax_inv_mem : forall n str fin outp value, 
   asn_strtoimax_lim_loop str fin value Signed last_digit_max_minus n = Some (ASN_STRTOX_OK, outp) ->
-  forall i, (i < n)%nat -> exists v, load_addr m (add_addr str (Ptrofs.repr (Z.of_nat i))) = Some (Vint v) /\ existsb (fun j => Int.eq v j) digits = true.
+  forall i, (i < n)%nat -> exists v, load_addr Mint8signed m (add_addr str (Ptrofs.repr (Z.of_nat i))) = Some (Vint v) /\ existsb (fun j => Int.eq v j) digits = true.
 Proof.
   induction n.
   - intros. nia.
@@ -605,9 +590,199 @@ Definition f_asn_strtoimax_lim_loop :=
                     (Econst_int (Int.repr 1) tint) (tptr tschar)))).
 
 
+Ltac exec_until_seq := 
+     repeat  match goal with
+            | [ |- exec_stmt _ _ _ _ (Ssequence _ _)  _ _ _ _ ] => idtac
+            | _ => econstructor ; exec_until_seq
+
+             end. 
+
+Lemma loop_result : forall  (dist : nat) (str : addr) (fin : addr) (value : int) (s: signedness) (last_digit : int), asn_strtoimax_lim_loop str fin value s last_digit dist <> Some (ASN_STRTOX_ERROR_INVAL, None).
+Proof.
+  induction dist.
+  intros.
+  simpl.
+  congruence.
+  intros.
+  simpl.
+  repeat break_match.
+  repeat break_if.
+  all: try congruence.
+  Qed.
+
+Lemma asn_strtoimax_lim_loop_correct_extra_data : forall dist str fin value s last_digit,
+    
+    asn_strtoimax_lim_loop str fin value s last_digit dist = Some (ASN_STRTOX_EXTRA_DATA, None) ->
+    
+     exists t le', le!_str = Some (vptr str)  ->
+                   le!_end = Some (vptr fin) ->
+                   le!_value = Some (Vlong (Int64.repr (Int.unsigned value))) ->
+              
+             exec_stmt ge e le m f_asn_strtoimax_lim_loop t le' m (Out_return (Some (Vint (asn_strtox_result_e_to_int ASN_STRTOX_EXTRA_DATA), tint))).
+Proof.
+  induction dist.
+  intros.
+  simpl in H. congruence.
+  intros.
+  simpl in H.
+  repeat break_match.
+  all: try congruence.
+  pose (IHdist (str ++) fin (value * Int.repr 10 + (i - zero_char)) s
+               last_digit H). (* change le *)
+  destruct e0.
+  destruct H0.
+  unfold vptr in *.
+  repeat break_let.
+  simpl in  Heqp.
+  inversion  Heqp.
+  rewrite H2 in *.
+  repeat eexists.
+  intros.
+  repeat econstructor.
+  apply H4.
+  assert (Mem.loadv Mptr m (Vptr b0 i1) = Some (Vptr b0 i1)) as M by admit. (* derefencing a pointer *)
+  apply M.
+  rewrite PTree.gso.
+  apply H1.
+  cbv; congruence.
+  apply PTree.gss.
+  simpl.
+  assert (sem_cmp Clt (Vptr b i2) (tptr tschar) (Vptr b0 i1) (tptr tschar) m = Some Vtrue) as T by admit.
+  apply T.
+  repeat econstructor.
+  econstructor.
+  rewrite PTree.gso.
+  apply H1.
+  cbv; congruence.
+  simpl in Heqo.
+  apply Heqo.
+  repeat  rewrite PTree.gso.
+  apply H1.
+  1-2: cbv; congruence.
+  repeat  rewrite PTree.gso.
+  simpl in Heqo.
+  apply Heqo.
+  simpl.
+  econstructor.
+  Print exec_stmt.
+  Print seq_of_labeled_statement.
+  Print select_switch.
+  replace i with (Int.repr 48) by admit.
+  repeat econstructor.
+    repeat  rewrite PTree.gso.
+    apply H1.
+    1-2:  cbv; congruence.
+     simpl in Heqo.
+     apply Heqo.
+     apply PTree.gss.
+     econstructor.
+     repeat  rewrite PTree.gso.
+  apply H5.
+  1-4: cbv; congruence.
+  assert (le! _upper_boundary = Some (Vlong (Int64.repr (Int.unsigned upper_boundary)))) by admit.
+  repeat  rewrite PTree.gso.
+  apply H6.
+  1-4: cbv; congruence.
+  simpl.
+  econstructor.
+  unfold tlong.
+  simpl.
+  replace (Int64.lt (Int64.repr (Int.unsigned value))
+          (Int64.repr (Int.unsigned upper_boundary))) with true.
+    
+  econstructor.
+  (* follows from an assumption *)
+  admit.
+  break_if.
+  repeat econstructor.
+  repeat  rewrite PTree.gso.
+  apply H5.
+  1-4: cbv; congruence.
+  repeat econstructor.
+  apply PTree.gss.
+  repeat econstructor.
+
+  repeat econstructor.
+  repeat  rewrite PTree.gso.
+  apply H5.
+  1-4: cbv; congruence.
+  assert (le! _upper_boundary = Some (Vlong (Int64.repr (Int.unsigned upper_boundary)))) by admit.
+  repeat  rewrite PTree.gso.
+  apply H6.
+  1-4: cbv; congruence.
+  repeat econstructor.
+  unfold tlong.
+  simpl.
+  Admitted.
+
+Lemma asn_strtoimax_lim_loop_correct : forall str fin,
+    
+    asn_strtoimax_lim str fin = Some (ASN_STRTOX_ERROR_INVAL, None) ->
+    
+     exists t le', le!_str = Some (vptr str)  ->
+              le!_end = Some (vptr fin) ->
+              
+             exec_stmt ge e le m f_asn_strtoimax_lim.(fn_body) t le' m (Out_return (Some (Vint (asn_strtox_result_e_to_int ASN_STRTOX_ERROR_INVAL), tint))).
+Proof.
+  intros.
+  unfold asn_strtoimax_lim in H.
+  
+  break_match.
+  break_match.
+  all: try congruence.
+  break_match.
+  unfold addr_ge in Heqo0.
+  destruct b0.
+  unfold vptr in *.
+  repeat break_let.
+   unfold addr_ge in Heqo0.
+   replace (asn_strtox_result_e_to_int ASN_STRTOX_ERROR_INVAL) with  (Int.repr (-2)).
+  repeat eexists.
+  intros Str Fin.
+  exec_until_seq.
+  econstructor.
+  exec_until_seq.
+  econstructor.
+  exec_until_seq.
+  eapply  exec_Sseq_2.
+  repeat econstructor.
+  repeat rewrite PTree.gso.
+  apply Fin.
+  1-3: cbv; congruence.
+  unfold load_addr in *.
+  apply Heqo.
+  repeat rewrite PTree.gso.
+  apply Str.
+  1-4: try (cbv;congruence).
+  apply PTree.gss.
+  simpl.
+  unfold sem_cmp.
+  simpl.
+  unfold cmp_ptr.
+  assert (option_map Val.of_bool
+    (if Archi.ptr64
+     then Val.cmplu_bool (Mem.valid_pointer m) Cge (Vptr b0 i0) (Vptr b i)
+     else Val.cmpu_bool (Mem.valid_pointer m) Cge (Vptr b0 i0) (Vptr b i)) = (option_map Val.of_bool (Some true))).
+  f_equal.
+  unfold ptr_ge in Heqo0.
+  assumption.
+    eapply H0.
+    simpl.
+    econstructor.
+    repeat econstructor.
+    cbv; congruence.
+    cbv. auto.
+    repeat break_match.
+    all: try congruence.
+    all: pose (loop_result _ _ _ _ _ _ H).
+    all: contradiction.
+Qed.
 
 
-Lemma asn_strtoimax_lim_loop_correct : forall str fin value, 
+
+  
+
+Lemma asn_strtoimax_lim_loop_correct' : forall str fin value, 
     asn_strtoimax_lim str fin = Some (ASN_STRTOX_OK, Some (str, value, Unsigned)) ->
     exists t le', le!_str = Some (vptr str)  ->
              le!_end = Some (vptr fin) ->
@@ -621,7 +796,7 @@ Proof.
 
 
   
-Theorem asn_strtoimax_lim_correct : forall str fin value, 
+Theorem asn_strtoimax_lim_correct'' : forall str fin value, 
     asn_strtoimax_lim str fin = Some (ASN_STRTOX_OK, Some (str, value, Unsigned)) ->
     exists t le', le!_str = Some (vptr str)  ->
              le!_end = Some (vptr fin) ->
@@ -701,11 +876,7 @@ Proof.
   
     eapply H.
     1-5: cbv; congruence.
-    assert (Mem.loadv Mint8signed m (Vptr b i) = Some (Vint (Int.repr 50))) by admit.
-    eapply H1.
-    econstructor.
-    econstructor.
-    econstructor.
+   
     (* passed the switch statement *)
     Admitted.
     
