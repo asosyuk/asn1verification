@@ -1,3 +1,6 @@
 *.lia.cache
 *.nia.cache
 *#*
+*.glob
+*.vo
+*~

@@ -17,7 +17,7 @@ Infix "<" := Int.lt : IntScope.
 Notation "x <= y" := (negb (Int.ltu y x)) (at level 70) : IntScope.
 Infix "%" := Int.mods (at level 70) : IntScope.
 Infix "//" := Int.divs (at level 70) : IntScope.
-
+ 
 Delimit Scope PtrofsScope with ptrofs.
 Infix "==" := Ptrofs.eq (at level 70) : PtrofsScope.
 Notation "x ~= y" := (negb Ptrofs.eq x y) (at level 70) : PtrofsScope.
