@@ -22,204 +22,350 @@
     </calendar>
   </calendars>
   <tasks>
-    <task id="1" name="Correctness of ber_check_tag" note="" work="806400" start="20190715T000000Z" end="20190812T170000Z" work-start="20190715T080000Z" percent-complete="0" priority="0" type="normal" scheduling="fixed-work">
-      <task id="2" name="ber_tlv_length " note="" work="806400" start="20190715T000000Z" end="20190812T170000Z" work-start="20190715T080000Z" percent-complete="0" priority="0" type="normal" scheduling="fixed-work">
-        <task id="3" name="Spec" note="" work="201600" start="20190715T000000Z" end="20190723T170000Z" work-start="20190715T080000Z" percent-complete="0" priority="0" type="normal" scheduling="fixed-work"/>
-        <task id="4" name="Proof" note="" work="604800" start="20190715T000000Z" end="20190812T170000Z" work-start="20190715T080000Z" percent-complete="0" priority="0" type="normal" scheduling="fixed-work"/>
+    <task id="1" name="Important auxiliary functions" note="" work="3484800" start="20190715T000000Z" end="20190823T170000Z" work-start="20190715T080000Z" percent-complete="0" priority="0" type="normal" scheduling="fixed-work">
+      <task id="2" name="Ber decoder" note="" work="2851200" start="20190715T000000Z" end="20190823T170000Z" work-start="20190715T080000Z" percent-complete="0" priority="0" type="normal" scheduling="fixed-work">
+        <task id="3" name="Specs" note="" work="1094400" start="20190715T000000Z" end="20190723T170000Z" work-start="20190715T080000Z" percent-complete="0" priority="0" type="normal" scheduling="fixed-work">
+          <task id="4" name="ber_check_tags" note="" work="201600" start="20190715T000000Z" end="20190717T104000Z" work-start="20190715T080000Z" percent-complete="0" priority="0" type="normal" scheduling="fixed-work"/>
+          <task id="5" name="ber_fetch_tag" note="" work="201600" start="20190715T000000Z" end="20190723T170000Z" work-start="20190715T080000Z" percent-complete="0" priority="0" type="normal" scheduling="fixed-work"/>
+          <task id="6" name="ber_fetch_length" note="" work="201600" start="20190715T000000Z" end="20190723T170000Z" work-start="20190715T080000Z" percent-complete="0" priority="0" type="normal" scheduling="fixed-work"/>
+          <task id="7" name="ber_tlv_tag_string" note="" work="86400" start="20190715T000000Z" end="20190717T170000Z" work-start="20190715T080000Z" percent-complete="0" priority="0" type="normal" scheduling="fixed-work"/>
+          <task id="8" name="ber_fetch_length" note="" work="201600" start="20190715T000000Z" end="20190723T170000Z" work-start="20190715T080000Z" percent-complete="0" priority="0" type="normal" scheduling="fixed-work"/>
+          <task id="9" name="ber_tlv_tag_serialize" note="" work="201600" start="20190715T000000Z" end="20190723T170000Z" work-start="20190715T080000Z" percent-complete="0" priority="0" type="normal" scheduling="fixed-work"/>
+        </task>
+        <task id="10" name="Proofs" note="" work="1756800" start="20190715T000000Z" end="20190823T170000Z" work-start="20190715T080000Z" percent-complete="0" priority="0" type="normal" scheduling="fixed-work">
+          <task id="11" name="ber_check_tags" note="" work="864000" start="20190715T000000Z" end="20190823T170000Z" work-start="20190715T080000Z" percent-complete="0" priority="0" type="normal" scheduling="fixed-work"/>
+          <task id="12" name="ber_fetch_tag" note="" work="403200" start="20190715T000000Z" end="20190801T170000Z" work-start="20190715T080000Z" percent-complete="0" priority="0" type="normal" scheduling="fixed-work"/>
+          <task id="13" name="ber_fetch_length" note="" work="201600" start="20190715T000000Z" end="20190723T170000Z" work-start="20190715T080000Z" percent-complete="0" priority="0" type="normal" scheduling="fixed-work"/>
+          <task id="14" name="ber_tlv_tag_string" note="" work="86400" start="20190715T000000Z" end="20190717T170000Z" work-start="20190715T080000Z" percent-complete="0" priority="0" type="normal" scheduling="fixed-work"/>
+          <task id="15" name="ber_fetch_length" note="" work="201600" start="20190715T000000Z" end="20190723T170000Z" work-start="20190715T080000Z" percent-complete="0" priority="0" type="normal" scheduling="fixed-work"/>
+        </task>
+      </task>
+      <task id="16" name="Der encoder" note="" work="633600" start="20190715T000000Z" end="20190801T170000Z" work-start="20190715T080000Z" percent-complete="0" priority="0" type="normal" scheduling="fixed-work">
+        <task id="17" name="Specs" note="" work="86400" start="20190715T000000Z" end="20190717T170000Z" work-start="20190715T080000Z" percent-complete="0" priority="0" type="normal" scheduling="fixed-work">
+          <task id="18" name="der_write_tags" note="" work="86400" start="20190715T000000Z" end="20190717T170000Z" work-start="20190715T080000Z" percent-complete="0" priority="0" type="normal" scheduling="fixed-work"/>
+        </task>
+        <task id="19" name="Proofs" note="" work="547200" start="20190715T000000Z" end="20190801T170000Z" work-start="20190715T080000Z" percent-complete="0" priority="0" type="normal" scheduling="fixed-work">
+          <task id="20" name="der_write_tags" note="" work="403200" start="20190715T000000Z" end="20190801T170000Z" work-start="20190715T080000Z" percent-complete="0" priority="0" type="normal" scheduling="fixed-work"/>
+          <task id="21" name="der_write_TL" note="" work="57600" start="20190715T000000Z" end="20190716T170000Z" work-start="20190715T080000Z" percent-complete="0" priority="0" type="normal" scheduling="fixed-work"/>
+          <task id="22" name="der_tlv_length_serialize" note="" work="86400" start="20190715T000000Z" end="20190717T170000Z" work-start="20190715T080000Z" percent-complete="0" priority="0" type="normal" scheduling="fixed-work"/>
+        </task>
       </task>
     </task>
-    <task id="5" name="Proof automation" note="" work="201600" start="20190812T170000Z" end="20190815T104000Z" work-start="20190813T080000Z" percent-complete="0" priority="0" type="normal" scheduling="fixed-work">
+    <task id="23" name="Boolean type" note="" work="460800" start="20190723T170000Z" end="20190812T170000Z" work-start="20190724T080000Z" percent-complete="0" priority="0" type="normal" scheduling="fixed-work">
       <predecessors>
-        <predecessor id="1" predecessor-id="1" type="FS"/>
+        <predecessor id="1" predecessor-id="3" type="FS"/>
       </predecessors>
-    </task>
-    <task id="6" name="Boolean decoder " note="" work="230400" start="20190715T000000Z" end="20190723T170000Z" work-start="20190715T080000Z" percent-complete="0" priority="0" type="normal" scheduling="fixed-work">
-      <task id="7" name="Spec" note="" work="28800" start="20190715T000000Z" end="20190715T170000Z" work-start="20190715T080000Z" percent-complete="0" priority="0" type="normal" scheduling="fixed-work"/>
-      <task id="8" name="Proof" note="" work="201600" start="20190715T000000Z" end="20190723T170000Z" work-start="20190715T080000Z" percent-complete="0" priority="0" type="normal" scheduling="fixed-work"/>
-    </task>
-    <task id="9" name="Boolean encoder" note="" work="230400" start="20190715T000000Z" end="20190723T170000Z" work-start="20190715T080000Z" percent-complete="0" priority="0" type="normal" scheduling="fixed-work">
-      <task id="10" name="Spec" note="" work="28800" start="20190715T000000Z" end="20190715T170000Z" work-start="20190715T080000Z" percent-complete="0" priority="0" type="normal" scheduling="fixed-work"/>
-      <task id="11" name="Proof" note="" work="201600" start="20190715T000000Z" end="20190723T170000Z" work-start="20190715T080000Z" percent-complete="0" priority="0" type="normal" scheduling="fixed-work"/>
-    </task>
-    <task id="12" name="Roundtrip correctness Boolean" note="" work="201600" start="20190723T170000Z" end="20190801T170000Z" work-start="20190724T080000Z" percent-complete="0" priority="0" type="normal" scheduling="fixed-work">
-      <predecessors>
-        <predecessor id="1" predecessor-id="9" type="FS"/>
-        <predecessor id="1" predecessor-id="6" type="FS"/>
-      </predecessors>
-    </task>
-    <task id="13" name="Primitive encoder" note="" work="403200" start="20190723T170000Z" end="20190812T170000Z" work-start="20190724T080000Z" percent-complete="0" priority="0" type="normal" scheduling="fixed-work">
-      <predecessors>
-        <predecessor id="1" predecessor-id="9" type="FS"/>
-      </predecessors>
-      <task id="14" name="der_encode_primitive" note="" work="201600" start="20190723T170000Z" end="20190801T170000Z" work-start="20190724T080000Z" percent-complete="0" priority="0" type="normal" scheduling="fixed-work"/>
-      <task id="15" name="der_write_tag " note="" work="201600" start="20190801T170000Z" end="20190812T170000Z" work-start="20190802T080000Z" percent-complete="0" priority="0" type="normal" scheduling="fixed-work">
+      <task id="24" name="Boolean decoder " note="" work="230400" start="20190723T170000Z" end="20190801T170000Z" work-start="20190724T080000Z" percent-complete="0" priority="0" type="normal" scheduling="fixed-work">
+        <task id="25" name="BOOLEAN_compare" note="" work="28800" start="20190723T170000Z" end="20190724T170000Z" work-start="20190724T080000Z" percent-complete="0" priority="0" type="normal" scheduling="fixed-work"/>
+        <task id="26" name="BOOLEAN_decode_ber" note="" work="201600" start="20190723T170000Z" end="20190801T170000Z" work-start="20190724T080000Z" percent-complete="0" priority="0" type="normal" scheduling="fixed-work"/>
+      </task>
+      <task id="27" name="Boolean encoder" note="" work="28800" start="20190723T170000Z" end="20190724T170000Z" work-start="20190724T080000Z" percent-complete="0" priority="0" type="normal" scheduling="fixed-work">
+        <task id="28" name="BOOLEAN_encode_der" note="" work="28800" start="20190723T170000Z" end="20190724T170000Z" work-start="20190724T080000Z" percent-complete="0" priority="0" type="normal" scheduling="fixed-work"/>
+      </task>
+      <task id="29" name="Roundtrip correctness Boolean" note="" work="201600" start="20190801T170000Z" end="20190812T170000Z" work-start="20190802T080000Z" percent-complete="0" priority="0" type="normal" scheduling="fixed-work">
         <predecessors>
-          <predecessor id="1" predecessor-id="14" type="FS"/>
+          <predecessor id="1" predecessor-id="27" type="FS"/>
+          <predecessor id="1" predecessor-id="24" type="FS"/>
         </predecessors>
       </task>
     </task>
-    <task id="16" name="Primitive decoder" note="" work="201600" start="20190723T170000Z" end="20190801T170000Z" work-start="20190724T080000Z" percent-complete="0" priority="0" type="normal" scheduling="fixed-work">
+    <task id="30" name="Milestone: Boolean encoder/decoder correctness" note="" work="0" start="20190812T170000Z" end="20190812T170000Z" work-start="20190812T170000Z" percent-complete="0" priority="0" type="milestone" scheduling="fixed-work">
       <predecessors>
-        <predecessor id="1" predecessor-id="6" type="FS"/>
-      </predecessors>
-      <task id="17" name="ber_decode_primitive" note="" work="201600" start="20190723T170000Z" end="20190801T170000Z" work-start="20190724T080000Z" percent-complete="0" priority="0" type="normal" scheduling="fixed-work"/>
-    </task>
-    <task id="18" name="classifying C constructs, rewriting C code" note="" work="201600" start="20190812T170000Z" end="20190821T170000Z" work-start="20190813T080000Z" percent-complete="0" priority="0" type="normal" scheduling="fixed-work">
-      <predecessors>
-        <predecessor id="1" predecessor-id="1" type="FS"/>
+        <predecessor id="1" predecessor-id="3" type="FS"/>
+        <predecessor id="1" predecessor-id="23" type="FS"/>
       </predecessors>
     </task>
-    <task id="19" name="Native Integer decoder" note="" work="259200" start="20190812T170000Z" end="20190823T170000Z" work-start="20190813T080000Z" percent-complete="0" priority="0" type="normal" scheduling="fixed-work">
+    <task id="31" name="Refactoring and revisions" note="" work="662400" start="20190812T170000Z" end="20190821T170000Z" work-start="20190813T080000Z" percent-complete="0" priority="0" type="normal" scheduling="fixed-work">
       <predecessors>
-        <predecessor id="1" predecessor-id="1" type="FS"/>
-        <predecessor id="1" predecessor-id="16" type="FS"/>
+        <predecessor id="1" predecessor-id="30" type="FS"/>
       </predecessors>
-      <task id="20" name="Spec" note="" work="57600" start="20190812T170000Z" end="20190814T170000Z" work-start="20190813T080000Z" percent-complete="0" priority="0" type="normal" scheduling="fixed-work"/>
-      <task id="21" name="Proof" note="" work="201600" start="20190814T170000Z" end="20190823T170000Z" work-start="20190815T080000Z" percent-complete="0" priority="0" type="normal" scheduling="fixed-work">
+      <task id="32" name="High-level properties" note="" work="201600" start="20190812T170000Z" end="20190821T170000Z" work-start="20190813T080000Z" percent-complete="0" priority="0" type="normal" scheduling="fixed-work"/>
+      <task id="33" name="New complexity estimates" note="" work="57600" start="20190812T170000Z" end="20190814T170000Z" work-start="20190813T080000Z" percent-complete="0" priority="0" type="normal" scheduling="fixed-work"/>
+      <task id="34" name="Proof automation" note="" work="201600" start="20190812T170000Z" end="20190815T104000Z" work-start="20190813T080000Z" percent-complete="0" priority="0" type="normal" scheduling="fixed-work">
         <predecessors>
-          <predecessor id="1" predecessor-id="20" type="FS"/>
+          <predecessor id="1" predecessor-id="4" type="FS"/>
+        </predecessors>
+      </task>
+      <task id="35" name="Refactoring C code" note="" work="201600" start="20190812T170000Z" end="20190821T170000Z" work-start="20190813T080000Z" percent-complete="0" priority="0" type="normal" scheduling="fixed-work">
+        <predecessors>
+          <predecessor id="1" predecessor-id="4" type="FS"/>
         </predecessors>
       </task>
     </task>
-    <task id="22" name="Native Integer encoder" note="" work="316800" start="20190812T170000Z" end="20190823T170000Z" work-start="20190813T080000Z" percent-complete="0" priority="0" type="normal" scheduling="fixed-work">
+    <task id="36" name="Milestone: Proof automation library" note="" work="0" start="20190821T170000Z" end="20190821T170000Z" work-start="20190821T170000Z" percent-complete="0" priority="0" type="milestone" scheduling="fixed-work">
       <predecessors>
-        <predecessor id="1" predecessor-id="13" type="FS"/>
+        <predecessor id="1" predecessor-id="31" type="FS"/>
       </predecessors>
-      <task id="23" name="Spec" note="" work="57600" start="20190812T170000Z" end="20190814T170000Z" work-start="20190813T080000Z" percent-complete="0" priority="0" type="normal" scheduling="fixed-work"/>
-      <task id="24" name="Proof" note="" work="259200" start="20190814T170000Z" end="20190823T170000Z" work-start="20190815T080000Z" percent-complete="0" priority="0" type="normal" scheduling="fixed-work">
+    </task>
+    <task id="37" name="Milestone: New planning" note="" work="0" start="20190814T170000Z" end="20190814T170000Z" work-start="20190814T170000Z" percent-complete="0" priority="0" type="milestone" scheduling="fixed-work">
+      <predecessors>
+        <predecessor id="1" predecessor-id="33" type="FS"/>
+      </predecessors>
+    </task>
+    <task id="38" name="Primitive type" note="" work="604800" start="20190724T170000Z" end="20190813T170000Z" work-start="20190725T080000Z" percent-complete="0" priority="0" type="normal" scheduling="fixed-work">
+      <predecessors>
+        <predecessor id="1" predecessor-id="3" type="FS"/>
+      </predecessors>
+      <task id="39" name="Primitive encoder" note="" work="403200" start="20190724T170000Z" end="20190813T170000Z" work-start="20190725T080000Z" percent-complete="0" priority="0" type="normal" scheduling="fixed-work">
         <predecessors>
-          <predecessor id="1" predecessor-id="20" type="FS"/>
+          <predecessor id="1" predecessor-id="27" type="FS"/>
         </predecessors>
-        <task id="25" name="der_encode_primitive" note="" work="201600" start="20190814T170000Z" end="20190823T170000Z" work-start="20190815T080000Z" percent-complete="0" priority="0" type="normal" scheduling="fixed-work">
+        <task id="40" name="der_encode_primitive" note="" work="201600" start="20190724T170000Z" end="20190802T170000Z" work-start="20190725T080000Z" percent-complete="0" priority="0" type="normal" scheduling="fixed-work"/>
+        <task id="41" name="der_write_tag " note="" work="201600" start="20190802T170000Z" end="20190813T170000Z" work-start="20190805T080000Z" percent-complete="0" priority="0" type="normal" scheduling="fixed-work">
           <predecessors>
-            <predecessor id="1" predecessor-id="20" type="FS"/>
+            <predecessor id="1" predecessor-id="40" type="FS"/>
           </predecessors>
         </task>
-        <task id="26" name="integer_compare" note="" work="57600" start="20190814T170000Z" end="20190816T170000Z" work-start="20190815T080000Z" percent-complete="0" priority="0" type="normal" scheduling="fixed-work"/>
+      </task>
+      <task id="42" name="Primitive decoder" note="" work="201600" start="20190801T170000Z" end="20190812T170000Z" work-start="20190802T080000Z" percent-complete="0" priority="0" type="normal" scheduling="fixed-work">
+        <predecessors>
+          <predecessor id="1" predecessor-id="24" type="FS"/>
+        </predecessors>
+        <task id="43" name="ber_decode_primitive" note="" work="201600" start="20190801T170000Z" end="20190812T170000Z" work-start="20190802T080000Z" percent-complete="0" priority="0" type="normal" scheduling="fixed-work"/>
       </task>
     </task>
-    <task id="27" name="Roundtrip correctness Integer" note="" work="403200" start="20190823T170000Z" end="20190912T170000Z" work-start="20190826T080000Z" percent-complete="0" priority="0" type="normal" scheduling="fixed-work">
-      <predecessors>
-        <predecessor id="1" predecessor-id="22" type="FS"/>
-        <predecessor id="1" predecessor-id="19" type="FS"/>
-      </predecessors>
-    </task>
-    <task id="28" name="Native real decoder" note="" work="1612800" start="20190912T170000Z" end="20191002T170000Z" work-start="20190913T080000Z" percent-complete="0" priority="0" type="normal" scheduling="fixed-work">
-      <predecessors>
-        <predecessor id="1" predecessor-id="27" type="FS"/>
-      </predecessors>
-      <task id="29" name="revision of float spec" note="" work="201600" start="20190912T170000Z" end="20190918T120000Z" work-start="20190913T080000Z" percent-complete="0" priority="0" type="normal" scheduling="fixed-work"/>
-      <task id="30" name="asn_double2REAL" note="" work="403200" start="20190912T170000Z" end="20191002T170000Z" work-start="20190913T080000Z" percent-complete="0" priority="0" type="normal" scheduling="fixed-work"/>
-      <task id="31" name="asn_REAL2double" note="" work="403200" start="20190912T170000Z" end="20191002T170000Z" work-start="20190913T080000Z" percent-complete="0" priority="0" type="normal" scheduling="fixed-work"/>
-      <task id="32" name="NativeReal_decode_ber " note="" work="201600" start="20190912T170000Z" end="20190923T170000Z" work-start="20190913T080000Z" percent-complete="0" priority="0" type="normal" scheduling="fixed-work"/>
-      <task id="33" name="NativeReal_encode_der " note="" work="201600" start="20190912T170000Z" end="20190923T170000Z" work-start="20190913T080000Z" percent-complete="0" priority="0" type="normal" scheduling="fixed-work"/>
-      <task id="34" name="REAL_compare" note="" work="201600" start="20190912T170000Z" end="20190923T170000Z" work-start="20190913T080000Z" percent-complete="0" priority="0" type="normal" scheduling="fixed-work"/>
-    </task>
-    <task id="35" name="Native real encoder" note="" work="27900" start="20190912T170000Z" end="20190913T164500Z" work-start="20190913T080000Z" percent-complete="0" priority="0" type="normal" scheduling="fixed-work">
-      <predecessors>
-        <predecessor id="1" predecessor-id="27" type="FS"/>
-      </predecessors>
-      <task id="36" name="NativeReal_encode_der" note="" work="27900" start="20190912T170000Z" end="20190913T164500Z" work-start="20190913T080000Z" percent-complete="0" priority="0" type="normal" scheduling="fixed-work"/>
-    </task>
-    <task id="37" name="Roundtrip correctness Real" note="" work="604800" start="20191002T170000Z" end="20191031T170000Z" work-start="20191003T080000Z" percent-complete="0" priority="0" type="normal" scheduling="fixed-work">
-      <predecessors>
-        <predecessor id="1" predecessor-id="35" type="FS"/>
-        <predecessor id="1" predecessor-id="28" type="FS"/>
-      </predecessors>
-    </task>
-    <task id="38" name="Octet string decoder" note="" work="1728000" start="20191031T170000Z" end="20200123T170000Z" work-start="20191101T080000Z" percent-complete="0" priority="0" type="normal" scheduling="fixed-work">
-      <predecessors>
-        <predecessor id="1" predecessor-id="37" type="FS"/>
-      </predecessors>
-      <task id="39" name="OCTET_STRING_decode_ber" note="" work="1728000" start="20191031T170000Z" end="20200123T170000Z" work-start="20191101T080000Z" percent-complete="0" priority="0" type="normal" scheduling="fixed-work"/>
-    </task>
-    <task id="40" name="Octet string encoder" note="" work="201600" start="20191031T170000Z" end="20191111T170000Z" work-start="20191101T080000Z" percent-complete="0" priority="0" type="normal" scheduling="fixed-work">
-      <predecessors>
-        <predecessor id="1" predecessor-id="37" type="FS"/>
-      </predecessors>
-      <task id="41" name="OCTET_STRING_encode_der" note="" work="201600" start="20191031T170000Z" end="20191111T170000Z" work-start="20191101T080000Z" percent-complete="0" priority="0" type="normal" scheduling="fixed-work"/>
-    </task>
-    <task id="42" name="Roundtrip correctness Octet string" note="" work="864000" start="20200123T170000Z" end="20200305T170000Z" work-start="20200124T080000Z" percent-complete="0" priority="0" type="normal" scheduling="fixed-work">
-      <predecessors>
-        <predecessor id="1" predecessor-id="39" type="FS"/>
-        <predecessor id="1" predecessor-id="40" type="FS"/>
-      </predecessors>
-    </task>
-    <task id="43" name="Time decoder" note="" work="1008000" start="20200123T170000Z" end="20200212T170000Z" work-start="20200124T080000Z" percent-complete="0" priority="0" type="normal" scheduling="fixed-work">
+    <task id="44" name="Native Integer type" note="" work="1065600" start="20190813T170000Z" end="20190913T170000Z" work-start="20190814T080000Z" percent-complete="0" priority="0" type="normal" scheduling="fixed-work">
       <predecessors>
         <predecessor id="1" predecessor-id="38" type="FS"/>
       </predecessors>
-      <task id="44" name="Spec of time type" note="" work="403200" start="20200123T170000Z" end="20200212T170000Z" work-start="20200124T080000Z" percent-complete="0" priority="0" type="normal" scheduling="fixed-work"/>
-      <task id="45" name="GeneralizedTime_compare" note="" work="403200" start="20200123T170000Z" end="20200212T170000Z" work-start="20200124T080000Z" percent-complete="0" priority="0" type="normal" scheduling="fixed-work"/>
-      <task id="46" name="UTCTime_compare" note="" work="201600" start="20200123T170000Z" end="20200203T170000Z" work-start="20200124T080000Z" percent-complete="0" priority="0" type="normal" scheduling="fixed-work"/>
+      <task id="45" name="Native Integer decoder" note="" work="259200" start="20190813T170000Z" end="20190820T170000Z" work-start="20190814T080000Z" percent-complete="0" priority="0" type="normal" scheduling="fixed-work">
+        <predecessors>
+          <predecessor id="1" predecessor-id="4" type="FS"/>
+          <predecessor id="1" predecessor-id="42" type="FS"/>
+        </predecessors>
+        <task id="46" name="Specs" note="" work="57600" start="20190813T170000Z" end="20190815T170000Z" work-start="20190814T080000Z" percent-complete="0" priority="0" type="normal" scheduling="fixed-work"/>
+        <task id="47" name="Proof" note="" work="201600" start="20190815T170000Z" end="20190820T170000Z" work-start="20190816T080000Z" percent-complete="0" priority="0" type="normal" scheduling="fixed-work">
+          <predecessors>
+            <predecessor id="1" predecessor-id="46" type="FS"/>
+          </predecessors>
+          <task id="48" name="NativeInteger_compare" note="" work="86400" start="20190815T170000Z" end="20190820T170000Z" work-start="20190816T080000Z" percent-complete="0" priority="0" type="normal" scheduling="fixed-work"/>
+          <task id="49" name="asn_INTEGER2ulong" note="" work="86400" start="20190815T170000Z" end="20190820T170000Z" work-start="20190816T080000Z" percent-complete="0" priority="0" type="normal" scheduling="fixed-work"/>
+          <task id="50" name="NativeInteger_decode_ber" note="" work="28800" start="20190815T170000Z" end="20190816T170000Z" work-start="20190816T080000Z" percent-complete="0" priority="0" type="normal" scheduling="fixed-work"/>
+        </task>
+      </task>
+      <task id="51" name="Native Integer encoder" note="" work="403200" start="20190813T170000Z" end="20190826T170000Z" work-start="20190814T080000Z" percent-complete="0" priority="0" type="normal" scheduling="fixed-work">
+        <predecessors>
+          <predecessor id="1" predecessor-id="39" type="FS"/>
+        </predecessors>
+        <task id="52" name="Spec" note="" work="57600" start="20190813T170000Z" end="20190815T170000Z" work-start="20190814T080000Z" percent-complete="0" priority="0" type="normal" scheduling="fixed-work"/>
+        <task id="53" name="Proof" note="" work="345600" start="20190815T170000Z" end="20190826T170000Z" work-start="20190816T080000Z" percent-complete="0" priority="0" type="normal" scheduling="fixed-work">
+          <predecessors>
+            <predecessor id="1" predecessor-id="46" type="FS"/>
+          </predecessors>
+          <task id="54" name="Integer_compare" note="" work="86400" start="20190815T170000Z" end="20190820T170000Z" work-start="20190816T080000Z" percent-complete="0" priority="0" type="normal" scheduling="fixed-work"/>
+          <task id="55" name="INTEGER_encode_der" note="" work="201600" start="20190815T170000Z" end="20190826T170000Z" work-start="20190816T080000Z" percent-complete="0" priority="0" type="normal" scheduling="fixed-work"/>
+          <task id="56" name="NativeInteger_encode_der" note="" work="57600" start="20190815T170000Z" end="20190819T170000Z" work-start="20190816T080000Z" percent-complete="0" priority="0" type="normal" scheduling="fixed-work"/>
+        </task>
+      </task>
+      <task id="57" name="Roundtrip correctness Integer" note="" work="403200" start="20190826T170000Z" end="20190913T170000Z" work-start="20190827T080000Z" percent-complete="0" priority="0" type="normal" scheduling="fixed-work">
+        <predecessors>
+          <predecessor id="1" predecessor-id="51" type="FS"/>
+          <predecessor id="1" predecessor-id="45" type="FS"/>
+        </predecessors>
+      </task>
     </task>
-    <task id="47" name="Time encoder" note="" work="604800" start="20191111T170000Z" end="20191210T170000Z" work-start="20191112T080000Z" percent-complete="0" priority="0" type="normal" scheduling="fixed-work">
+    <task id="58" name="Milestone: Native Integer encoder/decoder correctness" note="" work="0" start="20190913T170000Z" end="20190913T170000Z" work-start="20190913T170000Z" percent-complete="0" priority="0" type="milestone" scheduling="fixed-work">
       <predecessors>
-        <predecessor id="1" predecessor-id="41" type="FS"/>
-      </predecessors>
-      <task id="48" name="asn_GT2time_frac" note="" work="604800" start="20191111T170000Z" end="20191210T170000Z" work-start="20191112T080000Z" percent-complete="0" priority="0" type="normal" scheduling="fixed-work"/>
-    </task>
-    <task id="49" name="Other simple types" note="" work="201600" start="20200123T170000Z" end="20200203T170000Z" work-start="20200124T080000Z" percent-complete="0" priority="0" type="normal" scheduling="fixed-work">
-      <predecessors>
-        <predecessor id="1" predecessor-id="41" type="FS"/>
-        <predecessor id="1" predecessor-id="39" type="FS"/>
-      </predecessors>
-    </task>
-    <task id="50" name="Choice decoder" note="" work="604800" start="20200203T170000Z" end="20200303T170000Z" work-start="20200204T080000Z" percent-complete="0" priority="0" type="normal" scheduling="fixed-work">
-      <predecessors>
-        <predecessor id="1" predecessor-id="49" type="FS"/>
-      </predecessors>
-      <task id="51" name="CHOICE_decode_ber" note="" work="604800" start="20200203T170000Z" end="20200303T170000Z" work-start="20200204T080000Z" percent-complete="0" priority="0" type="normal" scheduling="fixed-work"/>
-    </task>
-    <task id="52" name="Choice encoder" note="" work="288000" start="20200203T170000Z" end="20200217T170000Z" work-start="20200204T080000Z" percent-complete="0" priority="0" type="normal" scheduling="fixed-work">
-      <predecessors>
-        <predecessor id="1" predecessor-id="49" type="FS"/>
-      </predecessors>
-      <task id="53" name="CHOICE_encode_der" note="" work="288000" start="20200203T170000Z" end="20200217T170000Z" work-start="20200204T080000Z" percent-complete="0" priority="0" type="normal" scheduling="fixed-work"/>
-    </task>
-    <task id="54" name="Roundtrip correctness Choice" note="" work="403200" start="20200303T170000Z" end="20200323T170000Z" work-start="20200304T080000Z" percent-complete="0" priority="0" type="normal" scheduling="fixed-work">
-      <predecessors>
-        <predecessor id="1" predecessor-id="53" type="FS"/>
-        <predecessor id="1" predecessor-id="50" type="FS"/>
-      </predecessors>
-    </task>
-    <task id="55" name="Sequence decoder" note="" work="1440000" start="20200323T170000Z" end="20200601T170000Z" work-start="20200324T080000Z" percent-complete="0" priority="0" type="normal" scheduling="fixed-work">
-      <predecessors>
-        <predecessor id="1" predecessor-id="54" type="FS"/>
-      </predecessors>
-      <task id="56" name="SEQUENCE_decode_ber" note="" work="1440000" start="20200323T170000Z" end="20200601T170000Z" work-start="20200324T080000Z" percent-complete="0" priority="0" type="normal" scheduling="fixed-work"/>
-    </task>
-    <task id="57" name="Sequence encoder" note="" work="288000" start="20200323T170000Z" end="20200406T170000Z" work-start="20200324T080000Z" percent-complete="0" priority="0" type="normal" scheduling="fixed-work">
-      <predecessors>
-        <predecessor id="1" predecessor-id="54" type="FS"/>
-      </predecessors>
-      <task id="58" name="SEQUENCE_encode_der" note="" work="288000" start="20200323T170000Z" end="20200406T170000Z" work-start="20200324T080000Z" percent-complete="0" priority="0" type="normal" scheduling="fixed-work"/>
-    </task>
-    <task id="59" name="Roundtrip correctness Sequence" note="" work="604800" start="20200406T170000Z" end="20200505T170000Z" work-start="20200407T080000Z" percent-complete="0" priority="0" type="normal" scheduling="fixed-work">
-      <predecessors>
-        <predecessor id="1" predecessor-id="58" type="FS"/>
+        <predecessor id="1" predecessor-id="44" type="FS"/>
       </predecessors>
     </task>
-    <task id="60" name="Set_of decoder" note="" work="403200" start="20200203T170000Z" end="20200221T170000Z" work-start="20200204T080000Z" percent-complete="0" priority="0" type="normal" scheduling="fixed-work">
+    <task id="59" name="Native Real type" note="" work="2102400" start="20190913T170000Z" end="20191101T170000Z" work-start="20190916T080000Z" percent-complete="0" priority="0" type="normal" scheduling="fixed-work">
       <predecessors>
-        <predecessor id="1" predecessor-id="49" type="FS"/>
+        <predecessor id="1" predecessor-id="38" type="FS"/>
       </predecessors>
-      <task id="61" name="SET_OF_decode_ber" note="" work="403200" start="20200203T170000Z" end="20200221T170000Z" work-start="20200204T080000Z" percent-complete="0" priority="0" type="normal" scheduling="fixed-work"/>
+      <task id="60" name="Native real decoder" note="" work="1008000" start="20190913T170000Z" end="20191003T170000Z" work-start="20190916T080000Z" percent-complete="0" priority="0" type="normal" scheduling="fixed-work">
+        <predecessors>
+          <predecessor id="1" predecessor-id="57" type="FS"/>
+        </predecessors>
+        <task id="61" name="revision of float spec" note="" work="201600" start="20190913T170000Z" end="20190919T120000Z" work-start="20190916T080000Z" percent-complete="0" priority="0" type="normal" scheduling="fixed-work"/>
+        <task id="62" name="asn_REAL2double" note="" work="403200" start="20190913T170000Z" end="20191003T170000Z" work-start="20190916T080000Z" percent-complete="0" priority="0" type="normal" scheduling="fixed-work"/>
+        <task id="63" name="NativeReal_decode_ber " note="" work="201600" start="20190913T170000Z" end="20190924T170000Z" work-start="20190916T080000Z" percent-complete="0" priority="0" type="normal" scheduling="fixed-work"/>
+        <task id="64" name="REAL_compare" note="" work="201600" start="20190913T170000Z" end="20190924T170000Z" work-start="20190916T080000Z" percent-complete="0" priority="0" type="normal" scheduling="fixed-work"/>
+      </task>
+      <task id="65" name="Native real encoder" note="" work="489600" start="20190913T170000Z" end="20191003T170000Z" work-start="20190916T080000Z" percent-complete="0" priority="0" type="normal" scheduling="fixed-work">
+        <predecessors>
+          <predecessor id="1" predecessor-id="57" type="FS"/>
+        </predecessors>
+        <task id="66" name="NativeReal_encode_der" note="" work="86400" start="20190913T170000Z" end="20190918T170000Z" work-start="20190916T080000Z" percent-complete="0" priority="0" type="normal" scheduling="fixed-work"/>
+        <task id="67" name="asn_double2REAL" note="" work="403200" start="20190913T170000Z" end="20191003T170000Z" work-start="20190916T080000Z" percent-complete="0" priority="0" type="normal" scheduling="fixed-work"/>
+      </task>
+      <task id="68" name="Roundtrip correctness Real" note="" work="604800" start="20191003T170000Z" end="20191101T170000Z" work-start="20191004T080000Z" percent-complete="0" priority="0" type="normal" scheduling="fixed-work">
+        <predecessors>
+          <predecessor id="1" predecessor-id="65" type="FS"/>
+          <predecessor id="1" predecessor-id="60" type="FS"/>
+        </predecessors>
+      </task>
     </task>
-    <task id="62" name="Set_of encoder" note="" work="403200" start="20200203T170000Z" end="20200212T170000Z" work-start="20200204T080000Z" percent-complete="0" priority="0" type="normal" scheduling="fixed-work">
+    <task id="69" name="Milestone: Native Real encoder/decoder correctness" note="" work="28800" start="20191101T170000Z" end="20191104T170000Z" work-start="20191104T080000Z" percent-complete="0" priority="0" type="normal" scheduling="fixed-work">
       <predecessors>
-        <predecessor id="1" predecessor-id="49" type="FS"/>
+        <predecessor id="1" predecessor-id="59" type="FS"/>
       </predecessors>
-      <task id="63" name="SET_OF_encode_der" note="" work="201600" start="20200203T170000Z" end="20200212T170000Z" work-start="20200204T080000Z" percent-complete="0" priority="0" type="normal" scheduling="fixed-work"/>
-      <task id="64" name="SET_OF__encode_sorted" note="" work="201600" start="20200203T170000Z" end="20200212T170000Z" work-start="20200204T080000Z" percent-complete="0" priority="0" type="normal" scheduling="fixed-work"/>
+    </task>
+    <task id="70" name="Octet String type" note="" work="2793600" start="20191101T170000Z" end="20200306T170000Z" work-start="20191104T080000Z" percent-complete="0" priority="0" type="normal" scheduling="fixed-work">
+      <predecessors>
+        <predecessor id="1" predecessor-id="38" type="FS"/>
+      </predecessors>
+      <task id="71" name="Octet string decoder" note="" work="1728000" start="20191101T170000Z" end="20200124T170000Z" work-start="20191104T080000Z" percent-complete="0" priority="0" type="normal" scheduling="fixed-work">
+        <predecessors>
+          <predecessor id="1" predecessor-id="68" type="FS"/>
+        </predecessors>
+        <task id="72" name="OCTET_STRING_decode_ber" note="" work="1728000" start="20191101T170000Z" end="20200124T170000Z" work-start="20191104T080000Z" percent-complete="0" priority="0" type="normal" scheduling="fixed-work"/>
+      </task>
+      <task id="73" name="Octet string encoder" note="" work="201600" start="20191101T170000Z" end="20191112T170000Z" work-start="20191104T080000Z" percent-complete="0" priority="0" type="normal" scheduling="fixed-work">
+        <predecessors>
+          <predecessor id="1" predecessor-id="68" type="FS"/>
+        </predecessors>
+        <task id="74" name="OCTET_STRING_encode_der" note="" work="201600" start="20191101T170000Z" end="20191112T170000Z" work-start="20191104T080000Z" percent-complete="0" priority="0" type="normal" scheduling="fixed-work"/>
+      </task>
+      <task id="75" name="Roundtrip correctness Octet string" note="" work="864000" start="20200124T170000Z" end="20200306T170000Z" work-start="20200127T080000Z" percent-complete="0" priority="0" type="normal" scheduling="fixed-work">
+        <predecessors>
+          <predecessor id="1" predecessor-id="72" type="FS"/>
+          <predecessor id="1" predecessor-id="73" type="FS"/>
+        </predecessors>
+      </task>
+    </task>
+    <task id="76" name="Milestone: Octet String encoder/decoder correctness" note="" work="0" start="20200306T170000Z" end="20200306T170000Z" work-start="20200306T170000Z" percent-complete="0" priority="0" type="milestone" scheduling="fixed-work">
+      <predecessors>
+        <predecessor id="1" predecessor-id="70" type="FS"/>
+      </predecessors>
+    </task>
+    <task id="77" name="Time types" note="" work="1612800" start="20191112T170000Z" end="20200213T170000Z" work-start="20191113T080000Z" percent-complete="0" priority="0" type="normal" scheduling="fixed-work">
+      <predecessors>
+        <predecessor id="1" predecessor-id="38" type="FS"/>
+      </predecessors>
+      <task id="78" name="Time decoder" note="" work="1008000" start="20200124T170000Z" end="20200213T170000Z" work-start="20200127T080000Z" percent-complete="0" priority="0" type="normal" scheduling="fixed-work">
+        <predecessors>
+          <predecessor id="1" predecessor-id="71" type="FS"/>
+        </predecessors>
+        <task id="79" name="Spec of time type" note="" work="403200" start="20200124T170000Z" end="20200213T170000Z" work-start="20200127T080000Z" percent-complete="0" priority="0" type="normal" scheduling="fixed-work"/>
+        <task id="80" name="GeneralizedTime_compare" note="" work="403200" start="20200124T170000Z" end="20200213T170000Z" work-start="20200127T080000Z" percent-complete="0" priority="0" type="normal" scheduling="fixed-work"/>
+        <task id="81" name="UTCTime_compare" note="" work="201600" start="20200124T170000Z" end="20200204T170000Z" work-start="20200127T080000Z" percent-complete="0" priority="0" type="normal" scheduling="fixed-work"/>
+      </task>
+      <task id="82" name="Time encoder" note="" work="604800" start="20191112T170000Z" end="20191211T170000Z" work-start="20191113T080000Z" percent-complete="0" priority="0" type="normal" scheduling="fixed-work">
+        <predecessors>
+          <predecessor id="1" predecessor-id="74" type="FS"/>
+        </predecessors>
+        <task id="83" name="asn_GT2time_frac" note="" work="604800" start="20191112T170000Z" end="20191211T170000Z" work-start="20191113T080000Z" percent-complete="0" priority="0" type="normal" scheduling="fixed-work"/>
+      </task>
+    </task>
+    <task id="84" name="Milestone: Time types encoder/decoder correctness" note="" work="0" start="20200213T170000Z" end="20200213T170000Z" work-start="20200213T170000Z" percent-complete="0" priority="0" type="milestone" scheduling="fixed-work">
+      <predecessors>
+        <predecessor id="1" predecessor-id="77" type="FS"/>
+      </predecessors>
+    </task>
+    <task id="85" name="Milestone: Time library for Coq" note="" work="0" start="20200213T170000Z" end="20200213T170000Z" work-start="20200213T170000Z" percent-complete="0" priority="0" type="milestone" scheduling="fixed-work">
+      <predecessors>
+        <predecessor id="1" predecessor-id="77" type="FS"/>
+      </predecessors>
+    </task>
+    <task id="86" name="Other simple types" note="" work="201600" start="20200124T170000Z" end="20200130T120000Z" work-start="20200127T080000Z" percent-complete="0" priority="0" type="normal" scheduling="fixed-work">
+      <predecessors>
+        <predecessor id="1" predecessor-id="74" type="FS"/>
+        <predecessor id="1" predecessor-id="72" type="FS"/>
+      </predecessors>
+    </task>
+    <task id="87" name="Milestone: All simple types" note="" work="0" start="20200130T120000Z" end="20200130T120000Z" work-start="20200130T120000Z" percent-complete="0" priority="0" type="milestone" scheduling="fixed-work">
+      <predecessors>
+        <predecessor id="1" predecessor-id="86" type="FS"/>
+      </predecessors>
+    </task>
+    <task id="88" name="Choice type" note="" work="1555200" start="20200130T120000Z" end="20200319T120000Z" work-start="20200130T120000Z" percent-complete="0" priority="0" type="normal" scheduling="fixed-work">
+      <task id="89" name="Choice decoder" note="" work="777600" start="20200130T120000Z" end="20200228T120000Z" work-start="20200130T120000Z" percent-complete="0" priority="0" type="normal" scheduling="fixed-work">
+        <predecessors>
+          <predecessor id="1" predecessor-id="86" type="FS"/>
+        </predecessors>
+        <task id="90" name="CHOICE_decode_ber" note="" work="604800" start="20200130T120000Z" end="20200228T120000Z" work-start="20200130T120000Z" percent-complete="0" priority="0" type="normal" scheduling="fixed-work"/>
+        <task id="91" name="_search4tag" note="" work="86400" start="20200130T120000Z" end="20200204T120000Z" work-start="20200130T120000Z" percent-complete="0" priority="0" type="normal" scheduling="fixed-work"/>
+        <task id="92" name="other aux functions" note="" work="86400" start="20200130T120000Z" end="20200204T120000Z" work-start="20200130T120000Z" percent-complete="0" priority="0" type="normal" scheduling="fixed-work"/>
+      </task>
+      <task id="93" name="Choice encoder" note="" work="374400" start="20200130T120000Z" end="20200213T120000Z" work-start="20200130T120000Z" percent-complete="0" priority="0" type="normal" scheduling="fixed-work">
+        <predecessors>
+          <predecessor id="1" predecessor-id="86" type="FS"/>
+        </predecessors>
+        <task id="94" name="CHOICE_encode_der" note="" work="288000" start="20200130T120000Z" end="20200213T120000Z" work-start="20200130T120000Z" percent-complete="0" priority="0" type="normal" scheduling="fixed-work"/>
+        <task id="95" name="CHOICE_outmost_tag" note="" work="86400" start="20200130T120000Z" end="20200204T120000Z" work-start="20200130T120000Z" percent-complete="0" priority="0" type="normal" scheduling="fixed-work"/>
+      </task>
+      <task id="96" name="Roundtrip correctness Choice" note="" work="403200" start="20200228T120000Z" end="20200319T120000Z" work-start="20200228T120000Z" percent-complete="0" priority="0" type="normal" scheduling="fixed-work">
+        <predecessors>
+          <predecessor id="1" predecessor-id="94" type="FS"/>
+          <predecessor id="1" predecessor-id="89" type="FS"/>
+        </predecessors>
+      </task>
+    </task>
+    <task id="97" name="Milestone: Choice encoder/decoder correctness" note="" work="28800" start="20200319T120000Z" end="20200320T120000Z" work-start="20200319T120000Z" percent-complete="0" priority="0" type="normal" scheduling="fixed-work">
+      <predecessors>
+        <predecessor id="1" predecessor-id="88" type="FS"/>
+      </predecessors>
+    </task>
+    <task id="98" name="Sequence type" note="" work="2563200" start="20200319T120000Z" end="20200528T120000Z" work-start="20200319T120000Z" percent-complete="0" priority="0" type="normal" scheduling="fixed-work">
+      <predecessors>
+        <predecessor id="1" predecessor-id="88" type="FS"/>
+      </predecessors>
+      <task id="99" name="Sequence decoder" note="" work="1440000" start="20200319T120000Z" end="20200528T120000Z" work-start="20200319T120000Z" percent-complete="0" priority="0" type="normal" scheduling="fixed-work">
+        <predecessors>
+          <predecessor id="1" predecessor-id="96" type="FS"/>
+        </predecessors>
+        <task id="100" name="SEQUENCE_decode_ber" note="" work="1440000" start="20200319T120000Z" end="20200528T120000Z" work-start="20200319T120000Z" percent-complete="0" priority="0" type="normal" scheduling="fixed-work"/>
+      </task>
+      <task id="101" name="_t2e_cmp" note="" work="28800" start="20200319T120000Z" end="20200320T120000Z" work-start="20200319T120000Z" percent-complete="0" priority="0" type="normal" scheduling="fixed-work"/>
+      <task id="102" name="Sequence encoder" note="" work="489600" start="20200319T120000Z" end="20200402T120000Z" work-start="20200319T120000Z" percent-complete="0" priority="0" type="normal" scheduling="fixed-work">
+        <predecessors>
+          <predecessor id="1" predecessor-id="96" type="FS"/>
+        </predecessors>
+        <task id="103" name="SEQUENCE_encode_der" note="" work="288000" start="20200319T120000Z" end="20200402T120000Z" work-start="20200319T120000Z" percent-complete="0" priority="0" type="normal" scheduling="fixed-work"/>
+        <task id="104" name="SEQUENCE_OF_ENCODE_der" note="" work="201600" start="20200319T120000Z" end="20200330T120000Z" work-start="20200319T120000Z" percent-complete="0" priority="0" type="normal" scheduling="fixed-work"/>
+      </task>
+      <task id="105" name="Roundtrip correctness Sequence" note="" work="604800" start="20200402T120000Z" end="20200501T120000Z" work-start="20200402T120000Z" percent-complete="0" priority="0" type="normal" scheduling="fixed-work">
+        <predecessors>
+          <predecessor id="1" predecessor-id="103" type="FS"/>
+        </predecessors>
+      </task>
+    </task>
+    <task id="106" name="Milestone: Sequence encoder/decoder correctness" note="" work="28800" start="20200528T120000Z" end="20200529T120000Z" work-start="20200528T120000Z" percent-complete="0" priority="0" type="normal" scheduling="fixed-work">
+      <predecessors>
+        <predecessor id="1" predecessor-id="98" type="FS"/>
+      </predecessors>
+    </task>
+    <task id="107" name="Set type" note="" work="1756800" start="20200528T120000Z" end="20200617T120000Z" work-start="20200528T120000Z" percent-complete="0" priority="0" type="normal" scheduling="fixed-work">
+      <predecessors>
+        <predecessor id="1" predecessor-id="98" type="FS"/>
+      </predecessors>
+      <task id="108" name="Set_of decoder" note="" work="950400" start="20200528T120000Z" end="20200617T120000Z" work-start="20200528T120000Z" percent-complete="0" priority="0" type="normal" scheduling="fixed-work">
+        <predecessors>
+          <predecessor id="1" predecessor-id="86" type="FS"/>
+        </predecessors>
+        <task id="109" name="SET_OF_decode_ber" note="" work="403200" start="20200528T120000Z" end="20200617T120000Z" work-start="20200528T120000Z" percent-complete="0" priority="0" type="normal" scheduling="fixed-work"/>
+        <task id="110" name="_SET_is_populated" note="" work="57600" start="20200528T120000Z" end="20200601T120000Z" work-start="20200528T120000Z" percent-complete="0" priority="0" type="normal" scheduling="fixed-work"/>
+        <task id="111" name="SET_OF_decode_ber" note="" work="403200" start="20200528T120000Z" end="20200617T120000Z" work-start="20200528T120000Z" percent-complete="0" priority="0" type="normal" scheduling="fixed-work"/>
+        <task id="112" name="_el_addbytes" note="" work="57600" start="20200528T120000Z" end="20200601T120000Z" work-start="20200528T120000Z" percent-complete="0" priority="0" type="normal" scheduling="fixed-work"/>
+        <task id="113" name="_el_buf_cmp" note="" work="28800" start="20200528T120000Z" end="20200529T120000Z" work-start="20200528T120000Z" percent-complete="0" priority="0" type="normal" scheduling="fixed-work"/>
+      </task>
+      <task id="114" name="Set_of encoder" note="" work="403200" start="20200528T120000Z" end="20200608T120000Z" work-start="20200528T120000Z" percent-complete="0" priority="0" type="normal" scheduling="fixed-work">
+        <predecessors>
+          <predecessor id="1" predecessor-id="86" type="FS"/>
+        </predecessors>
+        <task id="115" name="SET_OF_encode_der" note="" work="201600" start="20200528T120000Z" end="20200608T120000Z" work-start="20200528T120000Z" percent-complete="0" priority="0" type="normal" scheduling="fixed-work"/>
+        <task id="116" name="SET_OF__encode_sorted" note="" work="201600" start="20200528T120000Z" end="20200608T120000Z" work-start="20200528T120000Z" percent-complete="0" priority="0" type="normal" scheduling="fixed-work"/>
+      </task>
+      <task id="117" name="Roundtrip correctness of Set type" note="" work="403200" start="20200528T120000Z" end="20200617T120000Z" work-start="20200528T120000Z" percent-complete="0" priority="0" type="normal" scheduling="fixed-work"/>
+    </task>
+    <task id="118" name="Milestone: Set type encoder/decoder correctness" note="" work="0" start="20200617T120000Z" end="20200617T120000Z" work-start="20200617T120000Z" percent-complete="0" priority="0" type="milestone" scheduling="fixed-work">
+      <predecessors>
+        <predecessor id="1" predecessor-id="107" type="FS"/>
+      </predecessors>
+    </task>
+    <task id="119" name="Milestone: All constructed types correctness" note="" work="0" start="20200617T120000Z" end="20200617T120000Z" work-start="20200617T120000Z" percent-complete="0" priority="0" type="milestone" scheduling="fixed-work">
+      <predecessors>
+        <predecessor id="1" predecessor-id="107" type="FS"/>
+      </predecessors>
     </task>
   </tasks>
   <resource-groups>
-    <group id="1" name="Eng1" admin-name="" admin-phone="" admin-email=""/>
-    <group id="2" name="Eng3" admin-name="" admin-phone="" admin-email=""/>
+    <group id="1" name="Intern2" admin-name="" admin-phone="" admin-email=""/>
+    <group id="2" name="Intern1" admin-name="" admin-phone="" admin-email=""/>
     <group id="3" name="Eng2" admin-name="" admin-phone="" admin-email=""/>
-    <group id="4" name="Intern1" admin-name="" admin-phone="" admin-email=""/>
-    <group id="5" name="Intern2" admin-name="" admin-phone="" admin-email=""/>
+    <group id="4" name="Eng3" admin-name="" admin-phone="" admin-email=""/>
+    <group id="5" name="Eng1" admin-name="" admin-phone="" admin-email=""/>
   </resource-groups>
   <resources>
     <resource id="1" name="Eng1" short-name="" type="1" units="0" email="" note="" std-rate="0"/>
@@ -229,26 +375,58 @@
     <resource id="5" name="Intern2" short-name="" type="1" units="0" email="" note="" std-rate="0"/>
   </resources>
   <allocations>
-    <allocation task-id="28" resource-id="1" units="100"/>
-    <allocation task-id="29" resource-id="1" units="100"/>
-    <allocation task-id="5" resource-id="1" units="100"/>
+    <allocation task-id="88" resource-id="1" units="100"/>
+    <allocation task-id="98" resource-id="1" units="100"/>
+    <allocation task-id="107" resource-id="1" units="100"/>
+    <allocation task-id="70" resource-id="1" units="100"/>
+    <allocation task-id="59" resource-id="1" units="100"/>
+    <allocation task-id="44" resource-id="1" units="100"/>
+    <allocation task-id="31" resource-id="1" units="100"/>
     <allocation task-id="1" resource-id="1" units="100"/>
-    <allocation task-id="28" resource-id="2" units="100"/>
-    <allocation task-id="5" resource-id="2" units="100"/>
+    <allocation task-id="60" resource-id="1" units="100"/>
+    <allocation task-id="61" resource-id="1" units="100"/>
+    <allocation task-id="34" resource-id="1" units="100"/>
+    <allocation task-id="4" resource-id="1" units="100"/>
+    <allocation task-id="88" resource-id="2" units="100"/>
+    <allocation task-id="98" resource-id="2" units="100"/>
+    <allocation task-id="107" resource-id="2" units="100"/>
+    <allocation task-id="70" resource-id="2" units="100"/>
+    <allocation task-id="59" resource-id="2" units="100"/>
+    <allocation task-id="44" resource-id="2" units="100"/>
+    <allocation task-id="31" resource-id="2" units="100"/>
     <allocation task-id="1" resource-id="2" units="100"/>
-    <allocation task-id="28" resource-id="3" units="100"/>
-    <allocation task-id="18" resource-id="3" units="100"/>
-    <allocation task-id="5" resource-id="3" units="100"/>
+    <allocation task-id="60" resource-id="2" units="100"/>
+    <allocation task-id="34" resource-id="2" units="100"/>
+    <allocation task-id="4" resource-id="2" units="100"/>
+    <allocation task-id="88" resource-id="3" units="100"/>
+    <allocation task-id="98" resource-id="3" units="100"/>
+    <allocation task-id="107" resource-id="3" units="100"/>
+    <allocation task-id="77" resource-id="3" units="100"/>
+    <allocation task-id="44" resource-id="3" units="100"/>
+    <allocation task-id="31" resource-id="3" units="100"/>
     <allocation task-id="1" resource-id="3" units="100"/>
-    <allocation task-id="13" resource-id="4" units="100"/>
-    <allocation task-id="16" resource-id="4" units="100"/>
-    <allocation task-id="28" resource-id="4" units="100"/>
-    <allocation task-id="29" resource-id="4" units="100"/>
-    <allocation task-id="19" resource-id="4" units="100"/>
-    <allocation task-id="6" resource-id="4" units="50"/>
-    <allocation task-id="13" resource-id="5" units="100"/>
-    <allocation task-id="16" resource-id="5" units="100"/>
-    <allocation task-id="22" resource-id="5" units="100"/>
-    <allocation task-id="9" resource-id="5" units="50"/>
+    <allocation task-id="60" resource-id="3" units="100"/>
+    <allocation task-id="35" resource-id="3" units="100"/>
+    <allocation task-id="34" resource-id="3" units="100"/>
+    <allocation task-id="4" resource-id="3" units="100"/>
+    <allocation task-id="86" resource-id="4" units="100"/>
+    <allocation task-id="70" resource-id="4" units="100"/>
+    <allocation task-id="77" resource-id="4" units="100"/>
+    <allocation task-id="59" resource-id="4" units="100"/>
+    <allocation task-id="38" resource-id="4" units="100"/>
+    <allocation task-id="23" resource-id="4" units="100"/>
+    <allocation task-id="39" resource-id="4" units="100"/>
+    <allocation task-id="42" resource-id="4" units="100"/>
+    <allocation task-id="60" resource-id="4" units="100"/>
+    <allocation task-id="61" resource-id="4" units="100"/>
+    <allocation task-id="45" resource-id="4" units="100"/>
+    <allocation task-id="24" resource-id="4" units="50"/>
+    <allocation task-id="86" resource-id="5" units="100"/>
+    <allocation task-id="38" resource-id="5" units="100"/>
+    <allocation task-id="23" resource-id="5" units="100"/>
+    <allocation task-id="39" resource-id="5" units="100"/>
+    <allocation task-id="42" resource-id="5" units="100"/>
+    <allocation task-id="51" resource-id="5" units="100"/>
+    <allocation task-id="27" resource-id="5" units="50"/>
   </allocations>
 </project>
