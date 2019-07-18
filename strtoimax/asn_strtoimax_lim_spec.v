@@ -362,15 +362,16 @@ Proof.
 
 
 
-Lemma asn_strtoimax_lim_loop_correct' : forall le str fin value m', 
-    asn_strtoimax_lim str fin = Some (ASN_STRTOX_OK, Some (value, Unsigned), Some m') ->
+Lemma asn_strtoimax_lim_ASN_STRTOX_EXPECT_MORE_correct : forall le str fin value m', 
+    asn_strtoimax_lim str fin = Some (ASN_STRTOX_EXPECT_MORE, Some (value, Unsigned), Some m') ->
     exists t le', le!_str = Some (vptr str)  ->
              le!_end = Some (vptr fin) ->
       
-             exec_stmt ge e le m f_asn_strtoimax_lim.(fn_body) t le' m (Out_return (Some (Vint (asn_strtox_result_e_to_int ASN_STRTOX_OK), tint)))
+             exec_stmt ge e le m f_asn_strtoimax_lim.(fn_body) t le' m' (Out_return (Some (Vint (asn_strtox_result_e_to_int ASN_STRTOX_EXPECT_MORE), tint)))
              /\ le'!_intp = Some (Vint value)
              /\ le'!_end = Some (vptr str).
 Proof.
+  replace (asn_strtox_result_e_to_int ASN_STRTOX_EXPECT_MORE) with (Int.repr (-1)) by admit.
   intros until value; intros m' Spec.
   unfold vptr.
   repeat break_let.
@@ -378,7 +379,13 @@ Proof.
   repeat break_match.
   all: try congruence.
   repeat eexists.
-  repeat econstructor.
+  exec_until_seq.
+   econstructor.
+   repeat econstructor.
+   econstructor.
+   repeat econstructor.
+   econstructor.
+   repeat econstructor.
   repeat rewrite PTree.gso.
   eapply H0.
   1-3: cbv; congruence.
@@ -391,14 +398,17 @@ Proof.
   apply PTree.gss.
   simpl.
   assert (sem_cmp Cge (Vptr b i) (tptr tschar)  (Vptr b1 i1) (tptr tschar) m = Some Vfalse) by admit. (* follows from spec: TODO*)
-  apply H1.
+  apply H1.  
   repeat econstructor.
-  repeat econstructor. 
+  repeat econstructor.
+  apply exec_Sseq_2.
+  repeat econstructor.
   repeat rewrite PTree.gso.
   apply H.
   1-4: cbv; congruence.
   apply Heqo1.
-  replace Out_normal with (outcome_switch  Out_normal).
+  
+  replace  (Out_return (Some (Vint (Int.repr (-1)), tint))) with (outcome_switch  (Out_return (Some (Vint (Int.repr (-1)), tint)))).
   repeat econstructor.
   repeat rewrite PTree.gso.
   eapply H.
@@ -408,15 +418,62 @@ Proof.
   apply Heqo1.
   repeat econstructor.
   replace i2 with minus_char.
-  repeat econstructor.
+  econstructor.
+  econstructor.
+    exec_until_seq.
+  
   assert ((le! _last_digit_max) = Some (Vint last_digit_max_minus)) by admit. (* change to int64 *)
-  repeat rewrite PTree.gso.
-  eapply H1.
-  1-5: cbv; admit. (* TODO: fix ident *)
+  (rewrite PTree.gso).
+  (rewrite PTree.gso).
+  apply PTree.gss.
+  1-2: cbv; try congruence.
+  1-2: 
+    repeat econstructor.
+  apply exec_Sseq_2.
+  econstructor.
   repeat econstructor.
-  simpl.
+  repeat  (rewrite PTree.gso).
+  apply H.
+  1-7: cbv; congruence.
   unfold tlong.
   unfold tint.
-   Admitted.
+  simpl.
+  econstructor.
+  repeat econstructor.
+  repeat  (rewrite PTree.gso).
+  apply H0.
+  1-8: cbv; congruence.
+  simpl in Heqo.
+  simpl.
+  apply Heqo.
+  (rewrite PTree.gso).
+  apply PTree.gss.
+  cbv; congruence.
+  apply PTree.gss.
+  simpl.
+  assert (sem_cmp Cge (Vptr b (i + Ptrofs.repr 1 * Ptrofs.of_ints (Int.repr 1))%ptrofs)
+                  (tptr tschar) (Vptr b1 i1) (tptr tschar) m = Some Vtrue) by admit.
+  apply H1.
+  repeat econstructor.
+  repeat econstructor.
+   repeat  (rewrite PTree.gso).
+  apply H0.
+  1-9: cbv; congruence.
+  (rewrite PTree.gso).
+  apply PTree.gss.
+  cbv; congruence.
+  repeat econstructor.
+  simpl.
+  assert ( Mem.store Mptr m b0 (Ptrofs.unsigned i0)
+    (Vptr b (i + Ptrofs.repr 1 * Ptrofs.of_ints (Int.repr 1))%ptrofs) = 
+           Some m') by admit.
+  apply H1.
+  cbv; congruence.
+  admit. (* spec *)
+  simpl. auto.
+  congruence.
+  admit. (* forgot intp! *)
+  admit. (* _end = _str ??? *)
+Admitted.
     
     

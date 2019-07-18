@@ -17,6 +17,20 @@ Infix "<" := Int.lt : IntScope.
 Notation "x <= y" := (negb (Int.ltu y x)) (at level 70) : IntScope.
 Infix "%" := Int.mods (at level 70) : IntScope.
 Infix "//" := Int.divs (at level 70) : IntScope.
+
+Delimit Scope Int64Scope with int64.
+Infix "==" := Int.eq (at level 70) : Int64Scope.
+Notation "x ~= y" := (negb Int.eq x y) (at level 70) : Int64Scope.
+Notation "x >> y" := (Int.shru x y) (at level 70) : Int64Scope.
+Notation "0" := Int.zero : Int64Scope.
+Notation "1" := Int.one : Int64Scope.
+Infix "+" := Int.add : Int64Scope.
+Infix "-" := Int.sub : Int64Scope.
+Infix "*" := Int.mul : Int64Scope.
+Infix "<" := Int.lt : Int64Scope.
+Notation "x <= y" := (negb (Int.ltu y x)) (at level 70) : Int64Scope.
+Infix "%" := Int.mods (at level 70) : Int64Scope.
+Infix "//" := Int.divs (at level 70) : Int64Scope.
  
 Delimit Scope PtrofsScope with ptrofs.
 Infix "==" := Ptrofs.eq (at level 70) : PtrofsScope.
