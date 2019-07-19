@@ -1,4 +1,4 @@
-## `clightgen`
+## clightgen
 ### Installation
 
 `clightgen` can be installed as part of CompCert via OPAM:
