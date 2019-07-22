@@ -29,65 +29,64 @@
       </predecessors>
     </task>
     <task id="3" name="Refactoring C code" note="" work="864000" start="20190715T000000Z" end="20190823T170000Z" work-start="20190715T080000Z" percent-complete="0" priority="0" type="normal" scheduling="fixed-work"/>
-    <task id="4" name="Primitive types verification" note="" work="10080000" start="20190823T170000Z" end="20191225T120000Z" work-start="20190826T080000Z" percent-complete="0" priority="0" type="normal" scheduling="fixed-work">
+    <task id="4" name="Primitive types verification" note="" work="10080000" start="20190802T170000Z" end="20191204T120000Z" work-start="20190805T080000Z" percent-complete="0" priority="0" type="normal" scheduling="fixed-work">
       <predecessors>
-        <predecessor id="1" predecessor-id="3" type="FS"/>
         <predecessor id="1" predecessor-id="1" type="FS"/>
       </predecessors>
     </task>
-    <task id="5" name="Refactoring and revisions" note="" work="864000" start="20191225T120000Z" end="20200108T120000Z" work-start="20191225T120000Z" percent-complete="0" priority="0" type="normal" scheduling="fixed-work">
+    <task id="5" name="Refactoring and revisions" note="" work="864000" start="20191204T120000Z" end="20191218T120000Z" work-start="20191204T120000Z" percent-complete="0" priority="0" type="normal" scheduling="fixed-work">
       <predecessors>
         <predecessor id="1" predecessor-id="4" type="FS"/>
       </predecessors>
     </task>
-    <task id="6" name="Milestone: primitive types correctness" note="" work="0" start="20191225T120000Z" end="20191225T120000Z" work-start="20191225T120000Z" percent-complete="0" priority="0" type="milestone" scheduling="fixed-work">
+    <task id="6" name="Milestone: primitive types correctness" note="" work="0" start="20191204T120000Z" end="20191204T120000Z" work-start="20191204T120000Z" percent-complete="0" priority="0" type="milestone" scheduling="fixed-work">
       <predecessors>
         <predecessor id="1" predecessor-id="4" type="FS"/>
       </predecessors>
     </task>
-    <task id="7" name="Constructed types verification" note="" work="5760000" start="20200108T120000Z" end="20200318T120000Z" work-start="20200108T120000Z" percent-complete="0" priority="0" type="normal" scheduling="fixed-work">
+    <task id="7" name="Constructed types verification" note="" work="5760000" start="20191218T120000Z" end="20200226T120000Z" work-start="20191218T120000Z" percent-complete="0" priority="0" type="normal" scheduling="fixed-work">
       <predecessors>
         <predecessor id="1" predecessor-id="5" type="FS"/>
         <predecessor id="1" predecessor-id="6" type="FS"/>
       </predecessors>
     </task>
-    <task id="8" name="Milestone: constructed types correctness" note="" work="0" start="20200318T120000Z" end="20200318T120000Z" work-start="20200318T120000Z" percent-complete="0" priority="0" type="milestone" scheduling="fixed-work">
+    <task id="8" name="Milestone: constructed types correctness" note="" work="0" start="20200226T120000Z" end="20200226T120000Z" work-start="20200226T120000Z" percent-complete="0" priority="0" type="milestone" scheduling="fixed-work">
       <predecessors>
         <predecessor id="1" predecessor-id="7" type="FS"/>
       </predecessors>
     </task>
-    <task id="9" name="High-level properties" note="" work="1728000" start="20200318T120000Z" end="20200408T120000Z" work-start="20200318T120000Z" percent-complete="0" priority="0" type="normal" scheduling="fixed-work">
+    <task id="9" name="High-level properties" note="" work="1728000" start="20200226T120000Z" end="20200318T120000Z" work-start="20200226T120000Z" percent-complete="0" priority="0" type="normal" scheduling="fixed-work">
       <predecessors>
         <predecessor id="1" predecessor-id="1" type="FS"/>
         <predecessor id="1" predecessor-id="4" type="FS"/>
         <predecessor id="1" predecessor-id="7" type="FS"/>
       </predecessors>
     </task>
-    <task id="10" name="Milesotone: highl-level properties proof" note="" work="0" start="20200408T120000Z" end="20200408T120000Z" work-start="20200408T120000Z" percent-complete="0" priority="0" type="milestone" scheduling="fixed-work">
+    <task id="10" name="Milesotone: highl-level properties proof" note="" work="0" start="20200318T120000Z" end="20200318T120000Z" work-start="20200318T120000Z" percent-complete="0" priority="0" type="milestone" scheduling="fixed-work">
       <predecessors>
         <predecessor id="1" predecessor-id="9" type="FS"/>
       </predecessors>
     </task>
-    <task id="11" name="Report/paper" note="" work="864000" start="20200408T120000Z" end="20200417T170000Z" work-start="20200408T120000Z" percent-complete="0" priority="0" type="normal" scheduling="fixed-work">
+    <task id="11" name="Report/paper" note="" work="864000" start="20200318T120000Z" end="20200327T170000Z" work-start="20200318T120000Z" percent-complete="0" priority="0" type="normal" scheduling="fixed-work">
       <predecessors>
         <predecessor id="1" predecessor-id="9" type="FS"/>
       </predecessors>
     </task>
-    <task id="12" name="Milestone: report" note="" work="0" start="20200417T170000Z" end="20200417T170000Z" work-start="20200417T170000Z" percent-complete="0" priority="0" type="milestone" scheduling="fixed-work">
+    <task id="12" name="Milestone: report" note="" work="0" start="20200327T170000Z" end="20200327T170000Z" work-start="20200327T170000Z" percent-complete="0" priority="0" type="milestone" scheduling="fixed-work">
       <predecessors>
         <predecessor id="1" predecessor-id="11" type="FS"/>
       </predecessors>
     </task>
   </tasks>
   <resource-groups>
-    <group id="1" name="" admin-name="" admin-phone="" admin-email=""/>
-    <group id="2" name="" admin-name="" admin-phone="" admin-email=""/>
-    <group id="3" name="CEng" admin-name="" admin-phone="" admin-email=""/>
-    <group id="4" name="Eng1" admin-name="" admin-phone="" admin-email=""/>
-    <group id="5" name="Eng3" admin-name="" admin-phone="" admin-email=""/>
-    <group id="6" name="Eng2" admin-name="" admin-phone="" admin-email=""/>
-    <group id="7" name="Intern1" admin-name="" admin-phone="" admin-email=""/>
-    <group id="8" name="Intern2" admin-name="" admin-phone="" admin-email=""/>
+    <group id="1" name="Intern2" admin-name="" admin-phone="" admin-email=""/>
+    <group id="2" name="Intern1" admin-name="" admin-phone="" admin-email=""/>
+    <group id="3" name="Eng2" admin-name="" admin-phone="" admin-email=""/>
+    <group id="4" name="Eng3" admin-name="" admin-phone="" admin-email=""/>
+    <group id="5" name="Eng1" admin-name="" admin-phone="" admin-email=""/>
+    <group id="6" name="CEng" admin-name="" admin-phone="" admin-email=""/>
+    <group id="7" name="" admin-name="" admin-phone="" admin-email=""/>
+    <group id="8" name="" admin-name="" admin-phone="" admin-email=""/>
   </resource-groups>
   <resources>
     <resource id="1" name="Eng1" short-name="" type="1" units="0" email="" note="" std-rate="0"/>
