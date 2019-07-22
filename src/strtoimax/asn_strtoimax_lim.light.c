@@ -1,4 +1,4 @@
-int asn_strtoimax_lim(signed char *str, signed char **end, long long *intp)
++int asn_strtoimax_lim(signed char *str, signed char **end, long long *intp)
 {
   register int $307;
   register long long $29;
