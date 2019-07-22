@@ -133,12 +133,17 @@ Definition asn_strtoimax_lim (str fin : addr) : option (asn_strtox_result_e*(opt
                             match load_addr Mint8signed m str with
                             | Some (Vint i) =>
                               if (i == minus_char)%int
-                              then asn_strtoimax_lim_loop (str++) fin 0 Signed last_digit_max_minus (dist - 1)%nat m
+                              then match addr_ge (str++) (b,ofs) with
+                                   | Some true => Some (ASN_STRTOX_EXPECT_MORE, None, (Mem.storev Mptr m (vptr fin) (vptr (str++))))
+                                   | Some false => asn_strtoimax_lim_loop (str++) fin 0 Signed last_digit_max_minus (dist - 1)%nat m
+                                   | None => None
+                                   end
                               else if (i == plus_char)%int
-                                   then
-                                     if addr_ge (str++) (b,ofs)
-                                     then Some (ASN_STRTOX_EXPECT_MORE, None, (Mem.storev Mptr m (vptr fin) (vptr (str++))))
-                                     else  asn_strtoimax_lim_loop (str++) fin 0 Unsigned last_digit_max (dist - 1)%nat m
+                                   then match addr_ge (str++) (b,ofs) with
+                                      | Some true => Some (ASN_STRTOX_EXPECT_MORE, None, (Mem.storev Mptr m (vptr fin) (vptr (str++))))
+                                      | Some false => asn_strtoimax_lim_loop (str++) fin 0 Unsigned last_digit_max (dist - 1)%nat m
+                                      | None => None
+                                     end
                                    else asn_strtoimax_lim_loop str fin 0 Unsigned last_digit_max dist m
                             | _ => None (* fail of memory load on str: wrong type or not enough permission *)
                             end
@@ -242,20 +247,51 @@ Proof.
     pose (IHn (str++) fin  outp _ (value * Int64.repr 10 +  int_to_int64 (j - zero_char)%int)  S) as N.
 Admitted.
 
+Proposition ptr_ge_true : forall  b1 b2 i1 i2, ptr_ge b1 b2 i1 i2 = Some true -> sem_cmp Cge (Vptr b1 i1) (tptr tschar) (Vptr b2 i2) (tptr tschar) m = Some Vtrue.
+Proof.
+  intros.
+  assert ((option_map Val.of_bool (if Archi.ptr64
+          then
+           Val.cmplu_bool (Mem.valid_pointer m) Cge 
+             (Vptr b1 i1) (Vptr b2 i1)
+          else
+           Val.cmpu_bool (Mem.valid_pointer m) Cge 
+                         (Vptr b1 i1) (Vptr b2 i2))) = (option_map Val.of_bool (Some true))).
+    f_equal.
+    assumption.
+    replace (option_map Val.of_bool (Some true)) with (Some Vtrue) in H0 by (simpl; auto).
+    eapply H0.
+Qed.
+
+Proposition ptr_ge_false : forall  b1 b2 i1 i2, ptr_ge b1 b2 i1 i2 = Some false -> sem_cmp Cge (Vptr b1 i1) (tptr tschar) (Vptr b2 i2) (tptr tschar) m = Some Vfalse.
+Proof.
+  intros.
+  assert ((option_map Val.of_bool (if Archi.ptr64
+          then
+           Val.cmplu_bool (Mem.valid_pointer m) Cge 
+             (Vptr b1 i1) (Vptr b2 i1)
+          else
+           Val.cmpu_bool (Mem.valid_pointer m) Cge 
+                         (Vptr b1 i1) (Vptr b2 i2))) = (option_map Val.of_bool (Some false))).
+    f_equal.
+    assumption.
+    replace (option_map Val.of_bool (Some false)) with (Some Vfalse) in H0 by (simpl; auto).
+    eapply H0.
+    Qed.
+
 (* case ASN_STRTOX_EXPECT_MORE: reading + or - and reaching *end *)
 
-Lemma asn_strtoimax_lim_ASN_STRTOX_EXPECT_MORE_correct : forall le str fin m', 
+Lemma asn_strtoimax_lim_ASN_STRTOX_EXPECT_MORE_correct : forall le str fin m',
+    
     asn_strtoimax_lim str fin = Some (ASN_STRTOX_EXPECT_MORE, None, Some m') ->
     exists t le', le!_str = Some (vptr str)  ->
              le!_end = Some (vptr fin) ->
              le! _last_digit_max = Some (Vlong last_digit_max) -> 
       
-             exec_stmt ge e le m f_asn_strtoimax_lim.(fn_body) t le' m' (Out_return (Some (Vint (asn_strtox_result_e_to_int ASN_STRTOX_EXPECT_MORE), tint)))
-             /\ le'!_end = Some (vptr str).
+             exec_stmt ge e le m f_asn_strtoimax_lim.(fn_body) t le' m' (Out_return (Some (Vint (asn_strtox_result_e_to_int ASN_STRTOX_EXPECT_MORE), tint))).
 Proof.
-
   replace (asn_strtox_result_e_to_int ASN_STRTOX_EXPECT_MORE) with (Int.repr (-1)) by (cbv; auto).
-  assert (forall dist str fin s last_digit v m',
+  assert (forall dist str fin v s last_digit  m',
              asn_strtoimax_lim_loop str fin v s last_digit dist m <>  Some (ASN_STRTOX_EXPECT_MORE, None, Some m')) as Loop.
     { induction dist.
       intros.
@@ -265,21 +301,17 @@ Proof.
       simpl.
       repeat break_match.
       repeat break_if.
-      all: try congruence;
-       eapply IHdist.        }
-  intros until m'; intros Spec.
-    unfold vptr.
-      unfold asn_strtoimax_lim in Spec.  
-
-  repeat break_let.
-  repeat break_match.
-  all: try congruence.
-  
-  pose (Loop  (distance (b, i) (b1, i1) - 1)%nat  ((b, i) ++) (b0, i0) Signed last_digit_max_minus 0  m' ). congruence.
-
-  
-  repeat eexists.
-  exec_until_seq.
+      all: try congruence; eapply IHdist. }
+   intros until m'; intros Spec.
+   unfold vptr.
+   unfold asn_strtoimax_lim in Spec.  
+   repeat break_let.
+   repeat break_match.
+   all: try congruence.
+   inversion Spec; clear Spec.
+   (* case reading minus *)
+   repeat eexists.
+   exec_until_seq.
    econstructor.
    repeat econstructor.
    econstructor.
@@ -287,7 +319,7 @@ Proof.
    econstructor.
    repeat econstructor.
   repeat rewrite PTree.gso.
-  eapply H0.
+  eapply H1.
   1-3: cbv; congruence.
   (* dereferencing double pointer *)
   
@@ -297,8 +329,10 @@ Proof.
   1-4: cbv; congruence.
   apply PTree.gss.
   simpl.
-  assert (sem_cmp Cge (Vptr b i) (tptr tschar)  (Vptr b1 i1) (tptr tschar) m = Some Vfalse) by admit. (* follows from spec: TODO*)
-  apply H2.  
+  simpl in Heqo0.
+  unfold  addr_ge in *.
+  break_let.
+  eapply (ptr_ge_false _ _ _ _  Heqo0).
   repeat econstructor.
   repeat econstructor.
   apply exec_Sseq_2.
@@ -330,7 +364,7 @@ Proof.
   apply exec_Sseq_2.
   econstructor.
   repeat econstructor.
-  repeat  (rewrite PTree.gso).
+  repeat (rewrite PTree.gso).
   apply H.
   1-7: cbv; congruence.
   unfold tlong.
@@ -339,7 +373,7 @@ Proof.
   econstructor.
   repeat econstructor.
   repeat  (rewrite PTree.gso).
-  apply H0.
+  apply H1.
   1-8: cbv; congruence.
   simpl in Heqo.
   simpl.
@@ -349,39 +383,135 @@ Proof.
   cbv; congruence.
   apply PTree.gss.
   simpl.
-  assert (sem_cmp Cge (Vptr b (i + Ptrofs.repr 1 * Ptrofs.of_ints (Int.repr 1))%ptrofs)
-                  (tptr tschar) (Vptr b1 i1) (tptr tschar) m = Some Vtrue) by admit.
-  apply H2.
+  replace (Ptrofs.repr 1 * Ptrofs.of_ints (Int.repr 1))%ptrofs with (Ptrofs.repr 1) by (auto with ptrofs).
+  unfold  addr_ge in *.
+  break_let.
+  subst.
+  pose (ptr_ge_true _ _ _ _ Heqo2).
+  simpl in Heqp.
+  inversion Heqp; subst.
+  eapply e0.
   repeat econstructor.
   repeat econstructor.
    repeat  (rewrite PTree.gso).
-  apply H0.
+  apply H1.
   1-9: cbv; congruence.
   (rewrite PTree.gso).
   apply PTree.gss.
   cbv; congruence.
   repeat econstructor.
   simpl.
-  assert ( Mem.store Mptr m b0 (Ptrofs.unsigned i0)
-    (Vptr b (i + Ptrofs.repr 1 * Ptrofs.of_ints (Int.repr 1))%ptrofs) = 
-           Some m') by admit.
-  apply H2.
-  cbv; congruence.
-  admit. (* spec *)
-  simpl. auto.
+  replace (Ptrofs.repr 1 * Ptrofs.of_ints (Int.repr 1))%ptrofs with (Ptrofs.repr 1) by (auto with ptrofs).
+  apply H0.
   congruence.
-  admit. (* forgot intp! *)
-  admit. (* _end = _str ??? *)
-  
+  symmetry.
+  pose (Int.eq_spec i2 minus_char).
+  rewrite Heqb0 in y.
+  auto.
+  simpl.
+  auto.
+  congruence.
 
+  pose (Loop  (distance (b, i) (b1, i1) - 1)%nat ((b, i) ++) (b0, i0) 0 Signed last_digit_max_minus); congruence.
+  (* case reading plus *)
+   repeat eexists.
+   exec_until_seq.
+   econstructor.
+   repeat econstructor.
+   econstructor.
+   repeat econstructor.
+   econstructor.
+   repeat econstructor.
+  repeat rewrite PTree.gso.
+  eapply H0.
+  1-3: cbv; congruence.
+  (* dereferencing double pointer *)
   
+  apply Heqo.
+  repeat rewrite PTree.gso.
+  apply H.
+  1-4: cbv; congruence.
+  apply PTree.gss.
+  simpl.
+  simpl in Heqo0.
+  unfold  addr_ge in *.
+  break_let.
+  eapply (ptr_ge_false _ _ _ _  Heqo0).
+  repeat econstructor.
+  repeat econstructor.
+  apply exec_Sseq_2.
+  repeat econstructor.
+  repeat rewrite PTree.gso.
+  apply H.
+  1-4: cbv; congruence.
+  apply Heqo1.
   
-  pose (Loop  (distance (b, i) (b1, i1) - 1)%nat  ((b, i) ++) (b0, i0) Unsigned last_digit_max 0  m' ).  congruence.
-  pose (Loop  (distance (b, i) (b1, i1))  ((b, i)) (b0, i0) Unsigned last_digit_max 0  m' ).  congruence.
+  replace  (Out_return (Some (Vint (Int.repr (-1)), tint))) with (outcome_switch  (Out_return (Some (Vint (Int.repr (-1)), tint)))).
+  repeat econstructor.
+  repeat rewrite PTree.gso.
+  eapply H.
+  1-5: cbv; congruence.
+  simpl in Heqo1.
+  simpl.
+  apply Heqo1.
+  repeat econstructor.
+  replace i2 with plus_char.
+  constructor.
+  eapply exec_Sseq_1.
+  repeat econstructor.
+   repeat (rewrite PTree.gso).
+  apply H.
+
+  1-5: cbv; try congruence.
+  repeat econstructor.
+  econstructor.
+  repeat econstructor.
+  repeat (rewrite PTree.gso).
+  apply H0.
+  1-6: cbv; congruence.
+  simpl in Heqo.
+  simpl.
+  apply Heqo.
+  repeat econstructor.
   
- 
-Admitted.
-    
+  (rewrite PTree.gso).
+  apply PTree.gss.
+  cbv; congruence.
+  apply PTree.gss.
+  simpl.
+  replace (Ptrofs.repr 1 * Ptrofs.of_ints (Int.repr 1))%ptrofs with (Ptrofs.repr 1) by (auto with ptrofs).
+  unfold  addr_ge in *.
+  break_let.
+  subst.
+  pose (ptr_ge_true _ _ _ _ Heqo2).
+  simpl in Heqp.
+  inversion Heqp; subst.
+  eapply e0.
+  repeat econstructor.
+  repeat econstructor.
+   repeat  (rewrite PTree.gso).
+  apply H0.
+  1-7: cbv; congruence.
+  (rewrite PTree.gso).
+  apply PTree.gss.
+  cbv; congruence.
+  repeat econstructor.
+  simpl.
+  replace (Ptrofs.repr 1 * Ptrofs.of_ints (Int.repr 1))%ptrofs with (Ptrofs.repr 1) by (auto with ptrofs).
+  inversion Spec.
+  auto.
+  congruence.
+  symmetry.
+  pose (Int.eq_spec i2 plus_char).
+  rewrite Heqb1 in y.
+  auto.
+  simpl.
+  auto.
+  congruence.
+
+  pose (Loop (distance (b, i) (b1, i1) - 1)%nat  ((b, i) ++) (b0, i0) 0 Unsigned last_digit_max).  congruence.
+  pose (Loop  (distance (b, i) (b1, i1)) (b, i) (b0, i0) 0 Unsigned last_digit_max m' ).  congruence.
+  Qed.
 
 (* Loop correctness cases *)
 
