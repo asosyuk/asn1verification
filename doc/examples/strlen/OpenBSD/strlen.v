@@ -51,7 +51,7 @@ Inductive strlen_rspec (m : mem) (b : block) (ofs : ptrofs) : nat -> Prop :=
     strlen_rspec m b ofs (S n).
 
 Ltac gso := rewrite PTree.gso by discriminate.
-Ltac gss := apply PTree.gss.
+Ltac gss := rewrite PTree.gss.
 
 (* 
  * Tactics for arithmetic on ptrofs, now they are ad hoc.
@@ -98,6 +98,9 @@ Parameter e : env.
 
 (** * Helper lemmas *)
 
+Definition ofs_of_nat (n : nat) := Ptrofs.repr (Z.of_nat n).
+
+  
 (*
  * if strlen on [b + ofs] is [len],
  * then strlen on [b + ofs + len] is 0
@@ -105,8 +108,9 @@ Parameter e : env.
 Lemma strlen_to_len_0 :
   forall len m b ofs,
     strlen_rspec m b ofs len ->
-    strlen_rspec m b (Ptrofs.add ofs (Ptrofs.repr (Z.of_nat len))) 0.
+    strlen_rspec m b (Ptrofs.add ofs (ofs_of_nat len)) 0.
 Proof.
+  unfold ofs_of_nat.
   induction len; intros.
   - simpl.
     replace (Ptrofs.repr 0) with Ptrofs.zero by (auto with ptrofs).
@@ -144,8 +148,9 @@ Lemma strlen_to_mem :
     forall i, (i < len)%nat ->
          exists c,
            Int.eq c Int.zero = false /\
-           Mem.loadv Mint8signed m (Vptr b (Ptrofs.add ofs (Ptrofs.repr (Z.of_nat i)))) = Some (Vint c).
+           Mem.loadv Mint8signed m (Vptr b (Ptrofs.add ofs (ofs_of_nat i))) = Some (Vint c).
 Proof.
+  unfold ofs_of_nat.
   induction len; intros.
   - lia.
   - intros.
@@ -171,49 +176,55 @@ Qed.
 (** * correctness *)
 
 Lemma strlen_loop_correct :
-  forall len m b ofs le,
-    strlen_rspec m b ofs len ->   
+  forall len m b ofs le i,
+    strlen_rspec m b ofs (len + i) ->   
     exists t le',
       le!_str = Some (Vptr b ofs) ->
-      le!_s = le!_str ->
+      le!_s = Some (Vptr b (Ptrofs.add ofs (ofs_of_nat i))) ->
       exec_stmt ge e le m f_strlen_loop t le' m Out_normal
       /\
-      le'!_s = Some (Vptr b (Ptrofs.add ofs (Ptrofs.repr (Z.of_nat len)))).
+      le'!_s = Some (Vptr b (Ptrofs.add ofs (ofs_of_nat (len + i)))).
 Proof.
   induction len; intros.
-  - (* iBase *) inversion_clear H. repeat eexists;
-      rewrite H in H1.
+  - (* iBase *)
+    repeat eexists.
     eapply exec_Sloop_stop1.
     repeat econstructor.
+    2: apply strlen_to_len_0 in H; inversion_clear H.
     all: try eassumption.
     all: try econstructor.
-    replace (Ptrofs.add ofs (Ptrofs.repr (Z.of_nat 0)))
-      with ofs
-      by (auto with ptrofs).
-    assumption.
   - (* iStep *)
-    inversion_clear H.
-    repeat eexists;
-      rewrite H in H5.
-    eapply exec_Sloop_loop.
-    repeat econstructor.
-    eassumption.
-    eassumption.
-    econstructor.
-    rewrite H3.
-    econstructor.
-    constructor.
-    repeat econstructor.
-    eassumption.
-    repeat econstructor.
+    assert (i < S len + i)%nat by lia.
+    pose proof strlen_to_mem _ _ _ _ H _ H0 as HM; clear H0.
+    destruct HM as [c HM]; destruct HM as [HM1 HM2].
+    pose proof strlen_to_len_0 _ _ _ _ H as HO.
+    repeat eexists.
+    + (* stmt *)
+      eapply exec_Sloop_loop.
+      repeat econstructor.
+      eassumption.
+      eassumption.
+      econstructor.
+      rewrite HM1.
+      econstructor.
+      constructor.
+      repeat econstructor.
+      eassumption.
+      econstructor.
 
-    fold f_strlen_loop.
-    replace (Ptrofs.add
-               ofs
-               (Ptrofs.mul
-                  (Ptrofs.repr (sizeof ge tschar))
-                  (ptrofs_of_int Signed (Int.repr 1))))
-      with (Ptrofs.add ofs Ptrofs.one)
-      by (auto with ptrofs).
-    remember (PTree.set _s (Vptr b (Ptrofs.add ofs Ptrofs.one)) le) as X.
-    pose proof (IHlen m b (Ptrofs.add ofs Ptrofs.one) X) H4.
+      fold f_strlen_loop.
+      replace (Ptrofs.mul (Ptrofs.repr (sizeof ge tschar)) (ptrofs_of_int Signed (Int.repr 1)))
+        with Ptrofs.one
+        by (auto with ptrofs).
+      remember (PTree.set _s (Vptr b (Ptrofs.add (Ptrofs.add ofs (ofs_of_nat i)) Ptrofs.one)) le)
+        as X.
+      replace (S len + i)%nat with (len + S i)%nat in * by lia.
+      pose proof IHlen m b ofs X (S i) H.
+      destruct H2 as [t' H2]; destruct H2 as [le'' H2].
+      destruct H2.
+      subst; gso; assumption.
+      subst; gss. admit.
+
+      (** * eassumption  ? *)
+      (** * eapply H2 ? *)
+Admitted.
