@@ -33,10 +33,10 @@ Definition f_strlen_loop :=
       (Ebinop Oadd (Etempvar _s (tptr tschar))
         (Econst_int (Int.repr 1) tint) (tptr tschar)))).
 
-Definition VintZ (z : Z) := Vint (Int.repr z).
-Definition VintN (n : nat) := Vint (Int.repr (Z_of_nat n)).
 
-(* relational specification of strlen *)
+
+(** * relational specification of strlen *)
+
 Inductive strlen_rspec (m : mem) (b : block) (ofs : ptrofs) : nat -> Prop :=
 | LengthZero:
     Mem.loadv Mint8signed m (Vptr b ofs) = Some (Vint Int.zero) ->
@@ -50,53 +50,54 @@ Inductive strlen_rspec (m : mem) (b : block) (ofs : ptrofs) : nat -> Prop :=
     strlen_rspec m b (Ptrofs.add ofs Ptrofs.one) n ->
     strlen_rspec m b ofs (S n).
 
-Ltac gso := rewrite PTree.gso by discriminate.
-Ltac gss := apply PTree.gss.
 
-(* 
- * Tactics for arithmetic on ptrofs, now they are ad hoc.
- * TODO: automatize translation from ptrofs to Z
- *)
 
-Ltac ints_to_Z :=
-  repeat rewrite Int.unsigned_repr_eq;
-  repeat rewrite Zmod_small.
-
-Ltac ptrofs_to_Z :=
-  repeat rewrite Ptrofs.unsigned_repr_eq;
-  repeat rewrite Zmod_small.
-
-Ltac ptrofs_compute_add_mul :=
-  simpl; unfold Ptrofs.add, Ptrofs.mul, Ptrofs.of_intu, Ptrofs.of_int;
-  repeat rewrite Ptrofs.unsigned_repr_eq;
-  repeat rewrite Int.unsigned_repr_eq;
-  repeat rewrite Zmod_small.
-
-Ltac ints_compute_add_mul :=
-  simpl; unfold Int.add, Int.mul;
-  repeat rewrite Int.unsigned_repr_eq;
-  repeat rewrite Int.unsigned_repr_eq;
-  repeat rewrite Zmod_small.
-
-Fact char_not_zero (c : int) :
-  c <> Int.zero ->
-  negb (Int.eq c Int.zero) = true.
-Proof.
-  intro.
-  rewrite Int.eq_false by assumption.
-  reflexivity.
-Qed.  
-
-Fact int_ptrofs_mod_eq : Int.modulus = Ptrofs.modulus.
-Proof. reflexivity. Qed.
-
-(* add more lemmas to ptrofs hints *)
-Hint Resolve Ptrofs.mul_one Ptrofs.add_zero int_ptrofs_mod_eq : ptrofs.
+(** * Helper lemmas and definitions *)
 
 Parameter ge : genv.
 Parameter e : env.
 
-(** * Helper lemmas *)
+Definition ofs_of_nat (n : nat) := Ptrofs.repr (Z.of_nat n).
+
+(* add more lemmas to ptrofs hints *)
+Hint Resolve Ptrofs.mul_one Ptrofs.add_zero : ptrofs.
+
+Ltac gso_simpl := rewrite PTree.gso by discriminate.
+Ltac gss_simpl := rewrite PTree.gss.
+
+(*
+ * helper for pointer arithmetic
+ * the first two requirements are technical:
+ * true in all but corner cases
+*)
+Fact ofs_succ_l : forall ofs i,
+  1 < Int.modulus ->
+  Z.of_nat i < Int.modulus ->
+  Ptrofs.add (Ptrofs.add ofs (ofs_of_nat i)) Ptrofs.one =
+  Ptrofs.add ofs (ofs_of_nat (S i)).
+Proof.
+  intros.
+  rewrite Ptrofs.add_assoc.
+  f_equal.
+  unfold ofs_of_nat, Ptrofs.one, Ptrofs.add, Ptrofs.mul.
+  rewrite Nat2Z.inj_succ, Ptrofs.unsigned_repr_eq, Zmod_small.
+  reflexivity.
+  replace Ptrofs.modulus with Int.modulus by reflexivity.
+  nia.
+Qed.
+
+Fact ofs_succ_r : forall ofs i,
+  1 < Int.modulus ->
+  Z.of_nat i < Int.modulus ->
+  Ptrofs.add (Ptrofs.add ofs Ptrofs.one) (ofs_of_nat i) =
+  Ptrofs.add ofs (ofs_of_nat (S i)).
+Proof.
+  intros.
+  rewrite <-ofs_succ_l by assumption.
+  rewrite Ptrofs.add_assoc, Ptrofs.add_assoc.
+  f_equal.
+  apply Ptrofs.add_commut.
+Qed.
 
 (*
  * if strlen on [b + ofs] is [len],
@@ -105,34 +106,17 @@ Parameter e : env.
 Lemma strlen_to_len_0 :
   forall len m b ofs,
     strlen_rspec m b ofs len ->
-    strlen_rspec m b (Ptrofs.add ofs (Ptrofs.repr (Z.of_nat len))) 0.
+    strlen_rspec m b (Ptrofs.add ofs (ofs_of_nat len)) 0.
 Proof.
   induction len; intros.
-  - simpl.
-    replace (Ptrofs.repr 0) with Ptrofs.zero by (auto with ptrofs).
+  - replace (ofs_of_nat 0) with Ptrofs.zero by reflexivity.
     replace (Ptrofs.add ofs Ptrofs.zero) with ofs by (auto with ptrofs).
     assumption.
   - inversion_clear H.
-    replace
-      (Ptrofs.add ofs (Ptrofs.repr (Z.of_nat (S len))))
-      with
-      (Ptrofs.add (Ptrofs.add ofs Ptrofs.one) (Ptrofs.repr (Z.of_nat len))).
-    apply IHlen; assumption.
-    {
-      rewrite Nat2Z.inj_succ, Ptrofs.add_assoc.
-      replace  (Z.succ (Z.of_nat len)) with ((Z.of_nat len) + 1) by (auto with zarith).
-      unfold Ptrofs.one.
-      f_equal.
-      ptrofs_compute_add_mul.
-      all: pose proof int_ptrofs_mod_eq; try nia.
-      f_equal.
-      auto with zarith.
-    }
+    rewrite <-ofs_succ_r by lia.
+    apply IHlen.
+    assumption.
 Qed.
-
-Fact Ptrofs_zero_nat_O :
-  Ptrofs.repr (Z.of_nat 0) = Ptrofs.zero.
-Proof. reflexivity. Qed.
 
 (*
  * if strlen on [b + ofs] is [len],
@@ -144,7 +128,7 @@ Lemma strlen_to_mem :
     forall i, (i < len)%nat ->
          exists c,
            Int.eq c Int.zero = false /\
-           Mem.loadv Mint8signed m (Vptr b (Ptrofs.add ofs (Ptrofs.repr (Z.of_nat i)))) = Some (Vint c).
+           Mem.loadv Mint8signed m (Vptr b (Ptrofs.add ofs (ofs_of_nat i))) = Some (Vint c).
 Proof.
   induction len; intros.
   - lia.
@@ -155,65 +139,78 @@ Proof.
       rewrite Ptrofs.add_zero.
       assumption.
     + specialize IHlen with (ofs := (Ptrofs.add ofs Ptrofs.one)).
-      replace (Ptrofs.add ofs (Ptrofs.repr (Z.of_nat (S i))))
-        with (Ptrofs.add (Ptrofs.add ofs Ptrofs.one) (Ptrofs.repr (Z.of_nat i))).
+      replace (Ptrofs.add ofs (ofs_of_nat (S i)))
+        with (Ptrofs.add (Ptrofs.add ofs Ptrofs.one) (ofs_of_nat i)).
       apply IHlen; [assumption | lia].
-      {
-        pose proof int_ptrofs_mod_eq.
-        unfold Ptrofs.one.
-        ptrofs_compute_add_mul.
-        f_equal.
-        all: try lia.
-        destruct ofs; simpl in *; nia.
-      }
+      rewrite ofs_succ_r by lia.
+      reflexivity.
 Qed.
+
+
 
 (** * correctness *)
 
-Lemma strlen_loop_correct :
-  forall len m b ofs le,
-    strlen_rspec m b ofs len ->   
+Lemma strlen_loop_correct_gen :
+  forall len m b ofs le i,
+    strlen_rspec m b ofs (len + i) ->   
     exists t le',
       le!_str = Some (Vptr b ofs) ->
-      le!_s = le!_str ->
+      le!_s = Some (Vptr b (Ptrofs.add ofs (ofs_of_nat i))) ->
       exec_stmt ge e le m f_strlen_loop t le' m Out_normal
       /\
-      le'!_s = Some (Vptr b (Ptrofs.add ofs (Ptrofs.repr (Z.of_nat len)))).
+      le'!_s = Some (Vptr b (Ptrofs.add ofs (ofs_of_nat (len + i)))).
 Proof.
   induction len; intros.
-  - (* iBase *) inversion_clear H. repeat eexists;
-      rewrite H in H1.
+  - (** iBase *)
+    repeat eexists.
     eapply exec_Sloop_stop1.
     repeat econstructor.
+    2: apply strlen_to_len_0 in H; inversion_clear H.
     all: try eassumption.
     all: try econstructor.
-    replace (Ptrofs.add ofs (Ptrofs.repr (Z.of_nat 0)))
-      with ofs
-      by (auto with ptrofs).
-    assumption.
-  - (* iStep *)
-    inversion_clear H.
-    repeat eexists;
-      rewrite H in H5.
-    eapply exec_Sloop_loop.
-    repeat econstructor.
-    eassumption.
-    eassumption.
-    econstructor.
-    rewrite H3.
-    econstructor.
-    constructor.
-    repeat econstructor.
-    eassumption.
-    repeat econstructor.
+  - (** iStep *)
+    (** introduce properties of [strlen_rspec] *)
+    assert (T : (i < S len + i)%nat) by lia;
+      pose proof strlen_to_mem _ _ _ _ H _ T as HM;
+      clear T;
+      destruct HM as [c HM]; destruct HM as [HM1 HM2].
+    pose proof strlen_to_len_0 _ _ _ _ H as HO.
 
-    fold f_strlen_loop.
-    replace (Ptrofs.add
-               ofs
-               (Ptrofs.mul
-                  (Ptrofs.repr (sizeof ge tschar))
-                  (ptrofs_of_int Signed (Int.repr 1))))
-      with (Ptrofs.add ofs Ptrofs.one)
-      by (auto with ptrofs).
-    remember (PTree.set _s (Vptr b (Ptrofs.add ofs Ptrofs.one)) le) as X.
-    pose proof (IHlen m b (Ptrofs.add ofs Ptrofs.one) X) H4.
+    (** prepare the induction hypothesis for use *)
+    (* cannot work with [S len] but can with [S i] *)
+    replace (S len + i)%nat with (len + S i)%nat in * by lia.
+    (* this is the starting state of the iteration on the induction step *)
+    remember (PTree.set _s (Vptr b (Ptrofs.add (Ptrofs.add ofs (ofs_of_nat i)) Ptrofs.one)) le)
+      as Ile.
+    pose proof IHlen m b ofs Ile (S i) H as IH;
+      clear IHlen;
+      destruct IH as [t' IH]; destruct IH as [le'' IH].
+
+    repeat eexists.
+
+    (* make induction hypothesis useful *)
+    all: destruct IH;
+      [ subst; gso_simpl; assumption
+      | subst; gss_simpl; inversion H; rewrite ofs_succ_l by lia; reflexivity
+      |].
+    + (* statment execution *)
+      eapply exec_Sloop_loop.
+      repeat econstructor.
+      eassumption.
+      eassumption.
+      econstructor.
+      rewrite HM1.
+      econstructor.
+      constructor.
+      repeat econstructor.
+      eassumption.
+      econstructor.
+ 
+      fold f_strlen_loop.
+      replace (Ptrofs.mul (Ptrofs.repr (sizeof ge tschar)) (ptrofs_of_int Signed (Int.repr 1)))
+        with Ptrofs.one
+        by (auto with ptrofs).
+      subst; eassumption.
+    + (* execution result *)
+      assumption.
+Qed.
