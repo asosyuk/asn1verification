@@ -108,7 +108,7 @@ Fixpoint asn_strtoimax_lim_loop (str : addr) (fin : addr) (value : int64) (s: si
   let m' := (Mem.storev Mptr m (vptr fin) (vptr str)) in
      match dist with
                 | O => Some (ASN_STRTOX_OK, Some (value, s), m')
-                | S n => match load_addr Mint8signed m str with
+                | S n => match load_addr Many32 m str with
                         | Some (Vint i) =>
                           if is_digit i
                           then
@@ -120,7 +120,8 @@ Fixpoint asn_strtoimax_lim_loop (str : addr) (fin : addr) (value : int64) (s: si
                                  then asn_strtoimax_lim_loop (str++) fin v s last_digit n m
                                  else Some (ASN_STRTOX_ERROR_RANGE, Some (value,s),m') 
                           else Some (ASN_STRTOX_EXTRA_DATA, Some (value,s),m')
-                        | _  => None
+                        | Some _   =>  Some (ASN_STRTOX_EXTRA_DATA, Some (value,s),m')
+                        | None => None
                         end
   end.
     
@@ -277,8 +278,35 @@ Proof.
     assumption.
     replace (option_map Val.of_bool (Some false)) with (Some Vfalse) in H0 by (simpl; auto).
     eapply H0.
-    Qed.
+Qed.
 
+Goal exists x, Int.mul (Int.repr (-1)) (Int.repr 2) = Int.repr x.
+  eexists.
+  unfold Int.mul.
+  repeat rewrite Int.unsigned_repr_eq.
+  simpl.
+  (* Int.repr 8589934590 *)
+  f_equal.
+Qed.
+
+Goal exists x, Int.mul (Int.repr (1)) (Int.repr 2) = Int.repr x.
+  eexists.
+  unfold Int.mul.
+  repeat rewrite Int.unsigned_repr_eq.
+  simpl.
+  (* Int.repr 2 *)
+  f_equal.
+Qed.
+
+Definition mult_sign s value :=
+  match s with
+  | Signed => Int64.neg value
+  | Unsigned => value
+  end.
+
+Print exec_stmt.
+Print outcome_switch.
+  
 (* case ASN_STRTOX_EXPECT_MORE: reading + or - and reaching *end *)
 
 Lemma asn_strtoimax_lim_ASN_STRTOX_EXPECT_MORE_correct : forall le str fin m',
@@ -515,26 +543,72 @@ Proof.
 
 (* Loop correctness cases *)
 
-Lemma asn_strtoimax_lim_loop_ASN_STRTOX_EXTRA_DATA_correct : forall dist le str fin value s last_digit,
-    
-    asn_strtoimax_lim_loop str fin value s last_digit dist m = Some (ASN_STRTOX_EXTRA_DATA, None, None) ->
+ Lemma inver:  forall dist str fin inp_value out_value s m',
+    asn_strtoimax_lim_loop str fin inp_value s last_digit_max dist m = Some (ASN_STRTOX_EXTRA_DATA, Some (out_value,s), Some m') ->
+    exists i, (i < dist)%nat /\ (forall j, load_addr Many32 m (add_addr str (Ptrofs.repr (Z.of_nat i))) = Some (Vint j) -> is_digit j = false).
+ Proof.
+   induction dist.
+   intros.
+   unfold asn_strtoimax_lim_loop in H.
+   congruence.
+   intros.
+   unfold  asn_strtoimax_lim_loop in H.
+   repeat break_match.
+   exists 0%nat.
+   split.
+   omega.
+   replace (Ptrofs.repr (Z.of_nat 0)) with Ptrofs.zero by (auto with ptrofs).
+   intros.
+   unfold add_addr in H0.
+   break_let.
+   replace (i + 0)%ptrofs with i%ptrofs in H0.
+   congruence.
+   symmetry. auto with ptrofs. admit.
+    fold  asn_strtoimax_lim_loop in H.
+   pose (IHdist  (str ++) fin
+        (inp_value * Int64.repr 10 + int_to_int64 (i - zero_char)%int) out_value s
+        m' H) as IH.
+   destruct IH. destruct H0.
+   exists (x + 1)%nat.
+   split.
+   omega.
+   replace (add_addr str (Ptrofs.repr (Z.of_nat (x + 1)))) with (add_addr (str ++) (Ptrofs.repr (Z.of_nat x))). 
+   assumption.
+   unfold add_addr.
+   repeat break_let.
+   inversion Heqp.
+   f_equal.
+   replace (Z.of_nat (x + 1)) with (Z.of_nat x + 1)%Z by lia.
+   admit.
+   Admitted.
+
+Lemma asn_strtoimax_lim_loop_ASN_STRTOX_EXTRA_DATA_correct : forall dist b ofs le str fin inp_value out_value s last_digit m',
+    load_addr Mptr m fin = Some (Vptr b ofs) -> 
+    asn_strtoimax_lim_loop str (b,ofs) inp_value s last_digit dist m = Some (ASN_STRTOX_EXTRA_DATA, Some (out_value,s), Some m') ->
     
      exists t le', le!_str = Some (vptr str)  ->
                    le!_end = Some (vptr fin) ->
-                   le!_value = Some (Vlong value) ->
+                   le!_value = Some (Vlong inp_value) ->
               
-                   exec_stmt ge e le m f_asn_strtoimax_lim_loop t le' m
+                   exec_stmt ge e le m f_asn_strtoimax_lim_loop t le' m'
                              (Out_return (Some (Vint (asn_strtox_result_e_to_int ASN_STRTOX_EXTRA_DATA), tint))).
 Proof.
+  intros.
+  unfold asn_strtoimax_lim_loop in H0.
+  Print memory_chunk.
+  
   induction dist.
   intros.
-  simpl in H. congruence.
+  simpl in H0. congruence.
   intros.
-  simpl in H.                           
+   
+  simpl in H0.                           
   repeat break_match.
   all: try congruence.
-  pose (IHdist le (str ++) fin (value * Int.repr 10 + (i - zero_char)) s
-               last_digit H). (* TODO: change le *)
+  admit.
+  admit.
+ 
+  pose (IHdist b ofs le (str ++) fin (inp_value * Int64.repr 10 + int_to_int64 (i - zero_char)%int) out_value s last_digit m' H H0). (* TODO: change le *)
   destruct e0.
   destruct H0.
   unfold vptr in *.
@@ -546,60 +620,48 @@ Proof.
   intros.
   repeat econstructor.
   apply H4.
-  assert (Mem.loadv Mptr m (Vptr b0 i1) = Some (Vptr b0 i1)) as M by admit. (* derefencing a pointer *)
-  apply M.
+  simpl in H.
+  simpl.
+  apply H.
   rewrite PTree.gso.
-  apply H1.
+  apply H0.
   cbv; congruence.
   apply PTree.gss.
   simpl.
-  assert (sem_cmp Clt (Vptr b i2) (tptr tschar) (Vptr b0 i1) (tptr tschar) m = Some Vtrue) as T by admit.
+  assert (sem_cmp Clt (Vptr b0 i2) (tptr tschar) (Vptr b ofs) (tptr tschar) m = Some Vtrue) as T by admit.
   apply T.
   repeat econstructor.
   econstructor.
   rewrite PTree.gso.
-  apply H1.
+  apply H0.
   cbv; congruence.
   simpl in Heqo.
   apply Heqo.
   repeat  rewrite PTree.gso.
-  apply H1.
+  apply H0.
   1-2: cbv; congruence.
-  repeat  rewrite PTree.gso.
-  simpl in Heqo.
   apply Heqo.
-  simpl.
   econstructor.
-  Print exec_stmt.
-  Print seq_of_labeled_statement.
-  Print select_switch.
-  replace i with (Int.repr 48) by admit.
+  replace i with (Int.repr 48) by admit. (* follows from is_digit *)
   repeat econstructor.
     repeat  rewrite PTree.gso.
-    apply H1.
+    apply H0.
     1-2:  cbv; congruence.
-     simpl in Heqo.
      apply Heqo.
      apply PTree.gss.
      econstructor.
      repeat  rewrite PTree.gso.
   apply H5.
   1-4: cbv; congruence.
-  assert (le! _upper_boundary = Some (Vlong (Int64.repr (Int.unsigned upper_boundary)))) by admit.
+  assert (le! _upper_boundary = Some (Vlong upper_boundary)) by admit.
   repeat  rewrite PTree.gso.
   apply H6.
   1-4: cbv; congruence.
-  simpl.
   econstructor.
-  unfold tlong.
   simpl.
-  replace (Int64.lt (Int64.repr (Int.unsigned value))
-          (Int64.repr (Int.unsigned upper_boundary))) with true.
-    
+  rewrite Heqb1.
   econstructor.
-  (* follows from an assumption *)
-  admit.
-  break_if.
+   econstructor.
   repeat econstructor.
   repeat  rewrite PTree.gso.
   apply H5.
@@ -607,8 +669,8 @@ Proof.
   repeat econstructor.
   apply PTree.gss.
   repeat econstructor.
-
-  repeat econstructor.
+  (* Continue *)
+   eapply exec_Scontinue.
   repeat  rewrite PTree.gso.
   apply H5.
   1-4: cbv; congruence.
