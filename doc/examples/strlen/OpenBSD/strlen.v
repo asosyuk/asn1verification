@@ -123,9 +123,7 @@ Qed.
  * then all chars on [b + ofs + i], [i < len] are non-nil
  *)
 Lemma strlen_to_mem :
-  forall len m b ofs,
-    strlen_rspec m b ofs len ->
-    forall i, (i < len)%nat ->
+  forall len m b ofs, strlen_rspec m b ofs len -> forall i, (i < len)%nat ->
          exists c,
            Int.eq c Int.zero = false /\
            Mem.loadv Mint8signed m (Vptr b (Ptrofs.add ofs (ofs_of_nat i))) = Some (Vint c).
@@ -150,15 +148,17 @@ Qed.
 
 (** * correctness *)
 
-Lemma strlen_loop_correct_gen :
+Lemma f_strlen_loop_correct_gen :
   forall len m b ofs le i,
     strlen_rspec m b ofs (len + i) ->   
     exists t le',
       le!_str = Some (Vptr b ofs) ->
       le!_s = Some (Vptr b (Ptrofs.add ofs (ofs_of_nat i))) ->
-      exec_stmt ge e le m f_strlen_loop t le' m Out_normal
+      (exec_stmt ge e le m f_strlen_loop t le' m Out_normal
       /\
-      le'!_s = Some (Vptr b (Ptrofs.add ofs (ofs_of_nat (len + i)))).
+      le'!_s = Some (Vptr b (Ptrofs.add ofs (ofs_of_nat (len + i))))
+      /\
+      le'!_str = le!_str).
 Proof.
   induction len; intros.
   - (** iBase *)
@@ -186,13 +186,16 @@ Proof.
       clear IHlen;
       destruct IH as [t' IH]; destruct IH as [le'' IH].
 
-    repeat eexists.
+    eexists; eexists; intros.
 
-    (* make induction hypothesis useful *)
-    all: destruct IH;
-      [ subst; gso_simpl; assumption
+    (* split induction hypothesis *)
+    destruct IH as [IH1 IH];
+      [subst; gso_simpl; assumption
       | subst; gss_simpl; inversion H; rewrite ofs_succ_l by lia; reflexivity
       |].
+    destruct IH as [IH2 IH3].
+
+    split.
     + (* statment execution *)
       eapply exec_Sloop_loop.
       repeat econstructor.
@@ -210,7 +213,70 @@ Proof.
       replace (Ptrofs.mul (Ptrofs.repr (sizeof ge tschar)) (ptrofs_of_int Signed (Int.repr 1)))
         with Ptrofs.one
         by (auto with ptrofs).
-      subst; eassumption.
+      subst.
+      eassumption.
     + (* execution result *)
+      split.
       assumption.
+      rewrite IH3; subst; gso_simpl; reflexivity.
+Qed.
+
+Fact ptr_max_signed_lower_bound :
+  2147483647 <= Ptrofs.max_signed.
+Proof.
+  unfold Ptrofs.max_signed, Ptrofs.half_modulus, Ptrofs.modulus,
+    Ptrofs.wordsize, Wordsize_Ptrofs.wordsize.
+  destruct Archi.ptr64; simpl; lia.
+Qed.
+
+Fact ptr_zwordsize_lower_bound :
+ 32 <= Ptrofs.zwordsize.
+Proof.
+  unfold Ptrofs.zwordsize, Ptrofs.wordsize, Wordsize_Ptrofs.wordsize.
+  destruct Archi.ptr64; simpl; lia.
+Qed.
+
+Lemma f_strlen_correct :
+  forall len m b ofs le,
+    strlen_rspec m b ofs len ->   
+    le!_str = Some (Vptr b ofs) ->
+    exists t le',
+      exec_stmt ge e le m (fn_body f_strlen) t le' m
+                (Out_return (Some (Vptrofs (ofs_of_nat len), tint))).
+Proof.
+  intros.
+
+  (* introduce the gneralized correctness lemma *)
+  pose proof f_strlen_loop_correct_gen len m b ofs (PTree.set _s (Vptr b ofs) le) 0 as GC.
+  replace (len + 0)%nat with len in * by lia.
+  specialize (GC H).
+  destruct GC as [t GC]; destruct GC as [le' GC].
+
+  repeat eexists.
+
+  (* split generalized correctness usable *)
+  destruct GC as [GC1 GC];
+    [gso_simpl; assumption
+    |gss_simpl; rewrite Ptrofs.add_zero; reflexivity
+    |].
+  destruct GC as [GC2 GC3].
+  
+  econstructor.
+  - (* body *)
+    econstructor.
+    repeat econstructor; eassumption.
+    eassumption.
+  - (* return *)
+    repeat econstructor.
+    eassumption.
+    rewrite GC3; gso_simpl; eassumption.
+    cbn.
+    destruct eq_block; [| contradiction].
+    unfold proj_sumbool.
+    destruct zle;
+      [| pose proof ptr_max_signed_lower_bound; lia].
+    rewrite Ptrofs.divs_one;
+      [| pose proof ptr_zwordsize_lower_bound; lia].
+    rewrite Ptrofs.sub_add_l, Ptrofs.sub_idem, Ptrofs.add_zero_l.
+    reflexivity.
 Qed.
