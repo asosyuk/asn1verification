@@ -1,4 +1,4 @@
-+From Coq Require Import String List ZArith Psatz.
+From Coq Require Import String List ZArith Psatz.
 From compcert Require Import Coqlib Integers Floats AST Ctypes Cop Clight Clightdefs Memory Values ClightBigstep Events Maps.
 
 (* f_asn_strtoimax_lim C light AST *)

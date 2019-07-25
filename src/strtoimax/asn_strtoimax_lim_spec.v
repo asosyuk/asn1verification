@@ -440,7 +440,7 @@ Proof.
   auto.
   congruence.
 
-  pose (Loop  (distance (b, i) (b1, i1) - 1)%nat ((b, i) ++) (b0, i0) 0 Signed last_digit_max_minus); congruence.
+  pose proof (Loop  (distance (b, i) (b1, i1) - 1)%nat ((b, i) ++) (b0, i0) 0 Signed last_digit_max_minus). congruence.
   (* case reading plus *)
    repeat eexists.
    exec_until_seq.
@@ -582,6 +582,168 @@ Proof.
    admit.
    Admitted.
 
+ Ltac gso_simpl := rewrite PTree.gso by discriminate.
+ Ltac gss_simpl := rewrite PTree.gss.
+
+ Ltac exec_loop_continue := 
+     repeat match goal with
+            | [ |- exec_stmt _ _ _ (Sloop _) _ _ _ _ ] => idtac
+            | _ => econstructor ; exec_loop_continue
+            end.
+
+ Ltac destruct_orb_hyp :=
+  match goal with
+    | [H : orb _ _ = true |- _] => apply orb_prop in H; destruct H
+    | [H : orb _ _ = false |- _] => apply orb_false_elim in H; destruct H
+  end.
+
+ Ltac env_assumption := try gso_simpl;  try gss_simpl; try eassumption.
+ 
+ Lemma asn_strtoimax_lim_loop_ASN_STRTOX_OK_correct : forall dist b ofs le str fin inp_value out_value m',
+     le!_str = Some (vptr str)  ->
+     le!_end = Some (vptr fin) ->
+     le!_value = Some (Vlong inp_value) ->
+     le ! _upper_boundary = Some (Vlong upper_boundary) ->
+     load_addr Mptr m fin = Some (Vptr b ofs) ->
+     (distance str (b,ofs)) = dist ->
+    asn_strtoimax_lim_loop str (b,ofs) inp_value Unsigned last_digit_max dist m = Some (ASN_STRTOX_OK, Some (out_value,Unsigned), Some m') ->
+    
+     exists t le',  exec_stmt ge e le m f_asn_strtoimax_lim_loop t le' m Out_normal
+                             /\ le'!_value = Some (Vlong out_value).
+ Proof.
+   induction dist; intros until m'; intros Str End Value UB Load Dist Spec; unfold vptr in *;
+     repeat break_let; subst.
+   - (* Base case *)
+     inversion Spec; clear Spec.
+     repeat eexists.
+     eapply exec_Sloop_stop1.
+     eapply exec_Sseq_2.
+     repeat econstructor.
+     all: try eassumption.
+     all: try gso_simpl; try eassumption; try gss_simpl; try econstructor.
+     simpl.
+     assert (sem_cmp Clt (Vptr b1 i0) (tptr tschar) (Vptr b ofs) (tptr tschar) m = Some Vfalse) by admit. (* follows from Dist, may need assumptions about validity of pointers and their comparison *)
+    (*  assert (ptr_ge b1 b i0 ofs = Some true) as A.
+     { unfold distance in Dist.
+       unfold ptr_ge.
+       simpl.
+       destruct Archi.ptr64.
+       simpl.
+     } *)
+     eassumption.
+     all: try (repeat econstructor); try discriminate; try gso_simpl.
+     rewrite <- H0.
+     assumption.    
+   - (* I.S. *)
+     simpl in Spec.
+     repeat break_match.
+     all: try congruence.
+     (* Case (inp_value < upper_boundary) *)
+     (* Using Induction Hypothesis *)
+     pose (le'' := (PTree.set _str
+       (Vptr b1 (i0 + Ptrofs.repr (sizeof ge tschar) * ptrofs_of_int Signed (Int.repr 1))%ptrofs)
+       (PTree.set _value
+          (Vlong
+             (inp_value * cast_int_long Signed (Int.repr 10) +
+              cast_int_long Signed (i1 - zero_char)%int))
+          (PTree.set _d (Vint (i1 - zero_char)%int)
+             (PTree.set _t'2 (Vint i1)
+                (PTree.set _t'1 (Vint i1) (PTree.set _t'3 (Vptr b ofs) le))))))).
+     pose proof (IHdist b ofs le'' (b1, (i0 + 1)%ptrofs) (b0, i) 
+           (inp_value * Int64.repr 10 + int_to_int64 (i1 - zero_char)%int)  out_value 
+           m') as IH. 
+      assert (exists (t : trace) (le' : temp_env),
+         exec_stmt ge e le'' m f_asn_strtoimax_lim_loop t le' m Out_normal /\
+         le' ! _value = Some (Vlong out_value)) as N.
+      { eapply IH.
+        1-5: unfold le''; try gso_simpl.
+        gss_simpl.
+        simpl.
+        econstructor.
+        repeat gso_simpl. assumption.
+        gss_simpl.
+        simpl.
+        repeat gso_simpl.
+        simpl.
+        f_equal.
+        unfold int_to_int64.
+        f_equal.
+        admit. (* easy *)
+         repeat gso_simpl. assumption.
+        assumption.
+        admit. (* follows from Dist *)
+        assumption.
+       }  
+     (* Executing one loop *)
+     break_exists. destruct H. (* introducing resulting env *)
+     repeat eexists.
+     eapply exec_Sloop_loop.
+     instantiate (1 := Out_continue).
+     econstructor. (* Wrong local env instantiated  by repeat econstructor ??? *)
+     econstructor.
+     econstructor.
+     repeat econstructor.
+     all: try gso_simpl;  try gss_simpl; try eassumption.
+     econstructor.
+     repeat econstructor.
+      all: try gso_simpl;  try gss_simpl; try eassumption.
+     econstructor.
+     assert (sem_cmp Clt (Vptr b1 i0) (tptr tschar) (Vptr b ofs) (tptr tschar) m = Some Vtrue) by admit. (* follows from Dist *)
+     eassumption.
+     repeat econstructor.
+     replace (negb (1 == 0)%int) with true by admit.
+     econstructor.
+     repeat exec_loop_continue.
+     all: try gso_simpl;  try gss_simpl; try eassumption.
+     simpl.
+     assert (Mem.load Mint8signed m b1 (Ptrofs.unsigned i0) = Some (Vint i1)) by admit. (* follows from Heqo - See Many32 semantics *)
+     eassumption.
+     Print exec_stmt.
+     replace Out_continue with (outcome_switch Out_continue).
+     repeat econstructor.
+     repeat gso_simpl.
+     eassumption.
+     assert (Mem.loadv Mint8signed m (Vptr b1 i0) = Some (Vint i1)) by admit.
+     eassumption.
+     econstructor.
+     unfold is_digit in  Heqb2.
+     simpl in Heqb2.
+     destruct_orb_hyp. (* case distintion on is_digit *)
+     assert ((i1 = zero_char))  as D by admit.
+     
+     rewrite D.
+     do 9 econstructor. (* Again: Wrong constructor chosen by repeat econstructor *)
+     econstructor.
+     eapply exec_Sseq_2.
+     eapply exec_Sseq_1.
+     repeat econstructor.
+     repeat gso_simpl. eassumption.
+     assert (Mem.loadv Mint8signed m (Vptr b1 i0) = Some (Vint i1)) by admit.
+     eassumption.
+     gss_simpl.
+     econstructor.
+     repeat econstructor.
+     eapply exec_Sseq_1.
+     repeat econstructor.
+     1-2: repeat gso_simpl; eassumption.
+     econstructor.
+     simpl.
+     rewrite Heqb0.
+     econstructor.
+       econstructor.
+       repeat econstructor.
+       all: try (repeat gso_simpl);  try gss_simpl; try eassumption.
+       repeat econstructor.
+       econstructor.
+       repeat econstructor.
+       Admitted.
+       
+       
+       
+       (* Case  (inp_value == upper_boundary) && (int_to_int64 (i1 - zero_char)%int <= last_digit_max) *)
+      
+    
+         
 Lemma asn_strtoimax_lim_loop_ASN_STRTOX_EXTRA_DATA_correct : forall dist b ofs le str fin inp_value out_value s last_digit m',
     load_addr Mptr m fin = Some (Vptr b ofs) -> 
     asn_strtoimax_lim_loop str (b,ofs) inp_value s last_digit dist m = Some (ASN_STRTOX_EXTRA_DATA, Some (out_value,s), Some m') ->
@@ -682,7 +844,6 @@ Proof.
   unfold tlong.
   simpl.
   Admitted.
-
 
 
 
