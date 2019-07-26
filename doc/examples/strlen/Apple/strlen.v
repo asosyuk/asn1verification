@@ -145,67 +145,66 @@ Lemma strlen_loop_correct_gen :
       te ! _str = Some (Vptr b ofs) ->
       te ! _s = Some (Vptr b (ofs +* (nat_to_ofs i))) ->
       exec_stmt ge e te m f_strlen_loop t te' m Out_normal
-      /\
-      te' ! _s = Some (Vptr b (ofs +* (nat_to_ofs (len + i)))).
+      /\ te' ! _s = Some (Vptr b (ofs +* (nat_to_ofs (len + i))))
+      /\ te' ! _str = Some (Vptr b ofs) .
 Proof.
-  induction len.
+  induction len; intros.
   - 
-    intros.
     repeat eexists.
+    eapply exec_Sloop_stop1.
     repeat econstructor.
     all: try eassumption.
-    *
-      apply strlen_to_mem_0 in H.
-      inversion H.
-      eassumption.
-    * reflexivity.
-    * repeat econstructor.
+    apply strlen_to_mem_0 in H.
+    inversion_clear H.
+    eassumption.
+    econstructor.
+    repeat econstructor.
+    constructor.
   - 
-    intros.
     assert (T : (i < S len + i)%nat) by lia.
     pose proof strlen_to_mem _ _ _ _ H _ T as HM; clear T.
     destruct HM as [c HM]; destruct HM as [HM1 HM2].
     pose proof strlen_to_mem_0 _ _ _ _ H as HO.
     replace (S len + i)%nat with (len + S i)%nat in * by lia.
     (* starting env *)
-    remember ((PTree.set _s 
+    remember (PTree.set _s 
                (Vptr b (Ptrofs.add 
-               (Ptrofs.add ofs (nat_to_ofs i)) Ptrofs.one)) te))
+               (Ptrofs.add ofs (nat_to_ofs i)) Ptrofs.one)) te)
       as Ite.
+    inversion H; try lia.
+    assert (Z.of_nat (S i) < Int.modulus) by lia.
     pose proof IHlen (S i) m b ofs ge e Ite H as IH.
     clear IHlen.
     destruct IH as [t' IH]. 
     destruct IH as [te' IH].
-    repeat eexists.
+    eexists.
+    eexists.
+    intros.
     destruct IH.
-    all: try subst.
-    rewrite PTree.gso.
-    all: try eassumption.
-    discriminate.
-    rewrite PTree.gss.
-    rewrite ofs_succ_l.
-    reflexivity.
-    inversion H.
-    all: try lia.
-    * 
-      eapply exec_Sloop_loop.
-      repeat econstructor.
-      eassumption.
-      eassumption.
-      reflexivity.
-      rewrite HM1.
-      repeat econstructor.
-      constructor.
-      repeat econstructor.
-      eassumption.
-      repeat econstructor.
-      fold f_strlen_loop.
-      replace (Ptrofs.mul (Ptrofs.repr (sizeof ge tschar)) (ptrofs_of_int Signed (Int.repr 1)))
-        with Ptrofs.one
-        by (auto with ptrofs).
-      eassumption.
-    * 
-      destruct IH.
+    subst; rewrite PTree.gso by discriminate.
+    eassumption.
+    subst; rewrite PTree.gss; rewrite ofs_succ_l by lia; reflexivity.
+    destruct H10; split;[| split].
+    eapply exec_Sloop_loop.
+    repeat econstructor.
+    eassumption.
+    eassumption.
+    econstructor.
+    rewrite HM1.
+    simpl.
+    econstructor.
+    constructor.
+    repeat econstructor.
+    eassumption.
+    econstructor.
+    fold f_strlen_loop.
+    replace (Ptrofs.mul (Ptrofs.repr (sizeof ge tschar)) 
+                        (ptrofs_of_int Signed (Int.repr 1))) with (Ptrofs.one) by (auto with ptrofs).
+    rewrite <-HeqIte.
+    eapply H9.
+    rewrite H0.
+    assumption.
+    assumption.
 Qed.
 
 Close Scope Z.
