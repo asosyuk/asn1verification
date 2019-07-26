@@ -162,10 +162,10 @@ Lemma f_strlen_loop_correct_gen :
 Proof.
   induction len; intros.
   - (** iBase *)
+    apply strlen_to_len_0 in H; inversion_clear H.
     repeat eexists.
     eapply exec_Sloop_stop1.
     repeat econstructor.
-    2: apply strlen_to_len_0 in H; inversion_clear H.
     all: try eassumption.
     all: try econstructor.
   - (** iStep *)

@@ -11,7 +11,6 @@ Definition f_strlen := {|
   fn_return := tuint;
   fn_callconv := cc_default;
   fn_params := ((_input, (tptr tuchar)) :: nil);
-
   fn_vars := nil;
   fn_temps := ((_output, tuint) :: (_t'1, (tptr tschar)) :: (_t'2, tschar) :: nil);
   fn_body :=
@@ -53,20 +52,6 @@ Definition f_strlen_loop :=
           tuint)))
     Sskip).
 
-Definition f_strlen_loop_body := (Ssequence
-  (Ssequence
-    (Ssequence
-      (Sset _t'1 (Etempvar _input (tptr tschar)))
-      (Sset _input
-        (Ebinop Oadd (Etempvar _t'1 (tptr tschar))
-          (Econst_int (Int.repr 1) tint) (tptr tschar))))
-    (Ssequence
-      (Sset _t'2 (Ederef (Etempvar _t'1 (tptr tschar)) tschar))
-      (Sifthenelse (Etempvar _t'2 tschar) Sskip Sbreak)))
-  (Sset _output
-    (Ebinop Oadd (Etempvar _output tuint) (Econst_int (Int.repr 1) tint)
-            tuint))).
-
 Definition chunk : memory_chunk := Mint8signed.
 Definition VintZ := fun (z : Z) => Vint (Int.repr z).
 Definition VintN:= fun n => Vint (Int.repr (Z_of_nat n)).
@@ -85,7 +70,7 @@ Inductive strlen_rspec (m : mem) (b : block) (ofs : ptrofs) : nat -> Prop :=
     strlen_rspec m b ofs (S n).
 
 Ltac gso := rewrite PTree.gso by discriminate.
-Ltac gss := apply PTree.gss.
+Ltac gss := rewrite PTree.gss.
 
 (* 
  * Tactics for arithmetic on ptrofs, now they are ad hoc.
@@ -111,16 +96,6 @@ Ltac ints_compute_add_mul :=
   repeat rewrite Int.unsigned_repr_eq;
   repeat rewrite Int.unsigned_repr_eq;
   repeat rewrite Zmod_small.
-
-(* can make more generic to repeatedly apply gso *)
-(*
-Ltac gso_assumption :=
-  match goal with
-  | [ H : ?P ! ?I = Some ?W |- (PTree.set _ _ ?P) ! ?I = Some ?Z ] => rewrite gso  
-  | [ H : ?P ! ?Q = Some ?W |-  ?P ! ?Q = Some ?Z ] => apply H
-  | [ |- _ <> _ ] => cbv ; congruence
-  end.
-*)
 
 Fact char_not_zero (c : int) :
   c <> Int.zero ->
@@ -226,69 +201,71 @@ Lemma strlen_loop_correct_gen :
 Proof.
   induction len; intros.
   - (* Base case *)    
-    simpl in H.
+    (* it is sufficient to know that len at [ofs + i] *)
+    apply strlen_to_len_0 in H; inversion_clear H as [M | M].
+    simpl in M.
     repeat eexists.
-    (* Exit the loop *)
     eapply exec_Sloop_stop1.
     eapply exec_Sseq_2.
-    repeat econstructor.
-    eassumption.
-    gss.
-    repeat econstructor.
-    gso. gss.
-    (* Derive memory assumptions from the specification *)
-    pose (Spec_mem := strlen_to_len_0 i m b ofs H).
-    inversion_clear Spec_mem.
-    apply H2.
-    gss.
-    econstructor.
-    replace (negb (Int.eq Int.zero Int.zero)) with false by (auto with ints).      
-    econstructor.
-    cbv; congruence. econstructor.
-    repeat (rewrite gso).
-    replace (0 + i)%nat with i by lia.
-    repeat gso; assumption.
+    + repeat econstructor.
+      eassumption.
+      gss; econstructor.
+      repeat econstructor.
+      gso; gss; econstructor.
+      eassumption.
+      gss; econstructor.
+      econstructor.
+      econstructor.
+    + discriminate.
+    + constructor.
+    + repeat gso.
+      assumption.
   - (* Ind. Step *)
-    pose proof H as M.
-    apply strlen_to_mem with (i := i) in M; [| lia].
-    destruct M as [c M].
+    (* load mem spec into context *)
+    assert (T : (i < S len + i)%nat) by lia;
+      pose proof strlen_to_mem (S len + i) m b ofs H i T as HM;
+      clear T;
+      destruct HM as [c HM]; destruct HM as [C HM].
     (* apply I.H. to le' after one step when starting with i and [b,ofs + i]  *)
-    pose (le'' :=
-            (PTree.set _output (VintN (S i))
-              (PTree.set _t'2 (Vint c)
-                (PTree.set _input (Vptr b  (Ptrofs.add ofs (Ptrofs.repr (Z.of_nat (S i)))))
-                  (PTree.set _t'1 (Vptr b  (Ptrofs.add ofs (Ptrofs.repr (Z.of_nat i))))
-                    le))))).
-    pose (IH := IHlen (S i)  m b ofs le'').
+    remember (PTree.set _output (VintN (S i))
+               (PTree.set _t'2 (Vint c)
+                 (PTree.set _input (Vptr b  (Ptrofs.add ofs (Ptrofs.repr (Z.of_nat (S i)))))
+                   (PTree.set _t'1 (Vptr b  (Ptrofs.add ofs (Ptrofs.repr (Z.of_nat i))))
+                     le)))) as le''.
+    pose proof IHlen (S i) m b ofs le'' as IH.
     assert ( exists (t : trace) (le' : temp_env),
        le'' ! _output = Some (VintN (S i)) -> 
        le''! _input = Some (Vptr b  (Ptrofs.add ofs (Ptrofs.repr (Z.of_nat (S i))))) ->               
        exec_stmt ge e le'' m f_strlen_loop t le' m
          Out_normal /\
        le' ! _output = Some (VintN (len + S i))) as Step.
-    { eapply IH.
+    {
+      eapply IH.
       replace (len + S i)%nat with (S len + i)%nat by omega.
-      assumption. }
+      assumption.
+    }
     destruct Step as [s Step]. destruct Step as [t Step].
     (* Do one loop on the goal: then apply IH *)
     repeat eexists.
-    loop. repeat econstructor.
-    apply H0.
-    eapply gss. 
+    eapply exec_Sloop_loop.
     repeat econstructor.
-    rewrite gso. apply gss. cbv; congruence.
+    eassumption.
+    gss; econstructor.
+    repeat econstructor.
+    gso. gss. econstructor.
     simpl. ptrofs_to_Z.
-    apply Mem.
-    apply gss.
+    eassumption.
+    gss; econstructor.
     econstructor.
-    replace (negb (Int.eq char Int.zero)) with true by (apply (char_not_zero char); apply Mem).
+    replace (negb (Int.eq c Int.zero)) with true by admit.
     econstructor. 
-    repeat (rewrite gso). apply H. 1-3: cbv; congruence.
-    repeat econstructor. econstructor. econstructor.
+    repeat gso; eassumption.
+    repeat econstructor. constructor.
+    econstructor.
     fold f_strlen_loop.
     replace (PTree.set _output
        (Vint (Int.add (Int.repr (Z.of_nat i)) (Int.repr 1)))
-       (PTree.set _t'2 (Vint char)
+       (PTree.set _t'2 (Vint c)
           (PTree.set _input
              (Vptr b
                 (Ptrofs.add
