@@ -598,6 +598,77 @@ Proof.
   end.
 
  Ltac env_assumption := try gso_simpl;  try gss_simpl; try eassumption.
+
+
+Definition switch s1 s2 :=  (Sswitch (Ederef (Etempvar _str (tptr tschar)) tschar)
+                      (LScons (Some 48)
+                        Sskip
+                        (LScons (Some 49)
+                          Sskip
+                          (LScons (Some 50)
+                            Sskip
+                            (LScons (Some 51)
+                              Sskip
+                              (LScons (Some 52)
+                                Sskip
+                                (LScons (Some 53)
+                                  Sskip
+                                  (LScons (Some 54)
+                                    Sskip
+                                    (LScons (Some 55)
+                                      Sskip
+                                      (LScons (Some 56)
+                                        Sskip
+                                        (LScons (Some 57)
+                                         s1       
+                                         
+                                          (LScons None
+                                            s2
+                                            LSnil)))))))))))).
+
+
+Ltac switch_destruct i :=
+  match goal with
+             | [ H : (i == ?X)%int = true |- _ ] =>  pose proof (Int.eq_spec i X) as EQ; rewrite H in EQ; try (rewrite EQ)
+  end.
+
+Ltac choose_seq s1 :=
+  match goal with
+  | [ |- exec_stmt _ _ _ _ (Ssequence s1 _)
+    _ _ _ _ ] => eapply exec_Sseq_2 
+  | [ |- exec_stmt _ _ _ _ (Ssequence _ _ )
+                  _ _ _ _ ] => eapply exec_Sseq_1  
+  end.
+
+Ltac exec_Axiom :=
+   match goal with                                                
+   | [ |- context [exec_stmt _ _ _ _ Sskip _ _ _ Out_normal]] => econstructor
+   | [ |- context [exec_stmt _ _ _ _ Scontinue _ _ _ Out_continue]] => econstructor
+   | [ |- context [exec_stmt _ _ _ _ Sbreak _ _ _ Out_break]] => econstructor
+end.
+
+Lemma switch_correct : forall i 
+                       s1 s2 le b ofs,
+    Mem.loadv Mint8signed m (Vptr b ofs) = Some (Vint i) ->
+    le ! _str = Some (Vptr b ofs) ->
+    is_digit i = true ->
+    (exists t le', exec_stmt ge e le m s1 t le' m Out_continue) ->
+    (exists t le', exec_stmt ge e le m (switch s1 s2) t le' m Out_continue).
+Proof.
+  intros.
+  cbn in H1.
+  break_exists.
+  repeat destruct_orb_hyp.
+  11: congruence.
+  all: assert (outcome_switch Out_continue = Out_continue) as Out by (simpl; auto); rewrite <- Out.
+  
+  all: repeat eexists; try reflexivity; repeat econstructor; try eassumption; try econstructor; (switch_destruct i).
+   
+    
+  1-9: eapply exec_Sseq_1; repeat (choose_seq s1); try (exec_Axiom || eassumption || discriminate).
+   eapply exec_Sseq_2. try (eassumption || econstructor || discriminate).
+   discriminate.
+Qed.
  
  Lemma asn_strtoimax_lim_loop_ASN_STRTOX_OK_correct : forall dist b ofs le str fin inp_value out_value m',
      le!_str = Some (vptr str)  ->
@@ -698,7 +769,7 @@ Proof.
      simpl.
      assert (Mem.load Mint8signed m b1 (Ptrofs.unsigned i0) = Some (Vint i1)) by admit. (* follows from Heqo - See Many32 semantics *)
      eassumption.
-     Print exec_stmt.
+     
      replace Out_continue with (outcome_switch Out_continue).
      repeat econstructor.
      repeat gso_simpl.
@@ -708,16 +779,19 @@ Proof.
      econstructor.
      unfold is_digit in  Heqb2.
      simpl in Heqb2.
-     destruct_orb_hyp. (* case distintion on is_digit *)
-     assert ((i1 = zero_char))  as D by admit.
-     
-     rewrite D.
-     do 9 econstructor. (* Again: Wrong constructor chosen by repeat econstructor *)
-     econstructor.
-     eapply exec_Sseq_2.
-     eapply exec_Sseq_1.
+     Unshelve.
+    
+     repeat destruct_orb_hyp.
+    11: congruence.
+   1-10: repeat eexists; replace Out_continue with (outcome_switch  Out_continue); try reflexivity; repeat econstructor; try eassumption; try econstructor; (switch_destruct i1).
+    
+   1-9: eapply exec_Sseq_1; repeat switch_lcons; try econstructor; try (eassumption || econstructor || discriminate).
+
+   eapply exec_Sseq_2. repeat switch_lcons; try econstructor; try (eassumption || econstructor || discriminate).
+   
      repeat econstructor.
      repeat gso_simpl. eassumption.
+     repeat econstructor.
      assert (Mem.loadv Mint8signed m (Vptr b1 i0) = Some (Vint i1)) by admit.
      eassumption.
      gss_simpl.
