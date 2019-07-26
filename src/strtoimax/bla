@@ -3,7 +3,7 @@ From compcert Require Import Coqlib Integers Floats AST Ctypes Cop Clight Clight
 Import ListNotations.
 Require Import StructTact.StructTactics.
 Require Import IntNotations.
-Require Import asn_strtoimax_lim Tactics.
+Require Import asn_strtoimax_lim.
 Local Open Scope Int64Scope.
 
 (* Functional specification of INTEGER.c/asn_strtoimax_lim *)
@@ -34,26 +34,8 @@ Definition asn_strtox_result_e_to_int (s : asn_strtox_result_e) : int :=
     | ASN_STRTOX_OK => Int.repr 0
   end.
 
-
-(* Useful notations and definitions *)
 (* Address [b,ofs] *)
 Definition addr : Type := (block*ptrofs).
-Definition vptr (a : addr) := match a with (b,ofs) => Vptr b ofs end.
-Definition load_addr (chunk : memory_chunk) (m : mem) (a : addr) := match a with (b,ofs) =>  Mem.loadv chunk m (Vptr b ofs) end.
-Definition next_addr (a : addr) := match a with (b,ofs) => (b, Ptrofs.add ofs Ptrofs.one) end.
-Definition add_addr (a : addr) (i : ptrofs) := match a with (b,ofs) => (b, Ptrofs.add ofs i) end.
-Notation "a ++" := (next_addr a) (at level 20).
-Notation minus_char := (Int.repr 45).
-Notation plus_char := (Int.repr 43).
-Notation zero_char := (Int.repr 48).
-
-(* Representing negative and positive int *)
-Definition mult_sign s value :=
-  match s with
-  | Signed => Int64.neg value
-  | Unsigned => value
-  end.
-
 (* Memory, global and local env are fixed *)
 Parameter m : mem.
 Parameter ge : genv.
@@ -63,7 +45,8 @@ Parameter e : env.
 (* Abstract spec : [b1,ofs1] >= [b2,ofs2] *)
 Definition ptr_ge_spec (b1 b2 : block) (ofs1 ofs2 : ptrofs) :=
   if eq_block b1 b2 then Some (ofs2 <= ofs1)%ptrofs else None.
-(* Spec using Compcert semantic values *)
+
+(* Concrete spec using Compcert semantic values *)
 Definition ptr_ge (b1 b2 : block) (ofs1 ofs2 : ptrofs) :=
   if Archi.ptr64
   then Val.cmplu_bool (Mem.valid_pointer m) Cge (Vptr b1 ofs1) (Vptr b2 ofs2)
@@ -71,7 +54,6 @@ Definition ptr_ge (b1 b2 : block) (ofs1 ofs2 : ptrofs) :=
 
 Definition addr_ge (a1 a2 : addr) := match a1, a2 with (b1,ofs1), (b2,ofs2) => ptr_ge b1 b2 ofs1 ofs2 end.
 
-(* Both specs can be used interchangeably *)
 Proposition ptr_ge_refine : forall (b1 b2 : block) (ofs1 ofs2 : ptrofs),
     Mem.weak_valid_pointer m b1 (Ptrofs.unsigned ofs1) = true ->
     Mem.weak_valid_pointer m b2 (Ptrofs.unsigned ofs2) = true ->
@@ -81,10 +63,26 @@ Proof.
   unfold ptr_ge.
   simpl; unfold Mem.weak_valid_pointer in *.
   destruct Archi.ptr64 eqn: A; simpl.
-  all: rewrite H; rewrite H0; simpl;
+  all: rewrite H;
+    rewrite H0;
+    simpl;
     destruct (Mem.valid_pointer m b1 (Ptrofs.unsigned ofs1) &&
-                                Mem.valid_pointer m b2 (Ptrofs.unsigned ofs2)); auto.
+                                Mem.valid_pointer m b2 (Ptrofs.unsigned ofs2));
+    auto.
 Qed.
+
+Definition vptr (a : addr) := match a with (b,ofs) => Vptr b ofs end.
+    
+(* We are reading a char type from the memory *)
+Definition load_addr (chunk : memory_chunk) (m : mem) (a : addr) := match a with (b,ofs) =>  Mem.loadv chunk m (Vptr b ofs) end.
+
+Definition next_addr (a : addr) := match a with (b,ofs) => (b, Ptrofs.add ofs Ptrofs.one) end.
+Definition add_addr (a : addr) (i : ptrofs) := match a with (b,ofs) => (b, Ptrofs.add ofs i) end.
+
+Notation "a ++" := (next_addr a) (at level 20).
+Notation minus_char := (Int.repr 45).
+Notation plus_char := (Int.repr 43).
+Notation zero_char := (Int.repr 48).
 
 Definition ASN1_INTMAX_MAX :=(Int64.not 0) >> 1.
 
@@ -97,16 +95,15 @@ Fact shift_pow2_div :  (Int64.shru (Int64.not Int64.zero) Int64.one) = Int64.rep
 Definition upper_boundary := ASN1_INTMAX_MAX // (Int64.repr 10).
 Definition last_digit_max := ASN1_INTMAX_MAX % (Int64.repr 10).
 Definition last_digit_max_minus := (ASN1_INTMAX_MAX % (Int64.repr 10)) + 1.
-(* digits [0-9]*)
+(* [0-9]*)
 Definition digits := map Int.repr [48;49;50;51;52;53;54;55;56;57].
 Definition is_digit (i : int) := existsb (fun j => Int.eq i j) digits.
-(* distance between the addresses *)
 Definition distance (a1 a2 : addr) : nat :=
   ((Z.to_nat (Ptrofs.unsigned (snd a2))) - (Z.to_nat (Ptrofs.unsigned (snd a1))))%nat.
+
 Definition int_to_int64 (i : int) := Int64.repr (Int.unsigned i).
 
 (* Functional spec *)
-(* Loop: *)
 Fixpoint asn_strtoimax_lim_loop (str : addr) (fin : addr) (value : int64) (s: signedness) (last_digit : int64) (dist : nat) (m' : mem) {struct dist} : option (asn_strtox_result_e*(option(int64*signedness))*(option mem)) :=
   let m' := (Mem.storev Mptr m (vptr fin) (vptr str)) in
      match dist with
@@ -127,8 +124,7 @@ Fixpoint asn_strtoimax_lim_loop (str : addr) (fin : addr) (value : int64) (s: si
                         | None => None
                         end
   end.
-
-(* Spec: *)
+    
 Definition asn_strtoimax_lim (str fin : addr) : option (asn_strtox_result_e*(option(int64*signedness))*(option mem)) :=
   match load_addr Mptr m fin with (* derefencing **fin *)
   | Some (Vptr b ofs) =>  
@@ -157,8 +153,16 @@ Definition asn_strtoimax_lim (str fin : addr) : option (asn_strtox_result_e*(opt
    | _ => None (* fail of pointer to fin *) 
   end.
 
+Ltac exec_until_seq := 
+     repeat  match goal with
+            | [ |- exec_stmt _ _ _ _ (Ssequence _ _)  _ _ _ _ ] => idtac
+            | _ => econstructor ; exec_until_seq
+
+             end.
 (* Lemmas for each `asn_strtox_result_e` case *)
-(* Case ASN_STRTOX_ERROR_INVAL: str >= *end *)
+
+(* Case ASN_STRTOX_ERROR_INVAL *)
+
 Lemma asn_strtoimax_lim_ASN_STRTOX_ERROR_INVAL_correct : forall le str fin,
     
     asn_strtoimax_lim str fin = Some (ASN_STRTOX_ERROR_INVAL, None, None) ->
@@ -219,7 +223,7 @@ Proof.
 Qed.
 
 (* Useful lemmas about the spec *)
-
+(* Inversion lemmas *)
 Lemma strtoimax_loop_inv : forall n str fin outp m' value,
     asn_strtoimax_lim_loop str fin value Signed last_digit_max_minus (S n) m =
     Some (ASN_STRTOX_OK, outp, m') ->
@@ -231,6 +235,18 @@ Proof.
   break_if.
   all: repeat break_match; try congruence; exists i; assumption.
 Qed.
+
+Lemma strtoimax_inv_mem : forall n str fin outp m' value, 
+  asn_strtoimax_lim_loop str fin value Signed last_digit_max_minus n m = Some (ASN_STRTOX_OK, outp, m') ->
+  forall i, (i < n)%nat -> exists v, load_addr Mint8signed m (add_addr str (Ptrofs.repr (Z.of_nat i))) = Some (Vint v) /\ is_digit v = true.
+Proof.
+  induction n.
+  - intros. nia.
+  - intros until value; intro H.
+    pose (strtoimax_loop_inv _ _ _ _ _ _ H) as S.
+    destruct S as [j S].
+    pose (IHn (str++) fin  outp _ (value * Int64.repr 10 +  int_to_int64 (j - zero_char)%int)  S) as N.
+Admitted.
 
 Proposition ptr_ge_true : forall  b1 b2 i1 i2, ptr_ge b1 b2 i1 i2 = Some true -> sem_cmp Cge (Vptr b1 i1) (tptr tschar) (Vptr b2 i2) (tptr tschar) m = Some Vtrue.
 Proof.
@@ -263,8 +279,36 @@ Proof.
     replace (option_map Val.of_bool (Some false)) with (Some Vfalse) in H0 by (simpl; auto).
     eapply H0.
 Qed.
+
+Goal exists x, Int.mul (Int.repr (-1)) (Int.repr 2) = Int.repr x.
+  eexists.
+  unfold Int.mul.
+  repeat rewrite Int.unsigned_repr_eq.
+  simpl.
+  (* Int.repr 8589934590 *)
+  f_equal.
+Qed.
+
+Goal exists x, Int.mul (Int.repr (1)) (Int.repr 2) = Int.repr x.
+  eexists.
+  unfold Int.mul.
+  repeat rewrite Int.unsigned_repr_eq.
+  simpl.
+  (* Int.repr 2 *)
+  f_equal.
+Qed.
+
+Definition mult_sign s value :=
+  match s with
+  | Signed => Int64.neg value
+  | Unsigned => value
+  end.
+
+Print exec_stmt.
+Print outcome_switch.
   
 (* case ASN_STRTOX_EXPECT_MORE: reading + or - and reaching *end *)
+
 Lemma asn_strtoimax_lim_ASN_STRTOX_EXPECT_MORE_correct : forall le str fin m',
     
     asn_strtoimax_lim str fin = Some (ASN_STRTOX_EXPECT_MORE, None, Some m') ->
@@ -498,9 +542,64 @@ Proof.
   Qed.
 
 (* Loop correctness cases *)
-(* ASN_STRTOX_OK: conversion successfull *)
 
-(* Dealing with the switch statement *)
+ Lemma inver:  forall dist str fin inp_value out_value s m',
+    asn_strtoimax_lim_loop str fin inp_value s last_digit_max dist m = Some (ASN_STRTOX_EXTRA_DATA, Some (out_value,s), Some m') ->
+    exists i, (i < dist)%nat /\ (forall j, load_addr Many32 m (add_addr str (Ptrofs.repr (Z.of_nat i))) = Some (Vint j) -> is_digit j = false).
+ Proof.
+   induction dist.
+   intros.
+   unfold asn_strtoimax_lim_loop in H.
+   congruence.
+   intros.
+   unfold  asn_strtoimax_lim_loop in H.
+   repeat break_match.
+   exists 0%nat.
+   split.
+   omega.
+   replace (Ptrofs.repr (Z.of_nat 0)) with Ptrofs.zero by (auto with ptrofs).
+   intros.
+   unfold add_addr in H0.
+   break_let.
+   replace (i + 0)%ptrofs with i%ptrofs in H0.
+   congruence.
+   symmetry. auto with ptrofs. admit.
+    fold  asn_strtoimax_lim_loop in H.
+   pose (IHdist  (str ++) fin
+        (inp_value * Int64.repr 10 + int_to_int64 (i - zero_char)%int) out_value s
+        m' H) as IH.
+   destruct IH. destruct H0.
+   exists (x + 1)%nat.
+   split.
+   omega.
+   replace (add_addr str (Ptrofs.repr (Z.of_nat (x + 1)))) with (add_addr (str ++) (Ptrofs.repr (Z.of_nat x))). 
+   assumption.
+   unfold add_addr.
+   repeat break_let.
+   inversion Heqp.
+   f_equal.
+   replace (Z.of_nat (x + 1)) with (Z.of_nat x + 1)%Z by lia.
+   admit.
+   Admitted.
+
+ Ltac gso_simpl := rewrite PTree.gso by discriminate.
+ Ltac gss_simpl := rewrite PTree.gss.
+
+ Ltac exec_loop_continue := 
+     repeat match goal with
+            | [ |- exec_stmt _ _ _ (Sloop _) _ _ _ _ ] => idtac
+            | _ => econstructor ; exec_loop_continue
+            end.
+
+ Ltac destruct_orb_hyp :=
+  match goal with
+    | [H : orb _ _ = true |- _] => apply orb_prop in H; destruct H
+    | [H : orb _ _ = false |- _] => apply orb_false_elim in H; destruct H
+  end.
+
+ Ltac env_assumption := try gso_simpl;  try gss_simpl; try eassumption.
+
+
 Definition switch s1 s2 :=  (Sswitch (Ederef (Etempvar _str (tptr tschar)) tschar)
                       (LScons (Some 48)
                         Sskip
@@ -527,7 +626,27 @@ Definition switch s1 s2 :=  (Sswitch (Ederef (Etempvar _str (tptr tschar)) tscha
                                             s2
                                             LSnil)))))))))))).
 
-(* If reading i a digit then we enter the correct branch and continue *)
+
+Ltac switch_destruct i :=
+  match goal with
+             | [ H : (i == ?X)%int = true |- _ ] =>  pose proof (Int.eq_spec i X) as EQ; rewrite H in EQ; try (rewrite EQ)
+  end.
+
+Ltac choose_seq s1 :=
+  match goal with
+  | [ |- exec_stmt _ _ _ _ (Ssequence s1 _)
+    _ _ _ _ ] => eapply exec_Sseq_2 
+  | [ |- exec_stmt _ _ _ _ (Ssequence _ _ )
+                  _ _ _ _ ] => eapply exec_Sseq_1  
+  end.
+
+Ltac exec_Axiom :=
+   match goal with                                                
+   | [ |- context [exec_stmt _ _ _ _ Sskip _ _ _ Out_normal]] => econstructor
+   | [ |- context [exec_stmt _ _ _ _ Scontinue _ _ _ Out_continue]] => econstructor
+   | [ |- context [exec_stmt _ _ _ _ Sbreak _ _ _ Out_break]] => econstructor
+end.
+
 Lemma switch_correct : forall i 
                        s1 s2 le b ofs,
     Mem.loadv Mint8signed m (Vptr b ofs) = Some (Vint i) ->
@@ -541,7 +660,11 @@ Proof.
   break_exists.
   repeat destruct_orb_hyp.
   11: congruence.
-  all: assert (outcome_switch Out_continue = Out_continue) as Out by (simpl; auto); rewrite <- Out; repeat eexists; try reflexivity; repeat econstructor; try eassumption; try econstructor; (switch_destruct i).
+  all: assert (outcome_switch Out_continue = Out_continue) as Out by (simpl; auto); rewrite <- Out.
+  
+  all: repeat eexists; try reflexivity; repeat econstructor; try eassumption; try econstructor; (switch_destruct i).
+   
+    
   1-9: eapply exec_Sseq_1; repeat (choose_seq s1); try (exec_Axiom || eassumption || discriminate).
    eapply exec_Sseq_2. try (eassumption || econstructor || discriminate).
    discriminate.
@@ -623,13 +746,7 @@ Qed.
         assumption.
        }  
      (* Executing one loop *)
-      break_exists. destruct H. (* introducing resulting env *)
-      (* dealing with switch statement *)
-      pose proof (switch_correct i1 switch_body switch_default  (PTree.set _t'1 (Vint i1) (PTree.set _t'3 (Vptr b ofs) le)) b1 i0) as SW.
-     unfold switch in SW.
-     (destruct SW).
-     1-4: admit.
-      destruct H1.
+     break_exists. destruct H. (* introducing resulting env *)
      repeat eexists.
      eapply exec_Sloop_loop.
      instantiate (1 := Out_continue).
@@ -647,61 +764,60 @@ Qed.
      repeat econstructor.
      replace (negb (1 == 0)%int) with true by admit.
      econstructor.
-     econstructor.
-     repeat econstructor.
+     repeat exec_loop_continue.
      all: try gso_simpl;  try gss_simpl; try eassumption.
      simpl.
      assert (Mem.load Mint8signed m b1 (Ptrofs.unsigned i0) = Some (Vint i1)) by admit. (* follows from Heqo - See Many32 semantics *)
      eassumption.
+     
+     replace Out_continue with (outcome_switch Out_continue).
+     repeat econstructor.
+     repeat gso_simpl.
+     eassumption.
+     assert (Mem.loadv Mint8signed m (Vptr b1 i0) = Some (Vint i1)) by admit.
+     eassumption.
      econstructor.
-     admit. (* fix the local env! *)
-     (* Case  (inp_value == upper_boundary) && (int_to_int64 (i1 - zero_char)%int <= last_digit_max) : same as before *)
- Admitted.
+     unfold is_digit in  Heqb2.
+     simpl in Heqb2.
+     Unshelve.
+    
+     repeat destruct_orb_hyp.
+    11: congruence.
+   1-10: repeat eexists; replace Out_continue with (outcome_switch  Out_continue); try reflexivity; repeat econstructor; try eassumption; try econstructor; (switch_destruct i1).
+    
+   1-9: eapply exec_Sseq_1; repeat switch_lcons; try econstructor; try (eassumption || econstructor || discriminate).
 
-
- (* Case ASN_STRTOX_EXTRA_DATA: go through the loop until a non-digit encountered *)
-
-
- (* Return condition: *)
- Lemma inver_EXTRA_DATA:  forall dist str fin inp_value out_value s m',
-    asn_strtoimax_lim_loop str fin inp_value s last_digit_max dist m = Some (ASN_STRTOX_EXTRA_DATA, Some (out_value,s), Some m') ->
-    exists i, (i < dist)%nat /\ (forall j, load_addr Many32 m (add_addr str (Ptrofs.repr (Z.of_nat i))) = Some (Vint j) -> is_digit j = false).
- Proof.
-   induction dist.
-   intros.
-   unfold asn_strtoimax_lim_loop in H.
-   congruence.
-   intros.
-   unfold  asn_strtoimax_lim_loop in H.
-   repeat break_match.
-   exists 0%nat.
-   split.
-   omega.
-   replace (Ptrofs.repr (Z.of_nat 0)) with Ptrofs.zero by (auto with ptrofs).
-   intros.
-   unfold add_addr in H0.
-   break_let.
-   replace (i + 0)%ptrofs with i%ptrofs in H0.
-   congruence.
-   symmetry. auto with ptrofs. admit.
-    fold  asn_strtoimax_lim_loop in H.
-   pose (IHdist  (str ++) fin
-        (inp_value * Int64.repr 10 + int_to_int64 (i - zero_char)%int) out_value s
-        m' H) as IH.
-   destruct IH. destruct H0.
-   exists (x + 1)%nat.
-   split.
-   omega.
-   replace (add_addr str (Ptrofs.repr (Z.of_nat (x + 1)))) with (add_addr (str ++) (Ptrofs.repr (Z.of_nat x))). 
-   assumption.
-   unfold add_addr.
-   repeat break_let.
-   inversion Heqp.
-   f_equal.
-   replace (Z.of_nat (x + 1)) with (Z.of_nat x + 1)%Z by lia.
-   admit.
-   Admitted.
- 
+   eapply exec_Sseq_2. repeat switch_lcons; try econstructor; try (eassumption || econstructor || discriminate).
+   
+     repeat econstructor.
+     repeat gso_simpl. eassumption.
+     repeat econstructor.
+     assert (Mem.loadv Mint8signed m (Vptr b1 i0) = Some (Vint i1)) by admit.
+     eassumption.
+     gss_simpl.
+     econstructor.
+     repeat econstructor.
+     eapply exec_Sseq_1.
+     repeat econstructor.
+     1-2: repeat gso_simpl; eassumption.
+     econstructor.
+     simpl.
+     rewrite Heqb0.
+     econstructor.
+       econstructor.
+       repeat econstructor.
+       all: try (repeat gso_simpl);  try gss_simpl; try eassumption.
+       repeat econstructor.
+       econstructor.
+       repeat econstructor.
+       Admitted.
+       
+       
+       
+       (* Case  (inp_value == upper_boundary) && (int_to_int64 (i1 - zero_char)%int <= last_digit_max) *)
+      
+    
+         
 Lemma asn_strtoimax_lim_loop_ASN_STRTOX_EXTRA_DATA_correct : forall dist b ofs le str fin inp_value out_value s last_digit m',
     load_addr Mptr m fin = Some (Vptr b ofs) -> 
     asn_strtoimax_lim_loop str (b,ofs) inp_value s last_digit dist m = Some (ASN_STRTOX_EXTRA_DATA, Some (out_value,s), Some m') ->
@@ -725,7 +841,9 @@ Proof.
   simpl in H0.                           
   repeat break_match.
   all: try congruence.
-  
+  admit.
+  admit.
+ 
   pose (IHdist b ofs le (str ++) fin (inp_value * Int64.repr 10 + int_to_int64 (i - zero_char)%int) out_value s last_digit m' H H0). (* TODO: change le *)
   destruct e0.
   destruct H0.
