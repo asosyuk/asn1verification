@@ -207,4 +207,82 @@ Proof.
     assumption.
 Qed.
 
+Theorem strlen_correct : forall len m b ofs ge e te,
+  strlen_spec m b ofs len ->
+  te ! _str = Some (Vptr b ofs) ->
+  exists t te',
+    exec_stmt ge e te m (fn_body f_strlen) t te' m 
+              (Out_return (Some (Vptrofs (nat_to_ofs len), tint))).
+Proof.
+  intros.
+  replace (len) with (len + 0)%nat in H by lia.
+  pose proof strlen_loop_correct_gen len 0%nat m b ofs ge e (PTree.set _s (Vptr b ofs) te) H.
+  destruct H1 as [t' HM].
+  destruct HM as [te' HM].
+  repeat eexists.
+  econstructor.
+  econstructor.
+  econstructor.
+  econstructor.
+  eassumption.
+  fold f_strlen_loop.
+  destruct HM.
+  rewrite PTree.gso by discriminate.
+  eassumption.
+  rewrite PTree.gss.
+  replace (ofs +* nat_to_ofs 0) with (ofs) by (auto with ptrofs).
+  reflexivity.
+  eassumption.
+  econstructor.
+  econstructor.
+  econstructor.
+  all: destruct HM.
+  1,4,7: rewrite PTree.gso by discriminate.
+  all: try eassumption.
+  1,3,5: rewrite PTree.gss.
+  all: try replace (ofs +* nat_to_ofs 0) with (ofs) by (auto with ptrofs).
+  all: try reflexivity.
+  all: destruct H2.
+  eassumption.
+  econstructor.
+  eassumption.
+  replace (len + 0)%nat with len by lia.
+  cbn.
+  unfold proj_sumbool.
+  destruct Archi.ptr64 eqn:kek.
+  all: destruct zle.
+  1,3: destruct eq_block.
+  rewrite Ptrofs.sub_add_l.
+  rewrite Ptrofs.sub_idem.
+  rewrite Ptrofs.add_zero_l.
+  rewrite Ptrofs.divs_one.
+  reflexivity.
+  unfold Ptrofs.zwordsize, Ptrofs.wordsize, Wordsize_Ptrofs.wordsize.
+  rewrite kek.
+  lia.
+  contradict n; reflexivity.
+  rewrite Ptrofs.sub_add_l.
+  rewrite Ptrofs.sub_idem.
+  rewrite Ptrofs.add_zero_l.
+  rewrite Ptrofs.divs_one.
+  reflexivity.
+  unfold Ptrofs.zwordsize, Ptrofs.wordsize, Wordsize_Ptrofs.wordsize.
+  rewrite kek.
+  lia.
+  contradict n; reflexivity.
+
+  contradict g.
+  unfold Ptrofs.max_signed, Ptrofs.half_modulus, Ptrofs.modulus.
+  unfold Ptrofs.wordsize, Wordsize_Ptrofs.wordsize.
+  rewrite kek.
+  simpl.
+  lia.
+  contradict g.
+  unfold Ptrofs.max_signed, Ptrofs.half_modulus, Ptrofs.modulus.
+  unfold Ptrofs.wordsize, Wordsize_Ptrofs.wordsize.
+  rewrite kek.
+  simpl.
+  lia.
+Qed.
+
 Close Scope Z.
