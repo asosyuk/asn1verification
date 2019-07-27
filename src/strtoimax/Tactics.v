@@ -1,10 +1,10 @@
 From Coq Require Import String List ZArith Psatz.
 From compcert Require Import Coqlib Integers Floats AST Ctypes Cop Clight Clightdefs Memory Values ClightBigstep Events Maps.
-Require Import IntNotations.
 
 Ltac switch_destruct i :=
   match goal with
-             | [ H : (i == ?X)%int = true |- _ ] =>  pose proof (Int.eq_spec i X) as EQ; rewrite H in EQ; try (rewrite EQ)
+  | [ H : Int.eq i ?X = true |- _ ] =>  pose proof (Int.eq_spec i X) as EQ; rewrite H in EQ; try (rewrite EQ)
+  | [ H : Int64.eq i ?X = true |- _ ] =>  pose proof (Int64.eq_spec i X) as EQ; rewrite H in EQ; try (rewrite EQ)
   end.
 
 Ltac choose_seq s1 :=
@@ -37,7 +37,7 @@ Ltac exec_Axiom :=
     | [H : orb _ _ = false |- _] => apply orb_false_elim in H; destruct H
   end.
 
- Ltac env_assumption := try gso_simpl;  try gss_simpl; try eassumption.
+ Ltac env_assumption := try (eassumption || gso_simpl || gss_simpl).
 
  Ltac exec_until_seq := 
      repeat  match goal with
@@ -45,3 +45,4 @@ Ltac exec_Axiom :=
             | _ => econstructor ; exec_until_seq
 
              end.
+

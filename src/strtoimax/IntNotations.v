@@ -45,3 +45,8 @@ Infix "<" := Ptrofs.lt : PtrofsScope.
 Notation "x <= y" := (negb (Ptrofs.ltu y x)) (at level 70) : PtrofsScope.
 Infix "%" := Ptrofs.mods (at level 70) : PtrofsScope.
 Infix "//" := Ptrofs.divs (at level 70) : PtrofsScope.
+
+(* Env notations *)
+
+Infix "<~" := PTree.set  (at level 70).
+

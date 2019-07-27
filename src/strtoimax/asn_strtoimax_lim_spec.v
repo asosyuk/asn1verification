@@ -2,8 +2,7 @@ From Coq Require Import String List ZArith Psatz.
 From compcert Require Import Coqlib Integers Floats AST Ctypes Cop Clight Clightdefs Memory Values ClightBigstep Events Maps.
 Import ListNotations.
 Require Import StructTact.StructTactics.
-Require Import IntNotations.
-Require Import asn_strtoimax_lim Tactics.
+Require Import IntNotations asn_strtoimax_lim Tactics.
 Local Open Scope Int64Scope.
 
 (* Functional specification of INTEGER.c/asn_strtoimax_lim *)
@@ -533,8 +532,8 @@ Lemma switch_correct : forall i
     Mem.loadv Mint8signed m (Vptr b ofs) = Some (Vint i) ->
     le ! _str = Some (Vptr b ofs) ->
     is_digit i = true ->
-    (exists t le', exec_stmt ge e le m s1 t le' m Out_continue) ->
-    (exists t le', exec_stmt ge e le m (switch s1 s2) t le' m Out_continue).
+    forall le', (exists t, exec_stmt ge e le m s1 t le' m Out_continue) ->
+    (exists t, exec_stmt ge e le m (switch s1 s2) t le' m Out_continue).
 Proof.
   intros.
   cbn in H1.
@@ -563,84 +562,63 @@ Qed.
      repeat break_let; subst.
    - (* Base case *)
      inversion Spec; clear Spec.
+     rewrite <- H0.
      repeat eexists.
      eapply exec_Sloop_stop1.
      eapply exec_Sseq_2.
-     repeat econstructor.
-     all: try eassumption.
-     all: try gso_simpl; try eassumption; try gss_simpl; try econstructor.
-     simpl.
+     repeat econstructor; repeat env_assumption; try econstructor.
      assert (sem_cmp Clt (Vptr b1 i0) (tptr tschar) (Vptr b ofs) (tptr tschar) m = Some Vfalse) by admit. (* follows from Dist, may need assumptions about validity of pointers and their comparison *)
-    (*  assert (ptr_ge b1 b i0 ofs = Some true) as A.
-     { unfold distance in Dist.
-       unfold ptr_ge.
-       simpl.
-       destruct Archi.ptr64.
-       simpl.
-     } *)
      eassumption.
-     all: try (repeat econstructor); try discriminate; try gso_simpl.
-     rewrite <- H0.
-     assumption.    
+     all: try (repeat econstructor); repeat env_assumption; try discriminate.      
    - (* I.S. *)
      simpl in Spec.
      repeat break_match.
      all: try congruence.
      (* Case (inp_value < upper_boundary) *)
      (* Using Induction Hypothesis *)
-     pose (le'' := (PTree.set _str
-       (Vptr b1 (i0 + Ptrofs.repr (sizeof ge tschar) * ptrofs_of_int Signed (Int.repr 1))%ptrofs)
-       (PTree.set _value
-          (Vlong
-             (inp_value * cast_int_long Signed (Int.repr 10) +
-              cast_int_long Signed (i1 - zero_char)%int))
-          (PTree.set _d (Vint (i1 - zero_char)%int)
-             (PTree.set _t'2 (Vint i1)
-                (PTree.set _t'1 (Vint i1) (PTree.set _t'3 (Vptr b ofs) le))))))).
+     remember ((_str <~ Vptr b1 (i0 + 1)%ptrofs)
+              ((_value <~ Vlong (inp_value * int_to_int64 (Int.repr 10) + int_to_int64 (i1 - zero_char)%int))
+              ((_d <~ Vint (i1 - zero_char)%int)
+              ((_t'2 <~ Vint i1) ((_t'1 <~ Vint zero_char) ((_t'3 <~ Vptr b ofs) le)))))) as le''.
      pose proof (IHdist b ofs le'' (b1, (i0 + 1)%ptrofs) (b0, i) 
            (inp_value * Int64.repr 10 + int_to_int64 (i1 - zero_char)%int)  out_value 
-           m') as IH. 
-      assert (exists (t : trace) (le' : temp_env),
-         exec_stmt ge e le'' m f_asn_strtoimax_lim_loop t le' m Out_normal /\
-         le' ! _value = Some (Vlong out_value)) as N.
-      { eapply IH.
-        1-5: unfold le''; try gso_simpl.
-        gss_simpl.
-        simpl.
-        econstructor.
-        repeat gso_simpl. assumption.
-        gss_simpl.
-        simpl.
-        repeat gso_simpl.
-        simpl.
-        f_equal.
-        unfold int_to_int64.
-        f_equal.
-        admit. (* easy *)
-         repeat gso_simpl. assumption.
-        assumption.
-        admit. (* follows from Dist *)
-        assumption.
-       }  
+           m') as IH.
+     clear IHdist.
+     destruct IH as [t IH]; subst; try (repeat env_assumption || reflexivity).
+     admit. (* follows from Dist *)    
+     destruct IH as [le' IH]; destruct IH as [IH LE'].
      (* Executing one loop *)
-      break_exists. destruct H. (* introducing resulting env *)
-      (* dealing with switch statement *)
+      (* dealing with switch statement: FIX *)
       pose proof (switch_correct i1 switch_body switch_default  (PTree.set _t'1 (Vint i1) (PTree.set _t'3 (Vptr b ofs) le)) b1 i0) as SW.
-     unfold switch in SW.
-     (destruct SW).
-     1-4: admit.
-      destruct H1.
+      unfold switch in SW.
+      assert (Mem.loadv Mint8signed m (Vptr b1 i0) = Some (Vint i1)) as M by admit.
+      assert (((_t'1 <~ Vint i1) ((_t'3 <~ Vptr b ofs) le)) ! _str = Some (Vptr b1 i0)) as L by admit.
+     pose proof (SW M L Heqb2  ((_value <~
+      Vlong
+        (inp_value * cast_int_long Signed (Int.repr 10) +
+         cast_int_long Signed (i1 - zero_char)%int))
+       ((_d <~ Vint (i1 - zero_char)%int)
+          ((_t'2 <~ Vint i1) ((_t'1 <~ Vint zero_char) ((_t'3 <~ Vptr b ofs) le)))))).
+     assert ((exists t : trace,
+         exec_stmt ge e ((_t'1 <~ Vint i1) ((_t'3 <~ Vptr b ofs) le)) m switch_body t
+           ((_value <~
+             Vlong
+               (inp_value * cast_int_long Signed (Int.repr 10) +
+                cast_int_long Signed (i1 - zero_char)%int))
+              ((_d <~ Vint (i1 - zero_char)%int)
+                 ((_t'2 <~ Vint i1) ((_t'1 <~ Vint zero_char) ((_t'3 <~ Vptr b ofs) le)))))
+           m Out_continue)) as F by admit.
+     pose proof (H F).
+     destruct H0.
      repeat eexists.
      eapply exec_Sloop_loop.
      instantiate (1 := Out_continue).
      econstructor. (* Wrong local env instantiated  by repeat econstructor ??? *)
      econstructor.
      econstructor.
-     repeat econstructor.
-     all: try gso_simpl;  try gss_simpl; try eassumption.
-     econstructor.
-     repeat econstructor.
-      all: try gso_simpl;  try gss_simpl; try eassumption.
+     repeat econstructor; try env_assumption.
+     repeat econstructor; try env_assumption.
+     try eassumption.
      econstructor.
      assert (sem_cmp Clt (Vptr b1 i0) (tptr tschar) (Vptr b ofs) (tptr tschar) m = Some Vtrue) by admit. (* follows from Dist *)
      eassumption.
@@ -648,20 +626,32 @@ Qed.
      replace (negb (1 == 0)%int) with true by admit.
      econstructor.
      econstructor.
-     repeat econstructor.
-     all: try gso_simpl;  try gss_simpl; try eassumption.
+     repeat econstructor; try env_assumption; try eassumption.
      simpl.
      assert (Mem.load Mint8signed m b1 (Ptrofs.unsigned i0) = Some (Vint i1)) by admit. (* follows from Heqo - See Many32 semantics *)
      eassumption.
      econstructor.
-     admit. (* fix the local env! *)
+     repeat econstructor.
+     repeat env_assumption.
+     repeat econstructor.
+     fold f_asn_strtoimax_lim_loop.
+     replace  (i0 + Ptrofs.repr (sizeof ge tschar) * ptrofs_of_int Signed (Int.repr 1))%ptrofs with (i0 + 1)%ptrofs.
+     replace (inp_value * cast_int_long Signed (Int.repr 10) +
+            cast_int_long Signed (i1 - zero_char)%int) with  (inp_value * int_to_int64 (Int.repr 10) +
+                                                              int_to_int64 (i1 - zero_char)%int).
+     
+     eapply IH.
+     simpl.
+     unfold int_to_int64.
+     admit. (* signed and unsigned ? *)
+     auto with ptrofs.
+     eassumption.
+     admit.
+    
      (* Case  (inp_value == upper_boundary) && (int_to_int64 (i1 - zero_char)%int <= last_digit_max) : same as before *)
  Admitted.
 
-
  (* Case ASN_STRTOX_EXTRA_DATA: go through the loop until a non-digit encountered *)
-
-
  (* Return condition: *)
  Lemma inver_EXTRA_DATA:  forall dist str fin inp_value out_value s m',
     asn_strtoimax_lim_loop str fin inp_value s last_digit_max dist m = Some (ASN_STRTOX_EXTRA_DATA, Some (out_value,s), Some m') ->
