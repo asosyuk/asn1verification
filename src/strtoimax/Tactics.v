@@ -1,10 +1,16 @@
 From Coq Require Import String List ZArith Psatz.
 From compcert Require Import Coqlib Integers Floats AST Ctypes Cop Clight Clightdefs Memory Values ClightBigstep Events Maps.
+Require Import IntLemmas.
 
 Ltac switch_destruct i :=
+   let EQ := fresh "EQ" in
   match goal with
-  | [ H : Int.eq i ?X = true |- _ ] =>  pose proof (Int.eq_spec i X) as EQ; rewrite H in EQ; try (rewrite EQ)
-  | [ H : Int64.eq i ?X = true |- _ ] =>  pose proof (Int64.eq_spec i X) as EQ; rewrite H in EQ; try (rewrite EQ)
+  | [ H : Int.eq i ?X = true |- _ ] =>  pose proof (Int.eq_spec i X) as EQ; rewrite H in EQ; try (rewrite EQ); clear H
+  | [ H : Int64.eq i ?X = true |- _ ] =>  pose proof (Int64.eq_spec i X) as EQ; rewrite H in EQ; try (rewrite EQ); clear H
+   | [ H : Int.eq i ?X = false |- _ ] =>  pose proof (Int.eq_spec i X) as EQ; rewrite H in EQ; clear H
+   | [ H : Int64.eq i ?X = false |- _ ] =>  pose proof (Int64.eq_spec i X) as EQ; rewrite H in EQ; clear H
+   | [ H : i <> Int.repr ?X |- _ ] =>  pose proof (int_to_unsigned_neq i (Int.repr X) H) as EQ; clear H
+                       
   end.
 
 Ltac choose_seq s1 :=
