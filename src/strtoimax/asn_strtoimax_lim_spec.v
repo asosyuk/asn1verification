@@ -105,7 +105,9 @@ Definition distance (a1 a2 : addr) : nat :=
 Definition int_to_int64 (i : int) := Int64.repr (Int.unsigned i).
 
 (* Functional spec *)
-(* Loop: *)
+
+
+
 (* TODO: move storev below *)
 Fixpoint asn_strtoimax_lim_loop (str fin intp : addr) (value : int64) (s: signedness) (last_digit : int64) (dist : nat) (m' : mem) {struct dist} : option (asn_strtox_result_e*(option(int64*signedness*addr))*(option mem)) :=
   match (Mem.storev Mptr m (vptr fin) (vptr str)) with

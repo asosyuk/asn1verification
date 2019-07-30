@@ -7,6 +7,8 @@ Local Open Scope Int64Scope.
 
 (* Lemmas for each `asn_strtox_result_e` case *)
 (* Case ASN_STRTOX_ERROR_INVAL: str >= *end *)
+
+
 Lemma asn_strtoimax_lim_ASN_STRTOX_ERROR_INVAL_correct : forall le str fin intp,
     
     asn_strtoimax_lim str fin intp = Some (ASN_STRTOX_ERROR_INVAL, None, None) ->
@@ -807,8 +809,142 @@ replace (asn_strtox_result_e_to_int ASN_STRTOX_ERROR_RANGE) with (Int.repr (-3))
   - repeat break_match.
     all: try congruence.
     (* 3 cases *)
-    + admit. (* contradiction *)
-    + admit. (* contradiction *)
+     + remember ((_str <~ Vptr b2 (i1 + 1)%ptrofs)
+              ((_value <~ Vlong (inp_value * int_to_int64 (Int.repr 10) + int_to_int64 (i2 - zero_char)%int))
+              ((_d <~ Vint (i2 - zero_char)%int)
+              ((_t'2 <~ Vint i2) ((_t'1 <~ Vint zero_char) ((_t'3 <~ Vptr b ofs) le)))))) as le''.
+     pose proof (IHdist b ofs le'' (b2, (i1 + 1)%ptrofs) (b1, i0) intp 
+           (inp_value * Int64.repr 10 + int_to_int64 (i2 - zero_char)%int)  
+           m') as IH.
+     clear IHdist.
+     destruct IH as [t IH]; subst; try (repeat env_assumption || reflexivity).
+     admit. (* follows from Dist *)    
+     destruct IH as [le' IH].
+      pose proof (switch_correct_continue i2 switch_body switch_default  (PTree.set _t'1 (Vint i2) (PTree.set _t'3 (Vptr b ofs) le)) b2 i1) as SW.
+     replace asn_strtoimax_lim_spec.m  with m in * by admit.
+      unfold switch in SW.
+      assert (Mem.loadv Mint8signed m (Vptr b2 i1) = Some (Vint i2)) as M by admit.
+      assert (((_t'1 <~ Vint i2) ((_t'3 <~ Vptr b ofs) le)) ! _str = Some (Vptr b2 i1)) as L by admit.
+      pose proof (SW M L Heqb3  ((_value <~
+      Vlong
+        (inp_value * cast_int_long Signed (Int.repr 10) +
+         cast_int_long Signed (i2 - zero_char)%int))
+       ((_d <~ Vint (i2 - zero_char)%int)
+          ((_t'2 <~ Vint i2) ((_t'1 <~ Vint zero_char) ((_t'3 <~ Vptr b ofs) le)))))).
+     assert ((exists t : trace,
+         exec_stmt ge e ((_t'1 <~ Vint i2) ((_t'3 <~ Vptr b ofs) le)) m switch_body t
+           ((_value <~
+             Vlong
+               (inp_value * cast_int_long Signed (Int.repr 10) +
+                cast_int_long Signed (i2 - zero_char)%int))
+              ((_d <~ Vint (i2 - zero_char)%int)
+                 ((_t'2 <~ Vint i2) ((_t'1 <~ Vint zero_char) ((_t'3 <~ Vptr b ofs) le)))))
+           m Out_continue)) as F by admit.
+     pose proof (H F).
+     destruct H0.
+     repeat eexists.
+     eapply exec_Sloop_loop.
+     instantiate (1 := Out_continue).
+     econstructor. (* Wrong local env instantiated  by repeat econstructor ??? *)
+     econstructor.
+     econstructor.
+     repeat econstructor; try env_assumption.
+     repeat econstructor; try env_assumption.
+     try eassumption.
+     econstructor.
+     assert (sem_cmp Clt (Vptr b2 i1) (tptr tschar) (Vptr b ofs) (tptr tschar) m = Some Vtrue) by admit. (* follows from Dist *)
+     eassumption.
+     repeat econstructor.
+     replace (negb (1 == 0)%int) with true by (auto with ints).
+     econstructor.
+     econstructor.
+     repeat econstructor; try env_assumption; try eassumption.
+     simpl.
+     assert (Mem.load Mint8signed m b2 (Ptrofs.unsigned i1) = Some (Vint i2)) by admit. (* follows from Heqo - See Many32 semantics *)
+     eassumption.
+     econstructor.
+     repeat econstructor.
+     repeat env_assumption.
+     repeat econstructor.
+     fold f_asn_strtoimax_lim_loop.
+     replace  (i0 + Ptrofs.repr (sizeof ge tschar) * ptrofs_of_int Signed (Int.repr 1))%ptrofs with (i0 + 1)%ptrofs.
+     replace (inp_value * cast_int_long Signed (Int.repr 10) +
+            cast_int_long Signed (i2 - zero_char)%int) with  (inp_value * int_to_int64 (Int.repr 10) +
+                                                              int_to_int64 (i2 - zero_char)%int).
+     
+     eapply IH.
+     simpl.
+     unfold int_to_int64.
+     admit. (* signed and unsigned ? *)
+     auto with ptrofs.
+    + remember ((_str <~ Vptr b2 (i1 + 1)%ptrofs)
+              ((_value <~ Vlong (inp_value * int_to_int64 (Int.repr 10) + int_to_int64 (i2 - zero_char)%int))
+              ((_d <~ Vint (i2 - zero_char)%int)
+              ((_t'2 <~ Vint i2) ((_t'1 <~ Vint zero_char) ((_t'3 <~ Vptr b ofs) le)))))) as le''.
+     pose proof (IHdist b ofs le'' (b2, (i1 + 1)%ptrofs) (b1, i0) intp 
+           (inp_value * Int64.repr 10 + int_to_int64 (i2 - zero_char)%int)  
+           m') as IH.
+     clear IHdist.
+     destruct IH as [t IH]; subst; try (repeat env_assumption || reflexivity).
+     admit. (* follows from Dist *)    
+     destruct IH as [le' IH].
+      pose proof (switch_correct_continue i2 switch_body switch_default  (PTree.set _t'1 (Vint i2) (PTree.set _t'3 (Vptr b ofs) le)) b2 i1) as SW.
+     replace asn_strtoimax_lim_spec.m  with m in * by admit.
+      unfold switch in SW.
+      assert (Mem.loadv Mint8signed m (Vptr b2 i1) = Some (Vint i2)) as M by admit.
+      assert (((_t'1 <~ Vint i2) ((_t'3 <~ Vptr b ofs) le)) ! _str = Some (Vptr b2 i1)) as L by admit.
+      pose proof (SW M L Heqb3  ((_value <~
+      Vlong
+        (inp_value * cast_int_long Signed (Int.repr 10) +
+         cast_int_long Signed (i2 - zero_char)%int))
+       ((_d <~ Vint (i2 - zero_char)%int)
+          ((_t'2 <~ Vint i2) ((_t'1 <~ Vint zero_char) ((_t'3 <~ Vptr b ofs) le)))))).
+     assert ((exists t : trace,
+         exec_stmt ge e ((_t'1 <~ Vint i2) ((_t'3 <~ Vptr b ofs) le)) m switch_body t
+           ((_value <~
+             Vlong
+               (inp_value * cast_int_long Signed (Int.repr 10) +
+                cast_int_long Signed (i2 - zero_char)%int))
+              ((_d <~ Vint (i2 - zero_char)%int)
+                 ((_t'2 <~ Vint i2) ((_t'1 <~ Vint zero_char) ((_t'3 <~ Vptr b ofs) le)))))
+           m Out_continue)) as F by admit.
+     pose proof (H F).
+     destruct H0.
+     repeat eexists.
+     eapply exec_Sloop_loop.
+     instantiate (1 := Out_continue).
+     econstructor. (* Wrong local env instantiated  by repeat econstructor ??? *)
+     econstructor.
+     econstructor.
+     repeat econstructor; try env_assumption.
+     repeat econstructor; try env_assumption.
+     try eassumption.
+     econstructor.
+     assert (sem_cmp Clt (Vptr b2 i1) (tptr tschar) (Vptr b ofs) (tptr tschar) m = Some Vtrue) by admit. (* follows from Dist *)
+     eassumption.
+     repeat econstructor.
+     replace (negb (1 == 0)%int) with true by (auto with ints).
+     econstructor.
+     econstructor.
+     repeat econstructor; try env_assumption; try eassumption.
+     simpl.
+     assert (Mem.load Mint8signed m b2 (Ptrofs.unsigned i1) = Some (Vint i2)) by admit. (* follows from Heqo - See Many32 semantics *)
+     eassumption.
+     econstructor.
+     repeat econstructor.
+     repeat env_assumption.
+     repeat econstructor.
+     fold f_asn_strtoimax_lim_loop.
+     replace  (i0 + Ptrofs.repr (sizeof ge tschar) * ptrofs_of_int Signed (Int.repr 1))%ptrofs with (i0 + 1)%ptrofs.
+     replace (inp_value * cast_int_long Signed (Int.repr 10) +
+            cast_int_long Signed (i2 - zero_char)%int) with  (inp_value * int_to_int64 (Int.repr 10) +
+                                                              int_to_int64 (i2 - zero_char)%int).
+     
+     eapply IH.
+     simpl.
+     unfold int_to_int64.
+     admit. (* signed and unsigned ? *)
+     auto with ptrofs.
     + inversion Spec.
       unfold  Mem.loadv in *.
       assert (((_t'1 <~ Vint i2) ((_t'3 <~ Vptr b ofs) le)) ! _str = Some (Vptr b2 i1)) as LE by (repeat env_assumption).
@@ -848,6 +984,24 @@ replace (asn_strtox_result_e_to_int ASN_STRTOX_ERROR_RANGE) with (Int.repr (-3))
 
 Admitted.
 
+Lemma asn_strtoimax_lim_loop_correct : forall dist b ofs le str fin intp inp_value  m',
+    
+    le!_str = Some (vptr str)  ->
+    le!_end = Some (vptr fin) ->
+    le!_intp = Some (vptr intp)  ->
+    le!_value = Some (Vlong inp_value) ->
+    le ! _upper_boundary = Some (Vlong upper_boundary) ->
+    le ! _sign = Some (Vint (Int.repr 1)) ->
+
+    load_addr Mptr m fin = Some (Vptr b ofs) ->
+
+    (distance str (b,ofs)) = dist ->
+
+    asn_strtoimax_lim_loop str fin intp inp_value Unsigned last_digit_max dist m = Some (ASN_STRTOX_ERROR_RANGE, None, Some m') ->
+
+    exists t le', exec_stmt ge e le m f_asn_strtoimax_lim_loop t le' m' (Out_return (Some (Vint (asn_strtox_result_e_to_int ASN_STRTOX_ERROR_RANGE), tint))).
+
+Proof.
 
 
     
