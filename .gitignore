@@ -6,3 +6,4 @@
 *.aux
 *.glob
 .coqdeps.d
+doc/tutorial/C/*.v
