@@ -61,7 +61,7 @@ Parameter e : env.
 (* Pointer comparison *)
 (* Abstract spec : [b1,ofs1] >= [b2,ofs2] *)
 Definition ptr_ge_spec (b1 b2 : block) (ofs1 ofs2 : ptrofs) :=
-  if eq_block b1 b2 then Some (ofs2 <= ofs1)%ptrofs else None.
+  if eq_block b1 b2 then Some (ofs2 <=u ofs1)%ptrofs else None.
 (* Spec using Compcert semantic values *)
 Definition ptr_ge (b1 b2 : block) (ofs1 ofs2 : ptrofs) :=
   if Archi.ptr64

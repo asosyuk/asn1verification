@@ -14,7 +14,8 @@ Infix "+" := Int.add : IntScope.
 Infix "-" := Int.sub : IntScope.
 Infix "*" := Int.mul : IntScope.
 Infix "<" := Int.lt : IntScope.
-Notation "x <= y" := (negb (Int.ltu y x)) (at level 70) : IntScope.
+Notation "x <=u y" := (negb (Int.ltu y x)) (at level 70) : IntScope.
+Notation "x <= y" := (negb (Int.lt y x)) (at level 70) : IntScope.
 Infix "%" := Int.mods (at level 70) : IntScope.
 Infix "//" := Int.divs (at level 70) : IntScope.
 
@@ -28,7 +29,8 @@ Infix "+" := Int64.add : Int64Scope.
 Infix "-" := Int64.sub : Int64Scope.
 Infix "*" := Int64.mul : Int64Scope.
 Infix "<" := Int64.lt : Int64Scope.
-Notation "x <= y" := (negb (Int64.ltu y x)) (at level 70) : Int64Scope.
+Notation "x <= y" := (negb (Int64.lt y x)) (at level 70) : Int64Scope.
+Notation "x <=u y" := (negb (Int64.ltu y x)) (at level 70) : Int64Scope.
 Infix "%" := Int64.mods (at level 70) : Int64Scope.
 Infix "//" := Int64.divs (at level 70) : Int64Scope.
  
@@ -42,7 +44,9 @@ Infix "+" := Ptrofs.add : PtrofsScope.
 Infix "-" := Ptrofs.sub : PtrofsScope.
 Infix "*" := Ptrofs.mul : PtrofsScope.
 Infix "<" := Ptrofs.lt : PtrofsScope.
-Notation "x <= y" := (negb (Ptrofs.ltu y x)) (at level 70) : PtrofsScope.
+Notation "x <= y" := (negb (Ptrofs.lt y x)) (at level 70) : PtrofsScope.
+Notation "x <=u y" := (negb (Ptrofs.ltu y x)) (at level 70) : PtrofsScope.
+
 Infix "%" := Ptrofs.mods (at level 70) : PtrofsScope.
 Infix "//" := Ptrofs.divs (at level 70) : PtrofsScope.
 
