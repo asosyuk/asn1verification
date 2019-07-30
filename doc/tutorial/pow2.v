@@ -1,51 +1,16 @@
-From Coq Require Import String List ZArith.
+From Coq Require Import String List ZArith Lia.
 From compcert Require Import Coqlib Integers Floats AST Ctypes Cop Clight Clightdefs.
 From compcert Require Import Maps Values ClightBigstep Events.
-  
-Require Import Lia.
 
-Local Open Scope Z_scope.
-
-Definition _n : ident := 53%positive.
-Definition _res : ident := 54%positive.
-
-Definition f_pow2 := {|
-  fn_return := tuint;
-  fn_callconv := cc_default;
-  fn_params := ((_n, tuint) :: nil);
-  fn_vars := nil;
-  fn_temps := ((_res, tuint) :: nil);
-  fn_body :=
-(Ssequence
-  (Sset _res (Econst_int (Int.repr 1) tint))
-  (Ssequence
-    (Swhile
-      (Etempvar _n tuint)
-      (Ssequence
-        (Sset _res
-          (Ebinop Oadd (Etempvar _res tuint) (Etempvar _res tuint) tuint))
-        (Sset _n
-          (Ebinop Osub (Etempvar _n tuint) (Econst_int (Int.repr 1) tint)
-            tuint))))
-    (Sreturn (Some (Etempvar _res tuint)))))
-|}.
-
-Definition f_pow2_loop :=
-  (Swhile
-    (Etempvar _n tuint)
-    (Ssequence
-      (Sset _res
-        (Ebinop Oadd (Etempvar _res tuint) (Etempvar _res tuint) tuint))
-      (Sset _n
-        (Ebinop Osub (Etempvar _n tuint) (Econst_int (Int.repr 1) tint)
-          tuint)))).
+Require Import Clight.pow2.
+Open Scope Z_scope.
 
 Definition Vnat (n : nat) := Vint (Int.repr (Z.of_nat n)).
 Definition Mset' := Maps.PTree.set.
 Definition Mset := Mset' val.
 
-Ltac gso := rewrite PTree.gso by discriminate.
-Ltac gss := apply PTree.gss.
+Ltac gso_simpl := rewrite PTree.gso by discriminate.
+Ltac gss_simpl := rewrite PTree.gss.
 
 Lemma succ_not_zero_int (n : nat) :
   Z.of_nat (S n) < Int.modulus ->
@@ -77,9 +42,19 @@ Proof.
   lia.
 Qed.
 
+Definition f_pow2_loop :=
+  (Swhile
+    (Etempvar _n tuint)
+    (Ssequence
+      (Sset _res
+        (Ebinop Oadd (Etempvar _res tuint) (Etempvar _res tuint) tuint))
+      (Sset _n
+        (Ebinop Osub (Etempvar _n tuint) (Econst_int (Int.repr 1) tint)
+          tuint)))).
+
 Lemma f_pow2_loop_correct : forall ge e m, forall n res le,
       Z.of_nat n < Int.modulus ->
-      (* 1 <= *) Z.of_nat res < Int.modulus ->
+      Z.of_nat res < Int.modulus ->
       Z.of_nat (res * (pow2_fspec n)) < Int.modulus ->
       
       le!_n = Some (Vnat n) ->
@@ -120,7 +95,7 @@ Proof.
       - rewrite <-Nat.mul_assoc, <-pow2_fspec_S.
         assumption.
       - apply PTree.gss.
-      - gso; gss.
+      - gso_simpl; gss_simpl; reflexivity.
     }
     destruct H4. destruct H4. destruct H4.
     repeat eexists;
@@ -140,7 +115,7 @@ Proof.
     eassumption.
     repeat econstructor.
     repeat econstructor.
-    gso; eassumption.
+    gso_simpl; eassumption.
     repeat econstructor.
     econstructor.
     econstructor.
