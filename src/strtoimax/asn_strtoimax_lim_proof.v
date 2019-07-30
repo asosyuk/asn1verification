@@ -8,6 +8,42 @@ Local Open Scope Int64Scope.
 (* Lemmas for each `asn_strtox_result_e` case *)
 (* Case ASN_STRTOX_ERROR_INVAL: str >= *end *)
 
+Lemma asn_strtoimax_lim_correct : forall le str fin intp m' res val ip,  
+    le!_str = Some (vptr str)  ->
+    le!_end = Some (vptr fin) ->
+    le!_intp = Some (vptr intp)  ->
+    le ! _upper_boundary = Some (Vlong upper_boundary) ->
+    le ! _sign = Some (Vint (Int.repr 1)) ->
+
+    asn_strtoimax_lim str fin intp
+    = Some {| return_type := res ;
+              value := val ;
+              intp := ip ;
+              memory := Some m' ; 
+           |} -> 
+    exists t le', exec_stmt ge e le m f_asn_strtoimax_lim.(fn_body) t le' m'
+                       (Out_return (Some ((Vint (asn_strtox_result_e_to_int res)), tint))).
+Admitted.
+
+Lemma asn_strtoimax_lim_loop_correct : forall dist b ofs le str fin intp inp_value m' sign,
+    
+    le!_str = Some (vptr str)  ->
+    le!_end = Some (vptr fin) ->
+    le!_intp = Some (vptr intp)  ->
+    le!_value = Some (Vlong inp_value) ->
+    le ! _upper_boundary = Some (Vlong upper_boundary) ->
+    le ! _sign = Some (Vint (Int.repr 1)) ->
+
+    load_addr Mptr m fin = Some (Vptr b ofs) ->
+
+    (distance str (b,ofs)) = dist ->
+
+    asn_strtoimax_lim_loop str fin intp inp_value sign (max_sign sign) dist m
+          = Some (ASN_STRTOX_ERROR_RANGE, None, Some m') ->
+
+    exists t le', exec_stmt ge e le m f_asn_strtoimax_lim_loop t le' m' (Out_return (Some (Vint (asn_strtox_result_e_to_int ASN_STRTOX_ERROR_RANGE), tint))).
+
+Proof.
 
 Lemma asn_strtoimax_lim_ASN_STRTOX_ERROR_INVAL_correct : forall le str fin intp,
     
