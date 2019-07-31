@@ -2,7 +2,6 @@
 
 From Coq Require Import String List ZArith Psatz.
 From compcert Require Import Coqlib Integers Floats AST Ctypes Cop Clight Clightdefs Memory Values ClightBigstep Events Maps.
-(*From Hammer Require Import Hammer. (* Coq-hammer *)*)
 
 (* Specification of the strlen function *)
 
