@@ -2,37 +2,9 @@ From Coq Require Import String List ZArith Lia.
 From compcert Require Import Coqlib Integers Floats AST Ctypes Cop Clight Clightdefs.
 From compcert Require Import Maps Values ClightBigstep Events Memory.
 
+Require Import Clight.strlen.
+
 Open Scope Z_scope.
-
-Definition _s : ident := 54%positive.
-Definition _str : ident := 53%positive.
-
-Definition f_strlen := {|
-  fn_return := tuint;
-  fn_callconv := cc_default;
-  fn_params := ((_str, (tptr tschar)) :: nil);
-  fn_vars := nil;
-  fn_temps := ((_s, (tptr tschar)) :: nil);
-  fn_body :=
-(Ssequence
-  (Ssequence
-    (Sset _s (Etempvar _str (tptr tschar)))
-    (Sloop
-      (Sifthenelse (Ederef (Etempvar _s (tptr tschar)) tschar) Sskip Sbreak)
-      (Sset _s
-        (Ebinop Oadd (Etempvar _s (tptr tschar))
-          (Econst_int (Int.repr 1) tint) (tptr tschar)))))
-  (Sreturn (Some (Ebinop Osub (Etempvar _s (tptr tschar))
-                   (Etempvar _str (tptr tschar)) tint))))
-|}.
-
-Definition f_strlen_loop :=
-  (Sloop
-    (Sifthenelse (Ederef (Etempvar _s (tptr tschar)) tschar) Sskip Sbreak)
-    (Sset _s
-      (Ebinop Oadd (Etempvar _s (tptr tschar))
-        (Econst_int (Int.repr 1) tint) (tptr tschar)))).
-
 
 
 (** * relational specification of strlen *)
@@ -144,21 +116,50 @@ Proof.
       reflexivity.
 Qed.
 
+Fact ptr_max_signed_lower_bound :
+  2147483647 <= Ptrofs.max_signed.
+Proof.
+  unfold Ptrofs.max_signed, Ptrofs.half_modulus, Ptrofs.modulus,
+    Ptrofs.wordsize, Wordsize_Ptrofs.wordsize.
+  destruct Archi.ptr64; simpl; lia.
+Qed.
+
+Fact ptr_zwordsize_lower_bound :
+ 32 <= Ptrofs.zwordsize.
+Proof.
+  unfold Ptrofs.zwordsize, Ptrofs.wordsize, Wordsize_Ptrofs.wordsize.
+  destruct Archi.ptr64; simpl; lia.
+Qed.
 
 
 (** * correctness *)
 
-Lemma f_strlen_loop_correct_gen :
-  forall len m b ofs le i,
+(* loop isolated *)
+Definition f_strlen_loop :=
+  (Sloop
+    (Sifthenelse (Ederef (Etempvar _s (tptr tschar)) tschar) Sskip Sbreak)
+    (Sset _s
+      (Ebinop Oadd (Etempvar _s (tptr tschar))
+        (Econst_int (Int.repr 1) tint) (tptr tschar)))).
+
+(*
+ * correctness of the loop in isolation.
+ * in addition to proving correctness of result
+ * we also prove preservation of [str]:
+ * that is required because [str] is used again in the return statement
+ *)
+Lemma f_strlen_loop_correct :
+  forall len m b ofs ste i,
     strlen_rspec m b ofs (len + i) ->   
-    exists t le',
-      le!_str = Some (Vptr b ofs) ->
-      le!_s = Some (Vptr b (Ptrofs.add ofs (ofs_of_nat i))) ->
-      (exec_stmt ge e le m f_strlen_loop t le' m Out_normal
+    exists t rte,
+      ste ! _str = Some (Vptr b ofs) ->
+      ste ! _s = Some (Vptr b (Ptrofs.add ofs (ofs_of_nat i))) ->
+
+      exec_stmt ge e ste m f_strlen_loop t rte m Out_normal
       /\
-      le'!_s = Some (Vptr b (Ptrofs.add ofs (ofs_of_nat (len + i))))
+      rte ! _s = Some (Vptr b (Ptrofs.add ofs (ofs_of_nat (len + i))))
       /\
-      le'!_str = le!_str).
+      rte ! _str = ste ! _str.
 Proof.
   induction len; intros.
   - (** iBase *)
@@ -180,11 +181,11 @@ Proof.
     (* cannot work with [S len] but can with [S i] *)
     replace (S len + i)%nat with (len + S i)%nat in * by lia.
     (* this is the starting state of the iteration on the induction step *)
-    remember (PTree.set _s (Vptr b (Ptrofs.add (Ptrofs.add ofs (ofs_of_nat i)) Ptrofs.one)) le)
-      as Ile.
-    pose proof IHlen m b ofs Ile (S i) H as IH;
+    remember (PTree.set _s (Vptr b (Ptrofs.add (Ptrofs.add ofs (ofs_of_nat i)) Ptrofs.one)) ste)
+      as sIte.
+    pose proof IHlen m b ofs sIte (S i) H as IH;
       clear IHlen;
-      destruct IH as [t' IH]; destruct IH as [le'' IH].
+      destruct IH as [t IH]; destruct IH as [rIte IH].
 
     eexists; eexists; intros.
 
@@ -221,50 +222,38 @@ Proof.
       rewrite IH3; subst; gso_simpl; reflexivity.
 Qed.
 
-Fact ptr_max_signed_lower_bound :
-  2147483647 <= Ptrofs.max_signed.
-Proof.
-  unfold Ptrofs.max_signed, Ptrofs.half_modulus, Ptrofs.modulus,
-    Ptrofs.wordsize, Wordsize_Ptrofs.wordsize.
-  destruct Archi.ptr64; simpl; lia.
-Qed.
-
-Fact ptr_zwordsize_lower_bound :
- 32 <= Ptrofs.zwordsize.
-Proof.
-  unfold Ptrofs.zwordsize, Ptrofs.wordsize, Wordsize_Ptrofs.wordsize.
-  destruct Archi.ptr64; simpl; lia.
-Qed.
-
+(* full correctness *)
 Lemma f_strlen_correct :
-  forall len m b ofs le,
+  forall len m b ofs ste,
     strlen_rspec m b ofs len ->   
-    le!_str = Some (Vptr b ofs) ->
-    exists t le',
-      exec_stmt ge e le m (fn_body f_strlen) t le' m
+    ste ! _str = Some (Vptr b ofs) ->
+    exists t rte,
+      exec_stmt ge e ste m (fn_body f_strlen) t rte m
                 (Out_return (Some (Vptrofs (ofs_of_nat len), tint))).
 Proof.
   intros.
 
   (* introduce the gneralized correctness lemma *)
-  pose proof f_strlen_loop_correct_gen len m b ofs (PTree.set _s (Vptr b ofs) le) 0 as GC.
+  pose proof f_strlen_loop_correct len m b ofs (PTree.set _s (Vptr b ofs) ste) 0 as GC.
   replace (len + 0)%nat with len in * by lia.
   specialize (GC H).
   destruct GC as [t GC]; destruct GC as [le' GC].
 
   repeat eexists.
 
-  (* split generalized correctness usable *)
+  (* make loop correctness lemma usable *)
   destruct GC as [GC1 GC];
     [gso_simpl; assumption
     |gss_simpl; rewrite Ptrofs.add_zero; reflexivity
     |].
   destruct GC as [GC2 GC3].
   
-  econstructor.
-  - (* body *)
-    econstructor.
-    repeat econstructor; eassumption.
+  (* split body into three parts *)
+  econstructor. econstructor.
+  - (* set *)
+    repeat econstructor.
+    eassumption.
+  - (* loop *)
     eassumption.
   - (* return *)
     repeat econstructor.
