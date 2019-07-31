@@ -24,16 +24,6 @@ Inductive strlen_rspec' (m : mem) (b : block) (ofs : ptrofs) : nat -> Prop :=
     Int.eq c Int.zero = false ->
     strlen_rspec' m b (Ptrofs.add ofs Ptrofs.one) n ->
     strlen_rspec' m b ofs (S n).
-
-Lemma intzero_zero (c : int) :
-  c <> Int.zero ->
-  Int.eq c Int.zero = false.
-Proof.
-  intro Z.
-  unfold Int.eq.
-  destruct zeq; [exfalso | reflexivity].
-  rewrite Int.unsigned_zero in e.
-  contradict Z.
   
 
 Theorem rspec_equiv (m : mem) (b : block) (ofs : ptrofs) (l : nat) :
@@ -45,7 +35,7 @@ Proof.
   - induction S.
     + constructor; assumption.
     + econstructor; try eassumption.
-      apply intzero_zero; assumption.
+      apply Int.eq_false; assumption.
   - induction S.
     + constructor; assumption.
     + econstructor; try eassumption.
