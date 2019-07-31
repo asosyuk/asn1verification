@@ -332,7 +332,6 @@ Inductive strlen_nat (m : mem) (b : block) (ofs : ptrofs) : nat -> Prop :=
 | LengthZeroNat: Mem.loadv Mint8signed m (Vptr b ofs) = Some (Vint Int.zero) -> strlen_nat m b ofs 0
 | LengthSuccNat: forall n c,
     Z.of_nat (S n) < Int.modulus ->
-   (* Ptrofs.unsigned ofs + Z.of_nat (S n) < Ptrofs.modulus -> can remove this assumption by using Ptrofs.agree32 in arithmetic proofs *)
     strlen_nat m b (Ptrofs.add ofs Ptrofs.one) n ->
     Mem.loadv Mint8signed m (Vptr b ofs)  = Some (Vint c) ->
     c <> Int.zero ->
