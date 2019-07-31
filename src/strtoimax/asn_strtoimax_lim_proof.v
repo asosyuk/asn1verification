@@ -460,7 +460,30 @@ Lemma asn_strtoimax_lim_loop_ASN_STRTOX_OK_correct : forall dist b ofs le str fi
            m') as IH.
      clear IHdist.
      destruct IH as [t IH]; subst; try (repeat env_assumption || reflexivity).
-     admit. (* follows from Dist *)    
+     unfold distance in *.
+     simpl in Dist.
+     simpl.
+        
+     assert ( (Ptrofs.unsigned i0) < (Ptrofs.unsigned ofs))%Z.
+     { assert  ((Z.to_nat (Ptrofs.unsigned i0) < Z.to_nat (Ptrofs.unsigned ofs) )%nat) by
+         lia.  
+       unfold Ptrofs.unsigned in *.
+       destruct ofs, i0; simpl in *.
+       pose proof (Z2Nat.inj_lt intval0 intval) as Inj.
+       destruct Inj.
+       all: try lia. }
+     assert (Ptrofs.unsigned i0 < Ptrofs.max_unsigned)%Z.
+     {  assert (Ptrofs.unsigned ofs <= Ptrofs.max_unsigned)%Z.
+         pose proof (Ptrofs.unsigned_range_2 ofs).
+         all: try lia.
+     }
+     (* Dist *)
+     assert (i0 <> Ptrofs.repr Ptrofs.max_unsigned) by admit.
+     assert ((i0 + 1)%ptrofs <> Ptrofs.zero ) as S by admit.
+     assert (non_zero_surj_ptrofs : forall i, Ptrofs.add i Ptrofs.one <> Ptrofs.zero -> Ptrofs.unsigned (Ptrofs.add i Ptrofs.one) = (Ptrofs.unsigned i + 1)%Z) by admit. (* there is a proof in IntLemmas *)
+     pose proof (non_zero_surj_ptrofs i0 S) as Surj.
+     rewrite Surj.
+     (* follows from Dist *)    
      destruct IH as [le' IH]; destruct IH as [IH LE'].
      (* Executing one loop *)
       (* dealing with switch statement: FIX *)

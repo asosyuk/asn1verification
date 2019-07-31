@@ -77,3 +77,13 @@ end.
 Ltac break_ife_false :=   match goal with
             | [ |- exec_stmt _ _ _ _ (if ?X then _ else _ ) _ _ _ _ ] => replace X with false
             end.
+
+Notation gso := PTree.gso.
+Notation gss := PTree.gss.
+
+Ltac seq1 := eapply exec_Sseq_1.
+Ltac seq2 := eapply exec_Sseq_2.
+Ltac sset := eapply exec_Sset.
+Ltac loop := eapply exec_Sloop_loop.
+
+
