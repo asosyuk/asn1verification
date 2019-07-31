@@ -118,6 +118,7 @@ Proof.
 Qed.
 
 
+Check Int.unsigned_repr.
 Proposition char_not_zero : forall c, c <> Int.zero -> true = (negb (Int.eq c Int.zero)).
 Proof.
   intros.
