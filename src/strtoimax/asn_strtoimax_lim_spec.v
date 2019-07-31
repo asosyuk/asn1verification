@@ -166,25 +166,35 @@ Definition asn_strtoimax_lim (str fin intp : addr) : option asn_strtoimax_lim_re
     | Some true => Some {| return_type := ASN_STRTOX_ERROR_INVAL;
                                            value := None;
                                            intp := None;                        
-                                           memory := None; |}
-    | Some false => let dist := distance str (b, ofs) in
+                                           memory := Some m; |}
+    | Some false => let dist := distance str (b,ofs) in
                    match load_addr Mint8signed m str with
                    | Some (Vint i) =>
-                     let s := if (i == minus_char)%int then Signed else Unsigned in 
-                     let ldm := if (i == minus_char)%int then last_digit_max_minus else last_digit_max in 
-                     match addr_ge (str++) (b, ofs) with
-                     | Some true => Some {| return_type := ASN_STRTOX_EXPECT_MORE;
+                     if (i == minus_char)%int
+                     then match addr_ge (str++) (b,ofs) with
+                          | Some true =>  Some {| return_type := ASN_STRTOX_EXPECT_MORE;
                                            value := None;
                                            intp := None;                        
                                            memory := (Mem.storev Mptr m (vptr fin) (vptr (str++))); |}
 
-                        | Some false => asn_strtoimax_lim_loop (str++) fin intp 0 s ldm (dist - 1)%nat m
-                        | None => None
-                     end
+                          | Some false => asn_strtoimax_lim_loop (str++) fin intp 0 Signed last_digit_max_minus (dist - 1)%nat m
+                          | None => None
+                          end
+                     else if (i == plus_char)%int
+                          then match addr_ge (str++) (b,ofs) with
+                               | Some true =>  Some {| return_type := ASN_STRTOX_EXPECT_MORE;
+                                           value := None;
+                                           intp := None;                        
+                                           memory := (Mem.storev Mptr m (vptr fin) (vptr (str++))); |}
+
+                               | Some false => asn_strtoimax_lim_loop (str++) fin intp 0 Unsigned last_digit_max (dist - 1)%nat m
+                               | None => None
+                               end
+                          else asn_strtoimax_lim_loop str fin intp 0 Unsigned last_digit_max dist m
                    | _ => None (* fail of memory load on str: wrong type or not enough permission *)
                    end
     | None => None (* error in pointer comparison *)
-    end
+    end 
   | _ => None (* fail of pointer to fin *) 
   end.
 
