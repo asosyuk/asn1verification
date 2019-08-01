@@ -97,12 +97,7 @@ Definition upper_boundary := ASN1_INTMAX_MAX // (Int64.repr 10).
 Definition last_digit_max := ASN1_INTMAX_MAX % (Int64.repr 10).
 Definition last_digit_max_minus := (ASN1_INTMAX_MAX % (Int64.repr 10)) + 1.
 
-(* Representing negative and positive int *)
-Definition max_sign s :=
-  match s with
-  | Signed => last_digit_max_minus 
-  | Unsigned => last_digit_max
-  end.
+
 (* digits [0-9]*)
 Definition digits := map Int.repr [48;49;50;51;52;53;54;55;56;57].
 Definition is_digit (i : int) := existsb (fun j => Int.eq i j) digits.
@@ -159,6 +154,15 @@ Fixpoint asn_strtoimax_lim_loop (str fin intp : addr) (value : int64) (s: signed
   end.
 
 
+Definition sign i :=
+  if (i == minus_char)%int then Signed else Unsigned.
+(* Representing negative and positive int *)
+Definition max_sign s :=
+  match s with
+  | Signed => last_digit_max_minus 
+  | Unsigned => last_digit_max
+  end.
+
 Definition asn_strtoimax_lim (str fin intp : addr) : option asn_strtoimax_lim_result :=
   match load_addr Mptr m fin with (* derefencing **fin *)
   | Some (Vptr b ofs) =>
@@ -170,27 +174,17 @@ Definition asn_strtoimax_lim (str fin intp : addr) : option asn_strtoimax_lim_re
     | Some false => let dist := distance str (b,ofs) in
                    match load_addr Mint8signed m str with
                    | Some (Vint i) =>
-                     if (i == minus_char)%int
+                     if (i == minus_char)%int || (i == plus_char)%int
                      then match addr_ge (str++) (b,ofs) with
                           | Some true =>  Some {| return_type := ASN_STRTOX_EXPECT_MORE;
                                            value := None;
                                            intp := None;                        
                                            memory := (Mem.storev Mptr m (vptr fin) (vptr (str++))); |}
 
-                          | Some false => asn_strtoimax_lim_loop (str++) fin intp 0 Signed last_digit_max_minus (dist - 1)%nat m
+                          | Some false => asn_strtoimax_lim_loop (str++) fin intp 0 (sign i) (max_sign (sign i)) (dist - 1)%nat m
                           | None => None
                           end
-                     else if (i == plus_char)%int
-                          then match addr_ge (str++) (b,ofs) with
-                               | Some true =>  Some {| return_type := ASN_STRTOX_EXPECT_MORE;
-                                           value := None;
-                                           intp := None;                        
-                                           memory := (Mem.storev Mptr m (vptr fin) (vptr (str++))); |}
-
-                               | Some false => asn_strtoimax_lim_loop (str++) fin intp 0 Unsigned last_digit_max (dist - 1)%nat m
-                               | None => None
-                               end
-                          else asn_strtoimax_lim_loop str fin intp 0 Unsigned last_digit_max dist m
+                      else asn_strtoimax_lim_loop str fin intp 0 Unsigned last_digit_max dist m
                    | _ => None (* fail of memory load on str: wrong type or not enough permission *)
                    end
     | None => None (* error in pointer comparison *)

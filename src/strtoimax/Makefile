@@ -44,7 +44,7 @@ CAMLFLAGS         := $(COQMF_CAMLFLAGS)
 HASNATDYNLINK     := $(COQMF_HASNATDYNLINK)
 
 CoqMakefile.conf: 
-	coq_makefile asn_strtoimax_lim.v IntNotations.v IntLemmas.v Tactics.v asn_strtoimax_lim_spec.v
+	coq_makefile asn_strtoimax_lim.v IntNotations.v IntLemmas.v asn_strtoimax_lim_spec.v Tactics.v switch_statements.v
 
 # This file can be created by the user to hook into double colon rules or
 # add any other Makefile code he may need

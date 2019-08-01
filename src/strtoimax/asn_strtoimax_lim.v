@@ -561,6 +561,6 @@ Definition pre_loop s2 s3 := (Ssequence
                               (tptr tschar)) (Etempvar _str (tptr tschar)))
                           (Sreturn (Some (Econst_int (Int.repr (-1)) tint))))
                         Sskip)))
-                  LSnil))))  (Ssequence
+                  LSnil)))) (Ssequence
             (Ssequence
               (Sset _value (Ecast (Econst_int (Int.repr 0) tint) tlong)) s2 ) s3)))))).
