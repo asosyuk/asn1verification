@@ -32,7 +32,7 @@ Definition switch s1 s2 :=  (Sswitch (Ederef (Etempvar _str (tptr tschar)) tscha
 
 (* If reading i a digit then we enter the correct branch and continue *)
 Lemma switch_correct_continue : forall i s1 s2 le b ofs,
-    Mem.loadv Mintx8signed m (Vptr b ofs) = Some (Vint i) ->
+    Mem.loadv Mint8signed m (Vptr b ofs) = Some (Vint i) ->
     le ! _str = Some (Vptr b ofs) ->
     is_digit i = true ->
     forall le', (exists t, exec_stmt ge e le m s1 t le' m Out_continue) ->
