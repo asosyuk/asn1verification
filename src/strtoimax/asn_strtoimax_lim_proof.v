@@ -942,6 +942,23 @@ Proof.
          
 Admitted.
 
+(* Lemma pre_loop_execution : forall s1 s2,
+    le!_str = Some (vptr str)  ->
+    le!_end = Some (vptr fin) ->
+    le!_intp = Some (vptr intp)  ->
+    le ! _upper_boundary = Some (Vlong upper_boundary) ->
+    le ! _sign = Some (Vint (Int.repr 1)) ->
+
+    asn_strtoimax_lim str fin intp
+    = Some {| return_type := res;
+              value := val;
+              intp := ip;
+              memory := Some m'; 
+           |} ->
+
+    forall le' m', (exists t , exec_stmt ge e le m (pre_loop s1 s2) t le' m' Out_return ->
+    exists t le', exec_stmt ge e le m (pre_loop s1 s2) t le' m' out. *)
+
 Lemma asn_strtoimax_lim_correct : forall le str fin intp m' res val ip,
     
     le!_str = Some (vptr str)  ->
@@ -1106,7 +1123,143 @@ Proof.
   repeat econstructor.
   eassumption.
   congruence.
-    admit. (* reading + *)
+
+  (* reading + *)
+
+     assert (exists t2 le',  exec_stmt ge e
+    ((_value <~ Vlong (cast_int_long Signed (Int.repr 0)))
+       ((_t'5 <~ Vptr b2 i2)
+          ((_str <~
+            Vptr b1
+              (i1 + Ptrofs.repr (sizeof ge tschar) * ptrofs_of_int Signed (Int.repr 1))%ptrofs)
+             ((_sign <~ Vint (Int.neg (Int.repr 1)))
+                ((_last_digit_max <~
+                  Vlong
+                    (Int64.modu
+                       (Int64.not (cast_int_long Signed (Int.repr 0)) >>
+                        Int64.repr (Int.unsigned (Int.repr 1)))
+                       (cast_int_long Signed (Int.repr 10)) +
+                     cast_int_long Signed (Int.repr 1)))
+                   ((_t'4 <~ Vint plus_char)
+                      ((_t'6 <~ Vptr b2 i2)
+                         ((_last_digit_max <~
+                           Vlong
+                             (Int64.modu
+                                (Int64.not (cast_int_long Signed (Int.repr 0)) >>
+                                 Int64.repr (Int.unsigned (Int.repr 1)))
+                                (cast_int_long Signed (Int.repr 10))))
+                            ((_upper_boundary <~
+                              Vlong
+                                (Int64.divu
+                                   (Int64.not (cast_int_long Signed (Int.repr 0)) >>
+                                    Int64.repr (Int.unsigned (Int.repr 1)))
+                                   (cast_int_long Signed (Int.repr 10))))
+                               ((_sign <~ Vint (Int.repr 1)) le)))))))))) m
+    f_asn_strtoimax_lim_loop t2 le' m'
+    (Out_return (Some (Vint (asn_strtox_result_e_to_int ASN_STRTOX_ERROR_RANGE), tint)))).
+  
+  eapply (asn_strtoimax_lim_loop_ASN_STRTOX_ERROR_RANGE_correct)
+
+  with (le :=  ((_value <~ Vlong (cast_int_long Signed (Int.repr 0)))
+       ((_t'5 <~ Vptr b2 i2)
+          ((_str <~
+            Vptr b1
+              (i1 + Ptrofs.repr (sizeof ge tschar) * ptrofs_of_int Signed (Int.repr 1))%ptrofs)
+             ((_sign <~ Vint (Int.neg (Int.repr 1)))
+                ((_last_digit_max <~
+                  Vlong
+                    (Int64.modu
+                       (Int64.not (cast_int_long Signed (Int.repr 0)) >>
+                        Int64.repr (Int.unsigned (Int.repr 1)))
+                       (cast_int_long Signed (Int.repr 10)) +
+                     cast_int_long Signed (Int.repr 1)))
+                   ((_t'4 <~ Vint plus_char)
+                      ((_t'6 <~ Vptr b2 i2)
+                         ((_last_digit_max <~
+                           Vlong
+                             (Int64.modu
+                                (Int64.not (cast_int_long Signed (Int.repr 0)) >>
+                                 Int64.repr (Int.unsigned (Int.repr 1)))
+                                (cast_int_long Signed (Int.repr 10))))
+                            ((_upper_boundary <~
+                              Vlong
+                                (Int64.divu
+                                   (Int64.not (cast_int_long Signed (Int.repr 0)) >>
+                                    Int64.repr (Int.unsigned (Int.repr 1)))
+                                   (cast_int_long Signed (Int.repr 10))))
+                               ((_sign <~ Vint (Int.repr 1)) le))))))))))) (m' := m').
+  all: repeat env_assumption.
+  1-7:admit.
+  break_exists.
+   
+    repeat eexists.
+    (* case reading minus *)
+   exec_until_seq.
+   econstructor.
+   repeat econstructor.
+   econstructor.
+   repeat econstructor.
+   econstructor.
+   repeat econstructor.
+   repeat env_assumption.
+   eassumption.
+   all: repeat env_assumption.
+   econstructor.
+  
+  simpl in Heqo0.
+  unfold  addr_ge in *.
+  eapply (ptr_ge_false _ _ _ _  Heqo0).
+  repeat econstructor.
+  repeat econstructor.
+  econstructor.
+  forward.
+  replace  (Out_normal) with (outcome_switch  (Out_normal)).
+  econstructor.
+  forward.
+  forward.
+  replace i3 with plus_char.
+  econstructor.
+  econstructor.
+  exec_until_seq.
+  repeat env_assumption.
+  econstructor.
+  eapply exec_Sseq_1.
+  econstructor.
+  repeat econstructor.
+  all: repeat  env_assumption.
+    repeat econstructor.
+    all: repeat  env_assumption.
+    econstructor.
+    repeat econstructor.
+  unfold tlong.
+  unfold tint.
+  simpl.
+  replace (Ptrofs.repr 1 * Ptrofs.of_ints (Int.repr 1))%ptrofs with (Ptrofs.repr 1) by (auto with ptrofs).
+  assert (sem_cmp Cge (Vptr b1 (i1 + Ptrofs.repr 1)%ptrofs) (tptr tschar) 
+                  (Vptr b2 i2) (tptr tschar) m = Some Vfalse) by admit.
+  eassumption.
+  (* use addr instead of ptr_ge 
+  unfold  addr_ge in *.
+  break_let.
+  pose (ptr_ge_false _ _ _ _ Heqo2).
+  simpl in Heqp.
+  inversion Heqp; subst. *)
+  repeat econstructor.
+  repeat econstructor.
+  econstructor.
+  symmetry.
+  pose (Int.eq_spec i3 plus_char).
+  
+  rewrite Heqb1 in y.
+  auto.
+  simpl.
+  auto.
+  fold f_asn_strtoimax_lim_loop.
+  eapply exec_Sseq_2.
+  econstructor.
+  repeat econstructor.
+  admit.
+  congruence.
     admit. (* reading no sign *)
   - eapply asn_strtoimax_lim_ASN_STRTOX_ERROR_INVAL_correct. (* ASN_STRTOX_ERROR_INVAL *)
   - eapply asn_strtoimax_lim_ASN_STRTOX_EXPECT_MORE_correct.

@@ -508,3 +508,59 @@ Notation switch_default :=
                                                     (Etempvar _value tlong)
                                                     tlong))
                                                 (Sreturn (Some (Econst_int (Int.repr 1) tint))))).
+
+Definition pre_loop s2 s3 := (Ssequence
+  (Sset _sign (Econst_int (Int.repr 1) tint))
+  (Ssequence
+    (Sset _upper_boundary
+      (Ebinop Odiv
+        (Ebinop Oshr
+          (Eunop Onotint (Ecast (Econst_int (Int.repr 0) tint) tulong)
+            tulong) (Econst_int (Int.repr 1) tint) tulong)
+        (Econst_int (Int.repr 10) tint) tulong))
+    (Ssequence
+      (Sset _last_digit_max
+        (Ebinop Omod
+          (Ebinop Oshr
+            (Eunop Onotint (Ecast (Econst_int (Int.repr 0) tint) tulong)
+              tulong) (Econst_int (Int.repr 1) tint) tulong)
+          (Econst_int (Int.repr 10) tint) tulong))
+      (Ssequence
+        (Ssequence
+          (Sset _t'6
+            (Ederef (Etempvar _end (tptr (tptr tschar))) (tptr tschar)))
+          (Sifthenelse (Ebinop Oge (Etempvar _str (tptr tschar))
+                         (Etempvar _t'6 (tptr tschar)) tint)
+            (Sreturn (Some (Econst_int (Int.repr (-2)) tint)))
+            Sskip))
+        (Ssequence
+          (Ssequence
+            (Sset _t'4 (Ederef (Etempvar _str (tptr tschar)) tschar))
+            (Sswitch (Ederef (Etempvar _str (tptr tschar)) tschar)
+              (LScons (Some 45)
+                (Ssequence
+                  (Sset _last_digit_max
+                    (Ebinop Oadd (Etempvar _last_digit_max tlong)
+                      (Econst_int (Int.repr 1) tint) tlong))
+                  (Sset _sign
+                    (Eunop Oneg (Econst_int (Int.repr 1) tint) tint)))
+                (LScons (Some 43)
+                  (Ssequence
+                    (Sset _str
+                      (Ebinop Oadd (Etempvar _str (tptr tschar))
+                        (Econst_int (Int.repr 1) tint) (tptr tschar)))
+                    (Ssequence
+                      (Sset _t'5
+                        (Ederef (Etempvar _end (tptr (tptr tschar)))
+                          (tptr tschar)))
+                      (Sifthenelse (Ebinop Oge (Etempvar _str (tptr tschar))
+                                     (Etempvar _t'5 (tptr tschar)) tint)
+                        (Ssequence
+                          (Sassign
+                            (Ederef (Etempvar _end (tptr (tptr tschar)))
+                              (tptr tschar)) (Etempvar _str (tptr tschar)))
+                          (Sreturn (Some (Econst_int (Int.repr (-1)) tint))))
+                        Sskip)))
+                  LSnil))))  (Ssequence
+            (Ssequence
+              (Sset _value (Ecast (Econst_int (Int.repr 0) tint) tlong)) s2 ) s3)))))).
