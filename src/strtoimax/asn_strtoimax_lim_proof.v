@@ -896,25 +896,19 @@ Proof.
    induction res.
    - (* ASN_STRTOX_ERROR_RANGE *)
      intros until ip; intros Str End Intp UB Sign Spec.
-     unfold vptr in *;
-       repeat break_let; subst; simpl in Spec.
      unfold asn_strtoimax_lim in Spec.
      repeat break_match.
      all: try congruence.
      replace (distance (str_b, str_ofs) (b, i) - 1)%nat with (distance (str_b, (str_ofs + 1)%ptrofs) (b, i)) in Spec by admit.
      + destruct_orb_hyp.
-       ++ eapply exec_loop_minus; try eassumption.
-          eapply asn_strtoimax_lim_loop_ASN_STRTOX_ERROR_RANGE_correct;
-          repeat (env_assumption || econstructor).
-          switch_destruct i0.
-          rewrite EQ in *; simpl in Spec.
-          reflexivity.
-       ++ eapply exec_loop_plus; try eassumption.
-          eapply asn_strtoimax_lim_loop_ASN_STRTOX_ERROR_RANGE_correct;
-          repeat (env_assumption || econstructor).
-          switch_destruct i0.
-          rewrite EQ in *; simpl in Spec.
-          reflexivity.
+       1 : (eapply exec_loop_minus).
+       11: (eapply exec_loop_plus).
+       all:
+         repeat  eassumption; eapply asn_strtoimax_lim_loop_ASN_STRTOX_ERROR_RANGE_correct;
+         repeat (env_assumption || econstructor);
+         switch_destruct i0;
+         rewrite EQ in *; simpl in Spec;
+         reflexivity.
      +  destruct_orb_hyp.
         eapply exec_loop_none; try eassumption.
         eapply asn_strtoimax_lim_loop_ASN_STRTOX_ERROR_RANGE_correct;
@@ -932,4 +926,3 @@ Admitted.
 
 
 
-    
