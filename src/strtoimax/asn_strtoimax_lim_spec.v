@@ -47,6 +47,13 @@ Notation plus_char := (Int.repr 43).
 Notation zero_char := (Int.repr 48).
 
 (* Representing negative and positive int *)
+
+Definition Sign s :=
+  match s with
+  | Signed => Int.neg (Int.repr 1)
+  | Unsigned => Int.repr 1
+  end.
+
 Definition mult_sign s value :=
   match s with
   | Signed => Int64.neg value
@@ -83,6 +90,24 @@ Proof.
   all: rewrite H; rewrite H0; simpl;
     destruct (Mem.valid_pointer m b1 (Ptrofs.unsigned ofs1) &&
                                 Mem.valid_pointer m b2 (Ptrofs.unsigned ofs2)); auto.
+Qed.
+
+Proposition ptr_ge_to_sem_cmp_true : forall b1 b2 i1 i2,
+    ptr_ge b1 b2 i1 i2 = Some true
+    -> sem_cmp Cge (Vptr b1 i1) (tptr tschar) (Vptr b2 i2) (tptr tschar) m = Some Vtrue.
+Proof.
+  intros.
+  assert ((option_map Val.of_bool (ptr_ge b1 b2 i1 i2)) =
+          (option_map Val.of_bool (Some true))) by (f_equal; assumption).
+  eassumption.
+Qed.
+
+Proposition ptr_ge_to_sem_cmp_false : forall  b1 b2 i1 i2, ptr_ge b1 b2 i1 i2 = Some false -> sem_cmp Cge (Vptr b1 i1) (tptr tschar) (Vptr b2 i2) (tptr tschar) m = Some Vfalse.
+Proof.
+   intros.
+  assert ((option_map Val.of_bool (ptr_ge b1 b2 i1 i2)) =
+          (option_map Val.of_bool (Some false))) by (f_equal; assumption).
+  eassumption.
 Qed.
 
 Definition ASN1_INTMAX_MAX :=(Int64.not 0) >> 1.
@@ -241,3 +266,5 @@ Proof.
     by (apply Ptrofs.unsigned_range).
   lia.
 Qed.
+
+
