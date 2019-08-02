@@ -901,34 +901,26 @@ Proof.
      unfold asn_strtoimax_lim in Spec.
      repeat break_match.
      all: try congruence.
+     replace (distance (str_b, str_ofs) (b, i) - 1)%nat with (distance (str_b, (str_ofs + 1)%ptrofs) (b, i)) in Spec by admit.
      + destruct_orb_hyp.
-       ++ eapply exec_loop_minus.
-          all: try eassumption.
-          eapply asn_strtoimax_lim_loop_ASN_STRTOX_ERROR_RANGE_correct.
-          1-5: repeat env_assumption; econstructor.
-          instantiate (1 := Signed).
-          all: repeat env_assumption.
-          simpl.
-          econstructor.
-          instantiate (1 := (distance (str_b, str_ofs) (b, i) - 1)%nat).
-          admit. (* distance lemma *)
-          simpl in Spec.
+       ++ eapply exec_loop_minus; try eassumption.
+          eapply asn_strtoimax_lim_loop_ASN_STRTOX_ERROR_RANGE_correct;
+          repeat (env_assumption || econstructor).
           switch_destruct i0.
-          rewrite EQ in *.
-          eassumption.     
-       ++ eapply exec_loop_plus.
-          all: try eassumption.
-          eapply asn_strtoimax_lim_loop_ASN_STRTOX_ERROR_RANGE_correct.
-          1-5: repeat env_assumption; econstructor.
-          all: repeat env_assumption.
-          repeat econstructor.
+          rewrite EQ in *; simpl in Spec.
+          reflexivity.
+       ++ eapply exec_loop_plus; try eassumption.
+          eapply asn_strtoimax_lim_loop_ASN_STRTOX_ERROR_RANGE_correct;
+          repeat (env_assumption || econstructor).
           switch_destruct i0.
-          unfold sign.
-          break_if; simpl.
-          admit. (* contradiction *)
-          econstructor.
-          admit. (* lemma *)
-      + admit. 
+          rewrite EQ in *; simpl in Spec.
+          reflexivity.
+     +  destruct_orb_hyp.
+        eapply exec_loop_none; try eassumption.
+        eapply asn_strtoimax_lim_loop_ASN_STRTOX_ERROR_RANGE_correct;
+        repeat (env_assumption || econstructor).
+        instantiate (1 := Unsigned); simpl.
+        all: try (econstructor || eassumption).
   - eapply asn_strtoimax_lim_ASN_STRTOX_ERROR_INVAL_correct. (* ASN_STRTOX_ERROR_INVAL *)
   - eapply asn_strtoimax_lim_ASN_STRTOX_EXPECT_MORE_correct.
 Admitted.

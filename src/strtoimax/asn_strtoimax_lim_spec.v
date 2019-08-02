@@ -192,56 +192,52 @@ Definition asn_strtoimax_lim (str fin intp : addr) : option asn_strtoimax_lim_re
   | _ => None (* fail of pointer to fin *) 
   end.
 
-(* TODO: move storev below *)
-(* Fixpoint asn_strtoimax_lim_loop (str fin intp : addr) (value : int64) (s: signedness) (last_digit : int64) (dist : nat) (m' : mem) {struct dist} : option (asn_strtox_result_e*(option(int64*signedness*addr))*(option mem)) :=
-  match (Mem.storev Mptr m (vptr fin) (vptr str)) with
-    | Some m' =>
-      match dist with
-      | O => Some (ASN_STRTOX_OK, Some (value,s,str), Mem.storev Mint64 m' (vptr intp) (Vlong (mult_sign s value)))
-      | S n => match load_addr Mint8signed m str with
-              | Some (Vint i) =>
-                if is_digit i
-                then let d := int_to_int64 (i - zero_char)%int in
-                     let v := (value*(Int64.repr 10) + d) in
-                     if value < upper_boundary
-                     then asn_strtoimax_lim_loop (str++) fin intp v s last_digit n m
-                     else if (value == upper_boundary) && (d <= last_digit)
-                       then asn_strtoimax_lim_loop (str++) fin intp v s last_digit n m
-                       else Some (ASN_STRTOX_ERROR_RANGE, None, Some m') 
-                else Some (ASN_STRTOX_EXTRA_DATA, Some (value,s,str), Mem.storev Mint64 m' (vptr intp) (Vlong (mult_sign s value)))
-              | _ => None (* fail or undefined *)
-              end
 
-      end
-    | _ => None
-end.
-
-(* Spec: *)
-Definition asn_strtoimax_lim (str fin intp : addr) : option (asn_strtox_result_e*(option(int64*signedness*addr))*(option mem)) :=
-  match load_addr Mptr m fin with (* derefencing **fin *)
-  | Some (Vptr b ofs) =>
-    match addr_ge str (b,ofs) with (* compare str and *fin *)
-    | Some true => Some (ASN_STRTOX_ERROR_INVAL, None, None)
-    | Some false => let dist := distance str (b,ofs) in
-                   match load_addr Mint8signed m str with
-                   | Some (Vint i) =>
-                     if (i == minus_char)%int
-                     then match addr_ge (str++) (b,ofs) with
-                          | Some true => Some (ASN_STRTOX_EXPECT_MORE, None, (Mem.storev Mptr m (vptr fin) (vptr (str++))))
-                          | Some false => asn_strtoimax_lim_loop (str++) fin intp 0 Signed last_digit_max_minus (dist - 1)%nat m
-                          | None => None
-                          end
-                     else if (i == plus_char)%int
-                          then match addr_ge (str++) (b,ofs) with
-                               | Some true => Some (ASN_STRTOX_EXPECT_MORE, None, (Mem.storev Mptr m (vptr fin) (vptr (str++))))
-                               | Some false => asn_strtoimax_lim_loop (str++) fin intp 0 Unsigned last_digit_max (dist - 1)%nat m
-                               | None => None
-                               end
-                          else asn_strtoimax_lim_loop str fin intp 0 Unsigned last_digit_max dist m
-                   | _ => None (* fail of memory load on str: wrong type or not enough permission *)
-                   end
-    | None => None (* error in pointer comparison *)
-    end
-  | _ => None (* fail of pointer to fin *) 
-  end.
- *)
+Lemma dist_succ : forall b b' ofs ofs' (dist : nat),
+    distance (b', ofs') (b, ofs) = S dist ->
+    distance (b', (Ptrofs.add ofs' Ptrofs.one)) (b, ofs) = dist.
+Proof.
+  intros b b' ofs ofs' dist Dist.
+  unfold distance, snd.
+  rewrite <-Z2Nat.inj_sub by (apply Ptrofs.unsigned_range).
+  assert ((distance (b', ofs') (b, ofs) = S dist) 
+          <-> 
+          ((distance (b', ofs') (b, ofs) - 1)%nat = dist)) by lia.
+  unfold distance, snd in Dist.
+  assert ( (Ptrofs.unsigned ofs') < (Ptrofs.unsigned ofs))%Z.
+  {
+    assert ((Z.to_nat (Ptrofs.unsigned ofs') 
+             < 
+             Z.to_nat (Ptrofs.unsigned ofs))%nat) by lia.
+    unfold Ptrofs.unsigned in *.
+    destruct ofs, ofs'; simpl in *.
+    pose proof (Z2Nat.inj_lt intval0 intval) as Inj.
+    destruct Inj.
+    all: try lia.
+  }
+  rewrite H in Dist.
+  unfold distance, snd in Dist.
+  rewrite <-Z2Nat.inj_sub in Dist by (apply Ptrofs.unsigned_range).
+  rewrite <-Dist.
+  replace ((1)%nat) with ((Z.to_nat (1)%Z)) by reflexivity.
+  rewrite <-Z2Nat.inj_sub; [| lia].
+  f_equal.
+  assert (Ptrofs.unsigned (Ptrofs.add ofs' Ptrofs.one) 
+          = (Ptrofs.unsigned ofs' + 1)%Z); [|lia].
+  replace (1%Z) with (Ptrofs.unsigned Ptrofs.one) by reflexivity.
+  rewrite Ptrofs.add_unsigned.
+  assert (Ptrofs.unsigned ofs' < Ptrofs.max_unsigned)%Z.
+  {
+    assert (Ptrofs.unsigned ofs <= Ptrofs.max_unsigned)%Z.
+    pose proof (Ptrofs.unsigned_range_2 ofs).
+    all: try lia.
+  }
+  rewrite Ptrofs.unsigned_repr.
+  reflexivity.
+  pose proof Ptrofs.unsigned_range ofs.
+  assert (Ptrofs.unsigned ofs' + 1 <= Ptrofs.max_unsigned)%Z by lia.
+  replace (Ptrofs.unsigned Ptrofs.one)%Z with (1)%Z by reflexivity.
+  assert (0 <= Ptrofs.unsigned ofs')%Z 
+    by (apply Ptrofs.unsigned_range).
+  lia.
+Qed.

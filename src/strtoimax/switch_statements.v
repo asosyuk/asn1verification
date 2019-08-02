@@ -331,7 +331,7 @@ Lemma exec_loop_none : forall le b ofs str_b str_ofs fin_b fin_ofs intp_b intp_o
     (i == plus_char)%int = false ->
     (i == minus_char)%int = false ->
     
-    forall le' m', (exists t, exec_stmt ge e
+    forall m', (exists t le', exec_stmt ge e
                               ((_value <~ Vlong (cast_int_long Signed (Int.repr 0)))
        ((_t'4 <~ Vint i)
           ((_t'6 <~ Vptr b ofs)
@@ -347,12 +347,12 @@ Lemma exec_loop_none : forall le b ofs str_b str_ofs fin_b fin_ofs intp_b intp_o
                         Int64.repr (Int.unsigned (Int.repr 1)))
                        (cast_int_long Signed (Int.repr 10)))) ((_sign <~ Vint (Int.repr 1)) le))))))
                               m s1 t le' m' (Out_return out)) ->
-          exists t, exec_stmt ge e le m (pre_loop s1 s2) t le' m' (Out_return out).
+                   
+          exists t le', exec_stmt ge e le m (pre_loop s1 s2) t le' m' (Out_return out).
 Proof.
   intros until s2.
-  intros Str End Intp UB Sign LA AG LA' CharP CharM le' m' S1.
+  intros Str End Intp UB Sign LA AG LA' CharP CharM  m' S1.
   destruct S1.
- 
   unfold pre_loop.
   destruct (switch_default_correct_1 i ((_t'4 <~ Vint i)
        ((_t'6 <~ Vptr b ofs)
@@ -366,10 +366,10 @@ Proof.
                  (Int64.divu
                     (Int64.not (cast_int_long Signed (Int.repr 0)) >>
                      Int64.repr (Int.unsigned (Int.repr 1))) (cast_int_long Signed (Int.repr 10))))
-                ((_sign <~ Vint (Int.repr 1)) le))))) str_b str_ofs).
+                ((_sign <~ Vint (Int.repr 1)) le))))) str_b str_ofs). 
   all: try eassumption; env_assumption.
-  
   repeat env_assumption.
+  destruct H.
   repeat eexists.
   econstructor.
   repeat econstructor.
@@ -391,6 +391,7 @@ Proof.
   forward.
   econstructor.
   econstructor.
+  econstructor.
   repeat econstructor.
   repeat env_assumption.
   eassumption.
@@ -398,7 +399,6 @@ Proof.
   apply exec_Sseq_2.
   econstructor.
   repeat econstructor.
-  clear H0.
   eassumption.
   congruence.
 Admitted.
