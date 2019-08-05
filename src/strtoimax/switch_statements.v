@@ -2,7 +2,7 @@ From Coq Require Import String List ZArith Psatz.
 From compcert Require Import Coqlib Integers Floats AST Ctypes Cop Clight Clightdefs Memory Values ClightBigstep Events Maps.
 Import ListNotations.
 Require Import StructTact.StructTactics.
-Require Import IntNotations asn_strtoimax_lim IntLemmas Tactics asn_strtoimax_lim_spec.
+Require Import Notations asn_strtoimax_lim Lemmas Tactics asn_strtoimax_lim_spec.
 Local Open Scope Int64Scope.
 
 (* Dealing with the switch statement *)
@@ -165,16 +165,17 @@ Lemma exec_loop_minus : forall le b ofs str_b str_ofs fin_b fin_ofs intp_b intp_
     (i == minus_char)%int = true ->
     
     forall m', (exists t le', exec_stmt ge e
-                              ((_value <~ Vlong 0%int64)
-                                 ((_t'5 <~ Vptr b ofs)
-                                    ((_str <~ Vptr str_b (str_ofs + 1)%ptrofs)
-                                       ((_sign <~ Vint (Int.neg (Int.repr 1)))
-                                          ((_last_digit_max <~ Vlong last_digit_max_minus)
-                                             ((_t'4 <~ Vint minus_char)
-                                                ((_t'6 <~ Vptr b ofs)
-                                                   ((_last_digit_max <~ Vlong last_digit_max)
-                                                      ((_upper_boundary <~ Vlong upper_boundary)
-                                                         ((_sign <~ Vint (Int.repr 1)) le))))))))))
+                              (set_env le to [
+                                   _value <~ Vlong 0%int64 ;
+                                   _t'5 <~ Vptr b ofs ;
+                                   _str <~ Vptr str_b (str_ofs + 1)%ptrofs ;
+                                   _sign <~ Vint (Int.neg (Int.repr 1)) ;
+                                   _last_digit_max <~ Vlong last_digit_max_minus ;
+                                   _t'4 <~ Vint minus_char ;
+                                   _t'6 <~ Vptr b ofs ;
+                                   _last_digit_max <~ Vlong last_digit_max ;
+                                   _upper_boundary <~ Vlong upper_boundary ;
+                                   _sign <~ Vint (Int.repr 1)])
                               m s1 t le' m' (Out_return out)) ->
         exists t le', exec_stmt ge e le m (pre_loop s1 s2) t le' m' (Out_return out).
 Proof.
@@ -246,14 +247,23 @@ Lemma exec_loop_plus : forall le b ofs str_b str_ofs fin_b fin_ofs intp_b intp_o
     (i == plus_char)%int = true ->
     
     forall m', (exists t le', exec_stmt ge e
-                              ((_value <~ Vlong 0%int64)
+                              (set_env le to [
+                              _value <~ Vlong 0%int64 ;
+                              _t'5 <~ Vptr b ofs ;
+                              _str <~ Vptr str_b (str_ofs + 1)%ptrofs ;
+                              _t'4 <~ Vint plus_char ;
+                              _t'6 <~ Vptr b ofs ;
+                              _last_digit_max <~ Vlong last_digit_max ;
+                              _upper_boundary <~ Vlong upper_boundary ; 
+                              _sign <~ Vint (Int.repr 1)])
+                              (*(_value <~ Vlong 0%int64)
                                  ((_t'5 <~ Vptr b ofs)
                                     ((_str <~ Vptr str_b (str_ofs + 1)%ptrofs)
                                        ((_t'4 <~ Vint plus_char)
                                           ((_t'6 <~ Vptr b ofs)
                                              ((_last_digit_max <~ Vlong last_digit_max)
                                                 ((_upper_boundary <~ Vlong upper_boundary)
-                                                   ((_sign <~ Vint (Int.repr 1)) le))))))))
+                                                   ((_sign <~ Vint (Int.repr 1)) le)))))))*)
                               m s1 t le' m' (Out_return out)) ->
           exists t le', exec_stmt ge e le m (pre_loop s1 s2) t le' m' (Out_return out).
 Proof.
@@ -332,7 +342,20 @@ Lemma exec_loop_none : forall le b ofs str_b str_ofs fin_b fin_ofs intp_b intp_o
     (i == minus_char)%int = false ->
     
     forall le' m', (exists t, exec_stmt ge e
-                              ((_value <~ Vlong (cast_int_long Signed (Int.repr 0)))
+                              (set_env le to [
+                                _value <~ Vlong (cast_int_long Signed (Int.repr 0)) ;
+                                _t'4 <~ Vint i ;
+                                _t'6 <~ Vptr b ofs ;
+                                _last_digit_max <~ Vlong (Int64.modu 
+                                                         (Int64.not (cast_int_long Signed (Int.repr 0)) >> 
+                                                         Int64.repr (Int.unsigned (Int.repr 1))) 
+                                                         (cast_int_long Signed (Int.repr 10))) ;
+                                _upper_boundary <~ Vlong (Int64.divu
+                                                         (Int64.not (cast_int_long Signed (Int.repr 0)) >> 
+                                                         Int64.repr (Int.unsigned (Int.repr 1))) 
+                                                         (cast_int_long Signed (Int.repr 10))) ;
+                                _sign <~ Vint (Int.repr 1) ])
+                              (*(_value <~ Vlong (cast_int_long Signed (Int.repr 0)))
        ((_t'4 <~ Vint i)
           ((_t'6 <~ Vptr b ofs)
              ((_last_digit_max <~
@@ -345,7 +368,7 @@ Lemma exec_loop_none : forall le b ofs str_b str_ofs fin_b fin_ofs intp_b intp_o
                     (Int64.divu
                        (Int64.not (cast_int_long Signed (Int.repr 0)) >>
                         Int64.repr (Int.unsigned (Int.repr 1)))
-                       (cast_int_long Signed (Int.repr 10)))) ((_sign <~ Vint (Int.repr 1)) le))))))
+                       (cast_int_long Signed (Int.repr 10)))) ((_sign <~ Vint (Int.repr 1)) le)))))*)
                               m s1 t le' m' (Out_return out)) ->
           exists t, exec_stmt ge e le m (pre_loop s1 s2) t le' m' (Out_return out).
 Proof.
@@ -354,7 +377,21 @@ Proof.
   destruct S1.
  
   unfold pre_loop.
-  destruct (switch_default_correct_1 i ((_t'4 <~ Vint i)
+  destruct (switch_default_correct_1 i (set_env le to [
+                                                  _t'4 <~ Vint i ;
+                                                  _t'6 <~ Vptr b ofs ;
+                                                  _last_digit_max <~ Vlong
+                                                                  (Int64.modu
+                                                                     (Int64.not (cast_int_long Signed (Int.repr 0)) >>
+                                                                              Int64.repr (Int.unsigned (Int.repr 1)))
+                                                                     (cast_int_long Signed (Int.repr 10))) ;
+                                                  _upper_boundary <~ Vlong
+                                                                  (Int64.divu
+                                                                     (Int64.not (cast_int_long Signed (Int.repr 0)) >>
+                                                                              Int64.repr (Int.unsigned (Int.repr 1))) 
+                                                                     (cast_int_long Signed (Int.repr 10))) ;
+                                                  _sign <~ Vint (Int.repr 1)])
+       (*(_t'4 <~ Vint i)
        ((_t'6 <~ Vptr b ofs)
           ((_last_digit_max <~
             Vlong
@@ -366,8 +403,9 @@ Proof.
                  (Int64.divu
                     (Int64.not (cast_int_long Signed (Int.repr 0)) >>
                      Int64.repr (Int.unsigned (Int.repr 1))) (cast_int_long Signed (Int.repr 10))))
-                ((_sign <~ Vint (Int.repr 1)) le))))) str_b str_ofs).
+                ((_sign <~ Vint (Int.repr 1)) le))))*) str_b str_ofs).
   all: try eassumption; env_assumption.
+  repeat rewrite set_env_eq_ptree_set.
   
   repeat env_assumption.
   repeat eexists.

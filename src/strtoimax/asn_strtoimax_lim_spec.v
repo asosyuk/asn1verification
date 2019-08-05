@@ -2,7 +2,7 @@ From Coq Require Import String List ZArith Psatz.
 From compcert Require Import Coqlib Integers Floats AST Ctypes Cop Clight Clightdefs Memory Values ClightBigstep Events Maps.
 Import ListNotations.
 Require Import StructTact.StructTactics.
-Require Import IntNotations asn_strtoimax_lim IntLemmas Tactics.
+Require Import Tactics Notations asn_strtoimax_lim.
 Local Open Scope Int64Scope.
 
 (* Functional specification of INTEGER.c/asn_strtoimax_lim *)
@@ -245,3 +245,52 @@ Definition asn_strtoimax_lim (str fin intp : addr) : option (asn_strtox_result_e
   | _ => None (* fail of pointer to fin *) 
   end.
  *)
+
+Lemma dist_succ : forall b b' ofs ofs' (dist : nat),
+    distance (b', ofs') (b, ofs) = S dist ->
+    distance (b', (Ptrofs.add ofs' Ptrofs.one)) (b, ofs) = dist.
+Proof.
+  intros b b' ofs ofs' dist Dist.
+  unfold distance, snd.
+  rewrite <-Z2Nat.inj_sub by (apply Ptrofs.unsigned_range).
+  assert ((distance (b', ofs') (b, ofs) = S dist) 
+          <-> 
+          ((distance (b', ofs') (b, ofs) - 1)%nat = dist)) by lia.
+  unfold distance, snd in Dist.
+  assert ( (Ptrofs.unsigned ofs') < (Ptrofs.unsigned ofs))%Z.
+  {
+    assert ((Z.to_nat (Ptrofs.unsigned ofs') 
+             < 
+             Z.to_nat (Ptrofs.unsigned ofs))%nat) by lia.
+    unfold Ptrofs.unsigned in *.
+    destruct ofs, ofs'; simpl in *.
+    pose proof (Z2Nat.inj_lt intval0 intval) as Inj.
+    destruct Inj.
+    all: try lia.
+  }
+  rewrite H in Dist.
+  unfold distance, snd in Dist.
+  rewrite <-Z2Nat.inj_sub in Dist by (apply Ptrofs.unsigned_range).
+  rewrite <-Dist.
+  replace ((1)%nat) with ((Z.to_nat (1)%Z)) by reflexivity.
+  rewrite <-Z2Nat.inj_sub; [| lia].
+  f_equal.
+  assert (Ptrofs.unsigned (Ptrofs.add ofs' Ptrofs.one) 
+          = (Ptrofs.unsigned ofs' + 1)%Z); [|lia].
+  replace (1%Z) with (Ptrofs.unsigned Ptrofs.one) by reflexivity.
+  rewrite Ptrofs.add_unsigned.
+  assert (Ptrofs.unsigned ofs' < Ptrofs.max_unsigned)%Z.
+  {
+    assert (Ptrofs.unsigned ofs <= Ptrofs.max_unsigned)%Z.
+    pose proof (Ptrofs.unsigned_range_2 ofs).
+    all: try lia.
+  }
+  rewrite Ptrofs.unsigned_repr.
+  reflexivity.
+  pose proof Ptrofs.unsigned_range ofs.
+  assert (Ptrofs.unsigned ofs' + 1 <= Ptrofs.max_unsigned)%Z by lia.
+  replace (Ptrofs.unsigned Ptrofs.one)%Z with (1)%Z by reflexivity.
+  assert (0 <= Ptrofs.unsigned ofs')%Z 
+    by (apply Ptrofs.unsigned_range).
+  lia.
+Qed.
