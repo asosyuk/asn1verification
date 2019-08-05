@@ -44,6 +44,7 @@ Infix "+" := Ptrofs.add : PtrofsScope.
 Infix "-" := Ptrofs.sub : PtrofsScope.
 Infix "*" := Ptrofs.mul : PtrofsScope.
 Infix "<" := Ptrofs.lt : PtrofsScope.
+Infix "<u" := Ptrofs.ltu (at level 70) : PtrofsScope.
 Notation "x <= y" := (negb (Ptrofs.lt y x)) (at level 70) : PtrofsScope.
 Notation "x <=u y" := (negb (Ptrofs.ltu y x)) (at level 70) : PtrofsScope.
 

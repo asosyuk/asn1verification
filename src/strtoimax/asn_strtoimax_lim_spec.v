@@ -267,4 +267,40 @@ Proof.
   lia.
 Qed.
 
+Lemma dist_to_lt : forall b b' ofs ofs' dist, 
+  distance (b', ofs') (b, ofs) = S dist ->
+  (Ptrofs.unsigned ofs' < Ptrofs.unsigned ofs)%Z.
+Proof.
+  intros;
+  unfold distance in *; simpl in *.
+  assert ((Z.to_nat (Ptrofs.unsigned ofs') 
+             < 
+             Z.to_nat (Ptrofs.unsigned ofs))%nat) by lia.
+  unfold Ptrofs.unsigned in *.
+  destruct ofs, ofs'; simpl in *.
+  pose proof (Z2Nat.inj_lt intval0 intval) as Inj.
+  destruct Inj.
+  all: try lia.
+Qed.  
+  
 
+
+Lemma dist_to_lt_or_ge : forall b b' ofs ofs' dist, 
+    distance (b', ofs') (b, ofs) = dist ->
+    (Ptrofs.unsigned ofs' <= Ptrofs.unsigned ofs)%Z.
+Proof.
+  destruct dist; intros.
+  - unfold distance in *; simpl in *.
+    
+    assert ((Z.to_nat (Ptrofs.unsigned ofs) 
+             <= 
+             Z.to_nat (Ptrofs.unsigned ofs'))%nat) by lia.
+    unfold Ptrofs.unsigned in *.
+    destruct ofs, ofs'; simpl in *.
+    pose proof (Z2Nat.inj_le intval0 intval) as Inj.
+    destruct Inj.
+    all: try lia.
+    eapply H2.
+Admitted.
+  
+  
