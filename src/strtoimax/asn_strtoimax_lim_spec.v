@@ -69,8 +69,6 @@ Definition digit_to_num s i inp_value :=
                  int_to_int64 (i - zero_char)%int)
   end.
     
-  
-
 (* Memory, global and local env are fixed *)
 Parameter m : mem.
 Parameter ge : genv.
@@ -168,8 +166,12 @@ Fixpoint asn_strtoimax_lim_loop (str fin intp : addr) (value : int64) (s: signed
                  then asn_strtoimax_lim_loop (str++) fin intp
                       (value * (Int64.repr 10) + d) s last_digit n m
                  else if (value == upper_boundary) && (d <= last_digit)
-                      then asn_strtoimax_lim_loop (str++) fin intp
-                            (digit_to_num s i value) s last_digit n m
+                      then match s with
+                             | Signed => asn_strtoimax_lim_loop (str++) fin intp
+                                 (digit_to_num Signed i value) Signed last_digit n m
+                             | Unsigned => asn_strtoimax_lim_loop (str++) fin intp
+                                 (digit_to_num Unsigned i value) Unsigned last_digit n m
+                           end
                       else match (Mem.storev Mptr m (vptr fin) (vptr str)) with
                            | Some m' => 
                              Some {| return_type := ASN_STRTOX_ERROR_RANGE;
