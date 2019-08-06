@@ -891,6 +891,24 @@ Proof.
         econstructor.
 Admitted.
 
+Lemma helper:
+  forall (str_b : block) (str_ofs : ptrofs) (b : block) (i : ptrofs),
+    (if andb
+          (Mem.perm_dec m str_b 
+                        (Ptrofs.unsigned (str_ofs + 1)%ptrofs)
+                        Cur Nonempty ||
+           Mem.perm_dec m str_b 
+                        (Ptrofs.unsigned (str_ofs + 1)%ptrofs - 1)
+                        Cur Nonempty)
+          (Mem.perm_dec m b (Ptrofs.unsigned i) Cur Nonempty ||
+           Mem.perm_dec m b (Ptrofs.unsigned i - 1) Cur Nonempty)
+     then Some (i <=u str_ofs + 1)%ptrofs
+     else None) = Some false ->
+    (i <=u str_ofs + 1)%ptrofs = false.
+Proof.
+  intros; break_if; congruence.
+Qed.
+
 Lemma asn_strtoimax_lim_correct :
   forall le str_b str_ofs fin_b fin_ofs intp_b intp_ofs m' res val ip,
     
@@ -931,6 +949,15 @@ Proof.
       f_equal.
       all: try lia.
       2: apply Ptrofs.unsigned_range.
+      unfold addr_ge, ptr_ge in Heqo2, Heqo0.
+      simpl in Heqo2, Heqo0.
+      destruct Archi.ptr64 in Heqo2, Heqo0.
+      all: simpl in Heqo2, Heqo0.
+      all: destruct eq_block in Heqo2, Heqo0.
+      apply helper in Heqo2.
+      rewrite negb_false_iff in Heqo2.
+      simpl in Heqo2.
+      all: rewrite helper in Heqo2.
     }
     replace (distance (str_b, str_ofs) (b, i) - 1)%nat
       with (distance (str_b, (str_ofs + 1)%ptrofs) (b, i)) in Spec.
