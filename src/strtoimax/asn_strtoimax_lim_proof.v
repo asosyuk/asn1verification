@@ -915,8 +915,25 @@ Proof.
     unfold asn_strtoimax_lim in Spec.
     repeat break_match.
     all: try congruence.
+    assert ((distance (str_b, str_ofs) (b, i) - 1)%nat = 
+    (distance (str_b, (str_ofs + 1)%ptrofs) (b, i))).
+    {
+      remember (distance (str_b, str_ofs) (b, i) - 1)%nat as
+          dist.
+      symmetry.
+      apply dist_succ.
+      rewrite Heqdist.
+      unfold distance; simpl.
+      rewrite <-Nat.add_1_l.
+      repeat replace 1%nat with (Z.to_nat 1)%Z by reflexivity.
+      repeat rewrite <-Z2Nat.inj_sub.
+      rewrite <-Z2Nat.inj_add.
+      f_equal.
+      all: try lia.
+      2: apply Ptrofs.unsigned_range.
+    }
     replace (distance (str_b, str_ofs) (b, i) - 1)%nat
-      with (distance (str_b, (str_ofs + 1)%ptrofs) (b, i)) in Spec by admit.
+      with (distance (str_b, (str_ofs + 1)%ptrofs) (b, i)) in Spec.
     + destruct_orb_hyp.
       1 : (eapply exec_loop_minus).
       11: (eapply exec_loop_plus).
