@@ -438,7 +438,7 @@ Proof.
      clear IHdist.
      destruct IH as [t IH]; subst; try (repeat env_assumption || reflexivity).
      admit. (* follows from Dist *)    
-     destruct IH as [le' IH].
+(*     destruct IH as [le' IH].
      pose proof (switch_correct_continue i switch_body switch_default (PTree.set _t'1 (Vint i) (PTree.set _t'3 (Vptr b ofs) le))  str_b str_ofs) as SW.
       unfold switch in SW.
       assert (Mem.loadv Mint8signed m (Vptr str_b str_ofs) = Some (Vint i)) as M by (simpl; eassumption).
@@ -622,7 +622,7 @@ Lemma spec_to_valid_pointers :
                                  (Ptrofs.unsigned str_ofs + (Z.of_nat i)) = true).
 Proof.
   Admitted.  
-
+*)
 Lemma asn_strtoimax_lim_loop_ASN_STRTOX_EXTRA_DATA_correct :
   forall dist b ofs le str_b str_ofs fin_b fin_ofs intp_b intp_ofs inp_value  m' val s ip,
     
@@ -636,8 +636,6 @@ Lemma asn_strtoimax_lim_loop_ASN_STRTOX_EXTRA_DATA_correct :
                                      
     load_addr Mptr m (fin_b, fin_ofs) = Some (Vptr b ofs) ->
     (distance (str_b, str_ofs) (b,ofs)) = dist ->
-    (forall i, (i < dist)%nat ->
-          Mem.valid_pointer m str_b (Ptrofs.unsigned str_ofs + (Z.of_nat i)) = true) ->
     
     asn_strtoimax_lim_loop (str_b, str_ofs) (fin_b, fin_ofs) (intp_b, intp_ofs)
                            inp_value s (max_sign s) dist m =
@@ -651,28 +649,23 @@ Proof.
   replace (asn_strtox_result_e_to_int ASN_STRTOX_EXTRA_DATA)
     with Int.one by (reflexivity).
   induction dist; intros until ip;
-    intros Str End Intp Value UB Sign LastD Load Dist Valid Spec;
-    simpl in Spec. 
+    intros Str End Intp Value UB Sign LastD Load Dist Spec;
+    simpl in Spec.
   - break_match. all: congruence.
   - repeat break_match; try congruence.
     (* 3 cases: do one loop and then apply IH *)
     + remember ((_str <~ Vptr str_b (str_ofs + 1)%ptrofs)
-                  ((_value <~ Vlong (inp_value * int_to_int64 (Int.repr 10)
-                                     + int_to_int64 (i - zero_char)%int))
+                  ((_value <~ Vlong (digit_to_num s i inp_value))
                     ((_d <~ Vint (i - zero_char)%int)
                        ((_t'2 <~ Vint i)
                           ((_t'1 <~ Vint i)
                               ((_t'3 <~ Vptr b ofs) le)))))) as le''.
       pose proof (IHdist b ofs le'' str_b (str_ofs + 1)%ptrofs
                          fin_b fin_ofs intp_b intp_ofs
-                         (inp_value * Int64.repr 10 + int_to_int64 (i - zero_char)%int) m' val s ip) as IH.    clear IHdist.
+                         (digit_to_num s i inp_value) m' val s ip)
+        as IH. clear IHdist.
       destruct IH as [t IH]; subst; try (repeat env_assumption || reflexivity).
       { eapply dist_succ; eassumption. }
-      { intros j Lj.
-        assert  (j + 1 < S dist)%nat as Lj1 by omega.
-        pose proof (Valid (j + 1)%nat Lj1).
-        (* same proof as for dist_succ *)
-        admit. }
       destruct IH as [le' IH]. 
       pose proof (switch_correct_continue i switch_body switch_default
                  (PTree.set _t'1 (Vint i) (PTree.set _t'3 (Vptr b ofs) le))
@@ -683,24 +676,31 @@ Proof.
       assert (((_t'1 <~ Vint i) ((_t'3 <~ Vptr b ofs) le)) ! _str
               = Some (Vptr str_b str_ofs)) as L
           by (repeat env_assumption).
-      remember ((_value <~ Vlong (inp_value * cast_int_long Signed (Int.repr 10) +
-         cast_int_long Signed (i - zero_char)%int))
+      remember ((_value <~ Vlong (digit_to_num s i inp_value))
                   ((_d <~ Vint (i - zero_char)%int)
                    ((_t'2 <~ Vint i)
                       ((_t'1 <~ Vint i)
                          ((_t'3 <~ Vptr b ofs) le)))))
                 as le''_eq.
-      pose proof (SW M L Heqb0  le''_eq).
+      pose proof (SW M L Heqb0 le''_eq).
       (* move this to a lemma *)
       assert ((exists t : trace,
                   exec_stmt ge e ((_t'1 <~ Vint i) ((_t'3 <~ Vptr b ofs) le))
                             m switch_body t le''_eq m Out_continue)) as F.
-      { rewrite Heqle''_eq. 
-        repeat eexists.
-        forward. simpl.
-        bool_rewrite. forward.
-        replace (negb (1 == 0)%int) with true by (auto with ints).
-        forward.
+      { subst; destruct s;
+          unfold digit_to_num.
+        * repeat eexists.
+          repeat econstructor.
+          forward. simpl.
+          bool_rewrite. forward.
+          replace (negb (1 == 0)%int) with true by (auto with ints).
+          forward.
+          admit.
+        * repeat eexists.
+          forward. simpl.
+          bool_rewrite. forward.
+          replace (negb (1 == 0)%int) with true by (auto with ints).
+          forward.
            }
       destruct (H F).
       repeat eexists.
@@ -747,33 +747,25 @@ Proof.
       eassumption.
       econstructor.
       forward.
-      rewrite Heqle''_eq; repeat env_assumption.
+      subst; repeat env_assumption.
       forward.
       fold f_asn_strtoimax_lim_loop.
-      rewrite Heqle''_eq.
-      replace (str_ofs + Ptrofs.repr (sizeof ge tschar) *
-                         ptrofs_of_int Signed (Int.repr 1))%ptrofs
-        with (str_ofs + 1)%ptrofs by auto with ptrofs.
-      replace (inp_value * cast_int_long Signed (Int.repr 10) +
-               cast_int_long Signed (i - zero_char)%int) with
-          (inp_value * int_to_int64 (Int.repr 10) +
-           int_to_int64 (i - zero_char)%int).
       eapply IH.
-      simpl.
-      admit.
     + remember ((_str <~ Vptr str_b (str_ofs + 1)%ptrofs)
-                  ((_value <~ Vlong (inp_value * int_to_int64 (Int.repr 10)
-                                     + int_to_int64 (i - zero_char)%int))
+                  ((_value <~ Vlong (digit_to_num s i inp_value))
                     ((_d <~ Vint (i - zero_char)%int)
                        ((_t'2 <~ Vint i)
                           ((_t'1 <~ Vint i)
-                              ((_t'3 <~ Vptr b ofs) le)))))) as le''.
+                             ((_t'3 <~ Vptr b ofs) le))))))
+        as le''.
       pose proof (IHdist b ofs le'' str_b (str_ofs + 1)%ptrofs
                          fin_b fin_ofs intp_b intp_ofs
-                         (inp_value * Int64.repr 10 + int_to_int64 (i - zero_char)%int) m' val s ip) as IH.    clear IHdist.
-      destruct IH as [t IH]; subst; try (repeat env_assumption || reflexivity).
+                         (digit_to_num s i inp_value)  m' val s ip)
+        as IH; clear IHdist.
+      destruct IH as [t IH]; subst;
+        try (repeat env_assumption || reflexivity).
       eapply dist_succ; eassumption.
-      admit.
+      admit. (* TODO *)
       destruct IH as [le' IH]. 
       pose proof (switch_correct_continue i switch_body switch_default
                  (PTree.set _t'1 (Vint i) (PTree.set _t'3 (Vptr b ofs) le))
@@ -783,9 +775,8 @@ Proof.
         as M by eassumption.
       assert (((_t'1 <~ Vint i) ((_t'3 <~ Vptr b ofs) le)) ! _str
               = Some (Vptr str_b str_ofs)) as L
-          by (repeat env_assumption).
-      remember ((_value <~ Vlong (inp_value * cast_int_long Signed (Int.repr 10) +
-         cast_int_long Signed (i - zero_char)%int))
+          by (repeat env_assumption).     
+      remember ((_value <~ Vlong (digit_to_num s i inp_value))
                   ((_d <~ Vint (i - zero_char)%int)
                    ((_t'2 <~ Vint i)
                       ((_t'1 <~ Vint i)
@@ -793,32 +784,30 @@ Proof.
                 as le''_eq.
       pose proof (SW M L Heqb0  le''_eq).
       (* move this to a lemma *)
-      assert ((exists t : trace,
+      assert (exists t,
                   exec_stmt ge e ((_t'1 <~ Vint i) ((_t'3 <~ Vptr b ofs) le))
-                            m switch_body t le''_eq  m Out_continue)) as F.
-      {  rewrite Heqle''_eq. 
-         repeat eexists.
-         destruct_andb_hyp.
-         forward. simpl.
-         bool_rewrite. forward.
-         forward. simpl.
-         bool_rewrite. forward.
-         replace (negb (1 == 0)%int) with true by (auto with ints).
-         forward. simpl.
-         unfold int_to_int64 in *. rewrite Int.signed_eq_unsigned.
-         bool_rewrite; econstructor.
-         admit. (* int signed and unsigned *)
-         break_ife_true.
-         forward.
-         simpl.
-         destruct s; simpl.
-         econstructor.
-         auto with ints.
-         admit.
-         forward.
-         (* need to deal with sign *)
-         all: admit.
-      }
+                            m switch_body t  le''_eq
+                           m Out_continue
+                  ) as F.
+      {  destruct s.
+         + repeat eexists.
+           destruct_andb_hyp.
+           forward. simpl.
+           bool_rewrite. forward.
+           forward. simpl.
+           bool_rewrite. forward.
+           replace (negb (1 == 0)%int) with true by (auto with ints).
+           forward. simpl.
+           unfold int_to_int64 in *;
+             simpl in H1.
+           bool_rewrite; econstructor.
+           replace (negb (1 == 0)%int) with true by (auto with ints).
+           forward.
+             
+           admit.
+          +  admit.
+ 
+         }
       destruct (H F).
       repeat eexists.
       eapply exec_Sloop_loop.
@@ -830,33 +819,29 @@ Proof.
       repeat econstructor; try env_assumption.
       try eassumption.
       econstructor.
-      assert (sem_cmp Clt (Vptr str_b str_ofs) (tptr tschar) (Vptr b ofs) (tptr tschar) m = Some Vtrue) by admit. (* follows from Dist *)
+      assert (sem_cmp Clt (Vptr str_b str_ofs) (tptr tschar)
+                      (Vptr b ofs) (tptr tschar) m = Some Vtrue)
+        by admit. (* follows from Dist *)
       eassumption.
       repeat econstructor.
-      replace (negb (1 == 0)%int) with true by (auto with ints).
+      replace (negb (1 == 0)%int) with true
+        by (auto with ints).
       econstructor.
       econstructor.
-      repeat econstructor; try env_assumption; try eassumption.
+      repeat (econstructor || env_assumption || eassumption).
       eassumption.
       econstructor.
       forward.
       rewrite Heqle''_eq; repeat env_assumption.
       forward.
       fold f_asn_strtoimax_lim_loop.
-      rewrite Heqle''_eq.
-      replace (str_ofs + Ptrofs.repr (sizeof ge tschar) *
-                         ptrofs_of_int Signed (Int.repr 1))%ptrofs
-        with (str_ofs + 1)%ptrofs by auto with ptrofs.
-      replace (inp_value * cast_int_long Signed (Int.repr 10) +
-               cast_int_long Signed (i - zero_char)%int) with
-          (inp_value * int_to_int64 (Int.repr 10) +
-           int_to_int64 (i - zero_char)%int).
+        subst.
       eapply IH.
-      simpl.
-      admit.
-    + inversion Spec; clear Spec.
+    + (* not entering a loop *)
+      inversion Spec; clear Spec.
       assert (((_t'1 <~ Vint i) ((_t'3 <~ Vptr b ofs) le)) ! _str
-              = Some (Vptr str_b str_ofs)) as LE by (repeat env_assumption).
+              = Some (Vptr str_b str_ofs)) as LE
+          by (repeat env_assumption).
       destruct (switch_default_correct i switch_body switch_default
                   (PTree.set _t'1 (Vint i) (PTree.set _t'3 (Vptr b ofs) le))
                    str_b str_ofs  (Some (Vint 1%int, tint))
@@ -864,31 +849,31 @@ Proof.
       ++ forward.
          simpl.
          destruct s; simpl in H2; simpl.
-      * replace (Int64.repr (Int.signed (Int.neg (Int.repr 1))) * inp_value)
-          with  (Int64.neg inp_value) by admit.
+      * eassumption.
+      * replace  (Int64.repr (Int.signed (Int.repr 1)))
+          with (Int64.repr 1) by auto with ints.
+        replace (Int64.repr 1 * inp_value) with (inp_value).
         eassumption.
-      * replace  (Int64.repr (Int.signed (Int.repr 1))) with (Int64.repr 1)
-          by auto with ints.
-        replace (Int64.repr 1 * inp_value) with (inp_value) by admit.
-        eassumption.
-      ++
-        repeat eexists.
-        eapply exec_Sloop_stop1.
-        econstructor. (* Wrong local env instantiated  by repeat econstructor ??? *)
-        econstructor.
-        econstructor.
-        repeat econstructor; try env_assumption.
-        repeat econstructor; try env_assumption.
-        try eassumption.
-        econstructor.
-        simpl.
-        assert (sem_cmp Clt (Vptr str_b str_ofs) (tptr tschar) (Vptr b ofs) (tptr tschar) asn_strtoimax_lim_spec.m = Some Vtrue) by admit; eassumption.
-        forward.
-        econstructor.
-        econstructor.
-        repeat econstructor.
-        all: repeat  (eassumption || env_assumption).
-        econstructor.
+        { symmetry.
+          rewrite Int64.mul_commut.
+          eapply Int64.mul_one. }
+      ++ repeat eexists.
+         eapply exec_Sloop_stop1.
+         econstructor. (* Wrong local env instantiated  by repeat econstructor ??? *)
+         econstructor.
+         econstructor.
+         repeat econstructor; try env_assumption.
+         repeat econstructor; try env_assumption.
+         try eassumption.
+         econstructor.
+         simpl.
+         assert (sem_cmp Clt (Vptr str_b str_ofs) (tptr tschar) (Vptr b ofs) (tptr tschar) asn_strtoimax_lim_spec.m = Some Vtrue) by admit; eassumption.
+         forward.
+         econstructor.
+         econstructor.
+         repeat econstructor.
+         all: repeat  (eassumption || env_assumption).
+         econstructor.
 Admitted.
 
 Lemma helper:
@@ -992,7 +977,7 @@ Proof.
       1 : (eapply exec_loop_minus).
       11: (eapply exec_loop_plus).
       all:
-        repeat  eassumption;
+        repeat eassumption;
         eapply asn_strtoimax_lim_loop_ASN_STRTOX_EXTRA_DATA_correct;
         repeat (env_assumption || econstructor);
         switch_destruct i0;

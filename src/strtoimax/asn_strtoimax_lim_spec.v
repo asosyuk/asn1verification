@@ -47,18 +47,29 @@ Notation plus_char := (Int.repr 43).
 Notation zero_char := (Int.repr 48).
 
 (* Representing negative and positive int *)
+Definition int_to_int64 (i : int) := Int64.repr (Int.signed i).
 
 Definition Sign s :=
   match s with
-  | Signed => Int.neg (Int.repr 1)
+  | Signed => (Int.repr (-1))
   | Unsigned => Int.repr 1
   end.
 
 Definition mult_sign s value :=
   match s with
-  | Signed => Int64.neg value
+  | Signed =>  ((Int64.repr (-1))*value)%int64 
   | Unsigned => value
   end.
+
+Definition digit_to_num s i inp_value :=
+  match s with
+  | Signed => (Int64.neg inp_value * (Int64.repr 10) -
+               int_to_int64 (i - zero_char)%int)
+  | Unsigned => (inp_value * (Int64.repr 10) +
+                 int_to_int64 (i - zero_char)%int)
+  end.
+    
+  
 
 (* Memory, global and local env are fixed *)
 Parameter m : mem.
@@ -129,7 +140,6 @@ Definition is_digit (i : int) := existsb (fun j => Int.eq i j) digits.
 (* distance between the addresses *)
 Definition distance (a1 a2 : addr) : nat :=
   ((Z.to_nat (Ptrofs.unsigned (snd a2))) - (Z.to_nat (Ptrofs.unsigned (snd a1))))%nat.
-Definition int_to_int64 (i : int) := Int64.repr (Int.unsigned i).
 
 (* Functional spec *)
 
@@ -154,11 +164,12 @@ Fixpoint asn_strtoimax_lim_loop (str fin intp : addr) (value : int64) (s: signed
           | Some (Vint i) =>
             if is_digit i
             then let d := int_to_int64 (i - zero_char)%int in
-                 let v := (value*(Int64.repr 10) + d) in
                  if value < upper_boundary
-                 then asn_strtoimax_lim_loop (str++) fin intp v s last_digit n m
+                 then asn_strtoimax_lim_loop (str++) fin intp
+                      (value * (Int64.repr 10) + d) s last_digit n m
                  else if (value == upper_boundary) && (d <= last_digit)
-                      then asn_strtoimax_lim_loop (str++) fin intp v s last_digit n m
+                      then asn_strtoimax_lim_loop (str++) fin intp
+                            (digit_to_num s i value) s last_digit n m
                       else match (Mem.storev Mptr m (vptr fin) (vptr str)) with
                            | Some m' => 
                              Some {| return_type := ASN_STRTOX_ERROR_RANGE;
