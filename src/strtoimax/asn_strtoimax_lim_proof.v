@@ -967,7 +967,7 @@ Proof.
       all: rewrite helper in Heqo2.
     }
     replace (distance (str_b, str_ofs) (b, i) - 1)%nat
-      with (distance (str_b, (str_ofs + 1)%ptrofs) (b, i)) in Spec.
+      with (distance (str_b, (str_ofs + 1)%ptrofs) (b, i)) in Spec by admit
     + destruct_orb_hyp.
       1 : (eapply exec_loop_minus).
       11: (eapply exec_loop_plus).
