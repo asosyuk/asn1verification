@@ -2,7 +2,7 @@ From Coq Require Import String List ZArith Psatz.
 From compcert Require Import Coqlib Integers Floats AST Ctypes Cop Clight Clightdefs Memory Values ClightBigstep Events Maps.
 Import ListNotations.
 Require Import StructTact.StructTactics.
-Require Import IntNotations asn_strtoimax_lim IntLemmas Tactics asn_strtoimax_lim_spec.
+Require Import Notations asn_strtoimax_lim Lemmas Tactics asn_strtoimax_lim_spec.
 Require Import switch_statements.
 Local Open Scope Int64Scope.
 
@@ -428,10 +428,22 @@ Proof.
   - repeat break_match.
     all: try congruence.
     (* 3 cases *)
-     + remember ((_str <~ Vptr str_b (str_ofs + 1)%ptrofs)
+     + remember (
+           set_env le to [
+                     _str <~ Vptr str_b (str_ofs + 1)%ptrofs ;
+                     _value <~ Vlong 
+                            (inp_value * int_to_int64 
+                                           (Int.repr 10) + 
+                             int_to_int64 (i - zero_char)%int) ;
+                     _d <~ Vint (i - zero_char)%int ;
+                     _t'2 <~ Vint i ;
+                     _t'1 <~ Vint zero_char ;
+                     _t'3 <~ Vptr b ofs])
+ (*(_str <~ Vptr str_b (str_ofs + 1)%ptrofs)
               ((_value <~ Vlong (inp_value * int_to_int64 (Int.repr 10) + int_to_int64 (i - zero_char)%int))
               ((_d <~ Vint (i - zero_char)%int)
-              ((_t'2 <~ Vint i) ((_t'1 <~ Vint zero_char) ((_t'3 <~ Vptr b ofs) le)))))) as le''.
+              ((_t'2 <~ Vint i) ((_t'1 <~ Vint zero_char) ((_t'3 <~ Vptr b ofs) le)))))*) as le''.
+     repeat rewrite set_env_eq_ptree_set in Heqle''.
      pose proof (IHdist b ofs le'' str_b (str_ofs + 1)%ptrofs fin_b fin_ofs intp_b intp_ofs 
            (inp_value * Int64.repr 10 + int_to_int64 (i - zero_char)%int)  
            m' val s ip) as IH.
@@ -442,22 +454,43 @@ Proof.
      pose proof (switch_correct_continue i switch_body switch_default (PTree.set _t'1 (Vint i) (PTree.set _t'3 (Vptr b ofs) le))  str_b str_ofs) as SW.
       unfold switch in SW.
       assert (Mem.loadv Mint8signed m (Vptr str_b str_ofs) = Some (Vint i)) as M by (simpl; eassumption).
-      assert (((_t'1 <~ Vint i) ((_t'3 <~ Vptr b ofs) le)) ! _str = Some (Vptr str_b str_ofs)) as L by (repeat env_assumption).
-      pose proof (SW M L Heqb0  ((_value <~
+      assert ((set_env le to [
+                         _t'1 <~ Vint i ;
+                         _t'3 <~ Vptr b ofs])
+          (*(_t'1 <~ Vint i) ((_t'3 <~ Vptr b ofs) le)*)
+          ! _str = Some (Vptr str_b str_ofs)) as L 
+          by (repeat rewrite set_env_eq_ptree_set; 
+              repeat env_assumption).
+      pose proof (SW M L Heqb0  
+                     (set_env le to [
+                              _value <~ Vlong 
+                                     (inp_value *
+                                      cast_int_long Signed (Int.repr 10) +
+                                      cast_int_long Signed (i - zero_char)%int) ;
+                              _d <~ Vint (i - zero_char)%int ;
+                              _t'2 <~ Vint i ;
+                              _t'1 <~ Vint zero_char ;
+                              _t'3 <~ Vptr b ofs])
+                 (*(_value <~
       Vlong
         (inp_value * cast_int_long Signed (Int.repr 10) +
          cast_int_long Signed (i - zero_char)%int))
        ((_d <~ Vint (i - zero_char)%int)
-          ((_t'2 <~ Vint i) ((_t'1 <~ Vint zero_char) ((_t'3 <~ Vptr b ofs) le)))))).
+          ((_t'2 <~ Vint i) ((_t'1 <~ Vint zero_char) ((_t'3 <~ Vptr b ofs) le))))*)).
+      repeat rewrite set_env_eq_ptree_set in H. 
      assert ((exists t : trace,
-         exec_stmt ge e ((_t'1 <~ Vint i) ((_t'3 <~ Vptr b ofs) le)) m switch_body t
-           ((_value <~
-             Vlong
-               (inp_value * cast_int_long Signed (Int.repr 10) +
-                cast_int_long Signed (i - zero_char)%int))
-              ((_d <~ Vint (i - zero_char)%int)
-                 ((_t'2 <~ Vint i) ((_t'1 <~ Vint zero_char) ((_t'3 <~ Vptr b ofs) le)))))
-           m Out_continue)) as F by admit. 
+         exec_stmt ge e (set_env le to [_t'1 <~ Vint i ; _t'3 <~ Vptr b ofs])
+                   m switch_body t 
+                   (set_env le to [
+                              _value <~ Vlong
+                                     (inp_value *
+                                      cast_int_long Signed (Int.repr 10) +
+                                      cast_int_long Signed (i - zero_char)%int) ;
+                              _d <~ Vint (i - zero_char)%int ; 
+                              _t'2 <~ Vint i ;
+                              _t'1 <~ Vint zero_char ;
+                              _t'3 <~ Vptr b ofs])
+           m Out_continue)) as F by (repeat rewrite set_env_eq_ptree_set; admit). 
      pose proof (H F).
      destruct H0.
      repeat eexists.
@@ -1023,11 +1056,3 @@ Proof.
     + destruct_orb_hyp.
       admit.
 Admitted.
-
-
-
-
-
-
-
-

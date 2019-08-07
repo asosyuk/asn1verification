@@ -2,7 +2,7 @@ From Coq Require Import String List ZArith Psatz.
 From compcert Require Import Coqlib Integers Floats AST Ctypes Cop Clight Clightdefs Memory Values ClightBigstep Events Maps.
 Import ListNotations.
 Require Import StructTact.StructTactics.
-Require Import IntNotations asn_strtoimax_lim IntLemmas Tactics.
+Require Import Tactics Notations asn_strtoimax_lim.
 Local Open Scope Int64Scope.
 
 (* Functional specification of INTEGER.c/asn_strtoimax_lim *)
@@ -230,7 +230,6 @@ Definition asn_strtoimax_lim (str fin intp : addr) : option asn_strtoimax_lim_re
   | _ => None (* fail of pointer to fin *) 
   end.
 
-
 Lemma dist_succ : forall b b' ofs ofs' (dist : nat),
     distance (b', ofs') (b, ofs) = S dist ->
     distance (b', (Ptrofs.add ofs' Ptrofs.one)) (b, ofs) = dist.
@@ -315,5 +314,3 @@ Proof.
     all: try lia.
     eapply H2.
 Admitted.
-  
-  

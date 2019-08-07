@@ -1,5 +1,6 @@
 From Coq Require Import String List ZArith Psatz.
 From compcert Require Import Coqlib Integers Floats AST Ctypes Cop Clight Clightdefs Memory Values ClightBigstep Events Maps.
+Require Import Notations.
 
 Ltac ints_to_Z :=
   repeat rewrite Int.unsigned_repr_eq; repeat rewrite Zmod_small.
@@ -27,7 +28,6 @@ Proof.
   rewrite H.
   split; congruence.
 Qed.
-
 
 Check Int.unsigned_repr.
 Proposition char_not_zero : forall c, c <> Int.zero -> true = (negb (Int.eq c Int.zero)).
@@ -101,8 +101,6 @@ Proof.
   apply Int.mkint_eq.
   assumption.
 Qed.
-
-
 
 Definition IntMax := Int.repr Int.max_unsigned.
 
@@ -180,6 +178,7 @@ Qed.
 
 Lemma int_overflow_unsigned_to_add : forall z, 0 < Int.unsigned z + 1 < Int.modulus ->
                        Int.add z Int.one <> Int.zero.
+Proof.
   intros.
   unfold Int.zero.
   destruct (Int.eq (Int.add z Int.one) (Int.repr 0)) eqn: Sz.
@@ -200,5 +199,13 @@ Lemma int_overflow_unsigned_to_add : forall z, 0 < Int.unsigned z + 1 < Int.modu
   assumption. 
 Qed.
 
+Theorem set_env_eq_ptree_set : forall (A : Type) (te : PTree.t A) a b, 
+    (set_env te to [ a <~ b ]) = (PTree.set a b te).
+Proof.
+ intros. 
+ unfold s.
+ simpl.
+ reflexivity.
+Qed.
 
 Hint Resolve char_not_zero : ints.

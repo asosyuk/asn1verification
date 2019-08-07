@@ -53,5 +53,13 @@ Infix "//" := Ptrofs.divs (at level 70) : PtrofsScope.
 
 (* Env notations *)
 
-Infix "<~" := PTree.set  (at level 70).
+Delimit Scope PTreeScope with ptree.
 
+Notation "a <~ b" := (a, b) (at level 85).
+
+Definition s {A : Type} (a : (positive * A)) := 
+  PTree.set (fst a) (snd a).
+
+Notation "'set_env' env 'to' [ x ; .. ; y ]" :=
+  ((s x) .. ((s y) env) ..)
+    (at level 85, right associativity).
