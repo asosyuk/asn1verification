@@ -966,30 +966,12 @@ Proof.
          econstructor.
 Admitted.
 
-Lemma helper:
-  forall (str_b : block) (str_ofs : ptrofs) (b : block) (i : ptrofs),
-    (if andb
-          (Mem.perm_dec m str_b 
-                        (Ptrofs.unsigned (str_ofs + 1)%ptrofs)
-                        Cur Nonempty ||
-           Mem.perm_dec m str_b 
-                        (Ptrofs.unsigned (str_ofs + 1)%ptrofs - 1)
-                        Cur Nonempty)
-          (Mem.perm_dec m b (Ptrofs.unsigned i) Cur Nonempty ||
-           Mem.perm_dec m b (Ptrofs.unsigned i - 1) Cur Nonempty)
-     then Some (i <=u str_ofs + 1)%ptrofs
-     else None) = Some false ->
-    (i <=u str_ofs + 1)%ptrofs = false.
-Proof.
-  intros; break_if; congruence.
-Qed.
-
 Lemma asn_strtoimax_lim_correct :
   forall le str_b str_ofs fin_b fin_ofs intp_b intp_ofs m' res val ip,
     
-    le!_str = Some (Vptr str_b str_ofs)  ->
-    le!_end = Some (Vptr fin_b fin_ofs) ->
-    le!_intp = Some (Vptr intp_b intp_ofs)  ->
+    le ! _str = Some (Vptr str_b str_ofs)  ->
+    le ! _end = Some (Vptr fin_b fin_ofs) ->
+    le ! _intp = Some (Vptr intp_b intp_ofs)  ->
     le ! _upper_boundary = Some (Vlong upper_boundary) ->
     le ! _sign = Some (Vint (Int.repr 1)) ->
 
@@ -1008,37 +990,11 @@ Proof.
     unfold asn_strtoimax_lim in Spec.
     repeat break_match.
     all: try congruence.
-     assert ((distance (str_b, str_ofs) (b, i) - 1)%nat = 
-    (distance (str_b, (str_ofs + 1)%ptrofs) (b, i))).
-    {
-      remember (distance (str_b, str_ofs) (b, i) - 1)%nat as
-          dist.
-      symmetry.
-      apply dist_succ.
-      rewrite Heqdist.
-      unfold distance; simpl.
-      rewrite <-Nat.add_1_l.
-      repeat replace 1%nat with (Z.to_nat 1)%Z by reflexivity.
-      repeat rewrite <-Z2Nat.inj_sub.
-      rewrite <-Z2Nat.inj_add.
-      f_equal.
-      all: try lia.
-      2: apply Ptrofs.unsigned_range.
-      unfold addr_ge, ptr_ge in Heqo2, Heqo0.
-      simpl in Heqo2, Heqo0.
-      destruct Archi.ptr64 in Heqo2, Heqo0.
-      all: simpl in Heqo2, Heqo0.
-      all: destruct eq_block in Heqo2, Heqo0.
-      apply helper in Heqo2.
-      rewrite negb_false_iff in Heqo2.
-      simpl in Heqo2.
-      admit.
-    }
-    replace (distance (str_b, str_ofs) (b, i) - 1)%nat
-      with (distance (str_b, (str_ofs + 1)%ptrofs) (b, i)) in Spec by admit
+    rewrite dist_pred in Spec.
     + destruct_orb_hyp.
       1 : (eapply exec_loop_minus).
       11: (eapply exec_loop_plus).
+      all: repeat rewrite set_env_eq_ptree_set in *.
       all:
         repeat  eassumption;
         eapply asn_strtoimax_lim_loop_ASN_STRTOX_ERROR_RANGE_correct;
@@ -1046,8 +1002,12 @@ Proof.
         switch_destruct i0;
         rewrite EQ in *; simpl in Spec;
           reflexivity.
+    + assumption. 
+    + assumption. 
     + destruct_orb_hyp.
+      all: repeat rewrite set_env_eq_ptree_set in *.
       eapply exec_loop_none; try eassumption.
+      all: repeat rewrite set_env_eq_ptree_set in *.
       eapply asn_strtoimax_lim_loop_ASN_STRTOX_ERROR_RANGE_correct;
         repeat (env_assumption || econstructor).
       instantiate (1 := Unsigned); simpl.

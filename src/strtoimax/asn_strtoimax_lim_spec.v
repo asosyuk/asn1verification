@@ -279,6 +279,52 @@ Proof.
   lia.
 Qed.
 
+Lemma if_some : forall (con : bool) a,
+    (if con then Some a else None) = Some false ->
+    a = false.
+Proof.
+  intros; break_if; congruence.
+Qed.
+
+Lemma if_none : forall (con : bool),
+    (if con then None else None) = Some false ->
+    None = Some false.
+Proof.
+  intros; break_if; congruence.
+Qed.
+
+Lemma dist_pred: 
+  forall (str_b : block) (str_ofs : ptrofs) (b : block) (i : ptrofs), 
+    addr_ge (str_b, str_ofs) (b, i) = Some false -> 
+    addr_ge ((str_b, str_ofs) ++) (b, i) = Some false -> 
+    (distance (str_b, str_ofs) (b, i) - 1)%nat = 
+    distance (str_b, (str_ofs + 1)%ptrofs) (b, i).
+Proof.
+  intros str_b str_ofs b i Heqo0 Heqo2.
+  remember (distance (str_b, str_ofs) (b, i) - 1)%nat as
+      dist.
+  symmetry.
+  apply dist_succ.
+  rewrite Heqdist.
+  unfold distance; simpl.
+  rewrite <-Nat.add_1_l.
+  repeat replace 1%nat with (Z.to_nat 1)%Z by reflexivity.
+  repeat rewrite <-Z2Nat.inj_sub;
+    [| lia | apply Ptrofs.unsigned_range].
+  rewrite <-Z2Nat.inj_add; [| lia |].
+  f_equal; lia.
+  unfold addr_ge, ptr_ge in Heqo2, Heqo0.
+  simpl in Heqo2, Heqo0.
+  destruct Archi.ptr64 in Heqo2, Heqo0.
+  all: destruct eq_block in Heqo2, Heqo0.
+  1,3: apply if_some in Heqo0.
+  1,2: rewrite negb_false_iff in Heqo0.
+  1,2: apply Ptrofs.ltu_inv in Heqo0.
+  1,2: lia.
+  all: apply if_none in Heqo2.
+  all: discriminate.
+Qed.
+
 Lemma dist_to_lt : forall b b' ofs ofs' dist, 
   distance (b', ofs') (b, ofs) = S dist ->
   (Ptrofs.unsigned ofs' < Ptrofs.unsigned ofs)%Z.
