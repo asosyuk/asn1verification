@@ -382,6 +382,7 @@ Proof.
   repeat rewrite set_env_eq_ptree_set.
   
   repeat env_assumption.
+  repeat rewrite set_env_eq_ptree_set in H.
   destruct H.
   repeat eexists.
   econstructor.
@@ -408,10 +409,11 @@ Proof.
   repeat econstructor.
   repeat env_assumption.
   eassumption.
+  (* something breakes here after I added notation
   eassumption.
   apply exec_Sseq_2.
   econstructor.
   repeat econstructor.
   eassumption.
-  congruence.
+  congruence.*)
 Admitted.

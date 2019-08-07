@@ -55,7 +55,7 @@ Infix "//" := Ptrofs.divs (at level 70) : PtrofsScope.
 
 Delimit Scope PTreeScope with ptree.
 
-Notation "a <~ b" := (a, b) (at level 85).
+Notation "a <~ b" := (a, b) (at level 85, only parsing).
 
 Definition s {A : Type} (a : (positive * A)) := 
   PTree.set (fst a) (snd a).
