@@ -1,10 +1,8 @@
 Require Import Core Notations.
 Require Import StructTact.StructTactics.
 
-Parameter m : mem.
-
 (* Address [b,ofs] *)
-Definition addr : Type := (block*ptrofs).
+Definition addr : Type := (block * ptrofs).
 Definition vptr (a : addr) := match a with (b,ofs) => Vptr b ofs end.
 Definition load_addr (chunk : memory_chunk) (m : mem) (a : addr) :=
   match a with (b,ofs) => Mem.loadv chunk m (Vptr b ofs) end.
@@ -17,19 +15,19 @@ Notation "a ++" := (next_addr a) (at level 20).
 Definition ptr_ge_spec (b1 b2 : block) (ofs1 ofs2 : ptrofs) :=
   if eq_block b1 b2 then Some (ofs2 <=u ofs1)%ptrofs else None.
 (* Spec using Compcert semantic values *)
-Definition ptr_ge (b1 b2 : block) (ofs1 ofs2 : ptrofs) :=
+Definition ptr_ge (m : mem) (b1 b2 : block) (ofs1 ofs2 : ptrofs) :=
   if Archi.ptr64
   then Val.cmplu_bool (Mem.valid_pointer m) Cge (Vptr b1 ofs1) (Vptr b2 ofs2)
   else Val.cmpu_bool (Mem.valid_pointer m) Cge (Vptr b1 ofs1) (Vptr b2 ofs2).
 
-Definition addr_ge (a1 a2 : addr) :=
-  match a1, a2 with (b1,ofs1), (b2,ofs2) => ptr_ge b1 b2 ofs1 ofs2 end.
+Definition addr_ge (m : mem) (a1 a2 : addr) :=
+  match a1, a2 with (b1, ofs1), (b2, ofs2) => ptr_ge m b1 b2 ofs1 ofs2 end.
 
 (* Both specs can be used interchangeably *)
-Proposition ptr_ge_refine : forall (b1 b2 : block) (ofs1 ofs2 : ptrofs),
+Proposition ptr_ge_refine : forall (m : mem) (b1 b2 : block) (ofs1 ofs2 : ptrofs),
     Mem.weak_valid_pointer m b1 (Ptrofs.unsigned ofs1) = true ->
     Mem.weak_valid_pointer m b2 (Ptrofs.unsigned ofs2) = true ->
-    ptr_ge_spec b1 b2 ofs1 ofs2 = ptr_ge b1 b2 ofs1 ofs2.
+    ptr_ge_spec b1 b2 ofs1 ofs2 = ptr_ge m b1 b2 ofs1 ofs2.
 Proof.
   intros.
   unfold ptr_ge.
@@ -40,20 +38,22 @@ Proof.
                                 Mem.valid_pointer m b2 (Ptrofs.unsigned ofs2)); auto.
 Qed.
 
-Proposition ptr_ge_to_sem_cmp_true : forall b1 b2 i1 i2,
-    ptr_ge b1 b2 i1 i2 = Some true
-    -> sem_cmp Cge (Vptr b1 i1) (tptr tschar) (Vptr b2 i2) (tptr tschar) m = Some Vtrue.
+Proposition ptr_ge_to_sem_cmp_true : forall m b1 b2 i1 i2,
+    ptr_ge m b1 b2 i1 i2 = Some true ->
+    sem_cmp Cge (Vptr b1 i1) (tptr tschar) (Vptr b2 i2) (tptr tschar) m = Some Vtrue.
 Proof.
   intros.
-  assert ((option_map Val.of_bool (ptr_ge b1 b2 i1 i2)) =
+  assert ((option_map Val.of_bool (ptr_ge m b1 b2 i1 i2)) =
           (option_map Val.of_bool (Some true))) by (f_equal; assumption).
   eassumption.
 Qed.
 
-Proposition ptr_ge_to_sem_cmp_false : forall  b1 b2 i1 i2, ptr_ge b1 b2 i1 i2 = Some false -> sem_cmp Cge (Vptr b1 i1) (tptr tschar) (Vptr b2 i2) (tptr tschar) m = Some Vfalse.
+Proposition ptr_ge_to_sem_cmp_false : forall m b1 b2 i1 i2,
+    ptr_ge m b1 b2 i1 i2 = Some false ->
+    sem_cmp Cge (Vptr b1 i1) (tptr tschar) (Vptr b2 i2) (tptr tschar) m = Some Vfalse.
 Proof.
-   intros.
-  assert ((option_map Val.of_bool (ptr_ge b1 b2 i1 i2)) =
+  intros.
+  assert ((option_map Val.of_bool (ptr_ge m b1 b2 i1 i2)) =
           (option_map Val.of_bool (Some false))) by (f_equal; assumption).
   eassumption.
 Qed.
@@ -126,13 +126,13 @@ Proof.
 Qed.
 
 Lemma dist_pred: 
-  forall (str_b : block) (str_ofs : ptrofs) (b : block) (i : ptrofs), 
-    addr_ge (str_b, str_ofs) (b, i) = Some false -> 
-    addr_ge ((str_b, str_ofs) ++) (b, i) = Some false -> 
+  forall (m : mem) (str_b : block) (str_ofs : ptrofs) (b : block) (i : ptrofs), 
+    addr_ge m (str_b, str_ofs) (b, i) = Some false -> 
+    addr_ge m ((str_b, str_ofs) ++) (b, i) = Some false -> 
     (distance (str_b, str_ofs) (b, i) - 1)%nat = 
     distance (str_b, (str_ofs + 1)%ptrofs) (b, i).
 Proof.
-  intros str_b str_ofs b i Heqo0 Heqo2.
+  intros m str_b str_ofs b i Heqo0 Heqo2.
   remember (distance (str_b, str_ofs) (b, i) - 1)%nat as
       dist.
   symmetry.
