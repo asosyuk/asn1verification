@@ -179,9 +179,7 @@ Lemma dist_to_lt_or_ge : forall b b' ofs ofs' dist,
 Proof.
   destruct dist; intros.
   - unfold distance in *; simpl in *.
-    
-    assert ((Z.to_nat (Ptrofs.unsigned ofs) 
-             <= 
+    assert ((Z.to_nat (Ptrofs.unsigned ofs) <= 
              Z.to_nat (Ptrofs.unsigned ofs'))%nat) by lia.
     unfold Ptrofs.unsigned in *.
     destruct ofs, ofs'; simpl in *.
@@ -190,3 +188,10 @@ Proof.
     all: try lia.
     eapply H2.
 Admitted.
+
+Lemma int_ptrofs_mod_eq : (Int.modulus = Ptrofs.modulus).
+Proof.
+  reflexivity.
+Qed.
+
+Hint Resolve Ptrofs.mul_one Ptrofs.add_zero int_ptrofs_mod_eq : ptrofs.

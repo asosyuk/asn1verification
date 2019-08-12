@@ -5,7 +5,10 @@ Require Import Core.Core.
 Definition IntMax := Int.repr Int.max_unsigned.
 
 Lemma int_to_unsigned_eq : forall i j, i = j -> Int.unsigned i = Int.unsigned j.
-Proof. intros. congruence. Qed.
+Proof.
+  intros.
+  congruence.
+Qed.
 
 Lemma int_to_unsigned_neq : forall i j, i <> j -> Int.unsigned i <> Int.unsigned j.
 Proof.
@@ -77,9 +80,8 @@ Proof.
 Qed.
 
 Lemma int_overflow_unsigned_to_add :
-  forall z,
-    0 < Int.unsigned z + 1 < Int.modulus ->
-    Int.add z Int.one <> Int.zero.
+  forall z, 0 < Int.unsigned z + 1 < Int.modulus ->
+       Int.add z Int.one <> Int.zero.
 Proof.
   intros.
   unfold Int.zero.
@@ -100,13 +102,6 @@ Proof.
   rewrite Sz in y.
   assumption. 
 Qed.
-
-Lemma int_ptrofs_mod_eq : (Int.modulus = Ptrofs.modulus).
-Proof.
-  reflexivity.
-Qed.
-
-Hint Resolve Ptrofs.mul_one Ptrofs.add_zero int_ptrofs_mod_eq : ptrofs.
 
 (* Induction principle for integers *)
 
