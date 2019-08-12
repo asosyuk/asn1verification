@@ -1,5 +1,4 @@
-From Coq Require Import String List ZArith Psatz.
-From compcert Require Import Coqlib Integers Floats AST Ctypes Cop Clight Clightdefs Memory Values ClightBigstep Events Maps.
+From compcert Require Import Coqlib Integers Floats AST Ctypes Cop Clight Clightdefs Maps.
 Import ListNotations.
 
 (* Notations for integers and ptrofs *)
@@ -47,19 +46,12 @@ Infix "<" := Ptrofs.lt : PtrofsScope.
 Infix "<u" := Ptrofs.ltu (at level 70) : PtrofsScope.
 Notation "x <= y" := (negb (Ptrofs.lt y x)) (at level 70) : PtrofsScope.
 Notation "x <=u y" := (negb (Ptrofs.ltu y x)) (at level 70) : PtrofsScope.
-
 Infix "%" := Ptrofs.mods (at level 70) : PtrofsScope.
 Infix "//" := Ptrofs.divs (at level 70) : PtrofsScope.
 
-(* Env notations *)
-
 Delimit Scope PTreeScope with ptree.
-
 Notation "a <~ b" := (a, b) (at level 85, only parsing).
-
-Definition s {A : Type} (a : (positive * A)) := 
-  PTree.set (fst a) (snd a).
-
-Notation "'set_env' env 'to' [ x ; .. ; y ]" :=
+Definition s {A : Type} (a : (positive * A)) := PTree.set (fst a) (snd a).
+Notation "'in' env 'set' [ x ; .. ; y ]" :=
   ((s x) .. ((s y) env) ..)
     (at level 85, right associativity).

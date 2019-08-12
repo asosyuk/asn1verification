@@ -1,9 +1,18 @@
-*.lia.cache
-*.nia.cache
-*#*
-*~
+# temporary files
 *.vo
 *.aux
 *.glob
+*.cache
 .coqdeps.d
+
+# emacs junk
+*#*
+*~*
+
+# Clight
 doc/tutorial/C/*.v
+src/Clight/*.v
+
+# auto-generated makefiles
+src/Makefile
+src/Makefile.conf

@@ -1,8 +1,9 @@
-From Coq Require Import String List ZArith Psatz.
-From compcert Require Import Coqlib Integers Floats AST Ctypes Cop Clight Clightdefs Memory Values ClightBigstep Events Maps.
-Import ListNotations.
+Require Import Core.Core Core.Tactics Core.PtrLemmas.
+Require Import C_strtoimax.AST C_strtoimax.Spec.
 Require Import StructTact.StructTactics.
-Require Import Notations asn_strtoimax_lim Lemmas Tactics asn_strtoimax_lim_spec.
+
+Import ListNotations.
+
 Local Open Scope Int64Scope.
 
 (* Dealing with the switch statement *)
@@ -78,7 +79,7 @@ Proof.
   eassumption.
   discriminate.
   all: cbn;  try lia.
-       Qed.
+Qed.
 
        
 
@@ -165,7 +166,7 @@ Lemma exec_loop_minus : forall le b ofs str_b str_ofs fin_b fin_ofs intp_b intp_
     (i == minus_char)%int = true ->
     
     forall m', (exists t le', exec_stmt ge e
-                              (set_env le to [
+                              (in le set [
                                    _value <~ Vlong 0%int64 ;
                                    _t'5 <~ Vptr b ofs ;
                                    _str <~ Vptr str_b (str_ofs + 1)%ptrofs ;
@@ -192,7 +193,7 @@ Proof.
   repeat econstructor.
   econstructor.
   repeat econstructor.
-  forward.
+  Tactics.forward.
   unfold load_addr in *.
   eassumption.
   repeat env_assumption.
@@ -201,7 +202,7 @@ Proof.
   repeat econstructor.
  assert (sem_binary_operation ge Oge (Vptr str_b str_ofs) (typeof (Etempvar _str (tptr tschar)))
                               (Vptr b ofs) (typeof (Etempvar _t'6 (tptr tschar))) m = Some Vfalse)  by admit; eassumption.
- forward.
+ Tactics.forward.
  econstructor.
  econstructor.
  repeat econstructor.
@@ -219,11 +220,11 @@ Proof.
  repeat env_assumption.
  econstructor.
  repeat econstructor.
- forward.
+ Tactics.forward.
  simpl.
  assert (sem_cmp Cge (Vptr str_b (str_ofs + Ptrofs.repr 1 * Ptrofs.of_ints (Int.repr 1))%ptrofs)
                  (tptr tschar) (Vptr b ofs) (tptr tschar) m = Some Vfalse) by admit; eassumption.
- forward.
+ Tactics.forward.
  econstructor.
  reflexivity.
  apply exec_Sseq_2.
@@ -247,7 +248,7 @@ Lemma exec_loop_plus : forall le b ofs str_b str_ofs fin_b fin_ofs intp_b intp_o
     (i == plus_char)%int = true ->
     
     forall m', (exists t le', exec_stmt ge e
-                              (set_env le to [
+                              (in le set [
                               _value <~ Vlong 0%int64 ;
                               _t'5 <~ Vptr b ofs ;
                               _str <~ Vptr str_b (str_ofs + 1)%ptrofs ;
@@ -280,7 +281,7 @@ Proof.
   repeat econstructor.
   econstructor.
   repeat econstructor.
-  forward.
+  Tactics.forward.
   unfold load_addr in *.
   eassumption.
   repeat env_assumption.
@@ -289,7 +290,7 @@ Proof.
   repeat econstructor.
   assert (sem_binary_operation ge Oge (Vptr str_b str_ofs) (typeof (Etempvar _str (tptr tschar)))
                                (Vptr b ofs) (typeof (Etempvar _t'6 (tptr tschar))) m = Some Vfalse) by admit; eassumption.
-  forward.
+  Tactics.forward.
   econstructor.
   econstructor.
   repeat econstructor.
@@ -307,12 +308,12 @@ Proof.
   repeat env_assumption.
   econstructor.
   repeat econstructor.
-  forward.
+  Tactics.forward.
   simpl.
   assert (sem_cmp Cge (Vptr str_b (str_ofs + Ptrofs.repr 1 * Ptrofs.of_ints (Int.repr 1))%ptrofs)
                   (tptr tschar) (Vptr b ofs) (tptr tschar) m = Some Vfalse) by admit; eassumption.
-  forward.
-  forward.
+  Tactics.forward.
+  Tactics.forward.
   simpl.
   assert (sem_cmp Cge (Vptr str_b (str_ofs + Ptrofs.repr 1 * Ptrofs.of_ints (Int.repr 1))%ptrofs)
                   (tptr tschar) (Vptr b ofs) (tptr tschar) m = Some Vfalse) by admit; eassumption.
@@ -342,7 +343,7 @@ Lemma exec_loop_none : forall le b ofs str_b str_ofs fin_b fin_ofs intp_b intp_o
     (i == minus_char)%int = false ->
     
     forall le' m', (exists t, exec_stmt ge e
-                              (set_env le to [
+                              (in le set [
                                 _value <~ Vlong (cast_int_long Signed (Int.repr 0)) ;
                                 _t'4 <~ Vint i ;
                                 _t'6 <~ Vptr b ofs ;
@@ -363,7 +364,7 @@ Proof.
   intros Str End Intp UB Sign LA AG LA' CharP CharM  m' S1.
   destruct S1.
   unfold pre_loop.
-  destruct (switch_default_correct_1 i (set_env le to [
+  destruct (switch_default_correct_1 i (in le set [
                                                   _t'4 <~ Vint i ;
                                                   _t'6 <~ Vptr b ofs ;
                                                   _last_digit_max <~ Vlong
@@ -393,7 +394,7 @@ Proof.
   repeat econstructor.
   econstructor.
   repeat econstructor.
-  forward.
+  Tactics.forward.
   unfold load_addr in *.
   eassumption.
   repeat env_assumption.
@@ -401,8 +402,10 @@ Proof.
   econstructor.
   repeat econstructor.
   assert (sem_binary_operation ge Oge (Vptr str_b str_ofs) (typeof (Etempvar _str (tptr tschar)))
-                               (Vptr b ofs) (typeof (Etempvar _t'6 (tptr tschar))) m = Some Vfalse) by admit; eassumption.
-  forward.
+                               (Vptr b ofs) (typeof (Etempvar _t'6 (tptr tschar))) m = Some Vfalse)
+    by admit;
+    eassumption.
+  Tactics.forward.
   econstructor.
   econstructor.
   econstructor.

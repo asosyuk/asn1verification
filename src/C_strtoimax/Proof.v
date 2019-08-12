@@ -1,9 +1,9 @@
-From Coq Require Import String List ZArith Psatz.
-From compcert Require Import Coqlib Integers Floats AST Ctypes Cop Clight Clightdefs Memory Values ClightBigstep Events Maps.
-Import ListNotations.
+Require Import Core.Core Core.IntLemmas Core.PtrLemmas Core.Tactics.
+Require Import C_strtoimax.AST C_strtoimax.Spec C_strtoimax.Switch.
 Require Import StructTact.StructTactics.
-Require Import Notations asn_strtoimax_lim Lemmas Tactics asn_strtoimax_lim_spec.
-Require Import switch_statements.
+
+Import ListNotations.
+
 Local Open Scope Int64Scope.
 
 (* Lemmas for each `asn_strtox_result_e` case *)
