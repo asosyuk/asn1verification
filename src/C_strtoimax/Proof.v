@@ -1,6 +1,6 @@
+Require Import StructTact.StructTactics.
 Require Import Core.Core Core.IntLemmas Core.PtrLemmas Core.Tactics.
 Require Import C_strtoimax.AST C_strtoimax.Spec C_strtoimax.Switch.
-Require Import StructTact.StructTactics.
 
 Import ListNotations.
 
@@ -10,19 +10,16 @@ Local Open Scope Int64Scope.
 
 (* ASN_STRTOX_ERROR_INVAL: str >= *end *)
 Lemma asn_strtoimax_lim_ASN_STRTOX_ERROR_INVAL_correct :
-
-  forall le str_b str_ofs fin_b fin_ofs intp_b intp_ofs m' val ip,
+  forall m ge e le str_b str_ofs fin_b fin_ofs intp_b intp_ofs m' val ip,
     
-    le!_str = Some (Vptr str_b str_ofs)  ->
-    le!_end = Some (Vptr fin_b fin_ofs) ->
-    le!_intp = Some (Vptr intp_b intp_ofs)  ->
+    le ! _str = Some (Vptr str_b str_ofs)  ->
+    le ! _end = Some (Vptr fin_b fin_ofs) ->
+    le ! _intp = Some (Vptr intp_b intp_ofs)  ->
     le ! _upper_boundary = Some (Vlong upper_boundary) ->
     le ! _sign = Some (Vint (Int.repr 1)) ->
 
-    asn_strtoimax_lim (str_b, str_ofs) (fin_b,fin_ofs) (intp_b,intp_ofs) =
-    Some
-      {|
-        return_type := ASN_STRTOX_ERROR_INVAL;
+    asn_strtoimax_lim m (str_b, str_ofs) (fin_b,fin_ofs) (intp_b,intp_ofs) =
+    Some {| return_type := ASN_STRTOX_ERROR_INVAL;
         value := val;
         intp := ip;
         memory := Some m' |} ->
@@ -35,7 +32,7 @@ Proof.
   simpl in Spec.                       
   unfold asn_strtoimax_lim in Spec.
   assert (forall dist str fin inp value s last_digit,
-             asn_strtoimax_lim_loop str fin inp value s last_digit dist m
+             asn_strtoimax_lim_loop m str fin inp value s last_digit dist m
              <> Some {|
                     return_type := ASN_STRTOX_ERROR_INVAL;
                     value := val;
@@ -45,34 +42,45 @@ Proof.
       + break_match;
         congruence.
       + repeat break_match;
-        repeat break_if;
-        congruence. } 
+          congruence.
+    } 
   repeat break_match; try congruence.
   unfold addr_ge in *.
   replace (asn_strtox_result_e_to_int ASN_STRTOX_ERROR_INVAL)
-    with (Int.repr (-2)) by reflexivity.
+    with (Int.repr (-2))
+    by reflexivity.
   repeat eexists.
   exec_until_seq. 
   econstructor.
-  exec_until_seq.
+  repeat econstructor.
   econstructor.
-  exec_until_seq.
+  repeat econstructor.
+  gss_simpl; econstructor.
+  econstructor.
+  econstructor.
+  repeat econstructor.
+  gso_simpl; gss_simpl; econstructor.
+  econstructor.
   eapply exec_Sseq_2.
-  forward.
-  assert (option_map Val.of_bool (ptr_ge str_b b str_ofs i) = (option_map Val.of_bool (Some true))).
-  { f_equal.
-    eassumption. }
-  eassumption.
-  forward.
-  inversion Spec; subst;
-    repeat econstructor.
-  congruence.
+  Tactics.forward.
+  cbn.
+  unfold cmp_ptr.
+  unfold ptr_ge in Heqo0.
+  rewrite Heqo0.
+  econstructor.
+  econstructor.
+  replace (negb (1 == 0)%int) with true by reflexivity.
+  inversion_clear Spec.
+  eapply exec_Sreturn_some.
+  econstructor.
+  discriminate.
 Qed.
 
 (* SN_STRTOX_EXPECT_MORE: reading + or - and reaching *end *)
+(* ASN_STRTOX_EXPECT_MORE: reading + or - and reaching *end *)
 Lemma asn_strtoimax_lim_ASN_STRTOX_EXPECT_MORE_correct :
 
-  forall le str_b str_ofs fin_b fin_ofs intp_b intp_ofs m' val ip,
+  forall m ge e le str_b str_ofs fin_b fin_ofs intp_b intp_ofs m' val ip,
     
     le!_str = Some (Vptr str_b str_ofs)  ->
     le!_end = Some (Vptr fin_b fin_ofs) ->
@@ -80,7 +88,7 @@ Lemma asn_strtoimax_lim_ASN_STRTOX_EXPECT_MORE_correct :
     le ! _upper_boundary = Some (Vlong upper_boundary) ->
     le ! _sign = Some (Vint (Int.repr 1)) ->
 
-    asn_strtoimax_lim (str_b, str_ofs) (fin_b,fin_ofs) (intp_b,intp_ofs) =
+    asn_strtoimax_lim m (str_b, str_ofs) (fin_b,fin_ofs) (intp_b,intp_ofs) =
     Some
       {|
         return_type := ASN_STRTOX_EXPECT_MORE;
@@ -96,8 +104,8 @@ Proof.
     with (Int.repr (-1)) by reflexivity.
   intros until ip; intros Str End Intp UB Sign Spec.
   simpl in Spec.    
-  assert (forall dist str fin intp v s last_digit  m',
-             asn_strtoimax_lim_loop str fin intp v s last_digit dist m <>
+  assert (forall dist str fin intp v s last_digit m',
+             asn_strtoimax_lim_loop m str fin intp v s last_digit dist m <>
              Some {| return_type := ASN_STRTOX_EXPECT_MORE;
                   value := val;
                   intp := ip;
@@ -118,49 +126,65 @@ Proof.
       repeat econstructor.
       econstructor.
       repeat econstructor.
+      env_assumption.
+      econstructor.
+      repeat econstructor.
       econstructor.
       repeat econstructor.
       all: repeat env_assumption.
+      econstructor.
+      econstructor.
+      econstructor. (* cannot be simplified by forward, why? *)
+      repeat econstructor.
+        all: repeat env_assumption.
       econstructor.
       eapply ptr_ge_to_sem_cmp_false; eassumption.
       repeat econstructor.
       repeat econstructor.
       eapply exec_Sseq_2.
-      forward.
+      Tactics.forward.
       replace (Out_return (Some (Vint (Int.repr (-1)), tint)))
         with (outcome_switch  (Out_return (Some (Vint (Int.repr (-1)), tint)))).
-      forward.
+      Tactics.forward.
       switch_destruct i0.
       econstructor.
       exec_until_seq.
-      forward.
+      Tactics.forward.
       eapply exec_Sseq_2.
-      forward.
+      Tactics.forward.
       eapply ptr_ge_to_sem_cmp_true; eassumption.
-      all: forward; try discriminate.
+      all: Tactics.forward; try discriminate.
     + repeat eexists.
       exec_until_seq.
+      econstructor. (* cannot be simplified by forward, why? *)
+      repeat econstructor.
       econstructor.
       repeat econstructor.
+      env_assumption.
       econstructor.
       repeat econstructor.
       econstructor.
       repeat econstructor.
       all: repeat env_assumption.
+      econstructor.
+      econstructor.
+      econstructor. (* cannot be simplified by forward, why? *)
+      repeat econstructor.
+        all: repeat env_assumption.
       econstructor.
       eapply ptr_ge_to_sem_cmp_false; eassumption.
       repeat econstructor.
       repeat econstructor.
       apply exec_Sseq_2.
-      forward.
+      Tactics.forward.
       replace  (Out_return (Some (Vint (Int.repr (-1)), tint)))
         with (outcome_switch (Out_return (Some (Vint (Int.repr (-1)), tint)))).
-      forward.
+      Tactics.forward.
       switch_destruct i0.
       eapply exec_Sseq_2.
-      forward.
+      Tactics.forward.
       eapply ptr_ge_to_sem_cmp_true; eassumption.
-      all: forward; try discriminate.
+      all: Tactics.forward; try discriminate.
   - pose proof (Loop (distance (str_b, str_ofs) (b, i) - 1)%nat ((str_b, str_ofs) ++)
                      (fin_b, fin_ofs) (intp_b, intp_ofs) 0 (sign i0)
                      (max_sign (sign i0)) m'). congruence.
