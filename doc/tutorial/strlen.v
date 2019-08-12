@@ -26,9 +26,6 @@ Inductive strlen_rspec (m : mem) (b : block) (ofs : ptrofs) : nat -> Prop :=
 
 (** * Helper lemmas and definitions *)
 
-Parameter ge : genv.
-Parameter e : env.
-
 Definition ofs_of_nat (n : nat) := Ptrofs.repr (Z.of_nat n).
 
 (* add more lemmas to ptrofs hints *)
@@ -149,7 +146,7 @@ Definition f_strlen_loop :=
  * that is required because [str] is used again in the return statement
  *)
 Lemma f_strlen_loop_correct :
-  forall len m b ofs ste i,
+  forall len ge e m b ofs ste i,
     strlen_rspec m b ofs (len + i) ->   
     exists t rte,
       ste ! _str = Some (Vptr b ofs) ->
@@ -183,7 +180,7 @@ Proof.
     (* this is the starting state of the iteration on the induction step *)
     remember (PTree.set _s (Vptr b (Ptrofs.add (Ptrofs.add ofs (ofs_of_nat i)) Ptrofs.one)) ste)
       as sIte.
-    pose proof IHlen m b ofs sIte (S i) H as IH;
+    pose proof IHlen ge e m b ofs sIte (S i) H as IH;
       clear IHlen;
       destruct IH as [t IH]; destruct IH as [rIte IH].
 
@@ -224,7 +221,7 @@ Qed.
 
 (* full correctness *)
 Lemma f_strlen_correct :
-  forall len m b ofs ste,
+  forall len ge e m b ofs ste,
     strlen_rspec m b ofs len ->   
     ste ! _str = Some (Vptr b ofs) ->
     exists t rte,
@@ -234,7 +231,7 @@ Proof.
   intros.
 
   (* introduce the gneralized correctness lemma *)
-  pose proof f_strlen_loop_correct len m b ofs (PTree.set _s (Vptr b ofs) ste) 0 as GC.
+  pose proof f_strlen_loop_correct len ge e m b ofs (PTree.set _s (Vptr b ofs) ste) 0 as GC.
   replace (len + 0)%nat with len in * by lia.
   specialize (GC H).
   destruct GC as [t GC]; destruct GC as [le' GC].
