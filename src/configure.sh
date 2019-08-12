@@ -5,7 +5,7 @@ ASN1C_DIR=../../asn1c
 # generate [.v] clight
 # from a [.c] in [asn1c/skeletons]
 # and put it under [./Clight]
-function generate_clight {
+generate_clight() {
 
   INP=$1
   OUTP=${INP%%.*}.v
