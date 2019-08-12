@@ -7,32 +7,32 @@ Import ListNotations.
 Local Open Scope Int64Scope.
 
 (* Dealing with the switch statement *)
-Definition switch s1 s2 :=  (Sswitch (Ederef (Etempvar _str (tptr tschar)) tschar)
-                      (LScons (Some 48)
-                        Sskip
-                        (LScons (Some 49)
-                          Sskip
-                          (LScons (Some 50)
-                            Sskip
-                            (LScons (Some 51)
-                              Sskip
-                              (LScons (Some 52)
-                                Sskip
-                                (LScons (Some 53)
-                                  Sskip
-                                  (LScons (Some 54)
-                                    Sskip
-                                    (LScons (Some 55)
-                                      Sskip
-                                      (LScons (Some 56)
-                                        Sskip
-                                        (LScons (Some 57)
-                                         s1 (LScons None
-                                            s2
-                                            LSnil)))))))))))).
+Definition switch s1 s2 :=
+  (Sswitch (Ederef (Etempvar _str (tptr tschar)) tschar)
+    (LScons (Some 48)
+      Sskip
+      (LScons (Some 49)
+        Sskip
+        (LScons (Some 50)
+          Sskip
+          (LScons (Some 51) Sskip
+            (LScons (Some 52)
+              Sskip
+              (LScons (Some 53)
+                Sskip
+                (LScons (Some 54)
+                  Sskip
+                  (LScons (Some 55)
+                    Sskip
+                    (LScons (Some 56)
+                      Sskip
+                      (LScons (Some 57)
+                       s1 (LScons None
+                          s2
+                          LSnil)))))))))))).
 
 (* If reading i a digit then we enter the correct branch and continue *)
-Lemma switch_correct_continue : forall i s1 s2 le b ofs,
+Lemma switch_correct_continue : forall m ge e i s1 s2 le b ofs,
     Mem.loadv Mint8signed m (Vptr b ofs) = Some (Vint i) ->
     le ! _str = Some (Vptr b ofs) ->
     is_digit i = true ->
@@ -51,8 +51,7 @@ Proof.
 Qed.
 
 (* If reading i a digit then we enter the correct branch and continue *)
-Lemma switch_default_correct : forall i 
-                       s1 s2 le b ofs out,
+Lemma switch_default_correct : forall m ge e i s1 s2 le b ofs out,
     Mem.loadv Mint8signed m (Vptr b ofs) = Some (Vint i) ->
     le ! _str = Some (Vptr b ofs) ->
     is_digit i = false ->
@@ -81,8 +80,6 @@ Proof.
   all: cbn;  try lia.
 Qed.
 
-       
-
 Definition switch_1 := (Sswitch (Ederef (Etempvar _str (tptr tschar)) tschar)
               (LScons (Some 45)
                 (Ssequence
@@ -110,13 +107,14 @@ Definition switch_1 := (Sswitch (Ederef (Etempvar _str (tptr tschar)) tschar)
                         Sskip)))
                   LSnil))).
 
-Lemma switch_default_correct_1 : forall i le b ofs,
+Lemma switch_default_correct_1 : forall m ge e i le b ofs,
     Mem.loadv Mint8signed m (Vptr b ofs) = Some (Vint i) ->
     le ! _str = Some (Vptr b ofs) ->
     (i == minus_char)%int = false ->
     (i == plus_char)%int = false ->
                 (exists t, exec_stmt ge e le m switch_1 t le m Out_normal).
 Proof.
+  unfold plus_char, minus_char.
   intros until ofs; intros Mem Str Min Plus.
   repeat eexists.
   replace (Out_normal) with (outcome_switch (Out_normal)) by (reflexivity).
@@ -134,7 +132,7 @@ Proof.
   all: cbn;  try lia.
 Qed.     
 
-Lemma switch_correct_return : forall i s1 s2 le b ofs out,
+Lemma switch_correct_return : forall m ge e i s1 s2 le b ofs out,
     Mem.loadv Mint8signed m (Vptr b ofs) = Some (Vint i) ->
     le ! _str = Some (Vptr b ofs) ->
     is_digit i = true ->
@@ -152,7 +150,7 @@ Proof.
    discriminate.
 Qed.
 
-Lemma exec_loop_minus : forall le b ofs str_b str_ofs fin_b fin_ofs intp_b intp_ofs i out s1 s2,
+Lemma exec_loop_minus : forall m ge e le b ofs str_b str_ofs fin_b fin_ofs intp_b intp_ofs i out s1 s2,
     le!_str = Some (Vptr str_b str_ofs)  ->
     le!_end = Some (Vptr fin_b fin_ofs) ->
     le!_intp = Some (Vptr intp_b intp_ofs)  ->
@@ -160,7 +158,7 @@ Lemma exec_loop_minus : forall le b ofs str_b str_ofs fin_b fin_ofs intp_b intp_
     le ! _sign = Some (Vint (Int.repr 1)) ->
     
     load_addr Mptr m (fin_b, fin_ofs) = Some (Vptr b ofs) ->
-    addr_ge (str_b, str_ofs) (b, ofs) = Some false ->
+    addr_ge m (str_b, str_ofs) (b, ofs) = Some false ->
     load_addr Mint8signed m (str_b, str_ofs) = Some (Vint i) ->
     
     (i == minus_char)%int = true ->
@@ -234,7 +232,7 @@ Proof.
  discriminate.
 Admitted.
 
-Lemma exec_loop_plus : forall le b ofs str_b str_ofs fin_b fin_ofs intp_b intp_ofs i out s1 s2,
+Lemma exec_loop_plus : forall m ge e le b ofs str_b str_ofs fin_b fin_ofs intp_b intp_ofs i out s1 s2,
     le!_str = Some (Vptr str_b str_ofs)  ->
     le!_end = Some (Vptr fin_b fin_ofs) ->
     le!_intp = Some (Vptr intp_b intp_ofs)  ->
@@ -242,7 +240,7 @@ Lemma exec_loop_plus : forall le b ofs str_b str_ofs fin_b fin_ofs intp_b intp_o
     le ! _sign = Some (Vint (Int.repr 1)) ->
     
     load_addr Mptr m (fin_b, fin_ofs) = Some (Vptr b ofs) ->
-    addr_ge (str_b, str_ofs) (b, ofs) = Some false ->
+    addr_ge m (str_b, str_ofs) (b, ofs) = Some false ->
     load_addr Mint8signed m (str_b, str_ofs) = Some (Vint i) ->
     
     (i == plus_char)%int = true ->
@@ -328,7 +326,7 @@ Proof.
   discriminate.
 Admitted.
 
-Lemma exec_loop_none : forall le b ofs str_b str_ofs fin_b fin_ofs intp_b intp_ofs i out s1 s2,
+Lemma exec_loop_none : forall m ge e le b ofs str_b str_ofs fin_b fin_ofs intp_b intp_ofs i out s1 s2,
     le!_str = Some (Vptr str_b str_ofs)  ->
     le!_end = Some (Vptr fin_b fin_ofs) ->
     le!_intp = Some (Vptr intp_b intp_ofs)  ->
@@ -336,7 +334,7 @@ Lemma exec_loop_none : forall le b ofs str_b str_ofs fin_b fin_ofs intp_b intp_o
     le ! _sign = Some (Vint (Int.repr 1)) ->
     
     load_addr Mptr m (fin_b, fin_ofs) = Some (Vptr b ofs) ->
-    addr_ge (str_b, str_ofs) (b, ofs) = Some false ->
+    addr_ge m (str_b, str_ofs) (b, ofs) = Some false ->
     load_addr Mint8signed m (str_b, str_ofs) = Some (Vint i) ->
     
     (i == plus_char)%int = false ->
@@ -364,7 +362,7 @@ Proof.
   intros Str End Intp UB Sign LA AG LA' CharP CharM  m' S1.
   destruct S1.
   unfold pre_loop.
-  destruct (switch_default_correct_1 i (in le set [
+  destruct (switch_default_correct_1 m ge e i (in le set [
                                                   _t'4 <~ Vint i ;
                                                   _t'6 <~ Vptr b ofs ;
                                                   _last_digit_max <~ Vlong
