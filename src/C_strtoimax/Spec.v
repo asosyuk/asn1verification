@@ -87,8 +87,7 @@ Section Spec.
     end.
   
   (* digits [0-9]*)
-  Definition digits := map Int.repr [48;49;50;51;52;53;54;55;56;57].
-  Definition is_digit (i : int) := existsb (fun j => Int.eq i j) digits.
+  Definition is_digit (i : int) := andb ((Int.repr 48) <= i)%int ( i <= (Int.repr 57))%int.
   
   (* Executable spec *)
 
@@ -99,7 +98,10 @@ Section Spec.
       memory : option mem ; 
       }.
   
-  Fixpoint asn_strtoimax_lim_loop (str fin intp : addr) (value : int64) (s: signedness) (last_digit : int64) (dist : nat) (m'' : mem) {struct dist} : option asn_strtoimax_lim_result :=
+  
+  Fixpoint asn_strtoimax_lim_loop (str fin intp : addr) (value : int64)
+           (s: signedness) (last_digit : int64)
+           (dist : nat) (m'' : mem) {struct dist} : option asn_strtoimax_lim_result := 
     match dist with
     | O => match (Mem.storev Mptr m'' (vptr fin) (vptr str)) with
           | Some m' => 
@@ -107,17 +109,55 @@ Section Spec.
                     value := Some (mult_sign s value);
                     memory := Mem.storev Mint64 m' (vptr intp) (Vlong (mult_sign s value)) |}
           | None => None
-          end        
+          end
     | S n => match load_addr Mint8signed m'' str with
             | Some (Vint i) =>
               if is_digit i
+              (* if *str >= 0x30 && *str <= 0x39 *)
               then let d := int_to_int64 (i - zero_char)%int in
+                   (* int d = *str - '0' *)
                    if value < upper_boundary
                    then asn_strtoimax_lim_loop (str++) fin intp
                         (value * (Int64.repr 10) + d) s last_digit n m
-                   else if (value == upper_boundary) && (d <= last_digit)
-                        then  asn_strtoimax_lim_loop (str++) fin intp
-                                   (digit_to_num s i value) s last_digit n m
+                        (* value = value * 10 + d; next iteration *)
+                   else if (value == upper_boundary) && (d <= last_digit_max)
+                        (* firstly check if str < *end, and if so, return *)
+                        then let value' := digit_to_num s i value in
+                             let s' := match s with | Signed => Unsigned | _ => Unsigned end in
+                             let str' := (str++) in
+                             match (Mem.loadv Mptr m'' (vptr fin)) with
+                             | Some (Vptr b fin') =>
+                               if (addr_lt m'' str' (b, fin'))
+                               then match (Mem.storev Mptr m'' (vptr fin) (vptr str)) with
+                                    (* *end = str *)
+                                    | Some m' => match (load_addr Mint8signed m'' str) with 
+                                                | Some (Vint i') => 
+                                                  if is_digit i'
+                                                  (* if *str >= 0x30 && *str <= 0x39 *)
+                                                  then Some {|
+                                                           return_type := ASN_STRTOX_ERROR_RANGE;
+                                                           value := None;
+                                                           memory := Some m' |}
+                                                  else Some {|
+                                                           return_type := ASN_STRTOX_EXTRA_DATA;
+                                                           value := Some (mult_sign s' value');
+                                                           memory := Mem.storev Mint64 m' (vptr intp)
+                                                                      (Vlong (mult_sign s' value')) |}
+                                                | _ => None
+                                                end
+                                    | None => None
+                                    end
+                               else match (Mem.storev Mptr m'' (vptr fin) (vptr str)) with 
+                                    | Some m' => 
+                                      Some {| return_type := ASN_STRTOX_OK; 
+                                              value := Some (mult_sign s value); 
+                                              memory := Mem.storev Mint64 m' (vptr intp) 
+                                                                   (Vlong (mult_sign s value)) |} 
+                                    | None => None 
+                                    end
+                               (* if str > *end, then we break the loop *)
+                             | _ => None
+                             end
                         else match (Mem.storev Mptr m'' (vptr fin) (vptr str)) with
                              | Some m' => 
                                Some {| return_type := ASN_STRTOX_ERROR_RANGE;
@@ -128,7 +168,8 @@ Section Spec.
               else match (Mem.storev Mptr m'' (vptr fin) (vptr str)) with
                    | Some m' => Some {| return_type := ASN_STRTOX_EXTRA_DATA;
                                        value := Some (mult_sign s value);
-                                       memory := Mem.storev Mint64 m' (vptr intp) (Vlong (mult_sign s value)) |}
+                                       memory := Mem.storev Mint64 m' (vptr intp) 
+                                                            (Vlong (mult_sign s value)) |}
                    | None => None
                    end
             | _ => None                
