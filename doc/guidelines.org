@@ -1,0 +1,90 @@
+* Structural
+** 2-level stucture
+*** Level 1: General
+Generic definitions, lemmas, tactics, etc.
+Things that might be used in multiple proofs or published as a library
+**** A single file for each "topic" (e.g. Pointers, Intgers, Environments)
+***** Naming: use common sense (at least for now)
+***** The file can contain definitions, lemmas, tactics at the same time
+This way the file can grow without dependcy problems:
+we want to use tactics to prove new lemmas and introduce new tactics
+which apply lemmas
+***** Hint databases go to the very bottom of the file with their lemmas
+**** Dependencies
+***** Single "topics" do not depend on each other
+This is to eliminate the problem of circular dependencies
+***** If some lemma (or its proof) requires imports from more than one "topic"
+Create a separate file for it (and those like it) - a mixed topic
+For example, if some lemma talks about both pointers and integers, put it
+in ~IntPtrLemmas.v~
+Mixed topics can depend on both their parents
+***** level-1 files do not depend on level-2 files
+*** Level 2: Specialized
+Proofs of C functions
+**** Create directories with names corresponding to C functions
+***** Directory naming: ~ASN_function_name~
+(most functions in asn1c begin with ~asn_~ regardless, simply capitalize that)
+***** Each directory should contain (at least)
+****** ~AST.v~
+The parts of the function's AST we are writing lemmas about
+This file depends only on ~Core~ and ~Clight~
+****** ~Spec.v~
+The formal specification of the function
+****** ~Proof.v~
+The final proof of the function's correctness
+**** Dependencies
+***** Files from the same level-2 directory can depend on one another in any way
+***** Files from different level-2 directories do not depend on one another
+***** level-2 files can depend on any level-1 files
+*** not-a-level: Clight
+.v files extracted from C code are automatically put into ~src/Clight~
+and remain untouched
+** Do not use inheritable parameters
+*** All parameters should be local (~Variable~ in a ~Section~)
+This way there does not have to be an agreement about which parameters
+we are talking about.
+*** If using a local parameter, make sure all definitions in the section use it
+** Try not to shadow definitions
+*** If an identifier is already in context, do not redefine it
+*** Preferably make names completely unique
+** Imports
+*** The ~Core.Core~ file
+Our files will ofter have the same basic imports from CompCert.
+The sole purpose of ~Core.Core~ is to gather those under ~Require Export~
+*** Order of imports
+1. External (CompCert, Coq, StructTact, etc.)
+2. Core (level-1 files)
+3. The current directory
+   
+This way if shadowing does happen, the most local import takes precedence.
+** Large ASTs
+*** Divide by logical blocks
+Instead of writing proofs on the whole function, we divide its AST into parts
+and prove those separately. This is a matter of experience and common sense.
+*** Make AST parts ~Definitions~ (not notations)
+*** Stitch AST parts together
+After defining multiple parts of an AST,
+stitch them back together to form the whole function body,
+prove that what we got is equal to what's extracted,
+and formulate lemmas on our stitched versio
+*** If ever confused on what an AST part corresponds to
+Leave a comment with the corresponing C code block,
+so that it's easier to read in the future
+** If refactoring - remember to fix everything. Use grep.
+Including comments and code-that-does-not-compile-yet
+* Cosmetic
+** Follow the 80-column rule
+** When copynig and pasting things make sure to normalize whitespace
+** Always use ~forall~ in logic
+** Do not specify types if not strictly required
+While this might be confusing, specifying all types is very cumbersome,
+since functions take many arguments.
+Consistency is ket - so do not specify types anywhere.
+(e.g. do not write ~forall n : nat, 0 <= n~, write ~forall n, 0 <= n~)
+** Try to comment things which other might find confusing
+Especially ~Admitted~ lemmas
+If there is no comment, prepare to answer many questions
+** Try to sort lemmas in a file by complexity
+(top->bottom = easier->harder)
+** Do not comment out big blocks of code
+Remove the code, then get from git if needed.
