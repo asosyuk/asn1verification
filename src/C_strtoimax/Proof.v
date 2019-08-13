@@ -417,16 +417,12 @@ Proof.
     + eassumption. 
     + eassumption. 
     + destruct_orb_hyp.
-      all: repeat rewrite set_env_eq_ptree_set in *.
-      eapply exec_loop_none; try eassumption; 
-    repeat rewrite set_env_eq_ptree_set in *.
-         (*****************************************************************)
-      (* eapply asn_strtoimax_lim_loop_ASN_STRTOX_ERROR_RANGE_correct; *)
-      (*   repeat (env_assumption || econstructor).                    *)
-      (* instantiate (1 := Unsigned); simpl.                           *)
-      (* all: try (econstructor || eassumption).                       *)
-      (*****************************************************************)
-      admit.
+      eapply exec_loop_none; try eassumption;
+        eapply asn_strtoimax_lim_loop_ASN_STRTOX_ERROR_RANGE_correct;
+         repeat rewrite set_env_eq_ptree_set in *;
+        repeat (env_assumption || econstructor).                   
+       instantiate (1 := Unsigned); simpl.                          
+       all: try (econstructor || eassumption).
   - (* ASN_STRTOX_ERROR_INVAL *)
     eapply asn_strtoimax_lim_ASN_STRTOX_ERROR_INVAL_correct.     
   - (* ASN_STRTOX_EXPECT_MORE *)
@@ -444,132 +440,50 @@ Proof.
       all:
         repeat eassumption;
         eapply asn_strtoimax_lim_loop_ASN_STRTOX_EXTRA_DATA_correct;
+        repeat rewrite set_env_eq_ptree_set in *;
         repeat (env_assumption || econstructor);
         switch_destruct i0;
         rewrite EQ in *; simpl in Spec;
           try reflexivity.
-      (* 1-2: admit. *)
-      all: admit.
     + destruct_orb_hyp.
-      eapply exec_loop_none; try eassumption.
-      (****************************************************************)
-      (* eapply asn_strtoimax_lim_loop_ASN_STRTOX_EXTRA_DATA_correct; *)
-      (*   repeat (env_assumption || econstructor).                   *)
-      (* instantiate (1 := Unsigned); simpl.                          *)
-      (* all: try (econstructor || eassumption).                      *)
-      (* 1-2: admit.                                                  *)
-      (****************************************************************)
-      admit.
+      eapply exec_loop_none; try eassumption;
+        eapply asn_strtoimax_lim_loop_ASN_STRTOX_EXTRA_DATA_correct;
+        repeat rewrite set_env_eq_ptree_set in *;
+        repeat (env_assumption || econstructor).                   
+       instantiate (1 := Unsigned); simpl.                          
+       all: try (econstructor || eassumption).
+      
 - (* ASN_STRTOX_OK *)
     intros until val; intros Str End Intp UB Sign Spec.
     unfold asn_strtoimax_lim in Spec;
       repeat break_match; try discriminate; subst.
-    + destruct_orb_hyp; switch_destruct i0; subst.
-      *
-        remember (
-    (PTree.set _value (Vlong (cast_int_long Signed (Int.repr 0)))
-       (PTree.set _t'5 (Vptr b i)
-          (PTree.set _str
-             (Vptr str_b
-                (str_ofs + Ptrofs.repr (sizeof ge tschar) * ptrofs_of_int Signed (Int.repr 1))%ptrofs)
-             (PTree.set _sign (Vint (Int.neg (Int.repr 1)))
-                (PTree.set _last_digit_max
-                   (Vlong
-                      (Int64.modu
-                         (Int64.not (cast_int_long Signed (Int.repr 0)) >>
-                          Int64.repr (Int.unsigned (Int.repr 1))) (cast_int_long Signed (Int.repr 10)) +
-                       cast_int_long Signed (Int.repr 1)))
-                   (PTree.set _t'4 (Vint minus_char)
-                      (PTree.set _t'6 (Vptr b i)
-                         (PTree.set _last_digit_max
-                            (Vlong
-                               (Int64.modu
-                                  (Int64.not (cast_int_long Signed (Int.repr 0)) >>
-                                   Int64.repr (Int.unsigned (Int.repr 1)))
-                                  (cast_int_long Signed (Int.repr 10))))
-                            (PTree.set _upper_boundary
-                               (Vlong
-                                  (Int64.divu
-                                     (Int64.not (cast_int_long Signed (Int.repr 0)) >>
-                                      Int64.repr (Int.unsigned (Int.repr 1)))
-                                     (cast_int_long Signed (Int.repr 10))))
-                               (PTree.set _sign (Vint (Int.repr 1)) le))))))))))
-          )
-          as X.
-        
-
-        pose proof asn_strtoimax_lim_loop_ASN_STRTOX_OK_correct m ge e (distance (str_b, str_ofs) (b, i) - 1)
-          b i X str_b (str_ofs + 1)%ptrofs fin_b fin_ofs intp_b intp_ofs Int64.zero m' val (sign minus_char).
-        destruct H as [t H]; subst X; repeat gso_simpl; repeat gss_simpl;
-          try eassumption.
-        auto with ptrofs.
-        reflexivity.
-        reflexivity.
-        reflexivity.
-        symmetry.
-        eapply dist_pred; try eassumption.
-        destruct H as [le'' H].
-
-        eexists. eexists.
-        simpl fn_body.
-        fold f_asn_strtoimax_lim_loop.
-        seq1; exec_until_seq.
-        seq1; exec_until_seq.
-        seq1; exec_until_seq.
-        seq1; exec_until_seq.
-        seq1; exec_until_seq.
-        repeat gso_simpl; eassumption.
-        unfold load_addr in Heqo; eassumption.
-        repeat gso_simpl; eassumption.
-        repeat gss_simpl; econstructor.
-        unfold addr_ge, ptr_ge in Heqo0; cbn; unfold cmp_ptr; rewrite Heqo0; econstructor.
-        econstructor.
-        econstructor.
-        seq1; exec_until_seq.
-        seq1; exec_until_seq.
-        repeat gso_simpl; eassumption.
-        eassumption.
-        replace Out_normal with (outcome_switch Out_normal).
-        econstructor.
-        econstructor.
-        econstructor.
-        econstructor.
-        repeat gso_simpl; eassumption.
-        econstructor.
-        econstructor.
-        eassumption.
-        econstructor.
-        econstructor.
-        repeat econstructor.
-        repeat gso_simpl; repeat gss_simpl; econstructor.
-        econstructor.
-
-        repeat econstructor.
-        repeat gso_simpl; eassumption.
-        econstructor.
-        repeat gso_simpl; eassumption.
-        eassumption.
-        gso_simpl; gss_simpl; econstructor.
-        gss_simpl; econstructor.
-
-        unfold addr_ge, ptr_ge in Heqo0; cbn; unfold cmp_ptr.
-        replace (Ptrofs.repr 1 * Ptrofs.of_ints (Int.repr 1))%ptrofs
-          with Ptrofs.one
-          by (auto with ptrofs).
-        cbn in Heqo2.
-        unfold ptr_ge in Heqo2.
-        rewrite Heqo2.
-        econstructor.
-
-        econstructor.
-
-        econstructor.
-        constructor.
-        seq1. seq1.
-        econstructor.
-        econstructor.
-        econstructor.
-        econstructor.
-        eassumption.
-        repeat econstructor; try env_assumption.
+    + admit.
+    + destruct_orb_hyp.
+      edestruct asn_strtoimax_lim_loop_ASN_STRTOX_OK_correct with
+          (le := (PTree.set _value (Vlong (cast_int_long Signed (Int.repr 0)))
+         (PTree.set _t'10 (Vint i0)
+            (PTree.set _t'12 (Vptr b i)
+               (PTree.set _last_digit_max (Vlong last_digit_max)
+                  (PTree.set _upper_boundary
+                     (Vlong
+                        ((Int64.not (cast_int_long Signed (Int.repr 0)) >>
+                          Int64.repr (Int.unsigned (Int.repr 1))) //
+                         cast_int_long Signed (Int.repr 10)))
+                     (PTree.set _asn1_intmax_max
+                        (Vlong
+                           (Int64.not (cast_int_long Signed (Int.repr 0)) >>
+                            Int64.repr (Int.unsigned (Int.repr 1))))
+                        (PTree.set _sign (Vint (Int.repr 1)) le))))))));
+        repeat (env_assumption).
+      econstructor.
+      econstructor.
+      instantiate (1 := Unsigned); simpl.
+      econstructor.
+      econstructor.
+      eassumption.
+      destruct H1.
+      eapply exec_loop_none_out_normal; try eassumption.
+      eexists.
+      eassumption.
+   
 Admitted.

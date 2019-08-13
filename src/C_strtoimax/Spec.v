@@ -200,7 +200,7 @@ Fixpoint string_at_address (s : list int) str dist : option (list int) :=
           | _ => None
           end
   end.
-    
+(*    
 Proposition asn_strtoimax_lim_fun_correct :
   forall dist str_b str_ofs fin_b fin_ofs intp_b intp_ofs m' val sign s,
       dist = distance (str_b, str_ofs) (fin_b, fin_ofs) ->
@@ -232,6 +232,6 @@ Proof.
   - intro.
     unfold  asn_strtoimax_lim in H.
     repeat break_match; try congruence.
-  Admitted.
+  Admitted. *)
 
 End Spec.
