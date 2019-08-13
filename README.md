@@ -13,6 +13,11 @@ opam install coq-compcert coq-struct-tact
 ## Building
 ``` shell
 cd src
-./configure.sh
-make
+make clight coq
 ```
+
+## `make` targets
+* `clight` - generate Clight files from C sources (generated .v files are not compiled)
+* `coq` - compile all .v files
+* `clean` - remove all files created by building
+* `distclean` - remove all build artifacts, Clight, CoqMakefiles, coqdeps
