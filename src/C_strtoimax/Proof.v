@@ -418,9 +418,9 @@ Proof.
     + eassumption. 
     + destruct_orb_hyp.
       all: repeat rewrite set_env_eq_ptree_set in *.
-      eapply exec_loop_none; try eassumption.
-       
-      (*****************************************************************)
+      eapply exec_loop_none; try eassumption; 
+    repeat rewrite set_env_eq_ptree_set in *.
+         (*****************************************************************)
       (* eapply asn_strtoimax_lim_loop_ASN_STRTOX_ERROR_RANGE_correct; *)
       (*   repeat (env_assumption || econstructor).                    *)
       (* instantiate (1 := Unsigned); simpl.                           *)
