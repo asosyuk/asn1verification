@@ -1,3 +1,0 @@
-clean::
-	find . -name "*.cache" -type f -delete
-	find . -name "*.aux"   -type f -delete

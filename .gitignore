@@ -13,5 +13,5 @@
 doc/tutorial/C/*.v
 
 # auto-generated makefiles
-src/Makefile
-src/Makefile.conf
+src/CoqMakefile
+src/CoqMakefile.conf
