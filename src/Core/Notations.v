@@ -3,6 +3,21 @@ Import ListNotations.
 
 (* Notations for integers and ptrofs *)
 
+Delimit Scope ByteScope with byte.
+Infix "==" := Byte.eq (at level 70) : ByteScope.
+Notation "x ~= y" := (negb Byte.eq x y) (at level 70) : ByteScope.
+Notation "x >> y" := (Byte.shru x y) (at level 70) : ByteScope.
+Notation "0" := Byte.zero : ByteScope.
+Notation "1" := Byte.one : ByteScope.
+Infix "+" := Byte.add : ByteScope.
+Infix "-" := Byte.sub : ByteScope.
+Infix "*" := Byte.mul : ByteScope.
+Infix "<" := Byte.lt : ByteScope.
+Notation "x <=u y" := (negb (Byte.ltu y x)) (at level 70) : ByteScope.
+Notation "x <= y" := (negb (Byte.lt y x)) (at level 70) : ByteScope.
+Infix "%" := Byte.mods (at level 70) : ByteScope.
+Infix "//" := Byte.divs (at level 70) : ByteScope.
+
 Delimit Scope IntScope with int.
 Infix "==" := Int.eq (at level 70) : IntScope.
 Notation "x ~= y" := (negb Int.eq x y) (at level 70) : IntScope.
