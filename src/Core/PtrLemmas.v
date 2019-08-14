@@ -23,6 +23,8 @@ Definition ptr_ge (m : mem) (b1 b2 : block) (ofs1 ofs2 : ptrofs) :=
 Definition addr_ge (m : mem) (a1 a2 : addr) :=
   match a1, a2 with (b1, ofs1), (b2, ofs2) => ptr_ge m b1 b2 ofs1 ofs2 end.
 
+Definition addr_lt (m : mem) (a1 a2 : addr) := option_map negb (addr_ge m a2 a1).
+
 (* Both specs can be used interchangeably *)
 Proposition ptr_ge_refine : forall (m : mem) (b1 b2 : block) (ofs1 ofs2 : ptrofs),
     Mem.weak_valid_pointer m b1 (Ptrofs.unsigned ofs1) = true ->

@@ -42,7 +42,8 @@ Proof.
       + repeat break_match;
           congruence.
     } 
-  repeat break_match; try congruence.
+    repeat break_match; unfold store_result in *;
+      repeat break_match; try congruence.
   unfold addr_ge in *.
   replace (asn_strtox_result_e_to_int ASN_STRTOX_ERROR_INVAL)
     with (Int.repr (-2))
@@ -107,12 +108,14 @@ Proof.
                   value := val;
                   memory := Some m' |}) as Loop.
     { induction dist; intros; simpl.
-      + break_match; congruence.
+      + congruence.
       + repeat break_match.
         repeat break_if.
         all: try congruence; eapply IHdist. }
    unfold asn_strtoimax_lim in Spec.  
-   repeat break_match; try congruence.
+    repeat break_match;
+      unfold store_result in *;
+      repeat break_match; try congruence.
    inversion Spec; clear Spec.
   - (* case reading minus or plus *)
     destruct_orb_hyp.
@@ -192,11 +195,12 @@ Qed.
 (* Loop correctness cases *)
 (* ASN_STRTOX_OK: conversion successfull *)
 Lemma asn_strtoimax_lim_loop_ASN_STRTOX_OK_correct :
-  forall m ge e  dist b ofs le str_b str_ofs fin_b fin_ofs intp_b intp_ofs inp_value  m' val s,
+  forall m ge e dist b ofs le str_b str_ofs fin_b fin_ofs intp_b intp_ofs
+         inp_value  m' val s,
     
     le!_str = Some (Vptr str_b str_ofs)  ->
     le!_end = Some (Vptr fin_b fin_ofs) ->
-    le!_intp = Some (Vptr intp_b intp_ofs)  ->
+    le!_intp = Some (Vptr intp_b intp_ofs) ->
     le!_value = Some (Vlong inp_value) ->
     le ! _upper_boundary = Some (Vlong upper_boundary) ->
     le ! _sign = Some (Vint (Sign s)) ->
@@ -205,16 +209,20 @@ Lemma asn_strtoimax_lim_loop_ASN_STRTOX_OK_correct :
 
     (distance (str_b, str_ofs) (b,ofs)) = dist ->
 
-    asn_strtoimax_lim_loop m (str_b, str_ofs) (fin_b, fin_ofs) (intp_b, intp_ofs) inp_value s (max_sign s) dist m = Some {| return_type := ASN_STRTOX_OK;
-              value := val;
-              memory := Some m'; 
-           |}  ->
+    asn_strtoimax_lim_loop m (str_b, str_ofs) (fin_b, fin_ofs)
+                           (intp_b, intp_ofs) inp_value s (max_sign s) dist m =
+    Some {| return_type := ASN_STRTOX_OK;
+            value := Some val;
+            memory := Some m'; 
+         |}  ->
 
-    exists t le', exec_stmt ge e le m f_asn_strtoimax_lim_loop t le' m' Out_normal. 
- Proof.
- Admitted.
-
- 
+    exists t le', exec_stmt ge e le m f_asn_strtoimax_lim_loop t le' m Out_normal
+             /\ le'! _end = Some (Vptr fin_b fin_ofs)
+             /\ le'! _str = Some (Vptr b ofs)
+             /\ le'! _sign = Some (Vint (Sign s))
+             /\ le'! _intp = Some (Vptr intp_b intp_ofs)
+             /\ le'! _value = Some (Vlong val).
+Admitted.
 
  Lemma asn_strtoimax_lim_loop_ASN_STRTOX_ERROR_RANGE_correct :
    forall m ge e dist b ofs le str_b str_ofs fin_b fin_ofs intp_b intp_ofs inp_value  m' val s,
@@ -266,8 +274,10 @@ Proof.
   induction dist; intros until s;
     intros Str End Intp Value UB Sign LastD Load Dist Spec;
     simpl in Spec.
-  - break_match. all: congruence.
-  - repeat break_match; try congruence.
+  -  all: congruence.
+  - repeat break_match;
+    unfold store_result in *;
+      repeat break_match; try congruence.
     (* 3 cases: do one loop and then apply IH *)
     + remember 
          (PTree.set _str
@@ -337,7 +347,6 @@ Proof.
       forward.
       fold f_asn_strtoimax_lim_loop.
       eapply IH.
-    + admit.
     + inversion Spec; clear Spec.
       repeat rewrite set_env_eq_ptree_set in *.
       repeat eexists.
@@ -402,18 +411,33 @@ Proof.
   - (* ASN_STRTOX_ERROR_RANGE *)
     intros until val; intros Str End Intp UB Sign Spec.
     unfold asn_strtoimax_lim in Spec.
-    repeat break_match.
-    all: try congruence.
-    erewrite dist_pred in Spec.
+    repeat break_match;
+      unfold store_result in *;
+      repeat break_match; try congruence.
+    erewrite dist_pred in *.
     + destruct_orb_hyp.
       1 : (eapply exec_loop_minus).
       11: (eapply exec_loop_plus).
       all: repeat rewrite set_env_eq_ptree_set in *.
-      all: repeat  eassumption;
+      all: repeat  eassumption.
         eapply asn_strtoimax_lim_loop_ASN_STRTOX_ERROR_RANGE_correct;
         repeat (env_assumption || econstructor);
      (switch_destruct i0);
-       rewrite EQ in *; simpl in Spec; econstructor.
+     rewrite EQ in *; simpl in Heqo3.
+       instantiate (1 := Signed).
+       econstructor.
+       simpl.
+       inversion Spec; subst.
+       eassumption.
+       eapply asn_strtoimax_lim_loop_ASN_STRTOX_ERROR_RANGE_correct;
+        repeat (env_assumption || econstructor);
+     (switch_destruct i0);
+     rewrite EQ in *; simpl in Heqo3.
+       instantiate (1 := Unsigned).
+       econstructor.
+       simpl.
+       inversion Spec; subst.
+       eassumption.
     + eassumption. 
     + eassumption. 
     + destruct_orb_hyp.
@@ -421,69 +445,102 @@ Proof.
         eapply asn_strtoimax_lim_loop_ASN_STRTOX_ERROR_RANGE_correct;
          repeat rewrite set_env_eq_ptree_set in *;
         repeat (env_assumption || econstructor).                   
-       instantiate (1 := Unsigned); simpl.                          
-       all: try (econstructor || eassumption).
+      instantiate (1 := Unsigned); simpl.
+      inversion Spec.
+      all: try (econstructor || eassumption).
+      inversion Spec; subst; eassumption.
   - (* ASN_STRTOX_ERROR_INVAL *)
     eapply asn_strtoimax_lim_ASN_STRTOX_ERROR_INVAL_correct.     
   - (* ASN_STRTOX_EXPECT_MORE *)
     eapply asn_strtoimax_lim_ASN_STRTOX_EXPECT_MORE_correct. 
   - (*  ASN_STRTOX_EXTRA_DATA *)
-    intros until val; intros Str End Intp UB Sign Spec.
+     intros until val; intros Str End Intp UB Sign Spec.
     unfold asn_strtoimax_lim in Spec.
-    repeat break_match.
-    all: try congruence.
-    replace (distance (str_b, str_ofs) (b, i) - 1)%nat
-      with (distance (str_b, (str_ofs + 1)%ptrofs) (b, i)) in Spec by admit.
+    repeat break_match;
+      unfold store_result in *;
+      repeat break_match; try congruence.
+    erewrite dist_pred in *.
     + destruct_orb_hyp.
       1 : (eapply exec_loop_minus).
       11: (eapply exec_loop_plus).
-      all:
-        repeat eassumption;
+      all: repeat rewrite set_env_eq_ptree_set in *.
+      all: repeat  eassumption.
         eapply asn_strtoimax_lim_loop_ASN_STRTOX_EXTRA_DATA_correct;
-        repeat rewrite set_env_eq_ptree_set in *;
         repeat (env_assumption || econstructor);
-        switch_destruct i0;
-        rewrite EQ in *; simpl in Spec;
-          try reflexivity.
+     (switch_destruct i0);
+     rewrite EQ in *; simpl in Heqo3.
+       instantiate (1 := Signed).
+       econstructor.
+       simpl.
+       inversion Spec; subst.
+       econstructor.
+        inversion Spec; subst.
+       eassumption.
+       eapply asn_strtoimax_lim_loop_ASN_STRTOX_EXTRA_DATA_correct;
+        repeat (env_assumption || econstructor);
+     (switch_destruct i0);
+     rewrite EQ in *; simpl in Heqo3.
+       instantiate (1 := Unsigned).
+       econstructor.
+       simpl.
+       inversion Spec; subst.
+       econstructor.
+        inversion Spec; subst.
+       eassumption.
+    + eassumption. 
+    + eassumption. 
     + destruct_orb_hyp.
       eapply exec_loop_none; try eassumption;
         eapply asn_strtoimax_lim_loop_ASN_STRTOX_EXTRA_DATA_correct;
-        repeat rewrite set_env_eq_ptree_set in *;
+         repeat rewrite set_env_eq_ptree_set in *;
         repeat (env_assumption || econstructor).                   
-       instantiate (1 := Unsigned); simpl.                          
-       all: try (econstructor || eassumption).
+      instantiate (1 := Unsigned); simpl.
+      inversion Spec.
+      all: try (econstructor || eassumption).
+      inversion Spec; subst; eassumption.
       
 - (* ASN_STRTOX_OK *)
     intros until val; intros Str End Intp UB Sign Spec.
     unfold asn_strtoimax_lim in Spec;
-      repeat break_match; try discriminate; subst.
+      repeat break_match;
+      unfold store_result in *;
+      repeat break_match; try congruence; inversion Spec; subst.
     + admit.
+    + admit. (* contradiction *)
     + destruct_orb_hyp.
       edestruct asn_strtoimax_lim_loop_ASN_STRTOX_OK_correct with
-          (le := (PTree.set _value (Vlong (cast_int_long Signed (Int.repr 0)))
+       (le := (PTree.set _value (Vlong (cast_int_long Signed (Int.repr 0)))
          (PTree.set _t'10 (Vint i0)
             (PTree.set _t'12 (Vptr b i)
                (PTree.set _last_digit_max (Vlong last_digit_max)
                   (PTree.set _upper_boundary
-                     (Vlong
-                        ((Int64.not (cast_int_long Signed (Int.repr 0)) >>
+                     (Vlong ((Int64.not (cast_int_long Signed (Int.repr 0)) >>
                           Int64.repr (Int.unsigned (Int.repr 1))) //
                          cast_int_long Signed (Int.repr 10)))
                      (PTree.set _asn1_intmax_max
                         (Vlong
                            (Int64.not (cast_int_long Signed (Int.repr 0)) >>
                             Int64.repr (Int.unsigned (Int.repr 1))))
-                        (PTree.set _sign (Vint (Int.repr 1)) le))))))));
+                        (PTree.set _sign (Vint (Int.repr 1)) le)))))))) ;
         repeat (env_assumption).
       econstructor.
       econstructor.
-      instantiate (1 := Unsigned); simpl.
+      instantiate (1 := Unsigned);
+        simpl.
       econstructor.
       econstructor.
       eassumption.
-      destruct H1.
-      eapply exec_loop_none_out_normal; try eassumption.
+      destruct H2.
+      break_and.
+      eapply exec_loop_none_out_normal;
+        try eassumption.
       eexists.
       eassumption.
-   
+      repeat eexists.
+      repeat econstructor.
+      eassumption.
+      eassumption.
+      repeat econstructor.
+      admit. admit.
 Admitted.
+         

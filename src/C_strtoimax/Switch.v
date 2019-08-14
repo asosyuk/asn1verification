@@ -227,8 +227,9 @@ Lemma exec_loop_none_out_normal : forall m ge e le b ofs str_b str_ofs fin_b fin
     (i == plus_char)%int = false ->
     (i == minus_char)%int = false ->
     
-    forall m' le', (exists t, exec_stmt ge e
-                          (PTree.set _value (Vlong (cast_int_long Signed (Int.repr 0)))
+    forall m' m'' le',
+  (exists t, exec_stmt ge e
+    (PTree.set _value (Vlong (cast_int_long Signed (Int.repr 0)))
        (PTree.set _t'10 (Vint i)
           (PTree.set _t'12 (Vptr b ofs)
              (PTree.set _last_digit_max (Vlong last_digit_max)
@@ -243,15 +244,13 @@ Lemma exec_loop_none_out_normal : forall m ge e le b ofs str_b str_ofs fin_b fin
                           Int64.repr (Int.unsigned (Int.repr 1))))
                       (PTree.set _sign (Vint (Int.repr 1)) le)))))))
                           m s1 t le' m' Out_normal) ->
-                    (exists t le'', exec_stmt ge e le'
-       
-                                   m' s2 t le'' m' (Out_return out)) ->
+  (exists t le'', exec_stmt ge e le' m' s2 t le'' m'' (Out_return out)) ->
                     
                    
-          exists t le'', exec_stmt ge e le m (pre_loop s1 s2) t le'' m' (Out_return out).
+          exists t le'', exec_stmt ge e le m (pre_loop s1 s2) t le'' m'' (Out_return out).
 Proof.
   intros until s2.
-  intros Str End Intp UB Sign LA AG LA' CharP CharM m' le' S1 S2.
+  intros Str End Intp UB Sign LA AG LA' CharP CharM m' m'' le' S1 S2.
   destruct S1.
   destruct S2.
   destruct H0.
