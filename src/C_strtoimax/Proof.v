@@ -337,7 +337,6 @@ Proof.
       forward.
       fold f_asn_strtoimax_lim_loop.
       eapply IH.
-    + admit.
     + inversion Spec; clear Spec.
       repeat rewrite set_env_eq_ptree_set in *.
       repeat eexists.
