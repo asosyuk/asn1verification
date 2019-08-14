@@ -124,38 +124,32 @@ Section Spec.
                         (* firstly check if str < *end, and if so, return *)
                         then let value' := digit_to_num s i value in
                              let s' := match s with | Signed => Unsigned | _ => Unsigned end in
-                             let str' := (str++) in
                              match (Mem.loadv Mptr m'' (vptr fin)) with
                              | Some (Vptr b fin') =>
-                               if (addr_lt m'' str' (b, fin'))
-                               then match (Mem.storev Mptr m'' (vptr fin) (vptr str)) with
-                                    (* *end = str *)
-                                    | Some m' => match (load_addr Mint8signed m'' str) with 
-                                                | Some (Vint i') => 
-                                                  if is_digit i'
-                                                  (* if *str >= 0x30 && *str <= 0x39 *)
-                                                  then Some {|
-                                                           return_type := ASN_STRTOX_ERROR_RANGE;
-                                                           value := None;
-                                                           memory := Some m' |}
-                                                  else Some {|
-                                                           return_type := ASN_STRTOX_EXTRA_DATA;
-                                                           value := Some (mult_sign s' value');
-                                                           memory := Mem.storev Mint64 m' (vptr intp)
-                                                                      (Vlong (mult_sign s' value')) |}
-                                                | _ => None
-                                                end
-                                    | None => None
-                                    end
-                               else match (Mem.storev Mptr m'' (vptr fin) (vptr str)) with 
-                                    | Some m' => 
-                                      Some {| return_type := ASN_STRTOX_OK; 
-                                              value := Some (mult_sign s value); 
-                                              memory := Mem.storev Mint64 m' (vptr intp) 
-                                                                   (Vlong (mult_sign s value)) |} 
-                                    | None => None 
-                                    end
-                               (* if str > *end, then we break the loop *)
+                               match addr_lt m'' (str++) (b, fin') with
+                               | Some true => match (load_addr Mint8signed m'' (str++)) with
+                                          | Some (Vint i') =>
+                                            if is_digit i'
+                                            then Some {|
+                                                     return_type := ASN_STRTOX_ERROR_RANGE;
+                                                     value := None;
+                                                     memory := (Mem.storev Mptr m'' 
+                                                                           (vptr (b, fin')) 
+                                                                           (vptr (str++))) |}
+                                            else match Mem.storev Mptr m'' (vptr (b, fin'))
+                                                                              (vptr (str++)) with
+                                                 | Some m' => 
+                                                   Some {| 
+                                                       return_type := ASN_STRTOX_EXTRA_DATA; 
+                                                       value := Some (mult_sign s' value'); 
+                                                       memory := Mem.storev Mint64 m' (vptr intp)
+                                                                  (Vlong (mult_sign s' value')) |}
+                                                 | _ => None
+                                                 end
+                                          | _ => None
+                                          end
+                               | _ => None
+                               end
                              | _ => None
                              end
                         else match (Mem.storev Mptr m'' (vptr fin) (vptr str)) with
