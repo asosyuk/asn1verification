@@ -173,38 +173,6 @@ Proof.
   assumption.
 Qed.
   
-Lemma signed_le_int_le : forall a b,
-  Int.signed a <= Int.signed b <->
-  (a <= b)%int = true.
-Proof.
-  split; intros.
-  - unfold Int.lt.
-    destruct zlt; [lia | reflexivity].
-  - unfold Int.lt in H.
-    destruct zlt; [discriminate | lia].
-Qed.
-
-Lemma signed_le_sem_Cle {is1 is2 : intsize} : forall a b m,
-  (Int.signed a <= Int.signed b)%Z <->
-  sem_cmp Cle (Vint a) (Tint is1 Signed noattr)
-              (Vint b) (Tint is2 Signed noattr) m
-  = Some Vtrue.
-Proof.
-  intros.
-  unfold sem_cmp, sem_binarith, sem_cast, classify_cmp; simpl.
-  split; intros.
-  - all: destruct is1, is2; simpl.
-    all: destruct Archi.ptr64; simpl.
-    all: rewrite signed_le_int_le in H.
-    all: rewrite H; reflexivity.
-  - all: destruct is1, is2; simpl.
-    all: unfold classify_cast, binarith_type in H.
-    all: destruct Archi.ptr64; simpl in H.
-    all: unfold Val.of_bool in H.
-    all: break_match; try discriminate.
-    all: rewrite signed_le_int_le; assumption.
-Qed.
-
 Lemma int_le_trans : forall a b c,
     (a <= b)%int = true ->
     (b <= c)%int = true ->
@@ -216,4 +184,184 @@ Proof.
   all: try discriminate.
   lia.
   reflexivity.
+Qed.
+
+Lemma int_lt_trans : forall a b c,
+    (a < b)%int = true ->
+    (b < c)%int = true ->
+    (a < c)%int = true.
+Proof.
+  intros.
+  unfold Int.lt in *.
+  repeat break_match.
+  all: try discriminate.
+  reflexivity.
+  lia.
+Qed.
+
+Lemma int_le_signed_le : forall a b,
+  (a <= b)%int = true <->
+  Int.signed a <= Int.signed b.
+Proof.
+  split; intros.
+  - unfold Int.lt in H.
+    destruct zlt; [discriminate | lia].
+  - unfold Int.lt.
+    destruct zlt; [lia | reflexivity].
+Qed.
+
+Lemma int_lt_signed_lt : forall a b,
+  (a < b)%int = true <->
+  Int.signed a < Int.signed b.
+Proof.
+  split; intros.
+  - unfold Int.lt in H.
+    destruct zlt; [lia | discriminate].
+  - unfold Int.lt.
+    destruct zlt; [reflexivity | lia].
+Qed.
+
+Lemma int_le_sem_Cle : forall a b m is1 is2,
+  (a <= b)%int = true <->
+  sem_cmp Cle (Vint a) (Tint is1 Signed noattr)
+              (Vint b) (Tint is2 Signed noattr) m
+  = Some Vtrue.
+Proof.
+  unfold sem_cmp, sem_binarith, sem_cast, classify_cmp; simpl.
+  split; intros.
+  - all: destruct is1, is2; simpl.
+    all: destruct Archi.ptr64; simpl.
+    all: rewrite H; reflexivity.
+  - all: destruct is1, is2; simpl.
+    all: unfold classify_cast, binarith_type in H.
+    all: destruct Archi.ptr64; simpl in H.
+    all: unfold Val.of_bool in H.
+    all: break_match.
+    all: try discriminate.
+    all: try reflexivity.
+Qed.
+
+Lemma int_lt_sem_Clt : forall a b m is1 is2,
+  (a < b)%int = true <->
+  sem_cmp Clt (Vint a) (Tint is1 Signed noattr)
+              (Vint b) (Tint is2 Signed noattr) m
+  = Some Vtrue.
+Proof.
+  unfold sem_cmp, sem_binarith, sem_cast, classify_cmp; simpl.
+  split; intros.
+  - all: destruct is1, is2; simpl.
+    all: destruct Archi.ptr64; simpl.
+    all: rewrite H; reflexivity.
+  - all: destruct is1, is2; simpl.
+    all: unfold classify_cast, binarith_type in H.
+    all: destruct Archi.ptr64; simpl in H.
+    all: unfold Val.of_bool in H.
+    all: break_match.
+    all: try discriminate.
+    all: try reflexivity.
+Qed.
+
+Lemma sem_Clt_Cge : forall a b m is1 is2,
+  sem_cmp Cge (Vint a) (Tint is1 Signed noattr)
+              (Vint b) (Tint is2 Signed noattr) m
+  = Some Vtrue
+  <->
+  sem_cmp Clt (Vint a) (Tint is1 Signed noattr)
+              (Vint b) (Tint is2 Signed noattr) m
+  = Some Vfalse.
+Proof.
+  unfold sem_cmp, sem_binarith, sem_cast,
+         classify_cmp, classify_cast, binarith_type;
+    simpl.
+  destruct is1, is2; simpl.
+  all: destruct Archi.ptr64; simpl.
+  all: unfold Val.of_bool.
+  all: split; intros.
+  all: repeat break_match.
+  all: try reflexivity.
+  all: try discriminate.
+Qed.
+
+Lemma sem_Cle_Cgt : forall a b m is1 is2,
+  sem_cmp Cgt (Vint a) (Tint is1 Signed noattr)
+              (Vint b) (Tint is2 Signed noattr) m
+  = Some Vtrue
+  <->
+  sem_cmp Cle (Vint a) (Tint is1 Signed noattr)
+              (Vint b) (Tint is2 Signed noattr) m
+  = Some Vfalse.
+Proof.
+  unfold sem_cmp, sem_binarith, sem_cast,
+         classify_cmp, classify_cast, binarith_type;
+    simpl.
+  destruct is1, is2; simpl.
+  all: destruct Archi.ptr64; simpl.
+  all: unfold Val.of_bool.
+  all: split; intros.
+  all: repeat break_match.
+  all: try reflexivity.
+  all: try discriminate.
+Qed.
+
+Lemma sem_Cle_Cge : forall a b m is1 is2,
+  sem_cmp Cge (Vint a) (Tint is1 Signed noattr)
+              (Vint b) (Tint is2 Signed noattr) m
+  = Some Vtrue
+  <->
+  sem_cmp Cle (Vint b) (Tint is2 Signed noattr)
+              (Vint a) (Tint is1 Signed noattr) m
+  = Some Vtrue.
+Proof.
+  unfold sem_cmp, sem_binarith, sem_cast,
+         classify_cmp, classify_cast, binarith_type;
+    simpl.
+  destruct is1, is2; simpl.
+  all: destruct Archi.ptr64; simpl.
+  all: unfold Val.of_bool.
+  all: split; intros.
+  all: repeat break_match.
+  all: try reflexivity.
+  all: try discriminate.
+Qed.
+
+Lemma sem_Clt_Cgt : forall a b m is1 is2,
+  sem_cmp Cgt (Vint a) (Tint is1 Signed noattr)
+              (Vint b) (Tint is2 Signed noattr) m
+  = Some Vtrue
+  <->
+  sem_cmp Clt (Vint b) (Tint is2 Signed noattr)
+              (Vint a) (Tint is1 Signed noattr) m
+  = Some Vtrue.
+Proof.
+  unfold sem_cmp, sem_binarith, sem_cast,
+         classify_cmp, classify_cast, binarith_type;
+    simpl.
+  destruct is1, is2; simpl.
+  all: destruct Archi.ptr64; simpl.
+  all: unfold Val.of_bool.
+  all: split; intros.
+  all: repeat break_match.
+  all: try reflexivity.
+  all: try discriminate.
+Qed.
+
+Lemma sem_cmp_Int_le_dec {is1 is2 : intsize} : forall a b m,
+  { sem_cmp Cle (Vint a) (Tint is1 Signed noattr)
+              (Vint b) (Tint is2 Signed noattr) m
+    = Some Vtrue } +
+  { sem_cmp Cle (Vint a) (Tint is1 Signed noattr)
+              (Vint b) (Tint is2 Signed noattr) m
+    = Some Vfalse }.
+Proof.
+  intros.
+  destruct (Z_lt_le_dec (Int.signed b) (Int.signed a)) as [LT | LE];
+    [right | left].
+  - apply sem_Cle_Cgt.
+    apply sem_Clt_Cgt.
+    apply int_lt_sem_Clt.
+    apply int_lt_signed_lt.
+    assumption.
+  - apply int_le_sem_Cle.
+    apply int_le_signed_le.
+    assumption.
 Qed.
