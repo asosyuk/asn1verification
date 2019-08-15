@@ -1,5 +1,5 @@
 Require Import StructTact.StructTactics.
-Require Import Core.Core Core.IntLemmas Core.PtrLemmas Core.Tactics.
+Require Import Core.Core Core.IntLemmas Core.PtrLemmas Core.Tactics Core.SpecLemmas.
 Require Import C_strtoimax.AST C_strtoimax.Spec C_strtoimax.Switch.
 
 Import ListNotations.
@@ -431,7 +431,7 @@ Proof.
     erewrite dist_pred in *.
     + destruct_orb_hyp.
       1 : (eapply exec_loop_minus).
-      11: (eapply exec_loop_plus).
+      12: (eapply exec_loop_plus).
       all: repeat rewrite set_env_eq_ptree_set in *.
       all: repeat  eassumption.
         eapply asn_strtoimax_lim_loop_ASN_STRTOX_ERROR_RANGE_correct;
@@ -476,7 +476,7 @@ Proof.
     erewrite dist_pred in *.
     + destruct_orb_hyp.
       1 : (eapply exec_loop_minus).
-      11: (eapply exec_loop_plus).
+      12: (eapply exec_loop_plus).
       all: repeat rewrite set_env_eq_ptree_set in *.
       all: repeat  eassumption.
         eapply asn_strtoimax_lim_loop_ASN_STRTOX_EXTRA_DATA_correct;
@@ -599,10 +599,8 @@ Proof.
         repeat econstructor.
         Tactics.forward.
         simpl.
-        assert (sem_cmp Cge (Vptr str_b (str_ofs + 1)%ptrofs)
-                        (tptr tschar) (Vptr b i) (tptr tschar) m = Some Vfalse)
-          by admit;
-          eassumption.
+        eapply ptr_ge_to_sem_cmp_false.
+        eassumption.
         Tactics.forward.
         econstructor.
         reflexivity.
@@ -696,9 +694,7 @@ Proof.
         repeat env_assumption.
         econstructor.
         simpl.
-        assert (sem_cmp Cge (Vptr str_b (str_ofs + 1)%ptrofs)
-                        (tptr tschar) (Vptr b i) (tptr tschar) m = Some Vfalse)
-          by admit;
+        eapply ptr_ge_to_sem_cmp_false.
           eassumption.
         Tactics.forward.
         econstructor.
@@ -724,8 +720,20 @@ Proof.
         rewrite Int64.mul_commut.
         eapply Int64.mul_one.
         reflexivity.
-    + admit. (* contradiction: None in OK *)
-    + admit. (* contradiction: None in OK *)  
+    + pose proof (OK_None_contradiction_1
+           (distance (str_b, str_ofs) (b, i) - 1)
+           ((str_b, str_ofs) ++) (fin_b, fin_ofs)
+           (intp_b, intp_ofs) 0
+           (sign i0) (max_sign (sign i0))
+           m m' (Some i1)).
+      congruence. 
+    + pose proof (OK_None_contradiction_2
+           (distance (str_b, str_ofs) (b, i) - 1)
+           ((str_b, str_ofs) ++) (fin_b, fin_ofs)
+           (intp_b, intp_ofs) 0
+           (sign i0) (max_sign (sign i0))
+           m m').
+      congruence. 
     + destruct_orb_hyp.
       destruct a0.
       edestruct asn_strtoimax_lim_loop_ASN_STRTOX_OK_correct with
@@ -768,7 +776,20 @@ Proof.
       symmetry.
       rewrite Int64.mul_commut.
       eapply Int64.mul_one.
-    +  admit. (* contradiction: None in OK *)
-    +  admit. (* contradiction: None in OK *)
-Admitted.
-         
+     + pose proof (OK_None_contradiction_1
+           (distance (str_b, str_ofs) (b, i))
+           ((str_b, str_ofs)) (fin_b, fin_ofs)
+           (intp_b, intp_ofs) 0
+           Unsigned last_digit_max
+           m m' (Some i1)).
+      congruence. 
+    + pose proof (OK_None_contradiction_2
+           (distance (str_b, str_ofs) (b, i))
+           ((str_b, str_ofs)) (fin_b, fin_ofs)
+           (intp_b, intp_ofs) 0
+           Unsigned last_digit_max
+           m m').
+      congruence. 
+Qed.
+
+

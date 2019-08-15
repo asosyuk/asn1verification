@@ -95,6 +95,7 @@ Lemma exec_loop_minus : forall m ge e le b ofs str_b str_ofs fin_b fin_ofs
 
   load_addr Mptr m (fin_b, fin_ofs) = Some (Vptr b ofs) ->
   addr_ge m (str_b, str_ofs) (b, ofs) = Some false ->
+  addr_ge m (str_b, (str_ofs + 1)%ptrofs) (b, ofs) = Some false ->
   
   load_addr Mint8signed m (str_b, str_ofs) = Some (Vint i) ->
   (i == minus_char)%int = true ->
@@ -125,10 +126,9 @@ Lemma exec_loop_minus : forall m ge e le b ofs str_b str_ofs fin_b fin_ofs
          
   forall m', (exists t le', exec_stmt ge e le'' m s1 t le' m' (Out_return out)) ->
       exists t le', exec_stmt ge e le m (pre_loop s1 s2) t le' m' (Out_return out).
-Proof.
  Proof.
    intros until s2.
-  intros Str End Intp UB Sign LA AG LA' Char le'' m' S1.
+  intros Str End Intp UB Sign LA AG AG' LA' Char le'' m' S1.
   break_exists.
   unfold pre_loop.
   repeat eexists.
@@ -177,9 +177,8 @@ Proof.
  repeat econstructor.
  Tactics.forward.
  simpl.
- assert (sem_cmp Cge (Vptr str_b (str_ofs + 1)%ptrofs)
-                 (tptr tschar) (Vptr b ofs) (tptr tschar) m = Some Vfalse) by admit;
-   eassumption.
+ eapply ptr_ge_to_sem_cmp_false.
+ eassumption.
  Tactics.forward.
  econstructor.
  reflexivity.
@@ -188,8 +187,7 @@ Proof.
  repeat econstructor.
  eapply H.
  discriminate.
-
-Admitted.
+ Qed.
 
 (* Case 2: If str < *fin and the first character read is plus_char 
 and s1 executes to a return statement:
@@ -210,6 +208,8 @@ Lemma exec_loop_plus : forall m ge e le b ofs str_b str_ofs fin_b fin_ofs
 
   load_addr Mptr m (fin_b, fin_ofs) = Some (Vptr b ofs) ->
   addr_ge m (str_b, str_ofs) (b, ofs) = Some false ->
+    addr_ge m (str_b, (str_ofs + 1)%ptrofs) (b, ofs) = Some false ->
+
   
   load_addr Mint8signed m (str_b, str_ofs) = Some (Vint i) ->
   (i == plus_char)%int = true ->
@@ -237,8 +237,8 @@ Lemma exec_loop_plus : forall m ge e le b ofs str_b str_ofs fin_b fin_ofs
   forall m', (exists t le', exec_stmt ge e le'' m s1 t le' m' (Out_return out)) ->
         exists t le', exec_stmt ge e le m (pre_loop s1 s2) t le' m' (Out_return out).
 Proof.
- intros until s2.
-  intros Str End Intp UB Sign LA AG LA' Char le'' m' S1.
+   intros until s2.
+  intros Str End Intp UB Sign LA AG AG' LA' Char le'' m' S1.
   break_exists.
   unfold pre_loop.
   repeat eexists.
@@ -267,45 +267,39 @@ Proof.
   unfold load_addr in *.
   unfold addr_ge in *.
   eapply (ptr_ge_to_sem_cmp_false _ _ _ _ _ AG).
-  Tactics.forward.
-  econstructor.
-  econstructor.
-  repeat econstructor.
-  repeat env_assumption.
-  eassumption.
-  replace Out_normal with (outcome_switch Out_normal).
-  econstructor.
-  repeat econstructor.
-  repeat env_assumption.
-  eassumption.
-  econstructor.
-  replace i with (plus_char) by admit.
-  econstructor.
-  repeat econstructor.
-  repeat env_assumption.
-  econstructor.
-  repeat econstructor.
-  Tactics.forward.
-  simpl.
-  assert (sem_cmp Cge (Vptr str_b (str_ofs + 1)%ptrofs)
-                  (tptr tschar) (Vptr b ofs) (tptr tschar) m = Some Vfalse)
-    by admit; eassumption.
-  Tactics.forward.
-  Tactics.forward.
-  simpl.
-  assert (sem_cmp Cge (Vptr str_b (str_ofs + 1)%ptrofs)
-                  (tptr tschar) (Vptr b ofs) (tptr tschar) m = Some Vfalse)
-    by admit; eassumption.
-  repeat econstructor.
-  econstructor.
-  econstructor.
-  reflexivity.
-  apply exec_Sseq_2.
-  econstructor.
-  repeat econstructor.
-  eapply H.
-  discriminate.
-Admitted.
+ Tactics.forward.
+ econstructor.
+ econstructor.
+ repeat econstructor.
+ repeat env_assumption.
+ eassumption.
+ replace Out_normal with (outcome_switch Out_normal).
+ econstructor.
+ repeat econstructor.
+ repeat env_assumption.
+ eassumption.
+ econstructor.
+ switch_destruct i.
+ econstructor.
+ repeat econstructor.
+ repeat env_assumption.
+ forward.
+ forward.
+ eassumption.
+ forward.
+ forward.
+ eapply ptr_ge_to_sem_cmp_false.
+ eassumption.
+ Tactics.forward.
+ econstructor.
+ econstructor.
+ reflexivity.
+ apply exec_Sseq_2.
+ econstructor.
+ repeat econstructor.
+ eapply H.
+ discriminate.
+ Qed.
 
 
 (* Case 2: If str < *fin and the first character read is neither plus nor minus 
