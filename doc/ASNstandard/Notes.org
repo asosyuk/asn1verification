@@ -6,6 +6,21 @@ ITU-T X.680 Table 1 (section 8, page 14)
 * TODO Do we not care about the actual ASN.1 (i.e. ITU-T X.680) (i.e. the abstract syntax)
 It seems like a much easier thing to define in coq
 * TODO Does "STD.3.1 canonical encoding" have anything to do with CER?
+* *Random*
+** Definining abstract types will require X.680
+Our representation of an abstact (not serialized) ASN.1 datum does not need to
+have the same form as set out by X.680.
+It does, however have to adhere to the same rules and be able to encode the exact same set of values.
+
+Thus, for example, our abstract representation of "ASN.1 Integer" can be a number in ~Z~,
+but we have to provide links to X.680 explaining why ~Z~ is a suitable choice.
+** There should be some limiting layer between =abstract spec= and =executable spec=
+Executable spec (and C for that matter) will not be able to cover all cases set out
+in the abstact (for example, an integer of an arbitrary size can not be stored).
+
+Instead of adding arbitrary conditions to each lemma (e.g. if X < INTMAX then ...),
+we should define a subset of the abstract spec on which our lemmas will hold.
+
 * *Structure*
 ** Encoding consists of three parts
 *** Identifier *8.1.2*
