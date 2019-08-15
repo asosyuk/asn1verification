@@ -1,4 +1,6 @@
+Require Import StructTact.StructTactics.
 Require Import Core.Core.
+
 
 (** * Some lemmas about integers *)
 
@@ -169,4 +171,49 @@ Proof.
   destruct (i) eqn: Si. 
   apply Int.mkint_eq.
   assumption.
+Qed.
+  
+Lemma signed_le_int_le : forall a b,
+  Int.signed a <= Int.signed b <->
+  (a <= b)%int = true.
+Proof.
+  split; intros.
+  - unfold Int.lt.
+    destruct zlt; [lia | reflexivity].
+  - unfold Int.lt in H.
+    destruct zlt; [discriminate | lia].
+Qed.
+
+Lemma signed_le_sem_Cle {is1 is2 : intsize} : forall a b m,
+  (Int.signed a <= Int.signed b)%Z <->
+  sem_cmp Cle (Vint a) (Tint is1 Signed noattr)
+              (Vint b) (Tint is2 Signed noattr) m
+  = Some Vtrue.
+Proof.
+  intros.
+  unfold sem_cmp, sem_binarith, sem_cast, classify_cmp; simpl.
+  split; intros.
+  - all: destruct is1, is2; simpl.
+    all: destruct Archi.ptr64; simpl.
+    all: rewrite signed_le_int_le in H.
+    all: rewrite H; reflexivity.
+  - all: destruct is1, is2; simpl.
+    all: unfold classify_cast, binarith_type in H.
+    all: destruct Archi.ptr64; simpl in H.
+    all: unfold Val.of_bool in H.
+    all: break_match; try discriminate.
+    all: rewrite signed_le_int_le; assumption.
+Qed.
+
+Lemma int_le_trans : forall a b c,
+    (a <= b)%int = true ->
+    (b <= c)%int = true ->
+    (a <= c)%int = true.
+Proof.
+  intros.
+  unfold Int.lt in *.
+  repeat break_match.
+  all: try discriminate.
+  lia.
+  reflexivity.
 Qed.
