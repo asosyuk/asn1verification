@@ -21,6 +21,7 @@ Definition zero_char := Byte.repr 48.
 Definition is_digit (i : byte) := (Byte.repr 48 <= i) && (i <= Byte.repr 57).
 
 Section ZSpec.
+  
 (* Take a string and a sign and return its integer representation *)
 
 Definition string_to_Z (s : string) :=
@@ -29,12 +30,12 @@ Definition string_to_Z (s : string) :=
       | [] => v
       | c :: tl =>
         if is_digit c
-        then let v := (v * 10 - (Byte.signed c - 48))%Z in
+        then let v := (v * 10 + (Byte.signed c - 48))%Z in
              string_to_Z_loop tl v
         else v (* extra stuff is ignored *)     
       end
   in match s with
-     | nil => None (* empty string corresponds to nothing *)
+     | nil => None (* not enough data *)
      | _ => Some (string_to_Z_loop s 0%Z)
      end.
 
@@ -48,6 +49,7 @@ Definition signed_string_to_Z (s : string) (sign : signedness) :=
                     then string_to_Z tl
                     else string_to_Z s
   end.
+
 End ZSpec.
 
 (* Moving towards implementation. Step 1: bounds on Z *)
@@ -55,9 +57,9 @@ Section ZBoundsSpec.
 
 (* Assume some intsize and 2-complement encoding of negative int *)  
 Variable intsize : Z.
-Definition upper_bound := (intsize / 10)%Z.
-Definition last_digit_plus := (Zmod intsize 10)%Z.
-Definition last_digit_minus := (last_digit_plus + 1)%Z.
+Definition upper_boundZ := (intsize / 10)%Z.
+Definition last_digit_plusZ := (Zmod intsize 10)%Z.
+Definition last_digit_minusZ := (last_digit_plusZ + 1)%Z.
  
 Definition string_to_Z_bound s last_digit :=
   let fix string_to_Z_loop s v last_digit :=
@@ -65,9 +67,10 @@ Definition string_to_Z_bound s last_digit :=
       | [] => Some v
       | c :: tl =>
         if is_digit c then
-          if (v <? upper_bound)%Z ||
-              ((v =? upper_bound)%Z && (v <=? last_digit)%Z)
-          then string_to_Z_loop tl (v * 10 - (Byte.signed c - 48))%Z
+          let d := (Byte.signed c - 48)%Z in
+          if (v <? upper_boundZ)%Z ||
+            ((v =? upper_boundZ)%Z && (d <=? last_digit)%Z)
+          then string_to_Z_loop tl (v * 10 + d)%Z
                                 last_digit
           else None (* out of range *)
         else Some v (* extra stuff is ignored *)     
@@ -83,40 +86,63 @@ Definition signed_string_to_Z_bound s :=
   | nil => None 
   | c :: tl => if c == minus_char
                then option_map
-                      Z.opp (string_to_Z_bound tl last_digit_minus)
+                      Z.opp (string_to_Z_bound tl last_digit_minusZ)
                else if c == plus_char
-                    then string_to_Z_bound tl last_digit_plus
-                    else string_to_Z_bound s last_digit_plus
+                    then string_to_Z_bound tl last_digit_plusZ
+                    else string_to_Z_bound s last_digit_plusZ
   end.
 
 End ZBoundsSpec.
 
 Section IntSpec.
-  Local Open Scope Int64Scope.
+  
+Local Open Scope Int64Scope.
 
-(* Then we can formulate it on int, TODO: need to account for difference in overflow *)
-Definition long_of_byte b := Int64.repr (Byte.unsigned b). 
-Variable upper_bound : int64.
-Variable last_digit_plus :  int64.
-Variable last_digit_minus : int64.
+(* Then we can formulate it on int *)
+Definition long_of_byte b := Int64.repr (Byte.unsigned b).
 
-Definition string_to_int s last_digit :=
-  let fix string_to_Z_loop s v last_digit :=
+Definition intmax := (Int64.repr Int64.max_unsigned).
+Definition upper_bound := Int64.repr (upper_boundZ Int64.max_unsigned).
+Definition lower_bound := Int64.neg upper_bound.
+Definition last_digit_plus := intmax % (Int64.repr 10).
+Definition last_digit_minus := (intmax % (Int64.repr 10)) + 1.
+
+Definition string_to_int_plus s :=
+  let fix string_to_Z_loop s v :=
       match s with
       | [] => Some v
       | c :: tl =>
         if is_digit c then
+          let d := (long_of_byte c - (Int64.repr 48)) in
           if (v < upper_bound) ||
-             ((v == upper_bound) && (v <= last_digit))
+             ((v == upper_bound) && (d <= last_digit_plus))
           then
-            let v := (v * (Int64.repr 10) - (long_of_byte c - (Int64.repr 48)))
-                       in string_to_Z_loop tl v last_digit
-          else None (* out of range *)
-        else Some v (* extra stuff is ignored *)     
+            string_to_Z_loop tl (v * (Int64.repr 10) + d)
+          else None 
+        else Some v  
       end
   in match s with
-     | nil => None (* empty string corresponds to nothing *)
-     | _ => (string_to_Z_loop s 0%int64 last_digit)
+     | nil => None 
+     | _ => string_to_Z_loop s 0%int64
+     end.
+
+Definition string_to_int_minus s :=
+  let fix string_to_Z_loop s v :=
+      match s with
+      | [] => Some v
+      | c :: tl =>
+        if is_digit c then
+          let d := (long_of_byte c - (Int64.repr 48)) in
+          if (lower_bound < v) ||
+             ((v == lower_bound) && (d <= last_digit_minus))
+          then
+            string_to_Z_loop tl (v * (Int64.repr 10) - d)
+          else None 
+        else Some v  
+      end
+  in match s with
+     | nil => None 
+     | _ => string_to_Z_loop s 0%int64
      end.
 
 (* The sign is determined by the first char in the string *)
@@ -124,11 +150,10 @@ Definition signed_string_to_int s :=
   match s with
   | nil => None 
   | c :: tl => if (c == minus_char)%byte
-               then option_map
-                      Int64.neg (string_to_int tl last_digit_minus)
+               then string_to_int_minus tl
                else if (c == plus_char)%byte
-                    then string_to_int tl last_digit_plus
-                    else string_to_int s last_digit_plus
+                    then string_to_int_plus tl
+                    else string_to_int_plus s 
   end.
 
 (* Connecting different levels *)
