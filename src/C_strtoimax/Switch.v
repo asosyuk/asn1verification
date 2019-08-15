@@ -100,21 +100,95 @@ Lemma exec_loop_minus : forall m ge e le b ofs str_b str_ofs fin_b fin_ofs
   (i == minus_char)%int = true ->
 
   (* le'' is the env resulting in executing AST until the loop *)
-  let  le'' := (in le set [
-                _value <~ Vlong 0%int64 ;
-                  _t'5 <~ Vptr b ofs ;
-                  _str <~ Vptr str_b (str_ofs + 1)%ptrofs ;
-                  _sign <~ Vint (Int.neg (Int.repr 1)) ;
-                  _last_digit_max <~ Vlong last_digit_max_minus ;
-                  _t'4 <~ Vint minus_char ;
-                  _t'6 <~ Vptr b ofs ;
-                  _last_digit_max <~ Vlong last_digit_max ;
-                  _upper_boundary <~ Vlong upper_boundary ;
-                  _sign <~ Vint (Int.repr 1)]) in
+  let  le'' := ((PTree.set _value (Vlong (cast_int_long Signed (Int.repr 0)))
+       (PTree.set _t'11 (Vptr b ofs)
+          (PTree.set _str
+             (Vptr str_b
+                (str_ofs + 1)%ptrofs)
+             (PTree.set _sign (Vint (Int.neg (Int.repr 1)))
+                (PTree.set _last_digit_max
+                   (Vlong last_digit_max_minus)
+                   (PTree.set _t'10 (Vint minus_char)
+                      (PTree.set _t'12 (Vptr b ofs)
+                         (PTree.set _last_digit_max
+                            (Vlong last_digit_max)
+                            (PTree.set _upper_boundary
+                               (Vlong
+                                  ((Int64.not (cast_int_long Signed (Int.repr 0)) >>
+                                    Int64.repr (Int.unsigned (Int.repr 1))) //
+                                   cast_int_long Signed (Int.repr 10)))
+                               (PTree.set _asn1_intmax_max
+                                  (Vlong
+                                     (Int64.not (cast_int_long Signed (Int.repr 0)) >>
+                                      Int64.repr (Int.unsigned (Int.repr 1))))
+                                  (PTree.set _sign (Vint (Int.repr 1)) le)))))))))))) in
          
   forall m', (exists t le', exec_stmt ge e le'' m s1 t le' m' (Out_return out)) ->
       exists t le', exec_stmt ge e le m (pre_loop s1 s2) t le' m' (Out_return out).
 Proof.
+ Proof.
+   intros until s2.
+  intros Str End Intp UB Sign LA AG LA' Char le'' m' S1.
+  break_exists.
+  unfold pre_loop.
+  repeat eexists.
+  econstructor.
+  repeat econstructor.
+  econstructor.
+  repeat econstructor.
+  econstructor.
+  repeat econstructor.
+  repeat (eassumption || env_assumption).
+  repeat econstructor.
+  econstructor.
+  econstructor.
+  repeat econstructor.
+  repeat env_assumption.
+  econstructor.
+  repeat econstructor.
+  econstructor.
+  repeat econstructor.
+  repeat env_assumption.
+  repeat env_assumption.
+  repeat env_assumption.
+  repeat env_assumption.
+  repeat env_assumption.
+  econstructor.
+  unfold load_addr in *.
+  unfold addr_ge in *.
+  eapply (ptr_ge_to_sem_cmp_false _ _ _ _ _ AG).
+ Tactics.forward.
+ econstructor.
+ econstructor.
+ repeat econstructor.
+ repeat env_assumption.
+ eassumption.
+ replace Out_normal with (outcome_switch Out_normal).
+ econstructor.
+ repeat econstructor.
+ repeat env_assumption.
+ eassumption.
+ econstructor.
+ switch_destruct i.
+ econstructor.
+ repeat econstructor.
+ repeat env_assumption.
+ econstructor.
+ repeat econstructor.
+ Tactics.forward.
+ simpl.
+ assert (sem_cmp Cge (Vptr str_b (str_ofs + 1)%ptrofs)
+                 (tptr tschar) (Vptr b ofs) (tptr tschar) m = Some Vfalse) by admit;
+   eassumption.
+ Tactics.forward.
+ econstructor.
+ reflexivity.
+ apply exec_Sseq_2.
+ econstructor.
+ repeat econstructor.
+ eapply H.
+ discriminate.
+
 Admitted.
 
 (* Case 2: If str < *fin and the first character read is plus_char 
@@ -140,19 +214,99 @@ Lemma exec_loop_plus : forall m ge e le b ofs str_b str_ofs fin_b fin_ofs
   load_addr Mint8signed m (str_b, str_ofs) = Some (Vint i) ->
   (i == plus_char)%int = true ->
 
-  let le'' :=  (in le set [
-                          _value <~ Vlong 0%int64 ;
-                          _t'5 <~ Vptr b ofs ;
-                          _str <~ Vptr str_b (str_ofs + 1)%ptrofs ;
-                          _t'4 <~ Vint plus_char ;
-                          _t'6 <~ Vptr b ofs ;
-                          _last_digit_max <~ Vlong last_digit_max ;
-                          _upper_boundary <~ Vlong upper_boundary ; 
-                          _sign <~ Vint (Int.repr 1)]) in
+  let le'' := (PTree.set _value (Vlong (cast_int_long Signed (Int.repr 0)))
+       (PTree.set _t'11 (Vptr b ofs)
+          (PTree.set _str
+             (Vptr str_b
+                (str_ofs + 1)%ptrofs)
+             (PTree.set _t'10 (Vint plus_char)
+                (PTree.set _t'12 (Vptr b ofs)
+                   (PTree.set _last_digit_max
+                      (Vlong last_digit_max)
+                      (PTree.set _upper_boundary
+                         (Vlong
+                            ((Int64.not (cast_int_long Signed (Int.repr 0)) >>
+                              Int64.repr (Int.unsigned (Int.repr 1))) //
+                             cast_int_long Signed (Int.repr 10)))
+                         (PTree.set _asn1_intmax_max
+                            (Vlong
+                               (Int64.not (cast_int_long Signed (Int.repr 0)) >>
+                                Int64.repr (Int.unsigned (Int.repr 1))))
+                            (PTree.set _sign (Vint (Int.repr 1)) le))))))))) in
 
   forall m', (exists t le', exec_stmt ge e le'' m s1 t le' m' (Out_return out)) ->
         exists t le', exec_stmt ge e le m (pre_loop s1 s2) t le' m' (Out_return out).
+Proof.
+ intros until s2.
+  intros Str End Intp UB Sign LA AG LA' Char le'' m' S1.
+  break_exists.
+  unfold pre_loop.
+  repeat eexists.
+  econstructor.
+  repeat econstructor.
+  econstructor.
+  repeat econstructor.
+  econstructor.
+  repeat econstructor.
+  repeat (eassumption || env_assumption).
+  repeat econstructor.
+  econstructor.
+  econstructor.
+  repeat econstructor.
+  repeat env_assumption.
+  econstructor.
+  repeat econstructor.
+  econstructor.
+  repeat econstructor.
+  repeat env_assumption.
+  repeat env_assumption.
+  repeat env_assumption.
+  repeat env_assumption.
+  repeat env_assumption.
+  econstructor.
+  unfold load_addr in *.
+  unfold addr_ge in *.
+  eapply (ptr_ge_to_sem_cmp_false _ _ _ _ _ AG).
+  Tactics.forward.
+  econstructor.
+  econstructor.
+  repeat econstructor.
+  repeat env_assumption.
+  eassumption.
+  replace Out_normal with (outcome_switch Out_normal).
+  econstructor.
+  repeat econstructor.
+  repeat env_assumption.
+  eassumption.
+  econstructor.
+  replace i with (plus_char) by admit.
+  econstructor.
+  repeat econstructor.
+  repeat env_assumption.
+  econstructor.
+  repeat econstructor.
+  Tactics.forward.
+  simpl.
+  assert (sem_cmp Cge (Vptr str_b (str_ofs + 1)%ptrofs)
+                  (tptr tschar) (Vptr b ofs) (tptr tschar) m = Some Vfalse)
+    by admit; eassumption.
+  Tactics.forward.
+  Tactics.forward.
+  simpl.
+  assert (sem_cmp Cge (Vptr str_b (str_ofs + 1)%ptrofs)
+                  (tptr tschar) (Vptr b ofs) (tptr tschar) m = Some Vfalse)
+    by admit; eassumption.
+  repeat econstructor.
+  econstructor.
+  econstructor.
+  reflexivity.
+  apply exec_Sseq_2.
+  econstructor.
+  repeat econstructor.
+  eapply H.
+  discriminate.
 Admitted.
+
 
 (* Case 2: If str < *fin and the first character read is neither plus nor minus 
 and s1 executes to a return statement:
