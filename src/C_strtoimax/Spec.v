@@ -198,7 +198,7 @@ Section Spec.
     end.
 
 (* Abstract specification *)
-(* Z or int? *)
+(* The most abstract level: Coq strings and Z *)
 Definition Z_of_ascii c := Z.of_nat (Ascii.nat_of_ascii c).
 
 Definition digit_to_Z s i v :=
@@ -207,21 +207,34 @@ Definition digit_to_Z s i v :=
   | Unsigned => (v * 10 - ((Z_of_ascii i) - 48))%Z
   end.
 
+(* Maps to connect the abstract spec and concrete spec *)
 Definition long_of_ascii c := Int64.repr (Z.of_nat (Ascii.nat_of_ascii c)).
 Definition ascii_of_long i := Ascii.ascii_of_nat (Z.to_nat (Int64.unsigned i)).
 
-(* Let abstract string be a list of int *)
+(* Skeleton of abstract function *)
+Definition string_to_Z (s : string) (sign : signedness) :=
+  let
+    fix string_to_Z_loop (s : string) (sign : signedness) (v : Z) :=
+      match s with
+      | EmptyString => 0%Z
+      | String char tl => string_to_Z_loop tl sign (digit_to_Z sign char v)
+      end
+  in string_to_Z_loop s sign 0%Z.
+
+(* Then we can formulate it on int,
+ need cases for extra data and out of range *)
 Definition string_to_int (s : list int) (sign : signedness) :=
   let
-    fix string_to_Z_loop (s : list int) (sign : signedness) (v : int64) :=
+    fix string_to_int_loop (s : list int) (sign : signedness) (v : int64) :=
       match s with
-      | nil => 0%Z
-      | char :: tl => string_to_Z_loop tl sign (digit_to_num sign char v)
+      | nil => 0
+      | char :: tl => string_to_int_loop tl sign (digit_to_num sign char v)
       end
-        in string_to_Z_loop s sign 0.
+  in string_to_int_loop s sign 0.
     
 Definition addr_add (a : addr) (i : ptrofs) := match a with (b,ofs) => (b,(ofs+i)%ptrofs) end.
 
+(* To relate the abstract spec we need to add assumption about memory *)
 Fixpoint string_at_address (s : list int) str dist : option (bool * list int) :=
   match dist with
   | O => Some (true, s)
@@ -236,9 +249,9 @@ Proposition asn_strtoimax_lim_fun_correct : forall s str fin intp m' val sign,
                                              value := Some val ;
                                              memory := m' |}
                                        <->
-     addr_ge m str fin = Some false /\
-         string_at_address nil str (distance str fin) = Some (true,s) /\
-         string_to_int s sign = Int64.signed val.
+         addr_ge m str fin = Some false
+         /\ string_at_address nil str (distance str fin) = Some (true,s)
+         /\ string_to_int s sign = val.
   Admitted.
 
 End Spec.
