@@ -1,0 +1,43 @@
+* DONE What is a primitive encoding, exactly?
+Primitive <-> not Constructed
+* DONE Find a table with identifiers.
+ITU-T X.680 Table 1 (section 8, page 14)
+* TODO Is DER a subset of CER or vice versa?
+* TODO Do we not care about the actual ASN.1 (i.e. ITU-T X.680) (i.e. the abstract syntax)
+It seems like a much easier thing to define in coq
+* TODO Does "STD.3.1 canonical encoding" have anything to do with CER?
+* *Structure*
+** Encoding consists of three parts
+*** Identifier *8.1.2*
+1 or more octets
+Encodes three things:
+**** ASN.1 Class
+Defined in ITU-T X.680 Section 8
+There are 4 classes, 3 of which are no different formally, the other 1 being reserved
+**** Primitive/Constructed status
+Basically, Primitive = One thing encoded, Constructed = More than one thing encoded
+**** ASN.1 Tag number
+Defined in ITU-T X.680 Section 8
+Describes the type encoded. A table with numbers for {Universal class} tags is provided.
+
+For large tag numbers (>30), a special form of Indentifier is defined.
+This form allows encoding an arbitrary tag (no upper boundary, length can be indefinite)
+*** Length [+ end-of-content] *8.1.3*
+Can have two forms
+
+Primitive -> Definite
+Constructed -> Definite | Indefinite
+Constructed and not immediately available -> Indefinite
+
+**** Definite
+***** Short
+One octet encoding the number of octets used by Content
+***** Long
+One octet encoding the number of octets used by Length'
+Length' then defines the length of Content
+**** Indefinite
+A single octet (between Identifier can Content) with a special value
+signifying that Content is terminated with an end-of-content octets
+
+end-of-content octets = two zero octets = 00000000 00000000
+*** Content *8.1.4*
