@@ -240,12 +240,13 @@ Admitted.
 
 
 Lemma asn_strtoimax_lim_loop_ASN_STRTOX_EXTRA_DATA_correct :
-  forall m ge e dist b ofs le str_b str_ofs fin_b fin_ofs intp_b intp_ofs inp_value  m' val s,
+  forall m ge e dist b ofs le str_b str_ofs fin_b 
+    fin_ofs intp_b intp_ofs inp_value  m' val s,
     
-    le!_str = Some (Vptr str_b str_ofs)  ->
-    le!_end = Some (Vptr fin_b fin_ofs) ->
-    le!_intp = Some (Vptr intp_b intp_ofs)  ->
-    le!_value = Some (Vlong inp_value) ->
+    le ! _str = Some (Vptr str_b str_ofs)  ->
+    le ! _end = Some (Vptr fin_b fin_ofs) ->
+    le ! _intp = Some (Vptr intp_b intp_ofs)  ->
+    le ! _value = Some (Vlong inp_value) ->
     le ! _upper_boundary = Some (Vlong upper_boundary) ->
     le ! _sign = Some (Vint (Sign s)) ->
     le ! _last_digit_max = Some (Vlong (max_sign s)) ->
@@ -259,7 +260,9 @@ Lemma asn_strtoimax_lim_loop_ASN_STRTOX_EXTRA_DATA_correct :
             value := val;
             memory := Some m';|}  ->
 
-    exists t le', exec_stmt ge e le m f_asn_strtoimax_lim_loop t le' m' (Out_return (Some (Vint (asn_strtox_result_e_to_int ASN_STRTOX_EXTRA_DATA), tint))). 
+    exists t le', exec_stmt ge e le m f_asn_strtoimax_lim_loop t le' m' 
+                       (Out_return (Some (Vint (asn_strtox_result_e_to_int 
+                                                  ASN_STRTOX_EXTRA_DATA), tint))). 
 Proof.
   replace (asn_strtox_result_e_to_int ASN_STRTOX_EXTRA_DATA)
     with Int.one by (reflexivity).
@@ -337,7 +340,83 @@ Proof.
       forward.
       fold f_asn_strtoimax_lim_loop.
       eapply IH.
-    + admit.
+    + 
+      eexists; eexists.
+      econstructor.
+      econstructor.
+      econstructor.
+      econstructor.
+      econstructor.
+      econstructor.
+      econstructor; eassumption.
+      econstructor.
+      econstructor.
+      eassumption.
+      econstructor.
+      econstructor.
+      econstructor; gso_simpl; eassumption.
+      econstructor; gss_simpl; econstructor.
+      simpl.
+      assert (sem_cmp Clt (Vptr str_b str_ofs) (tptr tschar)
+                      (Vptr b ofs) (tptr tschar) m = Some Vtrue).
+      { admit. }
+      eassumption.
+      econstructor.
+      replace (negb (1 == 0)%int) with true by (auto with ints).
+      econstructor.
+      econstructor.
+      econstructor.
+      econstructor.
+      econstructor.
+      econstructor.
+      econstructor; gso_simpl; eassumption.
+      econstructor.
+      econstructor.
+      eassumption.
+      econstructor.
+      econstructor.
+      econstructor; gss_simpl; econstructor.
+      econstructor.
+      econstructor.
+      cbn.
+      unfold is_digit, andb in Heqb0.
+      instantiate (1 := false). { admit. } (* follows from is_digit *)
+      econstructor.
+      econstructor.
+      econstructor.
+      econstructor; gss_simpl.
+      econstructor.
+      econstructor.
+      econstructor.
+      econstructor.
+      econstructor.
+      econstructor; gso_simpl; gso_simpl; gso_simpl; eassumption.
+      econstructor; gso_simpl; gso_simpl; gso_simpl; eassumption.
+      econstructor.
+      econstructor.
+      econstructor.
+      eassumption.
+      econstructor.
+      econstructor.
+      econstructor.
+      econstructor; gso_simpl; gso_simpl; gso_simpl; eassumption.
+      econstructor.
+      econstructor; gso_simpl; gso_simpl; gso_simpl; eassumption.
+      econstructor; gso_simpl; gso_simpl; gso_simpl; eassumption.
+      econstructor.
+      econstructor.
+      econstructor.
+      econstructor.
+      inv Spec; cbn.
+      unfold Spec.Sign; unfold mult_sign in H1; destruct s.
+      eassumption.
+      replace (Int64.repr (Int.signed (Int.repr 1)) * inp_value)
+              with (inp_value) by admit. (* auto with ints? *)
+      eassumption.
+      econstructor.
+      econstructor.
+      econstructor.
+      admit.
     + inversion Spec; clear Spec.
       repeat rewrite set_env_eq_ptree_set in *.
       repeat eexists.
