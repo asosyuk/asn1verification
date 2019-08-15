@@ -340,7 +340,9 @@ Proof.
       forward.
       fold f_asn_strtoimax_lim_loop.
       eapply IH.
-    + 
+    + admit.
+    + admit.
+    +
       eexists; eexists.
       econstructor.
       econstructor.
@@ -358,8 +360,8 @@ Proof.
       econstructor; gss_simpl; econstructor.
       simpl.
       assert (sem_cmp Clt (Vptr str_b str_ofs) (tptr tschar)
-                      (Vptr b ofs) (tptr tschar) m = Some Vtrue).
-      { admit. }
+                      (Vptr b ofs) (tptr tschar) m = Some Vtrue)
+      by admit.
       eassumption.
       econstructor.
       replace (negb (1 == 0)%int) with true by (auto with ints).
@@ -410,9 +412,11 @@ Proof.
       inv Spec; cbn.
       unfold Spec.Sign; unfold mult_sign in H1; destruct s.
       eassumption.
-      replace (Int64.repr (Int.signed (Int.repr 1)) * inp_value)
-              with (inp_value) by admit. (* auto with ints? *)
-      eassumption.
+      replace (Int64.repr (Int.signed (Int.repr 1))) with (1)%int64 
+        by (auto with ints).
+      rewrite Int64.mul_commut.
+      rewrite Int64.mul_one.
+      assumption.
       econstructor.
       econstructor.
       econstructor.
