@@ -6,7 +6,20 @@ Import ListNotations.
 
 Local Open Scope Int64Scope.
 
-(* Dealing with the switch statement *)
+(* Lemmas about the switch statement *)
+
+(* switch(*str) {
+    case '-':
+        last_digit_max++;
+        sign = -1;
+        /* FALL THROUGH */
+    case '+':
+        str++;
+        if(str >= *end) {
+            *end = str;
+            return ASN_STRTOX_EXPECT_MORE;
+        }
+    } *)*)
 
 Definition switch :=
 (Sswitch (Ederef (Etempvar _str (tptr tschar)) tschar)
@@ -30,6 +43,8 @@ Definition switch :=
                             (Etempvar _str (tptr tschar)))
                          (Sreturn (Some (Econst_int (Int.repr (-1)) tint)))) Sskip))) LSnil))).
 
+(* If we read an integer i which is neither plus nor minus,
+in le switch is evaluated to le and Out_normal  *)
 Lemma switch_default_correct : forall m ge e i le b ofs,
     Mem.loadv Mint8signed m (Vptr b ofs) = Some (Vint i) ->
     le ! _str = Some (Vptr b ofs) ->
@@ -54,7 +69,22 @@ Proof.
   econstructor.
   all: cbn;  try lia.
        Qed.
-       
+
+(* Below are lemmas that allow to execute AST until the loop,
+used in asn_strtoimac_lim_correct *)
+Proposition AST_decompose : pre_loop f_asn_strtoimax_lim_loop post_loop
+                            = f_asn_strtoimax_lim.(fn_body).
+  reflexivity.
+Qed.
+
+(* Case 1: If str < *fin and the first character read is minus_char 
+and s1 (loop) executes to a return statement:
+
+If the resulting env before executing s1 is le'' and
+s1 terminates with a return statement then
+pre_loop s1 s2 terminates with the same return statement and the same memory
+
+ *)
 Lemma exec_loop_minus : forall m ge e le b ofs str_b str_ofs fin_b fin_ofs
                                     intp_b intp_ofs i out s1 s2,
   le!_str = Some (Vptr str_b str_ofs)  ->
@@ -65,26 +95,36 @@ Lemma exec_loop_minus : forall m ge e le b ofs str_b str_ofs fin_b fin_ofs
 
   load_addr Mptr m (fin_b, fin_ofs) = Some (Vptr b ofs) ->
   addr_ge m (str_b, str_ofs) (b, ofs) = Some false ->
+  
   load_addr Mint8signed m (str_b, str_ofs) = Some (Vint i) ->
-
   (i == minus_char)%int = true ->
 
-  forall m', (exists t le', exec_stmt ge e
-                            (in le set [
-                                 _value <~ Vlong 0%int64 ;
-                                 _t'5 <~ Vptr b ofs ;
-                                 _str <~ Vptr str_b (str_ofs + 1)%ptrofs ;
-                                 _sign <~ Vint (Int.neg (Int.repr 1)) ;
-                                 _last_digit_max <~ Vlong last_digit_max_minus ;
-                                 _t'4 <~ Vint minus_char ;
-                                 _t'6 <~ Vptr b ofs ;
-                                 _last_digit_max <~ Vlong last_digit_max ;
-                                 _upper_boundary <~ Vlong upper_boundary ;
-                                 _sign <~ Vint (Int.repr 1)])
-                            m s1 t le' m' (Out_return out)) ->
+  (* le'' is the env resulting in executing AST until the loop *)
+  let  le'' := (in le set [
+                _value <~ Vlong 0%int64 ;
+                  _t'5 <~ Vptr b ofs ;
+                  _str <~ Vptr str_b (str_ofs + 1)%ptrofs ;
+                  _sign <~ Vint (Int.neg (Int.repr 1)) ;
+                  _last_digit_max <~ Vlong last_digit_max_minus ;
+                  _t'4 <~ Vint minus_char ;
+                  _t'6 <~ Vptr b ofs ;
+                  _last_digit_max <~ Vlong last_digit_max ;
+                  _upper_boundary <~ Vlong upper_boundary ;
+                  _sign <~ Vint (Int.repr 1)]) in
+         
+  forall m', (exists t le', exec_stmt ge e le'' m s1 t le' m' (Out_return out)) ->
       exists t le', exec_stmt ge e le m (pre_loop s1 s2) t le' m' (Out_return out).
 Proof.
 Admitted.
+
+(* Case 2: If str < *fin and the first character read is plus_char 
+and s1 executes to a return statement:
+
+If the resulting env before executing s1 is le'' and
+s1 terminates with a return statement then
+pre_loop s1 s2 terminates with the same return statement and the same memory
+
+ *)
 
 Lemma exec_loop_plus : forall m ge e le b ofs str_b str_ofs fin_b fin_ofs
                               intp_b intp_ofs i out s1 s2,
@@ -96,24 +136,32 @@ Lemma exec_loop_plus : forall m ge e le b ofs str_b str_ofs fin_b fin_ofs
 
   load_addr Mptr m (fin_b, fin_ofs) = Some (Vptr b ofs) ->
   addr_ge m (str_b, str_ofs) (b, ofs) = Some false ->
+  
   load_addr Mint8signed m (str_b, str_ofs) = Some (Vint i) ->
-
   (i == plus_char)%int = true ->
 
-  forall m', (exists t le', exec_stmt ge e
-                            (in le set [
-                            _value <~ Vlong 0%int64 ;
-                            _t'5 <~ Vptr b ofs ;
-                            _str <~ Vptr str_b (str_ofs + 1)%ptrofs ;
-                            _t'4 <~ Vint plus_char ;
-                            _t'6 <~ Vptr b ofs ;
-                            _last_digit_max <~ Vlong last_digit_max ;
-                            _upper_boundary <~ Vlong upper_boundary ; 
-                            _sign <~ Vint (Int.repr 1)])
-                            m s1 t le' m' (Out_return out)) ->
+  let le'' :=  (in le set [
+                          _value <~ Vlong 0%int64 ;
+                          _t'5 <~ Vptr b ofs ;
+                          _str <~ Vptr str_b (str_ofs + 1)%ptrofs ;
+                          _t'4 <~ Vint plus_char ;
+                          _t'6 <~ Vptr b ofs ;
+                          _last_digit_max <~ Vlong last_digit_max ;
+                          _upper_boundary <~ Vlong upper_boundary ; 
+                          _sign <~ Vint (Int.repr 1)]) in
+
+  forall m', (exists t le', exec_stmt ge e le'' m s1 t le' m' (Out_return out)) ->
         exists t le', exec_stmt ge e le m (pre_loop s1 s2) t le' m' (Out_return out).
 Admitted.
 
+(* Case 2: If str < *fin and the first character read is neither plus nor minus 
+and s1 executes to a return statement:
+
+If the resulting env before executing s1 is le'' and
+s1 terminates with a return statement then
+pre_loop s1 s2 terminates with the same return statement and the same memory
+
+ *)
 
 Lemma exec_loop_none : forall m ge e le b ofs str_b str_ofs fin_b fin_ofs
                               intp_b intp_ofs i out s1 s2,
@@ -125,13 +173,12 @@ Lemma exec_loop_none : forall m ge e le b ofs str_b str_ofs fin_b fin_ofs
     
     load_addr Mptr m (fin_b, fin_ofs) = Some (Vptr b ofs) ->
     addr_ge m (str_b, str_ofs) (b, ofs) = Some false ->
-    load_addr Mint8signed m (str_b, str_ofs) = Some (Vint i) ->
     
+    load_addr Mint8signed m (str_b, str_ofs) = Some (Vint i) ->
     (i == plus_char)%int = false ->
     (i == minus_char)%int = false ->
-    
-    forall m', (exists t le', exec_stmt ge e
-      (PTree.set _value (Vlong (cast_int_long Signed (Int.repr 0)))
+
+    let le'' := (PTree.set _value (Vlong (cast_int_long Signed (Int.repr 0)))
        (PTree.set _t'10 (Vint i)
           (PTree.set _t'12 (Vptr b ofs)
              (PTree.set _last_digit_max (Vlong last_digit_max)
@@ -144,13 +191,14 @@ Lemma exec_loop_none : forall m ge e le b ofs str_b str_ofs fin_b fin_ofs
                       (Vlong
                          (Int64.not (cast_int_long Signed (Int.repr 0)) >>
                           Int64.repr (Int.unsigned (Int.repr 1))))
-                      (PTree.set _sign (Vint (Int.repr 1)) le)))))))
-                          m s1 t le' m' (Out_return out)) ->
+                      (PTree.set _sign (Vint (Int.repr 1)) le))))))) in
+    
+    forall m', (exists t le', exec_stmt ge e le'' m s1 t le' m' (Out_return out)) ->
                    
-     exists t le', exec_stmt ge e le m (pre_loop s1 s2) t le' m' (Out_return out).
+    exists t le', exec_stmt ge e le m (pre_loop s1 s2) t le' m' (Out_return out).
 Proof.
   intros until s2.
-  intros Str End Intp UB Sign LA AG LA' CharP CharM  m' S1.
+  intros Str End Intp UB Sign LA AG LA' CharP CharM le'' m' S1.
   destruct S1.
   unfold pre_loop.
   edestruct (switch_default_correct m ge e i
@@ -168,7 +216,7 @@ Proof.
                       (Int64.not (cast_int_long Signed (Int.repr 0)) >>
                        Int64.repr (Int.unsigned (Int.repr 1))))
                    (PTree.set _sign (Vint (Int.repr 1)) le))))))).
-  all: repeat rewrite set_env_eq_ptree_set in *;
+  all: 
     repeat (eassumption || env_assumption).
   destruct H.
   repeat eexists.
@@ -211,7 +259,8 @@ Proof.
   congruence.
 Qed.
   
-
+(* same as before, but now s1 (loop) terminates in Out_normal, thus the outcome
+of pre_loop s1 s2 is the outcome of s2 *)
 Lemma exec_loop_none_out_normal : forall m ge e le b ofs str_b str_ofs fin_b fin_ofs
                               intp_b intp_ofs i out s1 s2,
     le!_str = Some (Vptr str_b str_ofs)  ->
@@ -226,10 +275,8 @@ Lemma exec_loop_none_out_normal : forall m ge e le b ofs str_b str_ofs fin_b fin
     
     (i == plus_char)%int = false ->
     (i == minus_char)%int = false ->
-    
-    forall m' m'' le',
-  (exists t, exec_stmt ge e
-    (PTree.set _value (Vlong (cast_int_long Signed (Int.repr 0)))
+
+    let le'' := (PTree.set _value (Vlong (cast_int_long Signed (Int.repr 0)))
        (PTree.set _t'10 (Vint i)
           (PTree.set _t'12 (Vptr b ofs)
              (PTree.set _last_digit_max (Vlong last_digit_max)
@@ -242,15 +289,16 @@ Lemma exec_loop_none_out_normal : forall m ge e le b ofs str_b str_ofs fin_b fin
                       (Vlong
                          (Int64.not (cast_int_long Signed (Int.repr 0)) >>
                           Int64.repr (Int.unsigned (Int.repr 1))))
-                      (PTree.set _sign (Vint (Int.repr 1)) le)))))))
-                          m s1 t le' m' Out_normal) ->
-  (exists t le'', exec_stmt ge e le' m' s2 t le'' m'' (Out_return out)) ->
-                    
-                   
-          exists t le'', exec_stmt ge e le m (pre_loop s1 s2) t le'' m'' (Out_return out).
+                      (PTree.set _sign (Vint (Int.repr 1)) le))))))) in
+    
+    forall m' m'' le',
+      (exists t, exec_stmt ge e le'' m s1 t le' m' Out_normal) ->
+      (exists t le'', exec_stmt ge e le' m' s2 t le'' m'' (Out_return out)) ->
+
+      exists t le'', exec_stmt ge e le m (pre_loop s1 s2) t le'' m'' (Out_return out).
 Proof.
   intros until s2.
-  intros Str End Intp UB Sign LA AG LA' CharP CharM m' m'' le' S1 S2.
+  intros Str End Intp UB Sign LA AG LA' CharP CharM le'' m' m'' le' S1 S2.
   destruct S1.
   destruct S2.
   destruct H0.
