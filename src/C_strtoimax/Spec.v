@@ -98,7 +98,7 @@ Section Spec.
       memory : option mem ; 
       }.
   
-  
+
   Fixpoint asn_strtoimax_lim_loop (str fin intp : addr) (value : int64)
            (s: signedness) (last_digit : int64)
            (dist : nat) (m'' : mem) {struct dist} : option asn_strtoimax_lim_result := 
@@ -107,7 +107,7 @@ Section Spec.
           | Some m' => 
             Some {| return_type := ASN_STRTOX_OK;
                     value := Some (mult_sign s value);
-                    memory := Mem.storev Mint64 m' (vptr intp) (Vlong (mult_sign s value)) |}
+                    memory := Some m'' |}
           | None => None
           end
     | S n => match load_addr Mint8signed m'' str with
@@ -170,88 +170,55 @@ Section Spec.
             end
     end.
 
-  Definition asn_strtoimax_lim (str fin intp : addr) : option asn_strtoimax_lim_result :=
-    match load_addr Mptr m fin with (* derefencing **fin *)
-    | Some (Vptr b ofs) =>
-      match addr_ge m str (b, ofs) with (* compare str and *fin *)
-      | Some true => Some {| return_type := ASN_STRTOX_ERROR_INVAL;
-                                             value := None;
-                                             memory := Some m; |}
-      | Some false => let dist := distance str (b,ofs) in
-                     match load_addr Mint8signed m str with
-                     | Some (Vint i) =>
-                       if (i == minus_char)%int || (i == plus_char)%int
-                       then match addr_ge m (str++) (b,ofs) with
-                            | Some true =>  Some {| return_type := ASN_STRTOX_EXPECT_MORE;
-                                             value := None;
-                                             memory := (Mem.storev Mptr m (vptr fin) (vptr (str++))); |}
-  
-                            | Some false => asn_strtoimax_lim_loop (str++) fin intp 0 (sign i) (max_sign (sign i)) (dist - 1)%nat m
-                            | None => None
-                            end
-                        else asn_strtoimax_lim_loop str fin intp 0 Unsigned last_digit_max dist m
-                     | _ => None (* fail of memory load on str: wrong type or not enough permission *)
-                     end
-      | None => None (* error in pointer comparison *)
-      end 
-    | _ => None (* fail of pointer to fin *) 
-    end.
-
-(* Abstract specification *)
-(* The most abstract level: Coq strings and Z *)
-Definition Z_of_ascii c := Z.of_nat (Ascii.nat_of_ascii c).
-
-Definition digit_to_Z s i v :=
-  match s with
-  | Signed => (-v* 10 - ((Z_of_ascii i) - 48))%Z
-  | Unsigned => (v * 10 - ((Z_of_ascii i) - 48))%Z
-  end.
-
-(* Maps to connect the abstract spec and concrete spec *)
-Definition long_of_ascii c := Int64.repr (Z.of_nat (Ascii.nat_of_ascii c)).
-Definition ascii_of_long i := Ascii.ascii_of_nat (Z.to_nat (Int64.unsigned i)).
-
-(* Skeleton of abstract function *)
-Definition string_to_Z (s : string) (sign : signedness) :=
-  let
-    fix string_to_Z_loop (s : string) (sign : signedness) (v : Z) :=
-      match s with
-      | EmptyString => 0%Z
-      | String char tl => string_to_Z_loop tl sign (digit_to_Z sign char v)
-      end
-  in string_to_Z_loop s sign 0%Z.
-
-(* Then we can formulate it on int,
- need cases for extra data and out of range *)
-Definition string_to_int (s : list int) (sign : signedness) :=
-  let
-    fix string_to_int_loop (s : list int) (sign : signedness) (v : int64) :=
-      match s with
-      | nil => 0
-      | char :: tl => string_to_int_loop tl sign (digit_to_num sign char v)
-      end
-  in string_to_int_loop s sign 0.
-    
-Definition addr_add (a : addr) (i : ptrofs) := match a with (b,ofs) => (b,(ofs+i)%ptrofs) end.
-
-(* To relate the abstract spec we need to add assumption about memory *)
-Fixpoint string_at_address (s : list int) str dist : option (bool * list int) :=
-  match dist with
-  | O => Some (true, s)
-  | S n => match load_addr Mint8signed m str with
-          | Some (Vint i) => string_at_address (i::s) (str++) n
-          | _ => None
-          end
+  Definition store_result str fin intp res :=
+  match res with
+  | Some {| return_type := ASN_STRTOX_OK;
+            value := Some val;
+            memory := Some m'; |} =>
+    match (Mem.storev Mptr m' (vptr fin) (vptr str)) with
+    | Some m'' =>
+      Some {| return_type := ASN_STRTOX_OK;
+              value := Some val;
+              memory := Mem.storev Mint64 m'' (vptr intp)
+                                   (Vlong val) |}
+    | None => None
+    end
+  | _ => res
   end.
     
-Proposition asn_strtoimax_lim_fun_correct : forall s str fin intp m' val sign,
-    asn_strtoimax_lim str fin intp = Some {| return_type := ASN_STRTOX_OK ;
-                                             value := Some val ;
-                                             memory := m' |}
-                                       <->
-         addr_ge m str fin = Some false
-         /\ string_at_address nil str (distance str fin) = Some (true,s)
-         /\ string_to_int s sign = val.
-  Admitted.
+Definition asn_strtoimax_lim (str fin intp : addr) : option asn_strtoimax_lim_result :=
+  match load_addr Mptr m fin with (* derefencing **fin *)
+  | Some (Vptr b ofs) =>
+    match addr_ge m str (b, ofs) with (* compare str and *fin *)
+    | Some true => Some {| return_type := ASN_STRTOX_ERROR_INVAL;
+                                           value := None;
+                                           memory := Some m; |}
+    | Some false => let dist := distance str (b,ofs) in
+                   match load_addr Mint8signed m str with
+                   | Some (Vint i) =>
+                     if (i == minus_char)%int || (i == plus_char)%int
+                     then match addr_ge m (str++) (b,ofs) with
+                          | Some true =>
+                            Some {| return_type := ASN_STRTOX_EXPECT_MORE;
+                                    value := None;
+                                    memory := (Mem.storev Mptr m
+                                                          (vptr fin)
+                                                          (vptr (str++))); |}
+
+                          | Some false => store_result (str++) fin intp
+                                           (asn_strtoimax_lim_loop
+                                           (str++) fin intp 0 (sign i)
+                                           (max_sign (sign i)) (dist - 1)%nat m)
+                          | None => None
+                          end
+                     else store_result str fin intp
+                            (asn_strtoimax_lim_loop str fin intp 0
+                                Unsigned last_digit_max dist m)
+                   | _ => None (* fail of memory load on str: wrong type or not enough permission *)
+                   end
+    | None => None (* error in pointer comparison *)
+    end
+  | _ => None (* fail of pointer to fin *)
+  end.
 
 End Spec.
