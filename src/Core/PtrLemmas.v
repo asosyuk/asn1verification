@@ -1,19 +1,20 @@
-Require Import Core Notations.
 Require Import StructTact.StructTactics.
+Require Import Core Notations Tactics.
 
-(* Address [b,ofs] *)
+(* Address: [b,ofs] *)
 Definition addr : Type := (block * ptrofs).
-Definition vptr (a : addr) := match a with (b,ofs) => Vptr b ofs end.
+Definition vptr (a : addr) := match a with (b, ofs) => Vptr b ofs end.
 Definition load_addr (chunk : memory_chunk) (m : mem) (a : addr) :=
   match a with (b,ofs) => Mem.loadv chunk m (Vptr b ofs) end.
-Definition next_addr (a : addr) := match a with (b,ofs) => (b, Ptrofs.add ofs Ptrofs.one) end.
-Definition add_addr (a : addr) (i : ptrofs) := match a with (b,ofs) => (b, Ptrofs.add ofs i) end.
+Definition next_addr (a : addr) := match a with (b, ofs) => (b, Ptrofs.add ofs Ptrofs.one) end.
+Definition add_addr (a : addr) (i : ptrofs) := match a with (b, ofs) => (b, Ptrofs.add ofs i) end.
 Notation "a ++" := (next_addr a) (at level 20).
 
 (* Pointer comparison *)
 (* Abstract spec : [b1,ofs1] >= [b2,ofs2] *)
 Definition ptr_ge_spec (b1 b2 : block) (ofs1 ofs2 : ptrofs) :=
   if eq_block b1 b2 then Some (ofs2 <=u ofs1)%ptrofs else None.
+
 (* Spec using Compcert semantic values *)
 Definition ptr_ge (m : mem) (b1 b2 : block) (ofs1 ofs2 : ptrofs) :=
   if Archi.ptr64
@@ -61,57 +62,76 @@ Proof.
 Qed.
 
 (* distance between addresses *)
-Definition distance (a1 a2 : addr) : nat :=
-  ((Z.to_nat (Ptrofs.unsigned (snd a2))) - (Z.to_nat (Ptrofs.unsigned (snd a1))))%nat.
+Definition distance (m : mem) (a1 a2 : addr) : option nat :=
+  match addr_ge m a2 a1 with
+  | Some true => Some ((Z.to_nat (Ptrofs.unsigned (snd a2))) -
+                      (Z.to_nat (Ptrofs.unsigned (snd a1))))%nat
+  | _ => None
+  end.
 
-Lemma dist_succ : forall b b' ofs ofs' dist,
-    distance (b', ofs') (b, ofs) = S dist ->
-    distance (b', (Ptrofs.add ofs' Ptrofs.one)) (b, ofs) = dist.
+Lemma dist_succ : forall m b b' ofs ofs' dist,
+    distance m (b', ofs') (b, ofs) = Some (S dist) ->
+    Mem.valid_pointer m b' (Ptrofs.unsigned (ofs' + 1)%ptrofs) = true ->
+    distance m (b', (Ptrofs.add ofs' Ptrofs.one)) (b, ofs) = Some dist.
 Proof.
-  intros b b' ofs ofs' dist Dist.
-  unfold distance, snd.
-  rewrite <-Z2Nat.inj_sub by (apply Ptrofs.unsigned_range).
-  assert ((distance (b', ofs') (b, ofs) = S dist) 
-          <-> 
-          ((distance (b', ofs') (b, ofs) - 1)%nat = dist)) by lia.
-  unfold distance, snd in Dist.
-  assert ( (Ptrofs.unsigned ofs') < (Ptrofs.unsigned ofs))%Z.
-  {
-    assert ((Z.to_nat (Ptrofs.unsigned ofs') 
-             < 
-             Z.to_nat (Ptrofs.unsigned ofs))%nat) by lia.
-    unfold Ptrofs.unsigned in *.
-    destruct ofs, ofs'; simpl in *.
-    pose proof (Z2Nat.inj_lt intval0 intval) as Inj.
-    destruct Inj.
-    all: try lia.
-  }
-  rewrite H in Dist.
-  unfold distance, snd in Dist.
-  rewrite <-Z2Nat.inj_sub in Dist by (apply Ptrofs.unsigned_range).
-  rewrite <-Dist.
-  replace ((1)%nat) with ((Z.to_nat (1)%Z)) by reflexivity.
-  rewrite <-Z2Nat.inj_sub; [| lia].
+  unfold distance, snd; intros.
+  break_match_hyp; [| discriminate].
+  break_if; subst; [| discriminate].
+  inversion H; clear H.
+  replace (addr_ge m (b, ofs) (b', (ofs' + 1)%ptrofs))
+    with (Some true).
   f_equal.
-  assert (Ptrofs.unsigned (Ptrofs.add ofs' Ptrofs.one) 
-          = (Ptrofs.unsigned ofs' + 1)%Z); [|lia].
-  replace (1%Z) with (Ptrofs.unsigned Ptrofs.one) by reflexivity.
-  rewrite Ptrofs.add_unsigned.
+  enough (S (Z.to_nat (Ptrofs.unsigned (ofs')%ptrofs)) =
+             Z.to_nat (Ptrofs.unsigned (ofs' + 1)%ptrofs)) by lia.
+  rewrite Ptrofs.add_unsigned, Ptrofs.unsigned_repr, <-Z2Nat.inj_succ.
+  reflexivity.
+  apply Ptrofs.unsigned_range.
   assert (Ptrofs.unsigned ofs' < Ptrofs.max_unsigned)%Z.
   {
+    assert ( (Ptrofs.unsigned ofs') < (Ptrofs.unsigned ofs))%Z.
+    {
+      assert ((Z.to_nat (Ptrofs.unsigned ofs') 
+               < 
+               Z.to_nat (Ptrofs.unsigned ofs))%nat) by lia.
+      unfold Ptrofs.unsigned in *.
+      destruct ofs, ofs'; simpl in *.
+      pose proof (Z2Nat.inj_lt intval0 intval) as Inj.
+      destruct Inj.
+      all: try lia.
+    }
     assert (Ptrofs.unsigned ofs <= Ptrofs.max_unsigned)%Z.
     pose proof (Ptrofs.unsigned_range_2 ofs).
     all: try lia.
   }
-  rewrite Ptrofs.unsigned_repr.
-  reflexivity.
-  pose proof Ptrofs.unsigned_range ofs.
-  assert (Ptrofs.unsigned ofs' + 1 <= Ptrofs.max_unsigned)%Z by lia.
-  replace (Ptrofs.unsigned Ptrofs.one)%Z with (1)%Z by reflexivity.
-  assert (0 <= Ptrofs.unsigned ofs')%Z 
-    by (apply Ptrofs.unsigned_range).
+  replace (Ptrofs.unsigned 1%ptrofs) with 1 by reflexivity.
+  pose proof Ptrofs.unsigned_range ofs'.
   lia.
-Qed.
+
+  unfold addr_ge, ptr_ge in *.
+  simpl in *.
+  repeat break_if; subst.
+  all: try discriminate.
+  all: repeat destruct_andb_hyp.
+  all: repeat destruct_orb_hyp.
+  all: try congruence.
+  all: clear - H2.
+
+  assert (Z.to_nat (Ptrofs.unsigned ofs') + 1 <=
+          Z.to_nat (Ptrofs.unsigned ofs))%nat
+    by lia;
+    clear H2.
+  unfold Ptrofs.ltu.
+  break_if.
+  rewrite Ptrofs.add_unsigned, Ptrofs.unsigned_repr in *.
+  replace (Ptrofs.unsigned 1%ptrofs)
+    with 1
+    in *
+    by reflexivity.
+  pose proof Ptrofs.unsigned_range ofs.
+  pose proof Ptrofs.unsigned_range ofs'.
+  admit.
+Admitted.
+
 
 Lemma if_some (c x : bool) :
     (if c then Some x else None) = Some false ->
