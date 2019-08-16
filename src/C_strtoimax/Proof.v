@@ -259,7 +259,7 @@ Admitted.
 
 Lemma asn_strtoimax_lim_loop_ASN_STRTOX_EXTRA_DATA_correct :
   forall m ge e dist b ofs le str_b str_ofs fin_b 
-    fin_ofs intp_b intp_ofs inp_value  m' val s p,
+    fin_ofs intp_b intp_ofs inp_value  m' p val s,
     
     le ! _str = Some (Vptr str_b str_ofs)  ->
     le ! _end = Some (Vptr fin_b fin_ofs) ->
@@ -485,7 +485,7 @@ Proof.
         econstructor.
         econstructor.
         inv Spec; cbn.
-        unfold Spec.Sign; unfold mult_sign in H1; destruct s.
+        unfold Spec.Sign; unfold mult_sign in H2; destruct s.
         eassumption.
         replace (Int64.repr (Int.signed (Int.repr 1))) with (1)%int64 
           by (auto with ints).
@@ -495,7 +495,8 @@ Proof.
         econstructor.
         econstructor.
         econstructor.
-    + inversion Spec; clear Spec.
+Admitted.
+(*    + inversion Spec; clear Spec.
       repeat rewrite set_env_eq_ptree_set in *.
       repeat eexists.
       eapply exec_Sloop_stop1.
@@ -536,7 +537,7 @@ Proof.
           apply Int64.mul_one.
           cbn. nia.
         * cbn in g. nia.
-Admitted.
+Admitted. *)
 
 Lemma asn_strtoimax_lim_correct :
   forall m ge e le str_b str_ofs fin_b fin_ofs intp_b intp_ofs m' res p val,
@@ -926,5 +927,3 @@ Proof.
            m m').
       congruence. 
 Qed.
-
-
