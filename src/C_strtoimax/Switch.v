@@ -1,5 +1,5 @@
 Require Import StructTact.StructTactics.
-Require Import Core.Core Core.Tactics Core.PtrLemmas.
+Require Import Core.Core Core.Notations Core.Tactics Core.PtrLemmas.
 Require Import C_strtoimax.AST C_strtoimax.Spec.
 
 Import ListNotations.

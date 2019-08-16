@@ -1,4 +1,4 @@
-Require Import Core.Core Core.IntLemmas Core.Notations.
+Require Import Core IntLemmas Notations.
 
 Ltac ints_to_Z :=
   repeat rewrite Int.unsigned_repr_eq; repeat rewrite Zmod_small.

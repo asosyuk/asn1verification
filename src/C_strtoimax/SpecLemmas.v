@@ -1,6 +1,6 @@
 Require Import StructTact.StructTactics.
 Require Import Core.Core.
-Require Import C_strtoimax.Spec. 
+Require Import Spec. 
 
 Lemma OK_None_contradiction_1 :
   forall dist str fin inp value s last_digit m m' val,

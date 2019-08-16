@@ -1,5 +1,5 @@
 Require Import StructTact.StructTactics.
-Require Import Core.Core.
+Require Import Core Notations.
 
 
 (** * Some lemmas about integers *)

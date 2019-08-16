@@ -1,4 +1,4 @@
-From compcert Require Import Coqlib Integers Floats AST Ctypes Cop Clight Clightdefs Maps.
+Require Import Core.
 Import ListNotations.
 
 (* Notations for integers and ptrofs *)

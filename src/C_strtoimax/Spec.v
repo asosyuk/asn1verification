@@ -1,6 +1,5 @@
-Require Import Core.Core Core.Tactics.
-Require Import Core.PtrLemmas.
 Require Import StructTact.StructTactics.
+Require Import Core.Core Core.Notations Core.Tactics Core.PtrLemmas.
 
 Import ListNotations.
 
