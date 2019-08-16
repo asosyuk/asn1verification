@@ -339,8 +339,11 @@ Proof.
       repeat econstructor; try env_assumption; try eassumption.
       forward.
       simpl.
-      instantiate (1 := Vtrue). admit.
-      (* follows from is_digit *)
+      unfold is_digit in Heqb0.
+      destruct_andb_hyp.
+      apply sem_Cle_Cge.
+      apply int_le_sem_Cle.
+      assumption.
       forward.
       replace (negb (1 == 0)%int) with true by (auto with ints).
       econstructor.
@@ -349,8 +352,10 @@ Proof.
       forward.
       forward.
       simpl.
-      instantiate (1 := Vtrue). admit.
-      (* follows from is_digit *)
+      unfold is_digit in Heqb0.
+      destruct_andb_hyp.
+      rewrite H0.
+      reflexivity.
       forward.
       simpl.
       rewrite Heqb1.
