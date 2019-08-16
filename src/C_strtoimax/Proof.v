@@ -75,7 +75,8 @@ Proof.
   eapply exec_Sreturn_some.
   econstructor.
   discriminate.
-Admitted.
+Qed.
+
 
 (* SN_STRTOX_EXPECT_MORE: reading + or - and reaching *end *)
 (* ASN_STRTOX_EXPECT_MORE: reading + or - and reaching *end *)
@@ -190,11 +191,11 @@ Proof.
       all: Tactics.forward; try discriminate.
   - pose proof (Loop (distance (str_b, str_ofs) (b, i) - 1)%nat ((str_b, str_ofs) ++)
                      (fin_b, fin_ofs) (intp_b, intp_ofs) 0 (sign i0)
-                     (max_sign (sign i0)) m'). admit. (* congruence. *)
+                     (max_sign (sign i0)) m'). congruence.
   - pose proof (Loop (distance (str_b, str_ofs) (b, i))%nat ((str_b, str_ofs))
                      (fin_b, fin_ofs) (intp_b, intp_ofs) 0  Unsigned
-                     last_digit_max  m'). admit. (* congruence. *)
-Admitted.
+                     last_digit_max  m'). congruence.
+Qed.
 
 (* Loop correctness cases *)
 (* ASN_STRTOX_OK: conversion successfull *)
