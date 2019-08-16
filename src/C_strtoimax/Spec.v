@@ -68,39 +68,39 @@ Definition digit_to_num s i v :=
   | Unsigned => (v * (Int64.repr 10) +
                  int_to_int64 (i - zero_char)%int)
   end.
+      
+  (* Memory, global and local env are fixed *)
+  Variable m : mem.
+  Variable ge : genv.
+  Variable e : env.
 
-(* Memory, global and local env are fixed *)
-Variable m : mem.
-Variable ge : genv.
-Variable e : env.
+  (* Constants of the function *)
+  Definition ASN1_INTMAX_MAX := (Int64.not 0) >> 1.
+  Definition upper_boundary := ASN1_INTMAX_MAX // (Int64.repr 10).
+  Definition last_digit_max := ASN1_INTMAX_MAX % (Int64.repr 10).
+  Definition last_digit_max_minus := (ASN1_INTMAX_MAX % (Int64.repr 10)) + 1.
 
-(* Constants of the function *)
-Definition ASN1_INTMAX_MAX := (Int64.not 0) >> 1.
-Definition upper_boundary := ASN1_INTMAX_MAX // (Int64.repr 10).
-Definition last_digit_max := ASN1_INTMAX_MAX % (Int64.repr 10).
-Definition last_digit_max_minus := (ASN1_INTMAX_MAX % (Int64.repr 10)) + 1.
+  Definition max_sign s :=
+    match s with
+    | Signed => last_digit_max_minus 
+    | Unsigned => last_digit_max
+    end.
+  
+  (* digits [0-9]*)
+  Definition is_digit (i : int) := andb ((Int.repr 48) <= i)%int ( i <= (Int.repr 57))%int.
+  
+  (* Executable spec *)
 
-Definition max_sign s :=
-  match s with
-  | Signed => last_digit_max_minus
-  | Unsigned => last_digit_max
-  end.
+  (* Return type *)
+  Record asn_strtoimax_lim_result :=
+    { return_type : asn_strtox_result_e ;
+      value : option int64 ;
+      str_pointer : option addr ;
+      memory : option mem ; 
+      }.
+  
 
-(* digits [0-9]*)
-Definition is_digit (i : int) := andb ((Int.repr 48) <= i)%int ( i <= (Int.repr 57))%int.
-
-(* Executable spec *)
-
-(* Return type *)
-Record asn_strtoimax_lim_result :=
-  { return_type : asn_strtox_result_e ;
-    value : option int64 ;
-    str_pointer : option addr ;
-    memory : option mem ;
-    }.
-
-
- Fixpoint asn_strtoimax_lim_loop (str fin intp : addr) (value : int64)
+  Fixpoint asn_strtoimax_lim_loop (str fin intp : addr) (value : int64)
            (s: signedness) (last_digit : int64)
            (dist : nat) (m'' : mem) {struct dist} : option asn_strtoimax_lim_result := 
     match dist with
