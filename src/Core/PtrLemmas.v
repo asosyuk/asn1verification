@@ -6,8 +6,11 @@ Definition addr : Type := (block * ptrofs).
 Definition vptr (a : addr) := match a with (b, ofs) => Vptr b ofs end.
 Definition load_addr (chunk : memory_chunk) (m : mem) (a : addr) :=
   match a with (b,ofs) => Mem.loadv chunk m (Vptr b ofs) end.
-Definition next_addr (a : addr) := match a with (b, ofs) => (b, Ptrofs.add ofs Ptrofs.one) end.
-Definition add_addr (a : addr) (i : ptrofs) := match a with (b, ofs) => (b, Ptrofs.add ofs i) end.
+Definition next_addr (a : addr) := match a with 
+                                     (b, ofs) => (b, Ptrofs.add ofs Ptrofs.one) 
+                                   end.
+Definition add_addr (a : addr) (i : ptrofs) := 
+  match a with (b, ofs) => (b, Ptrofs.add ofs i) end.
 Notation "a ++" := (next_addr a) (at level 20).
 
 (* Pointer comparison *)
@@ -24,7 +27,8 @@ Definition ptr_ge (m : mem) (b1 b2 : block) (ofs1 ofs2 : ptrofs) :=
 Definition addr_ge (m : mem) (a1 a2 : addr) :=
   match a1, a2 with (b1, ofs1), (b2, ofs2) => ptr_ge m b1 b2 ofs1 ofs2 end.
 
-Definition addr_lt (m : mem) (a1 a2 : addr) := option_map negb (addr_ge m a2 a1).
+Definition addr_lt (m : mem) (a1 a2 : addr) := 
+  option_map negb (addr_ge m a2 a1).
 
 (* Both specs can be used interchangeably *)
 Proposition ptr_ge_refine : forall (m : mem) (b1 b2 : block) (ofs1 ofs2 : ptrofs),
@@ -38,12 +42,14 @@ Proof.
   destruct Archi.ptr64 eqn: A; simpl.
   all: rewrite H; rewrite H0; simpl;
     destruct (Mem.valid_pointer m b1 (Ptrofs.unsigned ofs1) &&
-                                Mem.valid_pointer m b2 (Ptrofs.unsigned ofs2)); auto.
+                                Mem.valid_pointer m b2 (Ptrofs.unsigned ofs2));
+    auto.
 Qed.
 
 Proposition ptr_ge_to_sem_cmp_true : forall m b1 b2 i1 i2,
     ptr_ge m b1 b2 i1 i2 = Some true ->
-    sem_cmp Cge (Vptr b1 i1) (tptr tschar) (Vptr b2 i2) (tptr tschar) m = Some Vtrue.
+    sem_cmp Cge (Vptr b1 i1) (tptr tschar) (Vptr b2 i2) (tptr tschar) m = 
+    Some Vtrue.
 Proof.
   intros.
   assert ((option_map Val.of_bool (ptr_ge m b1 b2 i1 i2)) =
@@ -53,7 +59,8 @@ Qed.
 
 Proposition ptr_ge_to_sem_cmp_false : forall m b1 b2 i1 i2,
     ptr_ge m b1 b2 i1 i2 = Some false ->
-    sem_cmp Cge (Vptr b1 i1) (tptr tschar) (Vptr b2 i2) (tptr tschar) m = Some Vfalse.
+    sem_cmp Cge (Vptr b1 i1) (tptr tschar) (Vptr b2 i2) (tptr tschar) m = 
+    Some Vfalse.
 Proof.
   intros.
   assert ((option_map Val.of_bool (ptr_ge m b1 b2 i1 i2)) =
@@ -78,14 +85,6 @@ Proof.
   break_match_hyp; [| discriminate].
   break_if; subst; [| discriminate].
   inversion H; clear H.
-  replace (addr_ge m (b, ofs) (b', (ofs' + 1)%ptrofs))
-    with (Some true).
-  f_equal.
-  enough (S (Z.to_nat (Ptrofs.unsigned (ofs')%ptrofs)) =
-             Z.to_nat (Ptrofs.unsigned (ofs' + 1)%ptrofs)) by lia.
-  rewrite Ptrofs.add_unsigned, Ptrofs.unsigned_repr, <-Z2Nat.inj_succ.
-  reflexivity.
-  apply Ptrofs.unsigned_range.
   assert (Ptrofs.unsigned ofs' < Ptrofs.max_unsigned)%Z.
   {
     assert ( (Ptrofs.unsigned ofs') < (Ptrofs.unsigned ofs))%Z.
@@ -103,6 +102,14 @@ Proof.
     pose proof (Ptrofs.unsigned_range_2 ofs).
     all: try lia.
   }
+  replace (addr_ge m (b, ofs) (b', (ofs' + 1)%ptrofs))
+    with (Some true).
+  f_equal.
+  enough (S (Z.to_nat (Ptrofs.unsigned (ofs')%ptrofs)) =
+             Z.to_nat (Ptrofs.unsigned (ofs' + 1)%ptrofs)) by lia.
+  rewrite Ptrofs.add_unsigned, Ptrofs.unsigned_repr, <-Z2Nat.inj_succ.
+  reflexivity.
+  apply Ptrofs.unsigned_range.
   replace (Ptrofs.unsigned 1%ptrofs) with 1 by reflexivity.
   pose proof Ptrofs.unsigned_range ofs'.
   lia.
@@ -114,24 +121,24 @@ Proof.
   all: repeat destruct_andb_hyp.
   all: repeat destruct_orb_hyp.
   all: try congruence.
-  all: clear - H2.
+  all: clear - H H2 Heqo.
 
-  assert (Z.to_nat (Ptrofs.unsigned ofs') + 1 <=
+  all: assert (Z.to_nat (Ptrofs.unsigned ofs') + 1 <=
           Z.to_nat (Ptrofs.unsigned ofs))%nat
-    by lia;
-    clear H2.
-  unfold Ptrofs.ltu.
-  break_if.
-  rewrite Ptrofs.add_unsigned, Ptrofs.unsigned_repr in *.
-  replace (Ptrofs.unsigned 1%ptrofs)
-    with 1
-    in *
-    by reflexivity.
-  pose proof Ptrofs.unsigned_range ofs.
-  pose proof Ptrofs.unsigned_range ofs'.
-  admit.
-Admitted.
-
+    by lia.
+  all: unfold Ptrofs.ltu.
+  all: break_if.
+  all: rewrite Ptrofs.add_unsigned, Ptrofs.unsigned_repr in *.
+  all: replace (Ptrofs.unsigned 1%ptrofs) with 1 in * by reflexivity.
+  all: replace (1)%nat with (Z.to_nat 1)%nat in H0 by reflexivity.
+  all: rewrite <-Z2Nat.inj_add in H0.
+  all: try rewrite <-Z2Nat.inj_le in H0.
+  all: try apply Ptrofs.unsigned_range.
+  all: try reflexivity.
+  all: replace (Ptrofs.unsigned 1%ptrofs) with 1 by reflexivity.
+  all: pose proof Ptrofs.unsigned_range ofs'.
+  all: try lia.
+Qed.
 
 Lemma if_some (c x : bool) :
     (if c then Some x else None) = Some false ->
@@ -148,11 +155,11 @@ Proof.
 Qed.
 
 Lemma dist_pred: 
-  forall (m : mem) (str_b : block) (str_ofs : ptrofs) (b : block) (i : ptrofs), 
-    addr_ge m (str_b, str_ofs) (b, i) = Some false -> 
-    addr_ge m ((str_b, str_ofs) ++) (b, i) = Some false -> 
-    (distance (str_b, str_ofs) (b, i) - 1)%nat = 
-    distance (str_b, (str_ofs + 1)%ptrofs) (b, i).
+  forall (m : mem) (b : block) (str_ofs : ptrofs) (i : ptrofs), 
+    addr_ge m (b, str_ofs) (b, i) = Some false -> 
+    addr_ge m ((b, str_ofs) ++) (b, i) = Some false -> 
+    (distance (b, str_ofs) (b, i) - 1)%nat = 
+    distance (b, (str_ofs + 1)%ptrofs) (b, i).
 Proof.
   intros m str_b str_ofs b i Heqo0 Heqo2.
   remember (distance (str_b, str_ofs) (b, i) - 1)%nat as
