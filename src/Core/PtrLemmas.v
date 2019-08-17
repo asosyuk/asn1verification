@@ -87,7 +87,7 @@ Proof.
   inversion H; clear H.
   assert (Ptrofs.unsigned ofs' < Ptrofs.max_unsigned)%Z.
   {
-    assert ( (Ptrofs.unsigned ofs') < (Ptrofs.unsigned ofs))%Z.
+    assert ((Ptrofs.unsigned ofs') < (Ptrofs.unsigned ofs))%Z.
     {
       assert ((Z.to_nat (Ptrofs.unsigned ofs') 
                < 
@@ -140,6 +140,23 @@ Proof.
   all: try lia.
 Qed.
 
+Lemma dist_to_lt : forall m b ofs ofs' dist, 
+  distance m (b, ofs) (b, ofs') = Some (S dist) ->
+  (Ptrofs.unsigned ofs < Ptrofs.unsigned ofs')%Z.
+Proof.
+  intros;
+  unfold distance in *; simpl in *.
+  break_match_hyp; [| discriminate].
+  break_if; [| discriminate].
+  inversion H; clear H; rename H1 into H.
+  assert ((Z.to_nat (Ptrofs.unsigned ofs) 
+             < 
+             Z.to_nat (Ptrofs.unsigned ofs'))%nat) by lia.
+  unfold Ptrofs.unsigned in *.
+  destruct ofs, ofs'; simpl in *.
+  apply Z2Nat.inj_lt; lia.
+Qed.  
+
 Lemma if_some (c x : bool) :
     (if c then Some x else None) = Some false ->
     x = false.
@@ -155,15 +172,15 @@ Proof.
 Qed.
 
 Lemma dist_pred: 
-  forall (m : mem) (b : block) (str_ofs : ptrofs) (i : ptrofs), 
-    addr_ge m (b, str_ofs) (b, i) = Some false -> 
-    addr_ge m ((b, str_ofs) ++) (b, i) = Some false -> 
-    (distance (b, str_ofs) (b, i) - 1)%nat = 
-    distance (b, (str_ofs + 1)%ptrofs) (b, i).
+  forall (m : mem) (b : block) (ofs : ptrofs) (i : ptrofs) (dist : nat), 
+    addr_ge m (b, ofs) (b, i) = Some false -> 
+    addr_ge m ((b, ofs) ++) (b, i) = Some false -> 
+    distance m (b, ofs) (b, i) = Some (dist - 1)%nat ->
+    Mem.valid_pointer m b (Ptrofs.unsigned (ofs + 1)%ptrofs) = true ->
+    distance m (b, (ofs + 1)%ptrofs) (b, i) = Some dist.
 Proof.
-  intros m str_b str_ofs b i Heqo0 Heqo2.
-  remember (distance (str_b, str_ofs) (b, i) - 1)%nat as
-      dist.
+Admitted.
+  (*intros.
   symmetry.
   apply dist_succ.
   rewrite Heqdist.
@@ -184,39 +201,7 @@ Proof.
   1,2: lia.
   all: apply if_none in Heqo2.
   all: discriminate.
-Qed.
-
-Lemma dist_to_lt : forall b b' ofs ofs' dist, 
-  distance (b', ofs') (b, ofs) = S dist ->
-  (Ptrofs.unsigned ofs' < Ptrofs.unsigned ofs)%Z.
-Proof.
-  intros;
-  unfold distance in *; simpl in *.
-  assert ((Z.to_nat (Ptrofs.unsigned ofs') 
-             < 
-             Z.to_nat (Ptrofs.unsigned ofs))%nat) by lia.
-  unfold Ptrofs.unsigned in *.
-  destruct ofs, ofs'; simpl in *.
-  pose proof (Z2Nat.inj_lt intval0 intval) as Inj.
-  destruct Inj.
-  all: try lia.
-Qed.  
-  
-Lemma dist_to_lt_or_ge : forall b b' ofs ofs' dist, 
-    distance (b', ofs') (b, ofs) = dist ->
-    (Ptrofs.unsigned ofs' <= Ptrofs.unsigned ofs)%Z.
-Proof.
-  destruct dist; intros.
-  - unfold distance in *; simpl in *.
-    assert ((Z.to_nat (Ptrofs.unsigned ofs) <= 
-             Z.to_nat (Ptrofs.unsigned ofs'))%nat) by lia.
-    unfold Ptrofs.unsigned in *.
-    destruct ofs, ofs'; simpl in *.
-    pose proof (Z2Nat.inj_le intval0 intval) as Inj.
-    destruct Inj.
-    all: try lia.
-    eapply H2.
-Admitted.
+Qed.*)
 
 Lemma int_ptrofs_mod_eq : (Int.modulus = Ptrofs.modulus).
 Proof.
