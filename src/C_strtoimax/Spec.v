@@ -124,11 +124,15 @@ Definition digit_to_num s i v :=
                    else if (value == upper_boundary) && (d <= last_digit_max)
                         (* firstly check if str < *end, and if so, return *)
                         then let value' := digit_to_num s i value in
-                             let s' := match s with | Signed => Unsigned | _ => Unsigned end in
+                             let s' := match s with 
+                                       | Signed => Unsigned 
+                                       | _ => Unsigned 
+                                       end in
                              match (Mem.loadv Mptr m'' (vptr fin)) with
                              | Some (Vptr b fin') =>
                                match addr_lt m'' (str++) (b, fin') with
-                               | Some true => match (load_addr Mint8signed m'' (str++)) with
+                               | Some true => match (load_addr Mint8signed m'' 
+                                                              (str++)) with
                                           | Some (Vint i') =>
                                             if is_digit i'
                                             then Some {|
@@ -201,29 +205,31 @@ Definition asn_strtoimax_lim (str fin intp : addr) : option asn_strtoimax_lim_re
                            value := None;
                            str_pointer := None;
                            memory := Some m; |}
-    | Some false => let dist := distance str (b,ofs) in
-                   match load_addr Mint8signed m str with
-                   | Some (Vint i) =>
-                     if (i == minus_char)%int || (i == plus_char)%int
-                     then match addr_ge m (str++) (b,ofs) with
-                          | Some true =>
-                            Some {| return_type := ASN_STRTOX_EXPECT_MORE;
-                                    value := None;
-                                    str_pointer := Some str;
-                                    memory := (Mem.storev Mptr m
-                                                          (vptr fin)
-                                                          (vptr (str++))); |}
-
-                          | Some false => store_result (sign i) fin intp
-                                           (asn_strtoimax_lim_loop
-                                           (str++) fin intp 0 (sign i)
-                                           (max_sign (sign i)) (dist - 1)%nat m)
-                          | None => None
-                          end
-                     else store_result Unsigned fin intp
-                            (asn_strtoimax_lim_loop str fin intp 0
-                                Unsigned last_digit_max dist m)
-                   | _ => None (* fail of memory load on str: wrong type or not enough permission *)
+    | Some false => match distance m str (b,ofs) with 
+                   | Some dist => 
+                     match load_addr Mint8signed m str with 
+                     | Some (Vint i) => 
+                       if (i == minus_char)%int || (i == plus_char)%int 
+                       then match addr_ge m (str++) (b,ofs) with 
+                            | Some true => 
+                              Some {| return_type := ASN_STRTOX_EXPECT_MORE; 
+                                      value := None; 
+                                      str_pointer := Some str; 
+                                      memory := (Mem.storev Mptr m 
+                                                            (vptr fin) 
+                                                            (vptr (str++))); |} 
+                            | Some false => store_result (sign i) fin intp 
+                                                        (asn_strtoimax_lim_loop 
+                                                           (str++) fin intp 0 (sign i) 
+                                                           (max_sign (sign i)) (dist - 1)%nat m) 
+                            | None => None 
+                            end 
+                       else store_result Unsigned fin intp 
+                                         (asn_strtoimax_lim_loop str fin intp 0 
+                                                                 Unsigned last_digit_max dist m) 
+                     | _ => None (* fail of memory load on str: wrong type or not enough permission *) 
+                     end
+                   | None => None
                    end
     | None => None (* error in pointer comparison *)
     end
