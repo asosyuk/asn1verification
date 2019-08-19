@@ -11,12 +11,15 @@ Lemma OK_None_contradiction_1 :
               memory := Some m'
            |}.
 Proof.
-  induction dist; intros; simpl.
-    + break_match;
-      congruence.
-    + repeat break_match;
-        try congruence.
-      eapply IHdist.
+  destruct dist as [dist |].
+    - induction dist; intros; simpl.
+      + break_match;
+          congruence.
+      + repeat break_match; 
+          try congruence.
+        unfold asn_strtoimax_lim_loop in IHdist.
+        eapply IHdist.
+    - discriminate.
 Qed.
 
 Proposition OK_None_contradiction_2 :
@@ -28,10 +31,13 @@ Proposition OK_None_contradiction_2 :
               memory := Some m'
            |}.
 Proof.
-  induction dist; intros; simpl.
-    + break_match;
-      congruence.
-    + repeat break_match;
-        try congruence.
-      eapply IHdist.
+  destruct dist as [dist |].
+    - induction dist; intros; simpl.
+      + break_match;
+          congruence.
+      + repeat break_match; 
+          try congruence.
+        unfold asn_strtoimax_lim_loop in IHdist.
+        eapply IHdist.
+    - discriminate.
 Qed.

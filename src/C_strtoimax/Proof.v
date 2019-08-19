@@ -10,26 +10,26 @@ Local Open Scope Int64Scope.
 
 (* ASN_STRTOX_ERROR_INVAL: str >= *end *)
 Lemma asn_strtoimax_lim_ASN_STRTOX_ERROR_INVAL_correct :
-  forall m ge e le str_b str_ofs fin_b fin_ofs intp_b intp_ofs m' p val,
+  forall m ge e le b str_ofs fin_ofs intp_ofs m' p val,
     
-    le ! _str = Some (Vptr str_b str_ofs)  ->
-    le ! _end = Some (Vptr fin_b fin_ofs) ->
-    le ! _intp = Some (Vptr intp_b intp_ofs)  ->
+    le ! _str = Some (Vptr b str_ofs)  ->
+    le ! _end = Some (Vptr b fin_ofs) ->
+    le ! _intp = Some (Vptr b intp_ofs)  ->
     le ! _upper_boundary = Some (Vlong upper_boundary) ->
     le ! _sign = Some (Vint (Int.repr 1)) ->
 
-    asn_strtoimax_lim m (str_b, str_ofs) (fin_b,fin_ofs) (intp_b,intp_ofs) =
+    asn_strtoimax_lim m (b, str_ofs) (b, fin_ofs) (b, intp_ofs) =
     Some {| return_type := ASN_STRTOX_ERROR_INVAL;
             value := val;
-            str_pointer := p;
-        memory := Some m' |} ->
+            str_pointer := p; 
+            memory := Some m' |} ->
     
     exists (t : trace) (le' : temp_env),
       exec_stmt ge e le m (fn_body f_asn_strtoimax_lim) t le' m'
-                (Out_return (Some (Vint (asn_strtox_result_e_to_int ASN_STRTOX_ERROR_INVAL), tint))).
+                (Out_return (Some (Vint (asn_strtox_result_e_to_int 
+                                           ASN_STRTOX_ERROR_INVAL), tint))).
 Proof.
   intros until val; intros Str End Intp UB Sign Spec.
-  simpl in Spec.                       
   unfold asn_strtoimax_lim in Spec.
   assert (forall dist str fin inp value s last_digit,
              asn_strtoimax_lim_loop m str fin inp value s last_digit dist m
@@ -38,11 +38,14 @@ Proof.
                     value := val;
                     str_pointer := p;
                     memory := Some m' |}) as Loop.
-    { induction dist; intros; simpl.
-      + break_match;
-        congruence.
-      + repeat break_match;
-          congruence.
+    { destruct dist as [dist|]. 
+      - induction dist; intros; simpl. 
+        + break_match; 
+            congruence. 
+        + repeat break_match;
+          unfold asn_strtoimax_lim_loop in IHdist;
+            congruence.
+      - discriminate.
     } 
     repeat break_match; unfold store_result in *;
       repeat break_match; try congruence.
@@ -82,15 +85,15 @@ Qed.
 (* ASN_STRTOX_EXPECT_MORE: reading + or - and reaching *end *)
 Lemma asn_strtoimax_lim_ASN_STRTOX_EXPECT_MORE_correct :
 
-  forall m ge e le str_b str_ofs fin_b fin_ofs intp_b intp_ofs m' p val,
+  forall m ge e le b str_ofs fin_ofs intp_ofs m' p val,
     
-    le!_str = Some (Vptr str_b str_ofs)  ->
-    le!_end = Some (Vptr fin_b fin_ofs) ->
-    le!_intp = Some (Vptr intp_b intp_ofs)  ->
+    le ! _str = Some (Vptr b str_ofs)  ->
+    le ! _end = Some (Vptr b fin_ofs) ->
+    le ! _intp = Some (Vptr b intp_ofs)  ->
     le ! _upper_boundary = Some (Vlong upper_boundary) ->
     le ! _sign = Some (Vint (Int.repr 1)) ->
 
-    asn_strtoimax_lim m (str_b, str_ofs) (fin_b,fin_ofs) (intp_b,intp_ofs) =
+    asn_strtoimax_lim m (b, str_ofs) (b, fin_ofs) (b, intp_ofs) =
     Some
       {|
         return_type := ASN_STRTOX_EXPECT_MORE;
@@ -100,23 +103,27 @@ Lemma asn_strtoimax_lim_ASN_STRTOX_EXPECT_MORE_correct :
     
     exists (t : trace) (le' : temp_env),
       exec_stmt ge e le m (fn_body f_asn_strtoimax_lim) t le' m'
-                (Out_return (Some (Vint (asn_strtox_result_e_to_int ASN_STRTOX_EXPECT_MORE), tint))).
+                (Out_return (Some (Vint (asn_strtox_result_e_to_int 
+                                           ASN_STRTOX_EXPECT_MORE), tint))).
 Proof.
   replace (asn_strtox_result_e_to_int ASN_STRTOX_EXPECT_MORE)
     with (Int.repr (-1)) by reflexivity.
   intros until val; intros Str End Intp UB Sign Spec.
   simpl in Spec.    
-  assert (forall dist str fin intp v s last_digit m',
+  assert (forall dist str fin intp v s last_digit m', 
              asn_strtoimax_lim_loop m str fin intp v s last_digit dist m <>
              Some {| return_type := ASN_STRTOX_EXPECT_MORE;
                      value := val;
-                     str_pointer := p;
-                  memory := Some m' |}) as Loop.
-    { induction dist; intros; simpl.
-      + break_match; congruence.
-      + repeat break_match.
-        repeat break_if.
-        all: try congruence; eapply IHdist. }
+                     str_pointer := p; 
+                     memory := Some m' |}) as Loop.
+    { destruct dist as [dist|].
+      - induction dist; intros; simpl. 
+        + break_match; congruence. 
+        + repeat break_match. 
+          repeat break_if. 
+          all: try congruence; eapply IHdist.
+      - discriminate.
+    }
    unfold asn_strtoimax_lim in Spec.  
     repeat break_match;
       unfold store_result in *;
@@ -189,12 +196,13 @@ Proof.
       Tactics.forward.
       eapply ptr_ge_to_sem_cmp_true; eassumption.
       all: Tactics.forward; try discriminate.
-  - pose proof (Loop (distance (str_b, str_ofs) (b, i) - 1)%nat ((str_b, str_ofs) ++)
-                     (fin_b, fin_ofs) (intp_b, intp_ofs) 0 (sign i0)
-                     (max_sign (sign i0)) m'). congruence.
-  - pose proof (Loop (distance (str_b, str_ofs) (b, i))%nat ((str_b, str_ofs))
-                     (fin_b, fin_ofs) (intp_b, intp_ofs) 0  Unsigned
-                     last_digit_max  m'). congruence.
+  - pose proof (Loop (Some (n - 1)%nat) ((b, str_ofs) ++) 
+                     (b, fin_ofs) (b, intp_ofs) 0 (sign i0) 
+                     (max_sign (sign i0)) m'). 
+      congruence.
+  - pose proof (Loop (Some n) ((b, str_ofs)) 
+                     (b, fin_ofs) (b, intp_ofs) 0 Unsigned 
+                     last_digit_max m'). congruence.
 Qed.
 
 (* Loop correctness cases *)

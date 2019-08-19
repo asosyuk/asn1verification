@@ -99,7 +99,7 @@ Definition digit_to_num s i v :=
       }.
   
 
-  Fixpoint asn_strtoimax_lim_loop (str fin intp : addr) (value : int64)
+  Fixpoint asn_strtoimax_lim_loop' (str fin intp : addr) (value : int64)
            (s: signedness) (last_digit : int64)
            (dist : nat) (m'' : mem) {struct dist} : option asn_strtoimax_lim_result := 
     match dist with
@@ -118,7 +118,7 @@ Definition digit_to_num s i v :=
               then let d := int_to_int64 (i - zero_char)%int in
                    (* int d = *str - '0' *)
                    if value < upper_boundary
-                   then asn_strtoimax_lim_loop (str++) fin intp
+                   then asn_strtoimax_lim_loop' (str++) fin intp
                         (value * (Int64.repr 10) + d) s last_digit n m
                         (* value = value * 10 + d; next iteration *)
                    else if (value == upper_boundary) && (d <= last_digit_max)
@@ -179,6 +179,15 @@ Definition digit_to_num s i v :=
             end
     end.
 
+  Definition asn_strtoimax_lim_loop (str fin intp : addr) (value : int64) 
+             (s: signedness) (last_digit : int64) 
+             (dist : option nat) (m : mem) : option asn_strtoimax_lim_result := 
+    match dist with
+    | Some d => 
+      asn_strtoimax_lim_loop' str fin intp value s last_digit d m
+    | None => None
+    end.
+
 Definition store_result s fin intp res :=
   match res with
   | Some {| return_type := ASN_STRTOX_OK;
@@ -221,12 +230,12 @@ Definition asn_strtoimax_lim (str fin intp : addr) : option asn_strtoimax_lim_re
                             | Some false => store_result (sign i) fin intp 
                                                         (asn_strtoimax_lim_loop 
                                                            (str++) fin intp 0 (sign i) 
-                                                           (max_sign (sign i)) (dist - 1)%nat m) 
+                                                           (max_sign (sign i)) (Some (dist - 1)%nat) m) 
                             | None => None 
                             end 
                        else store_result Unsigned fin intp 
                                          (asn_strtoimax_lim_loop str fin intp 0 
-                                                                 Unsigned last_digit_max dist m) 
+                                                                 Unsigned last_digit_max (Some dist) m) 
                      | _ => None (* fail of memory load on str: wrong type or not enough permission *) 
                      end
                    | None => None
