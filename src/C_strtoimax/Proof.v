@@ -556,7 +556,7 @@ Proof.
   induction dist; intros until s;
     intros Str End Intp Value UB Sign LastD Load Dist Spec;
     simpl in Spec.
-  - all: break_match; congruence.
+  - all: try break_match; congruence.
   - repeat break_match;
     unfold store_result in *;
       repeat break_match; try congruence.
@@ -578,12 +578,12 @@ Proof.
         as le''.
       pose proof (IHdist b ofs le'' str_b (str_ofs + 1)%ptrofs
                          fin_b fin_ofs intp_b intp_ofs
-                         (digit_to_num Unsigned i inp_value) m' p val s) as IH.
+                         (digit_to_num Unsigned i inp_value) m' p val s' s) as IH.
       clear IHdist.
       repeat rewrite set_env_eq_ptree_set in Heqle''.
       destruct IH as [t IH]; subst;
         try (repeat env_assumption || reflexivity).
-      { eapply dist_succ; eassumption. }
+      { eapply dist_succ. eassumption. admit. }
       destruct IH as [le' IH]. 
       repeat rewrite set_env_eq_ptree_set in *.
       repeat eexists.
@@ -680,7 +680,7 @@ Proof.
         forward.
         inv Spec.
         simpl.
-        unfold mult_sign, Spec.Sign.
+        unfold mult_sign, sign_to_int.
         break_match; [reflexivity | ].
         replace (Int64.repr (Int.signed (Int.repr 1))) with (1)%int64 
           by (auto with ints).
@@ -753,7 +753,7 @@ Proof.
         econstructor.
         econstructor.
         inv Spec; cbn.
-        unfold Spec.Sign; unfold mult_sign in H2; destruct s.
+        unfold  sign_to_int; unfold mult_sign in H2; destruct s'.
         eassumption.
         replace (Int64.repr (Int.signed (Int.repr 1))) with (1)%int64 
           by (auto with ints).
@@ -808,7 +808,7 @@ Admitted.
 Admitted. *)
 
 Lemma asn_strtoimax_lim_correct :
-  forall m ge e le str_b str_ofs fin_b fin_ofs intp_b intp_ofs m' res p val,
+  forall m ge e le str_b str_ofs fin_b fin_ofs intp_b intp_ofs m' res p s' val,
     
     le ! _str = Some (Vptr str_b str_ofs)  ->
     le ! _end = Some (Vptr fin_b fin_ofs) ->
@@ -820,7 +820,8 @@ Lemma asn_strtoimax_lim_correct :
     = Some {| return_type := res;
               value := val;
               str_pointer := p;
-              memory := Some m'; 
+              memory := Some m';
+              sign := s';
            |} -> 
     exists t le', exec_stmt ge e le m f_asn_strtoimax_lim.(fn_body) t le' m'
                  (Out_return (Some ((Vint (asn_strtox_result_e_to_int res)), tint))).

@@ -171,11 +171,12 @@ Fixpoint string_at_address m s str dist : option (list byte) :=
           end
   end.
     
-Proposition asn_strtoimax_lim_fun_correct : forall s m strp str fin intp m' val dist,
+Proposition asn_strtoimax_lim_fun_correct : forall s m strp str fin intp m' s' val dist,
     asn_strtoimax_lim m str fin intp = Some {| return_type := ASN_STRTOX_OK ;
                                                value := Some val ;
                                                str_pointer := Some strp;
-                                               memory := m' |}
+                                               memory := m';
+                                            sign := s'; |}
                                        <->
          addr_ge m str fin = Some false
          /\ distance m str fin = Some dist
