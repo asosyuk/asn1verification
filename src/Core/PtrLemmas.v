@@ -178,34 +178,22 @@ Lemma dist_pred:
     distance m (b, ofs) (b, i) = Some (dist - 1)%nat ->
     Mem.valid_pointer m b (Ptrofs.unsigned (ofs + 1)%ptrofs) = true ->
     distance m (b, (ofs + 1)%ptrofs) (b, i) = Some dist.
-Proof.
-Admitted.
-  (*intros.
-  symmetry.
-  apply dist_succ.
-  rewrite Heqdist.
-  unfold distance; simpl.
-  rewrite <-Nat.add_1_l.
-  repeat replace 1%nat with (Z.to_nat 1)%Z by reflexivity.
-  repeat rewrite <-Z2Nat.inj_sub;
-    [| lia | apply Ptrofs.unsigned_range].
-  rewrite <-Z2Nat.inj_add; [| lia |].
-  f_equal; lia.
-  unfold addr_ge, ptr_ge in Heqo2, Heqo0.
-  simpl in Heqo2, Heqo0.
-  destruct Archi.ptr64 in Heqo2, Heqo0.
-  all: destruct eq_block in Heqo2, Heqo0.
-  1,3: apply if_some in Heqo0.
-  1,2: rewrite negb_false_iff in Heqo0.
-  1,2: apply Ptrofs.ltu_inv in Heqo0.
-  1,2: lia.
-  all: apply if_none in Heqo2.
-  all: discriminate.
-Qed.*)
 
 Lemma int_ptrofs_mod_eq : (Int.modulus = Ptrofs.modulus).
 Proof.
   reflexivity.
+Qed.
+
+Lemma loaded_is_valid : forall c m b ofs v,
+  Mem.load c m b ofs = Some v ->
+  Mem.valid_pointer m b ofs = true.
+Proof.
+  intros.
+  apply Mem.valid_pointer_nonempty_perm.
+  apply Mem.load_valid_access in H.
+  apply Mem.valid_access_perm with (k := Cur) in H.
+  apply Mem.perm_implies with (p2 := Nonempty) in H; [| constructor].
+  assumption.
 Qed.
 
 Hint Resolve Ptrofs.mul_one Ptrofs.add_zero int_ptrofs_mod_eq : ptrofs.

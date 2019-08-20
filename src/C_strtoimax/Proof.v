@@ -199,101 +199,102 @@ Proof.
   - pose proof (Loop (Some (n - 1)%nat) ((b, str_ofs) ++) 
                      (b, fin_ofs) (b, intp_ofs) 0 (sign i0) 
                      (max_sign (sign i0)) m'). 
-      congruence.
+    congruence.
   - pose proof (Loop (Some n) ((b, str_ofs)) 
                      (b, fin_ofs) (b, intp_ofs) 0 Unsigned 
-                     last_digit_max m'). congruence.
+                     last_digit_max m').
+    congruence.
 Qed.
 
 (* Loop correctness cases *)
 (* ASN_STRTOX_OK: conversion successfull *)
 Lemma asn_strtoimax_lim_loop_ASN_STRTOX_OK_correct :
-  forall m ge e dist b ofs le strp_b strp_ofs str_b str_ofs fin_b fin_ofs intp_b intp_ofs
-         inp_value  m' val s,
+  forall m ge e dist b ofs le str_ofs fin_ofs intp_ofs strp_ofs inp_value m' val s,
     
-    le!_str = Some (Vptr str_b str_ofs)  ->
-    le!_end = Some (Vptr fin_b fin_ofs) ->
-    le!_intp = Some (Vptr intp_b intp_ofs) ->
-    le!_value = Some (Vlong inp_value) ->
-    le ! _upper_boundary = Some (Vlong upper_boundary) ->
-    le ! _sign = Some (Vint (Sign s)) ->
+   le ! _str = Some (Vptr b str_ofs)  ->
+   le ! _end = Some (Vptr b fin_ofs) ->
+   le ! _intp = Some (Vptr b intp_ofs) ->
+   le ! _value = Some (Vlong inp_value) ->
+   le ! _upper_boundary = Some (Vlong upper_boundary) ->
+   le ! _sign = Some (Vint (Sign s)) ->
 
-    load_addr Mptr m (fin_b, fin_ofs) = Some (Vptr b ofs) ->
+   load_addr Mptr m (b, fin_ofs) = Some (Vptr b ofs) ->
 
-    (distance (str_b, str_ofs) (b,ofs)) = dist ->
+   distance m (b, str_ofs) (b, ofs) = dist ->
 
-    asn_strtoimax_lim_loop m (str_b, str_ofs) (fin_b, fin_ofs)
-                           (intp_b, intp_ofs) inp_value s (max_sign s) dist m =
-    Some {| return_type := ASN_STRTOX_OK;
-            value := Some val;
-            str_pointer := Some (strp_b, strp_ofs);
-            memory := Some m'; 
-         |}  ->
+   asn_strtoimax_lim_loop m (b, str_ofs) (b, fin_ofs)
+                            (b, intp_ofs) inp_value s (max_sign s) dist m =
+   Some {| return_type := ASN_STRTOX_OK;
+           value := Some val;
+           str_pointer := Some (b, strp_ofs);
+           memory := Some m' |}  ->
 
-    exists t le', exec_stmt ge e le m f_asn_strtoimax_lim_loop t le' m Out_normal
-             /\ le'! _end = Some (Vptr fin_b fin_ofs)
-             /\ le'! _str = Some (Vptr strp_b strp_ofs)
-             /\ le'! _sign = Some (Vint (Sign s))
-             /\ le'! _intp = Some (Vptr intp_b intp_ofs)
-             /\ le'! _value = Some (Vlong val)
-             /\ m' = m.
+   exists t le', exec_stmt ge e le m f_asn_strtoimax_lim_loop t le' m Out_normal
+            /\ le' ! _end = Some (Vptr b fin_ofs)
+            /\ le' ! _str = Some (Vptr b strp_ofs)
+            /\ le' ! _sign = Some (Vint (Sign s))
+            /\ le' ! _intp = Some (Vptr b intp_ofs)
+            /\ le' ! _value = Some (Vlong val)
+            /\ m' = m.
 Admitted.
+ 
+Lemma asn_strtoimax_lim_loop_ASN_STRTOX_ERROR_RANGE_correct :
+  forall m ge e dist b ofs le str_ofs fin_ofs
+    intp_ofs inp_value m' p val s,
+   
+   le ! _str = Some (Vptr b str_ofs)  ->
+   le ! _end = Some (Vptr b fin_ofs) ->
+   le ! _intp = Some (Vptr b intp_ofs) ->
+   le ! _value = Some (Vlong inp_value) ->
+   le ! _upper_boundary = Some (Vlong upper_boundary) ->
+   le ! _sign = Some (Vint (Sign s)) ->
 
- Lemma asn_strtoimax_lim_loop_ASN_STRTOX_ERROR_RANGE_correct :
-   forall m ge e dist b ofs le str_b str_ofs fin_b fin_ofs
-          intp_b intp_ofs inp_value  m' p val s,
-    
-    le!_str = Some (Vptr str_b str_ofs)  ->
-    le!_end = Some (Vptr fin_b fin_ofs) ->
-    le!_intp = Some (Vptr intp_b intp_ofs)  ->
-    le!_value = Some (Vlong inp_value) ->
-    le ! _upper_boundary = Some (Vlong upper_boundary) ->
-    le ! _sign = Some (Vint (Sign s)) ->
+   load_addr Mptr m (b, fin_ofs) = Some (Vptr b ofs) ->
 
-    load_addr Mptr m (fin_b, fin_ofs) = Some (Vptr b ofs) ->
+   (distance m (b, str_ofs) (b, ofs)) = dist ->
 
-    (distance (str_b, str_ofs) (b,ofs)) = dist ->
+   asn_strtoimax_lim_loop m (b, str_ofs) (b, fin_ofs)
+                            (b, intp_ofs) inp_value s (max_sign s) dist m =
+   Some {| return_type := ASN_STRTOX_ERROR_RANGE;
+           value := val;
+           str_pointer := p;
+           memory := Some m' |} ->
 
-    asn_strtoimax_lim_loop m (str_b, str_ofs) (fin_b, fin_ofs)
-                           (intp_b, intp_ofs) inp_value s (max_sign s) dist m =
-    Some {| return_type := ASN_STRTOX_ERROR_RANGE;
-            value := val;
-            str_pointer := p;
-            memory := Some m'; 
-           |}  ->
-
-    exists t le', exec_stmt ge e le m f_asn_strtoimax_lim_loop t le' m' (Out_return (Some (Vint (asn_strtox_result_e_to_int ASN_STRTOX_ERROR_RANGE), tint))).         
+   exists t le', exec_stmt ge e le m f_asn_strtoimax_lim_loop t le' m'
+              (Out_return (Some (Vint
+                (asn_strtox_result_e_to_int ASN_STRTOX_ERROR_RANGE), tint))).
 Admitted.
-
 
 Lemma asn_strtoimax_lim_loop_ASN_STRTOX_EXTRA_DATA_correct :
-  forall m ge e dist b ofs le str_b str_ofs fin_b 
-    fin_ofs intp_b intp_ofs inp_value  m' p val s,
-    
-    le ! _str = Some (Vptr str_b str_ofs)  ->
-    le ! _end = Some (Vptr fin_b fin_ofs) ->
-    le ! _intp = Some (Vptr intp_b intp_ofs)  ->
-    le ! _value = Some (Vlong inp_value) ->
-    le ! _upper_boundary = Some (Vlong upper_boundary) ->
-    le ! _sign = Some (Vint (Sign s)) ->
-    le ! _last_digit_max = Some (Vlong (max_sign s)) ->
-                                     
-    load_addr Mptr m (fin_b, fin_ofs) = Some (Vptr b ofs) ->
-    (distance (str_b, str_ofs) (b,ofs)) = dist ->
-    
-    asn_strtoimax_lim_loop m (str_b, str_ofs) (fin_b, fin_ofs) (intp_b, intp_ofs)
-                           inp_value s (max_sign s) dist m =
-    Some {| return_type := ASN_STRTOX_EXTRA_DATA;
-            value := val;
-            str_pointer := p;
-            memory := Some m';|}  ->
+  forall m ge e dist b ofs le str_ofs fin_ofs
+    intp_ofs inp_value m' p val s,
+   
+   le ! _str = Some (Vptr b str_ofs)  ->
+   le ! _end = Some (Vptr b fin_ofs) ->
+   le ! _intp = Some (Vptr b intp_ofs) ->
+   le ! _value = Some (Vlong inp_value) ->
+   le ! _upper_boundary = Some (Vlong upper_boundary) ->
+   le ! _sign = Some (Vint (Sign s)) ->
+   le ! _last_digit_max = Some (Vlong (max_sign s)) ->
 
-    exists t le', exec_stmt ge e le m f_asn_strtoimax_lim_loop t le' m' 
-                       (Out_return (Some (Vint (asn_strtox_result_e_to_int 
-                                                  ASN_STRTOX_EXTRA_DATA), tint))). 
+   load_addr Mptr m (b, fin_ofs) = Some (Vptr b ofs) ->
+
+   (distance m (b, str_ofs) (b, ofs)) = dist ->
+   
+   asn_strtoimax_lim_loop m (b, str_ofs) (b, fin_ofs)
+                            (b, intp_ofs) inp_value s (max_sign s) dist m =
+   Some {| return_type := ASN_STRTOX_EXTRA_DATA;
+           value := val;
+           str_pointer := p;
+           memory := Some m' |} ->
+
+   exists t le', exec_stmt ge e le m f_asn_strtoimax_lim_loop t le' m' 
+              (Out_return (Some (Vint
+                (asn_strtox_result_e_to_int ASN_STRTOX_EXTRA_DATA), tint))). 
 Proof.
   replace (asn_strtox_result_e_to_int ASN_STRTOX_EXTRA_DATA)
     with Int.one by (reflexivity).
+  destruct dist as [dist|]; [| discriminate].
   induction dist; intros until s;
     intros Str End Intp Value UB Sign LastD Load Dist Spec;
     simpl in Spec.
@@ -304,7 +305,7 @@ Proof.
     (* 3 cases: do one loop and then apply IH *)
     + remember 
          (PTree.set _str
-       (Vptr str_b
+       (Vptr b
              (str_ofs + Ptrofs.repr (sizeof ge tschar)
                         * ptrofs_of_int Signed (Int.repr 1))%ptrofs)
        (PTree.set _value
@@ -317,14 +318,21 @@ Proof.
                    (PTree.set _t'8 (Vint i)
                     (PTree.set _t'7 (Vint i) (PTree.set _t'9 (Vptr b ofs) le))))))))
         as le''.
-      pose proof (IHdist b ofs le'' str_b (str_ofs + 1)%ptrofs
-                         fin_b fin_ofs intp_b intp_ofs
+      pose proof (IHdist b ofs le'' (str_ofs + 1)%ptrofs
+                         fin_ofs intp_ofs
                          (digit_to_num Unsigned i inp_value) m' p val s) as IH.
       clear IHdist.
       repeat rewrite set_env_eq_ptree_set in Heqle''.
       destruct IH as [t IH]; subst;
         try (repeat env_assumption || reflexivity).
-      { eapply dist_succ; eassumption. }
+      {
+        apply dist_succ.
+        assumption.
+        destruct dist; simpl in Spec; break_match;
+          inversion Spec; clear H0 Spec.
+        apply loaded_is_valid in Heqo0.
+        assumption.
+      }
       destruct IH as [le' IH]. 
       repeat rewrite set_env_eq_ptree_set in *.
       repeat eexists.
@@ -337,7 +345,7 @@ Proof.
       repeat econstructor; try env_assumption.
       try eassumption.
       econstructor.
-      assert (sem_cmp Clt (Vptr str_b str_ofs) (tptr tschar)
+      assert (sem_cmp Clt (Vptr b str_ofs) (tptr tschar)
                       (Vptr b ofs) (tptr tschar) m = Some Vtrue).
       { admit. }
       eassumption.
@@ -377,8 +385,7 @@ Proof.
       eapply IH.
     + admit.
     + admit.
-    +
-      clear IHdist.
+    + clear IHdist.
       unfold is_digit, andb in Heqb0.
       break_if; eexists; eexists.
       * (* case when i > 57 *)
@@ -397,7 +404,7 @@ Proof.
         econstructor; gso_simpl; eassumption.
         econstructor; gss_simpl; econstructor.
         simpl.
-        assert (sem_cmp Clt (Vptr str_b str_ofs) (tptr tschar)
+        assert (sem_cmp Clt (Vptr b str_ofs) (tptr tschar)
                         (Vptr b ofs) (tptr tschar) m = Some Vtrue)
           by admit.
         eassumption.
@@ -450,7 +457,7 @@ Proof.
         econstructor; gso_simpl; eassumption.
         econstructor; gss_simpl; econstructor.
         simpl.
-        assert (sem_cmp Clt (Vptr str_b str_ofs) (tptr tschar)
+        assert (sem_cmp Clt (Vptr b str_ofs) (tptr tschar)
                         (Vptr b ofs) (tptr tschar) m = Some Vtrue)
           by admit.
         eassumption.
@@ -510,65 +517,22 @@ Proof.
         econstructor.
         econstructor.
 Admitted.
-(*    + inversion Spec; clear Spec.
-      repeat rewrite set_env_eq_ptree_set in *.
-      repeat eexists.
-      eapply exec_Sloop_stop1.
-      econstructor. (* Wrong local env instantiated  by repeat econstructor ??? *)
-      econstructor.
-      econstructor.
-      repeat econstructor; try env_assumption.
-      repeat econstructor; try env_assumption.
-      try eassumption.
-      econstructor.
-      simpl.
-      assert (sem_cmp Clt (Vptr str_b str_ofs) (tptr tschar)
-                      (Vptr b ofs) (tptr tschar) m = Some Vtrue)
-        by admit; eassumption.
-      forward.
-      replace (negb (1 == 0)%int) with true by (auto with ints).
-      forward.
-      forward.
-      simpl.
-      instantiate (1 := false).
-      admit. (* follows from is_digit i = false *)
-      repeat forward.
-      repeat forward.
-      econstructor.
-      repeat forward.
-      all: repeat  (econstructor || eassumption || env_assumption).
-      simpl.
-      replace (Int64.repr (Int.signed (Spec.Sign s)) * inp_value) with
-          (mult_sign s inp_value).
-      eassumption.
-      unfold mult_sign.
-      destruct s.
-      ++ simpl. auto with ints.
-      ++ simpl. rewrite Int.signed_repr_eq.
-         break_if.
-        * replace  (1 mod Int.modulus) with 1%Z.
-          symmetry. rewrite <- Int64.mul_commut.
-          apply Int64.mul_one.
-          cbn. nia.
-        * cbn in g. nia.
-Admitted. *)
 
 Lemma asn_strtoimax_lim_correct :
-  forall m ge e le str_b str_ofs fin_b fin_ofs intp_b intp_ofs m' res p val,
+  forall m ge e le b str_ofs fin_ofs intp_ofs m' res p val,
     
-    le ! _str = Some (Vptr str_b str_ofs)  ->
-    le ! _end = Some (Vptr fin_b fin_ofs) ->
-    le ! _intp = Some (Vptr intp_b intp_ofs)  ->
+    le ! _str = Some (Vptr b str_ofs)  ->
+    le ! _end = Some (Vptr b fin_ofs) ->
+    le ! _intp = Some (Vptr b intp_ofs)  ->
     le ! _upper_boundary = Some (Vlong upper_boundary) ->
     le ! _sign = Some (Vint (Int.repr 1)) ->
 
-    asn_strtoimax_lim m (str_b, str_ofs) (fin_b,fin_ofs) (intp_b,intp_ofs)
+    asn_strtoimax_lim m (b, str_ofs) (b, fin_ofs) (b, intp_ofs)
     = Some {| return_type := res;
               value := val;
               str_pointer := p;
-              memory := Some m'; 
-           |} -> 
-    exists t le', exec_stmt ge e le m f_asn_strtoimax_lim.(fn_body) t le' m'
+              memory := Some m' |} -> 
+    exists t le', exec_stmt ge e le m (fn_body f_asn_strtoimax_lim) t le' m'
                  (Out_return (Some ((Vint (asn_strtox_result_e_to_int res)), tint))).
 Proof.
   induction res.
