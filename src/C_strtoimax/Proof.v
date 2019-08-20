@@ -504,13 +504,14 @@ Admitted.
     le!_value = Some (Vlong inp_value) ->
     le ! _upper_boundary = Some (Vlong upper_boundary) ->
     le ! _sign = Some (Vint (sign_to_int s)) ->
+    le ! _last_digit_max = Some (Vlong (max_sign s)) ->
 
     load_addr Mptr m (fin_b, fin_ofs) = Some (Vptr b ofs) ->
 
-    (distance m (str_b, str_ofs) (b,ofs)) = dist ->
+    (distance m (str_b, str_ofs) (b,ofs)) = Some dist ->
 
     asn_strtoimax_lim_loop m (str_b, str_ofs) (fin_b, fin_ofs)
-                           (intp_b, intp_ofs) inp_value s (max_sign s) dist m =
+                           (intp_b, intp_ofs) inp_value s (max_sign s) (Some dist) m =
     Some {| return_type := ASN_STRTOX_ERROR_RANGE;
             value := val;
             str_pointer := p;
@@ -518,7 +519,107 @@ Admitted.
             sign := s';
            |}  ->
 
-    exists t le', exec_stmt ge e le m f_asn_strtoimax_lim_loop t le' m' (Out_return (Some (Vint (asn_strtox_result_e_to_int ASN_STRTOX_ERROR_RANGE), tint))).         
+    exists t le', exec_stmt ge e le m f_asn_strtoimax_lim_loop t le' m' (Out_return (Some (Vint (asn_strtox_result_e_to_int ASN_STRTOX_ERROR_RANGE), tint))).
+   Proof.
+replace (asn_strtox_result_e_to_int ASN_STRTOX_ERROR_RANGE)
+    with (Int.repr (-3)) by (reflexivity).
+  induction dist; intros until s;
+    intros Str End Intp Value UB Sign LastD Load Dist Spec;
+    simpl in Spec.
+  - all: try break_match; congruence.
+  - repeat break_match;
+    unfold store_result in *;
+      repeat break_match; try congruence.
+    (* 4 cases *)
+    + (* is_digit i = true
+   (inp_value < upper_boundary) = true *)
+      remember 
+         (PTree.set _str
+       (Vptr str_b
+             (str_ofs + Ptrofs.repr (sizeof ge tschar)
+                        * ptrofs_of_int Signed (Int.repr 1))%ptrofs)
+       (PTree.set _value
+          (Vlong
+             (inp_value * cast_int_long Signed (Int.repr 10) +
+              cast_int_long Signed (i - Int.repr 48)%int))
+          (PTree.set _d (Vint (i - Int.repr 48)%int)
+             (PTree.set _t'6 (Vint i)
+                (PTree.set _t'2 Vtrue
+                   (PTree.set _t'8 (Vint i)
+                    (PTree.set _t'7 (Vint i) (PTree.set _t'9 (Vptr b ofs) le))))))))
+        as le''.
+      pose proof (IHdist b ofs le'' str_b (str_ofs + 1)%ptrofs
+                         fin_b fin_ofs intp_b intp_ofs
+                         (digit_to_num Unsigned i inp_value) m' p val s' s) as IH.
+      clear IHdist.
+      repeat rewrite set_env_eq_ptree_set in Heqle''.
+      destruct IH as [t IH]; subst;
+        try (repeat env_assumption || reflexivity).
+      { eapply dist_succ. eassumption. admit. }
+      destruct IH as [le' IH]. 
+      repeat rewrite set_env_eq_ptree_set in *.
+      repeat eexists.
+      eapply exec_Sloop_loop.
+      instantiate (1 := Out_normal).
+      econstructor. (* Wrong local env instantiated  by repeat econstructor ??? *)
+      econstructor.
+      econstructor.
+      repeat econstructor; try env_assumption.
+      repeat econstructor; try env_assumption.
+      try eassumption.
+      econstructor.
+      assert (sem_cmp Clt (Vptr str_b str_ofs) (tptr tschar)
+                      (Vptr b ofs) (tptr tschar) m = Some Vtrue).
+      { admit. }
+      eassumption.
+      repeat econstructor.
+      replace (negb (1 == 0)%int) with true by (auto with ints).
+      econstructor.
+      econstructor.
+      repeat econstructor; try env_assumption; try eassumption.
+      forward.
+      simpl.
+      instantiate (1 := Vtrue). admit.
+      (* follows from is_digit *)
+      forward.
+      replace (negb (1 == 0)%int) with true by (auto with ints).
+      econstructor.
+      econstructor.
+      repeat econstructor; try env_assumption; try eassumption.
+      forward.
+      forward.
+      simpl.
+      instantiate (1 := Vtrue). admit.
+      (* follows from is_digit *)
+      forward.
+      simpl.
+      rewrite Heqb1.
+      econstructor.
+      replace (negb (1 == 0)%int) with true by (auto with ints).
+      forward.
+      econstructor.
+      forward.
+      fold f_asn_strtoimax_lim_loop.
+      eapply IH.
+    + (* (inp_value == upper_boundary) && (int_to_int64 (i - zero_char)%int <= max_sign Signed) =
+          true, Signed
+          do one loop and return
+ *)
+
+      admit.
+    + (* (inp_value == upper_boundary) && (int_to_int64 (i - zero_char)%int <= max_sign Signed) =
+          true, Unsigned
+          do one loop and return
+ *)
+      
+      admit.
+    + (* is_digit i = true out of range, return from the loop *)
+      clear IHdist.
+      unfold max_sign in *.
+      unfold is_digit in *.
+      repeat destruct_andb_hyp.
+      * admit.
+      * admit.            
 Admitted.
 
 
