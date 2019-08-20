@@ -383,7 +383,117 @@ Proof.
       forward.
       fold f_asn_strtoimax_lim_loop.
       eapply IH.
-    + admit.
+    + 
+      unfold is_digit, andb in Heqb0, Heqb2.
+      assert (inp_value == upper_boundary = true
+             /\ int_to_int64 (i - zero_char)%int <= last_digit_max = true).
+      { clear - Heqb2. break_if. auto. discriminate. }
+      assert ((Int.repr 48 <= i)%int = true 
+              /\ i <= Int.repr 57 = true)%int.
+      { clear - Heqb0. break_if. auto. discriminate. }
+      assert ((Int.repr 48 <= i)%int = false 
+              \/ i <= Int.repr 57 = false)%int.
+      {
+        clear - Heqb4.
+        unfold is_digit, andb in Heqb4.
+        break_if.
+      }
+      { clear - Heqb0. break_if. auto. discriminate. }
+      clear Heqb0 Heqb2; destruct H0 as [H48 H57]; 
+        destruct H as [Hiu Hi48].
+      eexists; eexists. 
+      repeat econstructor.
+      eassumption.
+      eassumption.
+      gso_simpl; eassumption.
+      gss_simpl; econstructor.
+      assert (sem_cmp Clt (Vptr b str_ofs) (tptr tschar)
+                      (Vptr b0 i0) (tptr tschar) m = Some Vtrue).
+      { admit. }
+      eassumption.
+      repeat econstructor.
+      replace (negb (1 == 0)%int) with (true) by (auto with ints).
+      econstructor. 
+      gso_simpl; eassumption.
+      eassumption.
+      gss_simpl; econstructor.
+      econstructor.
+      simpl; rewrite H48; econstructor.
+      repeat econstructor.
+      repeat gso_simpl; eassumption.
+      eassumption.
+      gss_simpl; econstructor.
+      econstructor.
+      simpl; rewrite H57; econstructor.
+      gss_simpl; econstructor.
+      econstructor.
+      repeat econstructor.
+      repeat gso_simpl; eassumption.
+      eassumption.
+      gss_simpl; econstructor.
+      econstructor.
+      repeat gso_simpl; eassumption.
+      repeat gso_simpl; eassumption.
+      econstructor.
+      simpl; rewrite Heqb1; econstructor.
+      repeat econstructor.
+      repeat gso_simpl; eassumption.
+      repeat gso_simpl; eassumption.
+      econstructor.
+      simpl; rewrite Hiu; econstructor.
+      repeat econstructor.
+      gss_simpl; econstructor.
+      repeat gso_simpl; eassumption.
+      econstructor.
+      simpl; unfold zero_char in Hi48; unfold last_digit_max_minus.
+      fold last_digit_max.
+      assert ((Int64.repr (Int.signed (i - Int.repr 48)%int) <= 
+              last_digit_max + 1)%int64 = true) as K.
+      {
+        apply int64_le_trans with (b := last_digit_max).
+        assumption.
+        auto with ints.
+      }
+      rewrite K.
+      econstructor.
+      repeat econstructor.
+      repeat gso_simpl; eassumption.
+      econstructor; simpl; econstructor.
+      simpl; econstructor.
+      repeat econstructor.
+      repeat gso_simpl; eassumption.
+      econstructor.
+      econstructor.
+      gso_simpl; gss_simpl; econstructor.
+      econstructor.
+      repeat gso_simpl; eassumption.
+      econstructor.
+      repeat gso_simpl; eassumption.
+      eassumption.
+      gso_simpl; gss_simpl; econstructor.
+      gss_simpl; econstructor.
+      instantiate (1 := Vtrue).
+      {
+        simpl.
+        unfold Ptrofs.of_ints.
+        replace (Ptrofs.repr 1 * 
+                Ptrofs.repr (Int.signed (Int.repr 1)))%ptrofs
+                with (Ptrofs.repr 1)%ptrofs by (auto with ints).
+        unfold addr_lt, option_map, negb, addr_ge in Heqo1.
+        (* break_match. break_if; [congruence|]. *)
+        admit.
+      }
+      econstructor.
+      repeat econstructor.
+      repeat gso_simpl; eassumption.
+      gso_simpl; gss_simpl; econstructor.
+      econstructor.
+      instantiate (1 := m0); admit. (* follows from Heqo3*)
+      gso_simpl; gss_simpl; econstructor.
+      instantiate (1 := Vint i1); admit. (* follows from Heqo *)
+      gss_simpl; econstructor.
+      econstructor.
+      simpl.
     + admit.
     + clear IHdist.
       unfold is_digit, andb in Heqb0.
@@ -488,8 +598,8 @@ Proof.
         econstructor.
         econstructor.
         econstructor.
-        econstructor; gso_simpl; gso_simpl; gso_simpl; eassumption.
-        econstructor; gso_simpl; gso_simpl; gso_simpl; eassumption.
+        econstructor; repeat gso_simpl; eassumption.
+        econstructor; repeat gso_simpl; eassumption.
         econstructor.
         econstructor.
         econstructor.
@@ -497,10 +607,10 @@ Proof.
         econstructor.
         econstructor.
         econstructor.
-        econstructor; gso_simpl; gso_simpl; gso_simpl; eassumption.
+        econstructor; repeat gso_simpl; eassumption.
         econstructor.
-        econstructor; gso_simpl; gso_simpl; gso_simpl; eassumption.
-        econstructor; gso_simpl; gso_simpl; gso_simpl; eassumption.
+        econstructor; repeat gso_simpl; eassumption.
+        econstructor; repeat gso_simpl; eassumption.
         econstructor.
         econstructor.
         econstructor.

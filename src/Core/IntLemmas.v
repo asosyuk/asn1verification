@@ -199,6 +199,32 @@ Proof.
   lia.
 Qed.
 
+Lemma int64_lt_trans : forall a b c,
+    (a < b)%int64 = true ->
+    (b < c)%int64 = true ->
+    (a < c)%int64 = true.
+Proof.
+  intros.
+  unfold Int64.lt in *.
+  repeat break_match.
+  all: try discriminate.
+  reflexivity.
+  lia.
+Qed.
+
+Lemma int64_le_trans : forall a b c,
+    (a <= b)%int64 = true ->
+    (b <= c)%int64 = true ->
+    (a <= c)%int64 = true.
+Proof.
+  intros.
+  unfold Int64.lt, negb in *.
+  repeat break_match.
+  all: try discriminate.
+  lia.
+  reflexivity.
+Qed.
+
 Lemma int_le_signed_le : forall a b,
   (a <= b)%int = true <->
   Int.signed a <= Int.signed b.
