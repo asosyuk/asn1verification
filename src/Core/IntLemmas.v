@@ -282,6 +282,31 @@ Proof.
   all: try discriminate.
 Qed.
 
+
+Lemma sem_Clt_Cge_ptr : forall b1 b2 i1 i2 m,
+  sem_cmp Cge (Vptr b1 i1) (tptr tschar)
+          (Vptr b2 i2) (tptr tschar) m
+  = Some Vtrue
+  <->
+  sem_cmp Clt (Vptr b1 i1) (tptr tschar)
+          (Vptr b2 i2) (tptr tschar) m = 
+  Some Vfalse.
+Proof.
+  intros.
+  unfold sem_cmp, sem_binarith, sem_cast,
+         classify_cmp, classify_cast, binarith_type, cmp_ptr;
+    simpl.
+  all: destruct Archi.ptr64; simpl.
+  all: unfold Val.of_bool.
+  all: split; intros.
+  all: repeat break_match.
+  all: try reflexivity.
+  all: try discriminate.
+  all: destruct (i2 <=u i1)%ptrofs eqn: S;
+    simpl in *; destruct (i1 <u i2)%ptrofs eqn: D.
+  all: try intuition.
+Qed.
+ 
 Lemma sem_Cle_Cgt : forall a b m is1 is2,
   sem_cmp Cgt (Vint a) (Tint is1 Signed noattr)
               (Vint b) (Tint is2 Signed noattr) m

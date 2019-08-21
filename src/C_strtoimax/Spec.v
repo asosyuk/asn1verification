@@ -55,7 +55,7 @@ Definition char_to_sign i :=
 
 Definition mult_sign s value :=
   match s with
-  | Signed =>  ((Int64.repr (-1))*value)%int64
+  | Signed => ((Int64.repr (-1))*value)%int64
   | Unsigned => value
   end.
 
@@ -137,10 +137,10 @@ Definition digit_to_num s i v :=
                                                      value := None;
                                                      str_pointer := None;
                                                      memory := (Mem.storev Mptr m'' 
-                                                                           (vptr (b, fin')) 
+                                                                           (vptr fin) 
                                                                            (vptr (str++)));
                                                      sign := s'; |}
-                                            else match Mem.storev Mptr m'' (vptr (b, fin')) 
+                                            else match Mem.storev Mptr m'' (vptr fin) 
                                                                               (vptr (str++)) with
                                                  | Some m' => 
                                                    Some {| 
