@@ -46,26 +46,63 @@ Proof.
     auto.
 Qed.
 
-Proposition ptr_ge_to_sem_cmp_true : forall m b1 b2 i1 i2,
-    ptr_ge m b1 b2 i1 i2 = Some true ->
+Proposition ptr_ge_to_sem_cmp : forall b m b1 b2 i1 i2,
+    ptr_ge m b1 b2 i1 i2 = Some b ->
     sem_cmp Cge (Vptr b1 i1) (tptr tschar) (Vptr b2 i2) (tptr tschar) m = 
-    Some Vtrue.
+    Some (Val.of_bool b).
 Proof.
   intros.
   assert ((option_map Val.of_bool (ptr_ge m b1 b2 i1 i2)) =
-          (option_map Val.of_bool (Some true))) by (f_equal; assumption).
+          (option_map Val.of_bool (Some b))) by (f_equal; assumption).
   eassumption.
 Qed.
 
-Proposition ptr_ge_to_sem_cmp_false : forall m b1 b2 i1 i2,
-    ptr_ge m b1 b2 i1 i2 = Some false ->
-    sem_cmp Cge (Vptr b1 i1) (tptr tschar) (Vptr b2 i2) (tptr tschar) m = 
-    Some Vfalse.
+Lemma sem_Clt_Cge_ptr : forall b b1 b2 i1 i2 m,
+  sem_cmp Cge (Vptr b1 i1) (tptr tschar)
+          (Vptr b2 i2) (tptr tschar) m
+  = Some (Val.of_bool b)
+  <->
+  sem_cmp Clt (Vptr b1 i1) (tptr tschar)
+          (Vptr b2 i2) (tptr tschar) m = 
+  Some (Val.of_bool (negb b)).
 Proof.
   intros.
-  assert ((option_map Val.of_bool (ptr_ge m b1 b2 i1 i2)) =
-          (option_map Val.of_bool (Some false))) by (f_equal; assumption).
-  eassumption.
+  unfold sem_cmp, sem_binarith, sem_cast,
+         classify_cmp, classify_cast, binarith_type, cmp_ptr;
+    simpl.
+  all: destruct Archi.ptr64; simpl.
+  all: unfold Val.of_bool.
+  all: split; intros.
+  all: repeat break_match.
+  all: try reflexivity.
+  all: try discriminate.
+  all: destruct (i2 <=u i1)%ptrofs eqn: S;
+    simpl in *; destruct (i1 <u i2)%ptrofs eqn: D.
+  all: try intuition.
+Qed.
+
+Lemma sem_Clt_Cge_ptr' : forall b b1 b2 i1 i2 m,
+  sem_cmp Cge (Vptr b1 i1) (tptr tschar)
+          (Vptr b2 i2) (tptr tschar) m
+  = Some (Val.of_bool (negb b))
+  <->
+  sem_cmp Clt (Vptr b1 i1) (tptr tschar)
+          (Vptr b2 i2) (tptr tschar) m = 
+  Some (Val.of_bool b).
+Proof.
+  intros.
+  unfold sem_cmp, sem_binarith, sem_cast,
+         classify_cmp, classify_cast, binarith_type, cmp_ptr;
+    simpl.
+  all: destruct Archi.ptr64; simpl.
+  all: unfold Val.of_bool.
+  all: split; intros.
+  all: repeat break_match.
+  all: try reflexivity.
+  all: try discriminate.
+  all: destruct (i2 <=u i1)%ptrofs eqn: S;
+    simpl in *; destruct (i1 <u i2)%ptrofs eqn: D.
+  all: try intuition.
 Qed.
 
 (* distance between addresses *)
@@ -196,5 +233,38 @@ Proof.
   apply Mem.perm_implies with (p2 := Nonempty) in H; [| constructor].
   assumption.
 Qed.
+
+Lemma ptrofs_le_unsigned_le : forall a b,
+  (a <=u b)%ptrofs = true <->
+  Ptrofs.unsigned a <= Ptrofs.unsigned b.
+Proof.
+  split; intros.
+  - unfold Ptrofs.ltu in H.
+    destruct zlt; [discriminate | lia].
+  - unfold Ptrofs.ltu.
+    destruct zlt; [lia | reflexivity].
+Qed.
+
+Lemma ptrofs_lt_signed_lt : forall a b,
+  (a <u b)%ptrofs = true <->
+  Ptrofs.unsigned a < Ptrofs.unsigned b.
+Proof.
+  split; intros.
+  - unfold Ptrofs.ltu in H.
+    destruct zlt; [lia | discriminate].
+  - unfold Ptrofs.ltu.
+    destruct zlt; [reflexivity | lia].
+Qed.
+
+Lemma ptrofs_to_unsigned_eq : forall i j, i = j <-> Ptrofs.unsigned i = Ptrofs.unsigned j.
+Proof.
+  intros.
+  destruct i.
+  destruct j.
+  split.
+  * congruence.
+  * apply Ptrofs.mkint_eq.
+Qed.
+
 
 Hint Resolve Ptrofs.mul_one Ptrofs.add_zero int_ptrofs_mod_eq : ptrofs.

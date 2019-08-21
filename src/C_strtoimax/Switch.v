@@ -156,7 +156,8 @@ Lemma exec_loop_minus : forall m ge e le b ofs str_b str_ofs fin_b fin_ofs
   econstructor.
   unfold load_addr in *.
   unfold addr_ge in *.
-  eapply (ptr_ge_to_sem_cmp_false _ _ _ _ _ AG).
+  eapply (ptr_ge_to_sem_cmp);
+    eassumption.
  Tactics.forward.
  econstructor.
  econstructor.
@@ -177,7 +178,7 @@ Lemma exec_loop_minus : forall m ge e le b ofs str_b str_ofs fin_b fin_ofs
  repeat econstructor.
  Tactics.forward.
  simpl.
- eapply ptr_ge_to_sem_cmp_false.
+ eapply ptr_ge_to_sem_cmp.
  eassumption.
  Tactics.forward.
  econstructor.
@@ -266,7 +267,8 @@ Proof.
   econstructor.
   unfold load_addr in *.
   unfold addr_ge in *.
-  eapply (ptr_ge_to_sem_cmp_false _ _ _ _ _ AG).
+  eapply (ptr_ge_to_sem_cmp).
+  eassumption.
  Tactics.forward.
  econstructor.
  econstructor.
@@ -288,7 +290,7 @@ Proof.
  eassumption.
  forward.
  forward.
- eapply ptr_ge_to_sem_cmp_false.
+ eapply ptr_ge_to_sem_cmp.
  eassumption.
  Tactics.forward.
  econstructor.
@@ -392,7 +394,8 @@ Proof.
   econstructor.
   unfold load_addr in *.
   unfold addr_ge in *.
-  eapply (ptr_ge_to_sem_cmp_false _ _ _ _ _ AG).
+  eapply (ptr_ge_to_sem_cmp).
+  eassumption.
   econstructor.
   econstructor.
   econstructor.
@@ -491,7 +494,8 @@ Proof.
   repeat env_assumption.
   econstructor.
   unfold load_addr in *.
-  eapply (ptr_ge_to_sem_cmp_false _ _ _ _ _ AG).
+  eapply (ptr_ge_to_sem_cmp).
+  eassumption.
   forward.
   econstructor.
   repeat env_assumption.

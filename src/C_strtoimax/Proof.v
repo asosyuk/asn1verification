@@ -1,5 +1,6 @@
 Require Import StructTact.StructTactics.
-Require Import Core.Core Core.Notations Core.IntLemmas Core.PtrLemmas Core.Tactics.
+Require Import Core.Core Core.Notations Core.IntLemmas Core.PtrLemmas
+        Core.IntPtrLemmas Core.Tactics.
 Require Import AST Spec Switch SpecLemmas.
 
 Import ListNotations.
@@ -153,7 +154,7 @@ Proof.
       repeat econstructor.
         all: repeat env_assumption.
       econstructor.
-      eapply ptr_ge_to_sem_cmp_false; eassumption.
+      eapply ptr_ge_to_sem_cmp; eassumption.
       repeat econstructor.
       repeat econstructor.
       eapply exec_Sseq_2.
@@ -167,7 +168,7 @@ Proof.
       Tactics.forward.
       eapply exec_Sseq_2.
       Tactics.forward.
-      eapply ptr_ge_to_sem_cmp_true; eassumption.
+      eapply ptr_ge_to_sem_cmp; eassumption.
       all: Tactics.forward; try discriminate.
     + repeat eexists.
       exec_until_seq.
@@ -187,7 +188,7 @@ Proof.
       repeat econstructor.
         all: repeat env_assumption.
       econstructor.
-      eapply ptr_ge_to_sem_cmp_false; eassumption.
+      eapply ptr_ge_to_sem_cmp; eassumption.
       repeat econstructor.
       repeat econstructor.
       apply exec_Sseq_2.
@@ -198,7 +199,7 @@ Proof.
       switch_destruct i0.
       eapply exec_Sseq_2.
       Tactics.forward.
-      eapply ptr_ge_to_sem_cmp_true; eassumption.
+      eapply ptr_ge_to_sem_cmp; eassumption.
       all: Tactics.forward; try discriminate.
   - pose proof (Loop (Some (n - 1)%nat) ((b, str_ofs) ++) 
                      (b, fin_ofs) (b, intp_ofs) 0 (char_to_sign i0) 
@@ -247,7 +248,7 @@ Proof.
   induction dist; intros until s;
   intros Str End Intp Value UB Sign LastD Load Dist Spec;
   simpl in Spec.
-  - all: unfold distance in *;
+  - all:
       repeat break_match; try congruence.
     inversion Spec.
     rewrite <- H3.
@@ -256,15 +257,34 @@ Proof.
     eapply exec_Sloop_stop1.
     eapply exec_Sseq_2.
     forward.
-
-    enough (sem_cmp Clt (Vptr str_b str_ofs) (tptr tschar) (Vptr b ofs) (tptr tschar) m
-            = Some Vfalse) by eassumption.
-    admit.
+    pose proof (distance_O m str_b b str_ofs ofs) as K.
+    assert ((ofs <u ofs)%ptrofs = false) as Ofs.
+    { unfold Ptrofs.ltu.
+      break_if.
+      nia.
+      auto. }
+    inversion K as [J1 J2].
+    destruct (J1 Dist). clear J1 J2 K.
+    inversion H.
+    simpl.
+    unfold sem_cmp, cmp_ptr, Val.cmplu_bool,
+    Ptrofs.cmpu; try (rewrite Ofs);
+      repeat break_match;
+      repeat (congruence || intuition || discriminate).
+    simpl.
+    rewrite H7 in H5.
+    rewrite H8 in H5.
+    unfold Mem.weak_valid_pointer in H5.
+    repeat break_if; simpl; try intuition.
+    f_equal.
+    bool_rewrite.
+    intuition.
+    destruct_andb_hyp; intuition; congruence.
+    
     forward.
     all: repeat (env_assumption || econstructor
                  || discriminate).
     rewrite <- H1.
-    
     rewrite <- H2.
     assumption.
     rewrite <- H4.
@@ -298,8 +318,11 @@ Proof.
       repeat rewrite set_env_eq_ptree_set in Heqle''.
       destruct IH as [t IH]; subst;
         try (repeat env_assumption || reflexivity).
-      { eapply dist_succ. eassumption.
-        unfold distance in *.
+      {  apply dist_succ.
+        assumption.
+        try break_match;
+          inversion Spec.
+        apply loaded_is_valid in Heqo.
         admit.
       }
       destruct IH as [le' IH]. 
@@ -1494,7 +1517,7 @@ Proof.
         econstructor.
         unfold load_addr in *.
         unfold addr_ge in *.
-        eapply ptr_ge_to_sem_cmp_false.
+        eapply ptr_ge_to_sem_cmp.
         eassumption.
         Tactics.forward.
         econstructor.
@@ -1515,7 +1538,7 @@ Proof.
         repeat econstructor.
         Tactics.forward.
         simpl.
-        eapply ptr_ge_to_sem_cmp_false.
+        eapply ptr_ge_to_sem_cmp.
         eassumption.
         Tactics.forward.
         econstructor.
@@ -1585,7 +1608,7 @@ Proof.
         econstructor.
         unfold load_addr in *.
         unfold addr_ge in *.
-        eapply ptr_ge_to_sem_cmp_false.
+        eapply ptr_ge_to_sem_cmp.
         eassumption.
         Tactics.forward.
         econstructor.
@@ -1610,7 +1633,7 @@ Proof.
         repeat env_assumption.
         econstructor.
         simpl.
-        eapply ptr_ge_to_sem_cmp_false.
+        eapply ptr_ge_to_sem_cmp.
           eassumption.
         Tactics.forward.
         econstructor.
