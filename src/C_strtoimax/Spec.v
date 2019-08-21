@@ -44,18 +44,18 @@ Definition zero_char := (Int.repr 48).
 (* Representing negative and positive int using signedness *)
 Definition int_to_int64 (i : int) := Int64.repr (Int.signed i).
 
-Definition Sign s :=
+Definition sign_to_int s :=
   match s with
   | Signed => (Int.repr (-1))
   | Unsigned => Int.repr 1
   end.
 
-Definition sign i :=
+Definition char_to_sign i :=
   if (i == minus_char)%int then Signed else Unsigned.
 
 Definition mult_sign s value :=
   match s with
-  | Signed =>  ((Int64.repr (-1))*value)%int64
+  | Signed => ((Int64.repr (-1))*value)%int64
   | Unsigned => value
   end.
 
@@ -95,22 +95,19 @@ Definition digit_to_num s i v :=
     { return_type : asn_strtox_result_e ;
       value : option int64 ;
       str_pointer : option addr ;
-      memory : option mem ; 
+      memory : option mem ;
+      sign : signedness ;
       }.
-  
 
   Fixpoint asn_strtoimax_lim_loop' (str fin intp : addr) (value : int64)
            (s: signedness) (last_digit : int64)
            (dist : nat) (m'' : mem) {struct dist} : option asn_strtoimax_lim_result := 
     match dist with
-    | O => match (Mem.storev Mptr m'' (vptr fin) (vptr str)) with
-          | Some m' => 
-            Some {| return_type := ASN_STRTOX_OK;
-                    value := Some (mult_sign s value);
-                    str_pointer := Some str;
-                    memory := Some m'' |}
-          | None => None
-          end
+    | O => Some {| return_type := ASN_STRTOX_OK;
+                  value := Some value;
+                  str_pointer := Some str;
+                  memory := Some m'';
+                  sign := s; |}
     | S n => match load_addr Mint8signed m'' str with
             | Some (Vint i) =>
               if is_digit i
@@ -121,7 +118,7 @@ Definition digit_to_num s i v :=
                    then asn_strtoimax_lim_loop' (str++) fin intp
                         (value * (Int64.repr 10) + d) s last_digit n m
                         (* value = value * 10 + d; next iteration *)
-                   else if (value == upper_boundary) && (d <= last_digit_max)
+                   else if (value == upper_boundary) && (d <= last_digit)
                         (* firstly check if str < *end, and if so, return *)
                         then let value' := digit_to_num s i value in
                              let s' := match s with 
@@ -140,9 +137,10 @@ Definition digit_to_num s i v :=
                                                      value := None;
                                                      str_pointer := None;
                                                      memory := (Mem.storev Mptr m'' 
-                                                                           (vptr (b, fin')) 
-                                                                           (vptr (str++))) |}
-                                            else match Mem.storev Mptr m'' (vptr (b, fin'))
+                                                                           (vptr fin) 
+                                                                           (vptr (str++)));
+                                                     sign := s'; |}
+                                            else match Mem.storev Mptr m'' (vptr fin) 
                                                                               (vptr (str++)) with
                                                  | Some m' => 
                                                    Some {| 
@@ -150,29 +148,40 @@ Definition digit_to_num s i v :=
                                                        value := Some (mult_sign s' value');
                                                        str_pointer := Some str;
                                                        memory := Mem.storev Mint64 m' (vptr intp)
-                                                                  (Vlong (mult_sign s' value')) |}
+                                                              (Vlong (mult_sign s' value'));
+                                                       sign := s'; |}
+                               
                                                  | _ => None
                                                  end
                                           | _ => None
                                           end
+                               | Some false => Some {|
+                                                  return_type := ASN_STRTOX_OK;
+                                                  value := Some (mult_sign s' value');
+                                                  str_pointer := Some (str++);
+                                                  memory := Some m'';
+                                                  sign := s' |}
                                | _ => None
                                end
                              | _ => None
                              end
                         else match (Mem.storev Mptr m'' (vptr fin) (vptr str)) with
                              | Some m' => 
-                               Some {| return_type := ASN_STRTOX_ERROR_RANGE;
-                                       value := None;
-                                       str_pointer := None;
-                                       memory := Some m' |}
+                               Some {|
+                                   return_type := ASN_STRTOX_ERROR_RANGE;
+                                   value := None;
+                                   str_pointer := None;
+                                   memory := Some m';
+                                   sign := s; |}
                              | None => None
                              end                          
               else match (Mem.storev Mptr m'' (vptr fin) (vptr str)) with
                    | Some m' => Some {| return_type := ASN_STRTOX_EXTRA_DATA;
-                                        value := Some (mult_sign s value);
-                                        str_pointer := Some str;
+                                       value := Some (mult_sign s value);
+                                       str_pointer := Some str;
                                        memory := Mem.storev Mint64 m' (vptr intp) 
-                                                            (Vlong (mult_sign s value)) |}
+                                                            (Vlong (mult_sign s value));
+                                       sign := s; |}
                    | None => None
                    end
             | _ => None                
@@ -188,19 +197,22 @@ Definition digit_to_num s i v :=
     | None => None
     end.
 
-Definition store_result s fin intp res :=
+
+Definition store_result fin intp res :=
   match res with
   | Some {| return_type := ASN_STRTOX_OK;
             value := Some val;
             str_pointer := Some str;
-            memory := Some m'; |} =>
+            memory := Some m';
+            sign := s; |} =>
     match (Mem.storev Mptr m' (vptr fin) (vptr str)) with
     | Some m'' =>
       Some {| return_type := ASN_STRTOX_OK;
               value := Some (mult_sign s val);
               str_pointer := Some str;
               memory := Mem.storev Mint64 m'' (vptr intp)
-                                   (Vlong (mult_sign s val)) |}
+                                   (Vlong (mult_sign s val));
+              sign := s; |}
     | None => None
     end
   | _ => res
@@ -213,7 +225,8 @@ Definition asn_strtoimax_lim (str fin intp : addr) : option asn_strtoimax_lim_re
     | Some true => Some {| return_type := ASN_STRTOX_ERROR_INVAL;
                            value := None;
                            str_pointer := None;
-                           memory := Some m; |}
+                           memory := Some m;
+                           sign := Unsigned; |}
     | Some false => match distance m str (b,ofs) with 
                    | Some dist => 
                      match load_addr Mint8signed m str with 
@@ -226,17 +239,24 @@ Definition asn_strtoimax_lim (str fin intp : addr) : option asn_strtoimax_lim_re
                                       str_pointer := Some str; 
                                       memory := (Mem.storev Mptr m 
                                                             (vptr fin) 
-                                                            (vptr (str++))); |} 
-                            | Some false => store_result (sign i) fin intp 
+                                                            (vptr (str++)));
+                                      sign := (char_to_sign i) |} 
+                            | Some false => store_result fin intp 
                                                         (asn_strtoimax_lim_loop 
-                                                           (str++) fin intp 0 (sign i) 
-                                                           (max_sign (sign i)) (Some (dist - 1)%nat) m) 
+                                                           (str++) fin intp 0
+                                                           (char_to_sign i) 
+                                                           (max_sign (char_to_sign i))
+                                                           (Some (dist - 1)%nat) m) 
                             | None => None 
                             end 
-                       else store_result Unsigned fin intp 
-                                         (asn_strtoimax_lim_loop str fin intp 0 
-                                                                 Unsigned last_digit_max (Some dist) m) 
-                     | _ => None (* fail of memory load on str: wrong type or not enough permission *) 
+                       else store_result fin intp 
+                                         (asn_strtoimax_lim_loop
+                                            str fin intp 0
+                                            Unsigned
+                                            last_digit_max
+                                            (Some dist) m) 
+                     | _ => None (* fail of memory load on str:
+ wrong type or not enough permission *) 
                      end
                    | None => None
                    end

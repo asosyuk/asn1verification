@@ -178,7 +178,7 @@ Lemma dist_pred:
     distance m (b, ofs) (b, i) = Some (dist - 1)%nat ->
     Mem.valid_pointer m b (Ptrofs.unsigned (ofs + 1)%ptrofs) = true ->
     distance m (b, (ofs + 1)%ptrofs) (b, i) = Some dist.
-Abort.
+  Admitted.
 
 Lemma int_ptrofs_mod_eq : (Int.modulus = Ptrofs.modulus).
 Proof.
