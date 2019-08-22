@@ -177,6 +177,7 @@ Proof.
   all: try lia.
 Qed.
 
+
 Lemma dist_to_lt : forall m b ofs ofs' dist, 
   distance m (b, ofs) (b, ofs') = Some (S dist) ->
   (Ptrofs.unsigned ofs < Ptrofs.unsigned ofs')%Z.
@@ -233,6 +234,7 @@ Proof.
   apply Mem.perm_implies with (p2 := Nonempty) in H; [| constructor].
   assumption.
 Qed.
+
 
 Lemma ptrofs_le_unsigned_le : forall a b,
   (a <=u b)%ptrofs = true <->

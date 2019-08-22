@@ -318,20 +318,8 @@ Proof.
       repeat rewrite set_env_eq_ptree_set in Heqle''.
       destruct IH as [t IH]; subst;
         try (repeat env_assumption || reflexivity).
-      {  apply dist_succ.
-         assumption.
-         unfold Mem.weak_valid_pointer.
-        try break_match;
-          inversion Spec.
-        apply loaded_is_valid in Heqo.
-        replace (Ptrofs.unsigned (str_ofs + 1)%ptrofs - 1)%Z with
-            (Ptrofs.unsigned str_ofs)%Z.
-        rewrite Heqo.
-        intuition.
-        eapply distance_succ_no_overflow in Dist.
-        rewrite Dist.
-        nia.
-      }
+      eapply dist_succ_load;
+        eassumption.
       destruct IH as [le' IH]. 
       repeat rewrite set_env_eq_ptree_set in *.
       repeat eexists.
@@ -590,10 +578,8 @@ replace (asn_strtox_result_e_to_int ASN_STRTOX_ERROR_RANGE)
       repeat rewrite set_env_eq_ptree_set in Heqle''.
       destruct IH as [t IH]; subst;
         try (repeat env_assumption || reflexivity).
-      { eapply dist_succ. eassumption.
-        unfold distance in *.
-        admit.
-      }
+      eapply dist_succ_load;
+        eassumption.
       destruct IH as [le' IH]. 
       repeat rewrite set_env_eq_ptree_set in *.
       repeat eexists.
@@ -651,6 +637,12 @@ replace (asn_strtox_result_e_to_int ASN_STRTOX_ERROR_RANGE)
          addr_lt m (str_b, (str_ofs + 1)%ptrofs) (b0, i0) = Some false
          Signed 
        *) (* go through one loop and break *)
+      replace b0 with b in *
+        by (eapply mem_load_inj_ptr;
+         eassumption).
+      replace i0 with ofs in *
+        by (eapply mem_load_inj_ptr;
+         eassumption).
       unfold max_sign in *.
       unfold is_digit in *.
       repeat destruct_andb_hyp.
@@ -665,9 +657,7 @@ replace (asn_strtox_result_e_to_int ASN_STRTOX_ERROR_RANGE)
       repeat econstructor; try env_assumption.
       try eassumption.
       econstructor.
-      assert (sem_cmp Clt (Vptr str_b str_ofs) (tptr tschar)
-                      (Vptr b0 i0) (tptr tschar) m = Some Vtrue).
-      { admit. }
+      eapply distance_to_sem_cmp_lt.
       eassumption.
       repeat econstructor.
       replace (negb (1 == 0)%int) with true by (auto with ints).
@@ -719,10 +709,8 @@ replace (asn_strtox_result_e_to_int ASN_STRTOX_ERROR_RANGE)
       econstructor.
       forward.
       forward.
-      enough (sem_cmp Clt (Vptr str_b (str_ofs + 1)%ptrofs)
-                      (tptr tschar) (Vptr b0 i0) (tptr tschar) m = Some Vtrue)
-        by eassumption.
-      admit.
+      eapply addr_lt_to_sem_cmp_lt;
+        eassumption.
       forward.
       replace (negb (1 == 0)%int) with true by (auto with ints).      
       econstructor.
@@ -760,6 +748,12 @@ replace (asn_strtox_result_e_to_int ASN_STRTOX_ERROR_RANGE)
     + (* (inp_value == upper_boundary) && (int_to_int64 (i - zero_char)%int <= max_sign Signed) = true, Unsigned
           do one loop and return
        *)
+      replace b0 with b in *
+        by (eapply mem_load_inj_ptr;
+         eassumption).
+      replace i0 with ofs in *
+        by (eapply mem_load_inj_ptr;
+            eassumption).
       unfold max_sign in *.
       unfold is_digit in *.
       repeat destruct_andb_hyp.
@@ -774,9 +768,7 @@ replace (asn_strtox_result_e_to_int ASN_STRTOX_ERROR_RANGE)
       repeat econstructor; try env_assumption.
       try eassumption.
       econstructor.
-      assert (sem_cmp Clt (Vptr str_b str_ofs) (tptr tschar)
-                      (Vptr b0 i0) (tptr tschar) m = Some Vtrue).
-      { admit. }
+      eapply distance_to_sem_cmp_lt.
       eassumption.
       repeat econstructor.
       replace (negb (1 == 0)%int) with true by (auto with ints).
@@ -828,10 +820,8 @@ replace (asn_strtox_result_e_to_int ASN_STRTOX_ERROR_RANGE)
       econstructor.
       forward.
       forward.
-      enough (sem_cmp Clt (Vptr str_b (str_ofs + 1)%ptrofs)
-                      (tptr tschar) (Vptr b0 i0) (tptr tschar) m = Some Vtrue)
-        by eassumption.
-      admit.
+      eapply addr_lt_to_sem_cmp_lt;
+        eassumption.
       forward.
       replace (negb (1 == 0)%int) with true by (auto with ints).      
       econstructor.
@@ -886,54 +876,22 @@ replace (asn_strtox_result_e_to_int ASN_STRTOX_ERROR_RANGE)
         try eassumption.
         econstructor.
         simpl.
-        assert (sem_cmp Clt (Vptr str_b str_ofs) (tptr tschar)
-                        (Vptr b ofs) (tptr tschar) m = Some Vtrue)
-          by admit; eassumption.
-        forward.
-        replace (negb (1 == 0)%int) with true by (auto with ints).
-        forward.
-        forward.
-        simpl.
-        bool_rewrite.
-        forward.
-        replace (negb (1 == 0)%int) with true by (auto with ints).
-        forward.
-        simpl.
-        bool_rewrite.
-        econstructor.
-        forward.
-        replace (negb (1 == 0)%int) with true by (auto with ints).
-        econstructor.
-        econstructor.
-        forward.
-        econstructor.
-        forward.
-        simpl.
-        bool_rewrite.
-        econstructor.
-        econstructor.
-        forward.
-        simpl.
-        bool_rewrite.
-        econstructor.
-        econstructor.
-        forward.
-        simpl.
-        bool_rewrite.
+        eapply distance_to_sem_cmp_lt;
+          eassumption.
+       all: repeat (match goal with
+                     | [|- context[bool_val]]=> simpl; bool_rewrite
+                     | [|- context[Val.of_bool]] => simpl; bool_rewrite
+                     end ||
+                         forward ||
+                         replace (negb (1 == 0)%int) with true
+                      by (auto with ints)).
         rewrite H4.
-        repeat econstructor.
-        econstructor.
         forward.
-        rewrite H4.
-        econstructor.
-        forward.
-        econstructor.
-      *
-        inversion Spec; clear Spec.
+      * inversion Spec; clear Spec.
         repeat rewrite set_env_eq_ptree_set in *.
         repeat eexists.
         eapply exec_Sloop_stop1.
-        econstructor. (* Wrong local env instantiated  by repeat econstructor ??? *)
+        econstructor. 
         econstructor.
         econstructor.
         repeat econstructor; try env_assumption.
@@ -941,41 +899,17 @@ replace (asn_strtox_result_e_to_int ASN_STRTOX_ERROR_RANGE)
         try eassumption.
         econstructor.
         simpl.
-        assert (sem_cmp Clt (Vptr str_b str_ofs) (tptr tschar)
-                        (Vptr b ofs) (tptr tschar) m = Some Vtrue)
-          by admit; eassumption.
-        forward.
-        replace (negb (1 == 0)%int) with true by (auto with ints).
-        forward.
-        forward.
-        simpl.
-        bool_rewrite.
-        forward.
-        replace (negb (1 == 0)%int) with true by (auto with ints).
-        forward.
-        simpl.
-        bool_rewrite.
-        econstructor.
-        forward.
-        replace (negb (1 == 0)%int) with true by (auto with ints).
-        econstructor.
-        econstructor.
-        forward.
-        econstructor.
-        forward.
-        simpl.
-        bool_rewrite.
-        econstructor.
-        econstructor.
-        forward.
-        simpl.
-        bool_rewrite.
-        econstructor.
-        econstructor.
-        forward.
+        eapply distance_to_sem_cmp_lt;
+          eassumption.
+        all: repeat (match goal with
+                     | [|- context[bool_val]]=> simpl; bool_rewrite
+                     | [|- context[Val.of_bool]] => simpl; bool_rewrite
+                     end ||
+                         forward ||
+                         replace (negb (1 == 0)%int) with true
+                      by (auto with ints)).
         rewrite H4.
-        repeat econstructor.
-        econstructor.
+        forward.
    Admitted.
 
 Lemma asn_strtoimax_lim_loop_ASN_STRTOX_EXTRA_DATA_correct :

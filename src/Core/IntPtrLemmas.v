@@ -226,6 +226,26 @@ Proof.
       congruence.
 Qed.
 
+Lemma dist_succ_load : forall dist c m b ofs b' ofs' v,
+    Mem.loadv c m (Vptr b' ofs') = Some v ->
+    distance m (b', ofs') (b, ofs) = Some (S dist) ->
+    distance m (b', (Ptrofs.add ofs' Ptrofs.one)) (b, ofs) = Some dist.
+Proof.
+  intros until v;
+    intros Load Dist.
+  eapply loaded_is_valid in Load.
+  eapply dist_succ.
+  eassumption.
+  unfold Mem.weak_valid_pointer.
+  replace (Ptrofs.unsigned (ofs' + 1)%ptrofs - 1)%Z with
+      (Ptrofs.unsigned ofs')%Z.
+  rewrite Load.
+  intuition.
+  eapply distance_succ_no_overflow in Dist.
+  rewrite Dist.
+  nia.
+Qed.
+
 Proposition addr_lt_ge_eq : forall b m b1 b2 i1 i2 ,
     addr_ge m (b1, i1) (b2, i2) = Some b
     <-> addr_lt m (b1, i1) (b2, i2) = Some (negb b).
