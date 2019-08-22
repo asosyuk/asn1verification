@@ -24,8 +24,7 @@ Lemma asn_strtoimax_lim_ASN_STRTOX_ERROR_INVAL_correct :
             value := val;
             str_pointer := p; 
             memory := Some m';
-            sign := s';
-         |} ->    
+            sign := s' |} ->    
     exists (t : trace) (le' : temp_env),
       exec_stmt ge e le m (fn_body f_asn_strtoimax_lim) t le' m'
                 (Out_return (Some (Vint (asn_strtox_result_e_to_int 
@@ -933,9 +932,7 @@ Lemma asn_strtoimax_lim_loop_ASN_STRTOX_EXTRA_DATA_correct :
             value := val;
             str_pointer := p;
             memory := Some m';
-            sign := s';
-
-         |}  ->
+            sign := s' |}  ->
 
    exists t le', exec_stmt ge e le m f_asn_strtoimax_lim_loop t le' m' 
               (Out_return (Some (Vint
@@ -979,6 +976,7 @@ Proof.
         destruct dist; simpl in Spec; try break_match;
           inversion Spec; clear H0 Spec.
         apply loaded_is_valid in Heqo0.
+        apply Mem.valid_pointer_implies in Heqo0.
         assumption.
       }
       destruct IH as [le' IH]. 
@@ -1032,117 +1030,162 @@ Proof.
       fold f_asn_strtoimax_lim_loop.
       eapply IH.
     + 
-      unfold is_digit, andb in Heqb0, Heqb2.
+      unfold is_digit, andb in *.
       assert (inp_value == upper_boundary = true
-             /\ int_to_int64 (i - zero_char)%int <= last_digit_max_minus = true).
+             /\ int_to_int64 (i - zero_char)%int <= max_sign Signed = true).
       { clear - Heqb2. break_if. auto. discriminate. }
       assert ((Int.repr 48 <= i)%int = true 
               /\ i <= Int.repr 57 = true)%int.
       { clear - Heqb0. break_if. auto. discriminate. }
-      assert ((Int.repr 48 <= i1)%int = false 
-              \/ i1 <= Int.repr 57 = false)%int.
-      {
-        clear - Heqb4.
-        unfold is_digit, andb in Heqb4.
-        break_if.
-        all: intuition.
-      }
-      
+      (*****************************************************)
+      (* assert (((Int.repr 48 <= i1)%int = false           *)
+      (*         /\ i1 <= Int.repr 57 = true)                *)
+      (*        \/ ((Int.repr 48 <= i1)%int = true           *)
+      (*         /\ i1 <= Int.repr 57 = false))%int.         *)
+      (* { clear - Heqb4. unfold is_digit, andb in Heqb4.  *)
+      (*   break_if. auto. left. split. reflexivity. }     *)
+      (*****************************************************)
       clear Heqb0 Heqb2; destruct H0 as [H48 H57]; 
         destruct H as [Hiu Hi48].
-      eexists; eexists. 
-      repeat econstructor.
-      eassumption.
-      eassumption.
-      gso_simpl; eassumption.
-      gss_simpl; econstructor.
-      assert (sem_cmp Clt (Vptr str_b str_ofs) (tptr tschar)
-                      (Vptr b0 i0) (tptr tschar) m = Some Vtrue).
-      { admit. }
-      eassumption.
-      repeat econstructor.
-      replace (negb (1 == 0)%int) with (true) by (auto with ints).
-      econstructor. 
-      gso_simpl; eassumption.
-      eassumption.
-      gss_simpl; econstructor.
-      econstructor.
-      simpl; rewrite H48; econstructor.
-      repeat econstructor.
-      repeat gso_simpl; eassumption.
-      eassumption.
-      gss_simpl; econstructor.
-      econstructor.
-      simpl; rewrite H57; econstructor.
-      gss_simpl; econstructor.
-      econstructor.
-      repeat econstructor.
-      repeat gso_simpl; eassumption.
-      eassumption.
-      gss_simpl; econstructor.
-      econstructor.
-      repeat gso_simpl; eassumption.
-      repeat gso_simpl; eassumption.
-      econstructor.
-      simpl; rewrite Heqb1; econstructor.
-      repeat econstructor.
-      repeat gso_simpl; eassumption.
-      repeat gso_simpl; eassumption.
-      econstructor.
-      simpl; rewrite Hiu; econstructor.
-      repeat econstructor.
-      gss_simpl; econstructor.
-      repeat gso_simpl; eassumption.
-      econstructor.
-      simpl; unfold zero_char in Hi48; unfold last_digit_max_minus.
-      fold last_digit_max.
-      assert ((Int64.repr (Int.signed (i - Int.repr 48)%int) <= 
-              last_digit_max + 1)%int64 = true) as K.
-      {
-        apply int64_le_trans with (b := last_digit_max_minus).
-        assumption.
-        auto with ints.
-      }
-      rewrite K.
-      econstructor.
-      repeat econstructor.
-      repeat gso_simpl; eassumption.
-      econstructor; simpl; econstructor.
-      simpl; econstructor.
-      repeat econstructor.
-      repeat gso_simpl; eassumption.
-      econstructor.
-      econstructor.
-      gso_simpl; gss_simpl; econstructor.
-      econstructor.
-      repeat gso_simpl; eassumption.
-      econstructor.
-      repeat gso_simpl; eassumption.
-      eassumption.
-      gso_simpl; gss_simpl; econstructor.
-      gss_simpl; econstructor.
-      instantiate (1 := Vtrue).
-      {
+      unfold is_digit, andb in Heqb4; break_if;
+        rename Heqb2 into H148; rename Heqb4 into H157; 
+          eexists; eexists. 
+      * 
+        repeat econstructor.
+        eassumption.
+        eassumption.
+        gso_simpl; eassumption.
+        gss_simpl; econstructor.
+        assert (sem_cmp Clt (Vptr str_b str_ofs) (tptr tschar)
+                        (Vptr b0 i0) (tptr tschar) m = Some Vtrue).
+        { admit. }
+        eassumption.
+        econstructor.
+        repeat econstructor.
+        gso_simpl; eassumption.
+        eassumption.
+        gss_simpl; econstructor.
+        econstructor.
+        simpl; bool_rewrite; econstructor.
+        repeat econstructor.
+        repeat gso_simpl; eassumption.
+        eassumption.
+        gss_simpl; econstructor.
+        econstructor.
+        simpl; bool_rewrite; econstructor.
+        gss_simpl; econstructor.
+        econstructor.
+        repeat econstructor.
+        repeat gso_simpl; eassumption.
+        eassumption.
+        gss_simpl; econstructor.
+        econstructor.
+        repeat gso_simpl; eassumption.
+        repeat gso_simpl; eassumption.
+        econstructor.
+        simpl; bool_rewrite; econstructor.
+        repeat econstructor.
+        repeat gso_simpl; eassumption.
+        repeat gso_simpl; eassumption.
+        econstructor.
+        simpl; bool_rewrite; econstructor.
+        repeat econstructor.
+        gss_simpl; econstructor.
+        repeat gso_simpl; eassumption.
+        econstructor.
+        simpl; unfold zero_char in Hi48; unfold last_digit_max_minus.
+        fold last_digit_max.
+        assert ((Int64.repr (Int.signed (i - Int.repr 48)%int) <= 
+                last_digit_max + 1)%int64 = true) as K.
+        {
+          apply int64_le_trans with (b := max_sign Signed).
+          assumption.
+          auto with ints.
+        }
+        rewrite K; econstructor; clear K.
+        repeat econstructor.
+        repeat gso_simpl; eassumption.
+        econstructor.
+        simpl; econstructor.
+        repeat econstructor.
+        repeat gso_simpl; eassumption.
+        econstructor.
+        econstructor.
+        gso_simpl; gss_simpl; econstructor.
+        econstructor.
+        repeat gso_simpl; eassumption.
+        econstructor.
+        repeat gso_simpl; eassumption.
+        eassumption.
+        gso_simpl; gss_simpl; econstructor.
+        gss_simpl; econstructor.
         simpl.
-        unfold Ptrofs.of_ints.
-        replace (Ptrofs.repr 1 * 
-                Ptrofs.repr (Int.signed (Int.repr 1)))%ptrofs
-                with (Ptrofs.repr 1)%ptrofs by (auto with ints).
-        unfold addr_lt, option_map, negb, addr_ge in Heqo1.
-        (* break_match. break_if; [congruence|]. *)
+        instantiate (1 := Vtrue).
+        { 
+          clear - Heqo1. 
+          unfold addr_lt, option_map, negb, addr_ge, Ptrofs.of_ints in *.
+          replace (Ptrofs.repr 1 * 
+                   Ptrofs.repr (Int.signed (Int.repr 1)))%ptrofs 
+            with (1)%ptrofs by (auto with ints).
+          break_match; [|discriminate].
+          unfold ptr_ge in *.
+          replace (Cge) with (negate_comparison Clt) in * by reflexivity.
+          rewrite Val.negate_cmplu_bool, Val.negate_cmpu_bool in *.
+          cbn; unfold cmp_ptr, option_map; break_match.
+          all: unfold option_map, negb in *.
+          all: repeat break_match.
+          all: try discriminate.
+          inv Heqo0; reflexivity.
+        }
+        econstructor.
+        repeat econstructor.
+        repeat gso_simpl; eassumption.
+        gso_simpl; gss_simpl; econstructor.
+        econstructor.
+        all: try replace (Ptrofs.repr (sizeof ge tschar) * 
+                          ptrofs_of_int Signed (Int.repr 1))%ptrofs 
+          with (1)%ptrofs 
+          by (auto with ints).
+        eassumption.
+        gso_simpl; gss_simpl; econstructor.
+        apply Mem.load_store_other with 
+            (chunk' := Mint8signed) (b' := str_b) 
+            (ofs' := Ptrofs.unsigned (str_ofs + 1)%ptrofs) in Heqo3.
+        cbn; rewrite Heqo3.
+        eassumption.
         admit.
-      }
-      econstructor.
-      repeat econstructor.
-      repeat gso_simpl; eassumption.
-      gso_simpl; gss_simpl; econstructor.
-      econstructor.
-      instantiate (1 := m0); admit. (* follows from Heqo3*)
-      gso_simpl; gss_simpl; econstructor.
-      instantiate (1 := Vint i1); admit. (* follows from Heqo *)
-      gss_simpl; econstructor.
-      econstructor.
-      simpl.
+        gss_simpl; econstructor.
+        econstructor.
+        simpl; bool_rewrite; econstructor.
+        repeat econstructor.
+        gso_simpl; gso_simpl; gss_simpl; econstructor.
+        apply Mem.load_store_other with 
+            (chunk' := Mint8signed) (b' := str_b) 
+            (ofs' := Ptrofs.unsigned (str_ofs + 1)%ptrofs) in Heqo3.
+        cbn; rewrite Heqo3.
+        eassumption.
+        admit. (* the same as prev admit *)
+        gss_simpl; econstructor.
+        econstructor.
+        simpl; bool_rewrite; econstructor.
+        gss_simpl; econstructor.
+        econstructor.
+        repeat econstructor.
+        repeat gso_simpl; eassumption.
+        repeat gso_simpl; gss_simpl; econstructor.
+        repeat gso_simpl; gss_simpl; econstructor.
+        econstructor.
+        econstructor.
+        inv Spec. cbn. 
+        remember (Int64.neg inp_value * Int64.repr (Int.signed (Int.repr 10)) - 
+                  Int64.repr (Int.signed (i - Int.repr 48)%int)) as res.
+        replace (Int64.repr (Int.signed (Int.repr 1)) * res) with res.
+        subst.
+        eassumption.
+        replace (Int64.repr (Int.signed (Int.repr 1))) with (1)%int64
+          by (auto with ints).
+        admit.
+        admit.
     + admit.
     + clear IHdist.
       unfold is_digit, andb in Heqb0.
