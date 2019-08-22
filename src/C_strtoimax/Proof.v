@@ -319,11 +319,18 @@ Proof.
       destruct IH as [t IH]; subst;
         try (repeat env_assumption || reflexivity).
       {  apply dist_succ.
-        assumption.
+         assumption.
+         unfold Mem.weak_valid_pointer.
         try break_match;
           inversion Spec.
         apply loaded_is_valid in Heqo.
-        admit.
+        replace (Ptrofs.unsigned (str_ofs + 1)%ptrofs - 1)%Z with
+            (Ptrofs.unsigned str_ofs)%Z.
+        rewrite Heqo.
+        intuition.
+        eapply distance_succ_no_overflow in Dist.
+        rewrite Dist.
+        nia.
       }
       destruct IH as [le' IH]. 
       repeat rewrite set_env_eq_ptree_set in *.
@@ -337,10 +344,8 @@ Proof.
       repeat econstructor; try env_assumption.
       try eassumption.
       econstructor.
-      assert (sem_cmp Clt (Vptr str_b str_ofs) (tptr tschar)
-                      (Vptr b ofs) (tptr tschar) m = Some Vtrue).
-      { admit. }
-      eassumption.
+      eapply distance_to_sem_cmp_lt;
+        eassumption.
       repeat econstructor.
       replace (negb (1 == 0)%int) with true by (auto with ints).
       econstructor.
@@ -396,9 +401,11 @@ Proof.
       repeat econstructor; try env_assumption.
       try eassumption.
       econstructor.
-      assert (sem_cmp Clt (Vptr str_b str_ofs) (tptr tschar)
+         assert (sem_cmp Clt (Vptr str_b str_ofs) (tptr tschar)
                       (Vptr b0 i0) (tptr tschar) m = Some Vtrue).
-      { admit. }
+         { (* follows from addr_lt m (str_b, (str_ofs + 1)%ptrofs)
+  (b0, i0) = Some false *)
+           admit. }
       eassumption.
       repeat econstructor.
       replace (negb (1 == 0)%int) with true by (auto with ints).
@@ -439,10 +446,8 @@ Proof.
       replace (negb (1 == 0)%int) with true by (auto with ints).
       forward.
       simpl.
-      enough (sem_cmp Clt (Vptr str_b (str_ofs + 1)%ptrofs)
-                      (tptr tschar) (Vptr b0 i0) (tptr tschar) m = Some Vfalse)
-        by eassumption.
-      admit.
+      eapply addr_lt_to_sem_cmp_lt.
+      eassumption.
       forward.
       econstructor.
        all: repeat (env_assumption || econstructor
@@ -469,7 +474,9 @@ Proof.
       econstructor.
       assert (sem_cmp Clt (Vptr str_b str_ofs) (tptr tschar)
                       (Vptr b0 i0) (tptr tschar) m = Some Vtrue).
-      { assert (b0 = b).
+      { (* follows from addr_lt m (str_b, (str_ofs + 1)%ptrofs) (b0, i0) = Some false
+nd distance *)
+        assert (b0 = b).
         simpl in Load. rewrite Heqo0 in Load.
         inversion Load.
         auto.
@@ -514,10 +521,8 @@ Proof.
       forward.
       replace (negb (1 == 0)%int) with true by (auto with ints).
       forward.
-      enough (sem_cmp Clt (Vptr str_b (str_ofs + 1)%ptrofs)
-                      (tptr tschar) (Vptr b0 i0) (tptr tschar) m = Some Vfalse)
-        by eassumption.
-      admit.
+      eapply addr_lt_to_sem_cmp_lt.
+      eassumption.
       forward.
       all: inversion Spec;
         repeat (env_assumption || econstructor
@@ -602,10 +607,8 @@ replace (asn_strtox_result_e_to_int ASN_STRTOX_ERROR_RANGE)
       repeat econstructor; try env_assumption.
       try eassumption.
       econstructor.
-      assert (sem_cmp Clt (Vptr str_b str_ofs) (tptr tschar)
-                      (Vptr b ofs) (tptr tschar) m = Some Vtrue).
-      { admit. }
-      eassumption.
+      eapply distance_to_sem_cmp_lt;
+        eassumption.
       repeat econstructor.
       replace (negb (1 == 0)%int) with true by (auto with ints).
       econstructor.

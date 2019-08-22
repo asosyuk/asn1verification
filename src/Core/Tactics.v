@@ -1,4 +1,5 @@
 Require Import Core IntLemmas Notations.
+Require Import StructTact.StructTactics.
 
 Ltac ints_to_Z :=
   repeat rewrite Int.unsigned_repr_eq; repeat rewrite Zmod_small.
@@ -13,6 +14,10 @@ Ltac ptrofs_compute_add_mul :=
 Ltac ints_compute_add_mul :=
       simpl; unfold Int.add; unfold Int.mul;
       repeat rewrite Int.unsigned_repr_eq;  repeat rewrite Int.unsigned_repr_eq; repeat rewrite Zmod_small.
+
+Ltac crush_match := repeat break_match;
+                    try congruence.
+
 
 Ltac switch_destruct i :=
   let EQ := fresh "EQ" in

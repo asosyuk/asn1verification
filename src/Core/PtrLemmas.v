@@ -28,7 +28,7 @@ Definition addr_ge (m : mem) (a1 a2 : addr) :=
   match a1, a2 with (b1, ofs1), (b2, ofs2) => ptr_ge m b1 b2 ofs1 ofs2 end.
 
 Definition addr_lt (m : mem) (a1 a2 : addr) := 
-  option_map negb (addr_ge m a2 a1).
+  option_map negb (addr_ge m a1 a2).
 
 (* Both specs can be used interchangeably *)
 Proposition ptr_ge_refine : forall (m : mem) (b1 b2 : block) (ofs1 ofs2 : ptrofs),
@@ -115,7 +115,7 @@ Definition distance (m : mem) (a1 a2 : addr) : option nat :=
 
 Lemma dist_succ : forall m b b' ofs ofs' dist,
     distance m (b', ofs') (b, ofs) = Some (S dist) ->
-    Mem.valid_pointer m b' (Ptrofs.unsigned (ofs' + 1)%ptrofs) = true ->
+    Mem.weak_valid_pointer m b' (Ptrofs.unsigned (ofs' + 1)%ptrofs) = true -> 
     distance m (b', (Ptrofs.add ofs' Ptrofs.one)) (b, ofs) = Some dist.
 Proof.
   unfold distance, snd; intros.
@@ -154,7 +154,7 @@ Proof.
   unfold addr_ge, ptr_ge in *.
   simpl in *.
   repeat break_if; subst.
-  all: try discriminate.
+  all: try discriminate; unfold Mem.weak_valid_pointer in *.
   all: repeat destruct_andb_hyp.
   all: repeat destruct_orb_hyp.
   all: try congruence.
