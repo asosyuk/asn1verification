@@ -386,6 +386,12 @@ Proof.
          addr_lt m (str_b, (str_ofs + 1)%ptrofs) (b0, i0) = Some false
          Signed 
        *) (* go through one loop and break *)
+      replace b0 with b in *
+        by (eapply mem_load_inj_ptr;
+         eassumption).
+      replace i0 with ofs in *
+        by (eapply mem_load_inj_ptr;
+         eassumption).
       unfold max_sign in *.
       unfold is_digit in *.
       repeat destruct_andb_hyp.
@@ -401,11 +407,7 @@ Proof.
       repeat econstructor; try env_assumption.
       try eassumption.
       econstructor.
-         assert (sem_cmp Clt (Vptr str_b str_ofs) (tptr tschar)
-                      (Vptr b0 i0) (tptr tschar) m = Some Vtrue).
-         { (* follows from addr_lt m (str_b, (str_ofs + 1)%ptrofs)
-  (b0, i0) = Some false *)
-           admit. }
+      eapply distance_to_sem_cmp_lt.
       eassumption.
       repeat econstructor.
       replace (negb (1 == 0)%int) with true by (auto with ints).
@@ -453,12 +455,18 @@ Proof.
        all: repeat (env_assumption || econstructor
                     || discriminate).
        all: inversion Spec;
-       reflexivity.
-      + (* Case (inp_value == upper_boundary) 
+         try reflexivity.   
+    + (* Case (inp_value == upper_boundary) 
            && (int_to_int64 (i - zero_char)%int <= last_digit_max) = true 
          addr_lt m (str_b, (str_ofs + 1)%ptrofs) (b0, i0) = Some false
          Unsigned *)
-        (* go through one loop and break *)
+      (* go through one loop and break *)
+      replace b0 with b in *
+        by (eapply mem_load_inj_ptr;
+         eassumption).
+      replace i0 with ofs in *
+        by (eapply mem_load_inj_ptr;
+         eassumption).
       unfold max_sign in *.
       unfold is_digit in *.
       repeat destruct_andb_hyp.
@@ -472,16 +480,7 @@ Proof.
       repeat econstructor; try env_assumption.
       try eassumption.
       econstructor.
-      assert (sem_cmp Clt (Vptr str_b str_ofs) (tptr tschar)
-                      (Vptr b0 i0) (tptr tschar) m = Some Vtrue).
-      { (* follows from addr_lt m (str_b, (str_ofs + 1)%ptrofs) (b0, i0) = Some false
-nd distance *)
-        assert (b0 = b).
-        simpl in Load. rewrite Heqo0 in Load.
-        inversion Load.
-        auto.
-
-        admit. }
+      eapply distance_to_sem_cmp_lt.
       eassumption.
       repeat econstructor.
       replace (negb (1 == 0)%int) with true by (auto with ints).
@@ -526,9 +525,9 @@ nd distance *)
       forward.
       all: inversion Spec;
         repeat (env_assumption || econstructor
-                    || discriminate).
-Admitted.
- 
+                || discriminate).
+Qed.
+
 Lemma asn_strtoimax_lim_loop_ASN_STRTOX_ERROR_RANGE_correct :
    forall m ge e dist b ofs le str_b str_ofs fin_b fin_ofs
           intp_b intp_ofs inp_value  m' p val s' s,

@@ -361,3 +361,14 @@ Proof.
   all: eassumption.
 Qed.
 
+Proposition mem_load_inj_ptr : forall m b1 b2 b3 i1 i2 i3,
+    Mem.load Mptr m b1 (Ptrofs.unsigned i1) = Some (Vptr b2 i2) ->
+    Mem.load Mptr m b1 (Ptrofs.unsigned i1) = Some (Vptr b3 i3) ->
+    b2 = b3 /\ i2 = i3.
+Proof.
+  intros until i3;
+    intros Mem1 Mem2.
+  split; rewrite Mem1 in Mem2;
+    inversion Mem2; auto.
+  Qed.
+
