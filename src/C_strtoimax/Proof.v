@@ -720,7 +720,7 @@ replace (asn_strtox_result_e_to_int ASN_STRTOX_ERROR_RANGE)
       forward.
       econstructor.
       econstructor.
-      simpl. 
+      simpl.
       eassumption.
       forward.
       instantiate (1 := (Vint i1)).
@@ -834,9 +834,14 @@ replace (asn_strtox_result_e_to_int ASN_STRTOX_ERROR_RANGE)
       simpl. 
       eassumption.
       forward.
+      simpl.
       instantiate (1 := (Vint i1)).
-      (* need a lemma about memory *)
-      admit.
+      erewrite Mem.load_store_other;
+      try eassumption.
+      simpl.
+      replace ((Ptrofs.repr 1) * Ptrofs.of_ints (Int.repr 1))%ptrofs
+        with 1%ptrofs by auto with ptrofs.
+           admit.
       apply sem_Cle_Cge.
       apply int_le_sem_Cle.
       eassumption.
@@ -844,7 +849,12 @@ replace (asn_strtox_result_e_to_int ASN_STRTOX_ERROR_RANGE)
       replace (negb (1 == 0)%int) with true by (auto with ints).
       forward.
       instantiate (1 := (Vint i1)).
-      admit.
+      simpl. erewrite Mem.load_store_other;
+      try eassumption.
+      simpl.
+      replace ((Ptrofs.repr 1) * Ptrofs.of_ints (Int.repr 1))%ptrofs
+        with 1%ptrofs by auto with ptrofs.
+           admit.
       simpl.
       apply int_le_sem_Cle.
       eassumption.
@@ -1274,19 +1284,19 @@ Proof.
         assumption.
         econstructor.
         econstructor.
-        econstructor.
+        econstructor. 
 Admitted.
 
 Lemma asn_strtoimax_lim_correct :
   forall m ge e le str_b str_ofs fin_b fin_ofs intp_b intp_ofs m' res p s' val,
     
-    le ! _str = Some (Vptr b str_ofs)  ->
-    le ! _end = Some (Vptr b fin_ofs) ->
-    le ! _intp = Some (Vptr b intp_ofs)  ->
+    le ! _str = Some (Vptr str_b str_ofs)  ->
+    le ! _end = Some (Vptr fin_b fin_ofs) ->
+    le ! _intp = Some (Vptr intp_b intp_ofs)  ->
     le ! _upper_boundary = Some (Vlong upper_boundary) ->
     le ! _sign = Some (Vint (Int.repr 1)) ->
 
-    asn_strtoimax_lim m (b, str_ofs) (b, fin_ofs) (b, intp_ofs)
+    asn_strtoimax_lim m (str_b, str_ofs) (fin_b, fin_ofs) (intp_b, intp_ofs)
     = Some {| return_type := res;
               value := val;
               str_pointer := p;
