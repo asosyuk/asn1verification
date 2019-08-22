@@ -251,24 +251,37 @@ Proof.
     destruct zlt; [reflexivity | lia].
 Qed.
 
-Lemma int_le_sem_Cle : forall a b m is1 is2,
-  (a <= b)%int = true <->
+Lemma int_le_sem_Cle : forall i a b m is1 is2,
+  (a <= b)%int = i <->
   sem_cmp Cle (Vint a) (Tint is1 Signed noattr)
               (Vint b) (Tint is2 Signed noattr) m
-  = Some Vtrue.
+  = Some (Val.of_bool i).
 Proof.
-  unfold sem_cmp, sem_binarith, sem_cast, classify_cmp; simpl.
-  split; intros.
-  - all: destruct is1, is2; simpl.
-    all: destruct Archi.ptr64; simpl.
-    all: rewrite H; reflexivity.
-  - all: destruct is1, is2; simpl.
-    all: unfold classify_cast, binarith_type in H.
-    all: destruct Archi.ptr64; simpl in H.
-    all: unfold Val.of_bool in H.
-    all: break_match.
-    all: try discriminate.
-    all: try reflexivity.
+  destruct i.
+  - unfold sem_cmp, sem_binarith, sem_cast, classify_cmp; simpl.
+    split; intros.
+    -- all: destruct is1, is2; simpl.
+       all: destruct Archi.ptr64; simpl.
+       all: rewrite H; reflexivity.
+    -- all: destruct is1, is2; simpl.
+       all: unfold classify_cast, binarith_type in H.
+       all: destruct Archi.ptr64; simpl in H.
+       all: unfold Val.of_bool in H.
+       all: break_match.
+       all: try discriminate.
+       all: try reflexivity.
+  - unfold sem_cmp, sem_binarith, sem_cast, classify_cmp; simpl.
+    split; intros.
+    -- all: destruct is1, is2; simpl.
+       all: destruct Archi.ptr64; simpl.
+       all: rewrite H; reflexivity.
+    -- all: destruct is1, is2; simpl.
+       all: unfold classify_cast, binarith_type in H.
+       all: destruct Archi.ptr64; simpl in H.
+       all: unfold Val.of_bool in H.
+       all: break_match.
+       all: try discriminate.
+       all: try reflexivity.   
 Qed.
 
 Lemma int_lt_sem_Clt : forall a b m is1 is2,
@@ -334,14 +347,14 @@ Proof.
   all: try discriminate.
 Qed.
 
-Lemma sem_Cle_Cge : forall a b m is1 is2,
+Lemma sem_Cle_Cge : forall i a b m is1 is2,
   sem_cmp Cge (Vint a) (Tint is1 Signed noattr)
               (Vint b) (Tint is2 Signed noattr) m
-  = Some Vtrue
+  = Some (Val.of_bool i)
   <->
   sem_cmp Cle (Vint b) (Tint is2 Signed noattr)
               (Vint a) (Tint is1 Signed noattr) m
-  = Some Vtrue.
+  = Some (Val.of_bool i).
 Proof.
   unfold sem_cmp, sem_binarith, sem_cast,
          classify_cmp, classify_cast, binarith_type;
