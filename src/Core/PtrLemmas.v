@@ -113,6 +113,40 @@ Definition distance (m : mem) (a1 a2 : addr) : option nat :=
   | _ => None
   end.
 
+Lemma ptrofs_le_unsigned_le : forall a b,
+  (a <=u b)%ptrofs = true <->
+  Ptrofs.unsigned a <= Ptrofs.unsigned b.
+Proof.
+  split; intros.
+  - unfold Ptrofs.ltu in H.
+    destruct zlt; [discriminate | lia].
+  - unfold Ptrofs.ltu.
+    destruct zlt; [lia | reflexivity].
+Qed.
+
+Lemma ptrofs_le_unsigned_le_neg : forall a b,
+  (a <=u b)%ptrofs = false <->
+  not (Ptrofs.unsigned a <= Ptrofs.unsigned b).
+Proof.
+  split; intros; unfold not; intros.
+  - unfold Ptrofs.ltu in H.
+    destruct zlt; [nia | intuition].
+  - unfold Ptrofs.ltu.
+    destruct zlt; intuition.
+Qed.
+
+Lemma ptrofs_lt_signed_lt : forall a b,
+  (a <u b)%ptrofs = true <->
+  Ptrofs.unsigned a < Ptrofs.unsigned b.
+Proof.
+  split; intros.
+  - unfold Ptrofs.ltu in H.
+    destruct zlt; [lia | discriminate].
+  - unfold Ptrofs.ltu.
+    destruct zlt; [reflexivity | lia].
+Qed.
+
+
 Lemma dist_succ : forall m b b' ofs ofs' dist,
     distance m (b', ofs') (b, ofs) = Some (S dist) ->
     Mem.weak_valid_pointer m b' (Ptrofs.unsigned (ofs' + 1)%ptrofs) = true -> 
@@ -177,6 +211,52 @@ Proof.
   all: try lia.
 Qed.
 
+Proposition addr_ge_false_distance :
+  forall (b : bool) (m : mem) (b1 b2 : block) (i1 i2 : ptrofs) (dist : nat),
+    addr_ge m (b1, i1) (b2, i2) = Some false ->
+    distance m (b1, i1) (b2, i2) = Some dist -> (0 < dist)%nat.
+Proof.
+  intros until dist;
+    intros Addr Dist.
+  unfold distance, sem_cmp, cmp_ptr, addr_ge, ptr_ge,
+  Val.cmplu_bool, Val.cmpu_bool, Ptrofs.cmpu,
+  Val.cmp_different_blocks,
+  classify_cmp in *.
+  repeat break_match;
+    try congruence; repeat destruct_andb_hyp;
+      try congruence.
+  simpl in *.
+  all: inversion Heqo; clear Heqo;
+  rewrite ptrofs_le_unsigned_le in H4;
+  inversion Addr; clear Addr;
+  rewrite ptrofs_le_unsigned_le_neg in H5;
+  destruct i1; destruct i2; simpl in *;
+  inversion Dist; clear Dist;
+  try rewrite <- Z2Nat.inj_sub;
+  try rewrite <- Z2Nat.inj_0;
+  try rewrite <- Z2Nat.inj_lt;
+  nia.
+Qed.
+
+Lemma dist_pred: 
+  forall (b : bool) (m : mem) (b1 b2 : block) (ofs : ptrofs) (i : ptrofs) (dist : nat), 
+    addr_ge m (b1, ofs) (b2, i) = Some false ->
+    distance m (b1, ofs) (b2, i) = Some (dist)%nat ->
+    Mem.weak_valid_pointer m b1 (Ptrofs.unsigned (ofs + 1)%ptrofs) = true ->
+    distance m (b1, (ofs + 1)%ptrofs) (b2, i) = Some (dist - 1)%nat.
+Proof.
+intros until dist;
+    intros Dist VP1 VP2.
+apply dist_succ.
+replace (S (dist - 1))%nat with ((dist - 1) + 1)%nat
+  by omega.
+replace (dist - 1 + 1)%nat with dist.
+all: try eassumption.
+assert (0 < dist)%nat.
+{ eapply addr_ge_false_distance; eassumption. } 
+nia.
+Qed.
+
 
 Lemma dist_to_lt : forall m b ofs ofs' dist, 
   distance m (b, ofs) (b, ofs') = Some (S dist) ->
@@ -209,19 +289,11 @@ Proof.
   intros; break_if; congruence.
 Qed.
 
-Lemma dist_pred: 
-  forall (m : mem) (b : block) (ofs : ptrofs) (i : ptrofs) (dist : nat), 
-    addr_ge m (b, ofs) (b, i) = Some false -> 
-    addr_ge m ((b, ofs) ++) (b, i) = Some false -> 
-    distance m (b, ofs) (b, i) = Some (dist - 1)%nat ->
-    Mem.valid_pointer m b (Ptrofs.unsigned (ofs + 1)%ptrofs) = true ->
-    distance m (b, (ofs + 1)%ptrofs) (b, i) = Some dist.
-  Admitted.
-
 Lemma int_ptrofs_mod_eq : (Int.modulus = Ptrofs.modulus).
 Proof.
   reflexivity.
 Qed.
+
 
 Lemma loaded_is_valid : forall c m b ofs v,
   Mem.load c m b ofs = Some v ->
@@ -233,29 +305,6 @@ Proof.
   apply Mem.valid_access_perm with (k := Cur) in H.
   apply Mem.perm_implies with (p2 := Nonempty) in H; [| constructor].
   assumption.
-Qed.
-
-
-Lemma ptrofs_le_unsigned_le : forall a b,
-  (a <=u b)%ptrofs = true <->
-  Ptrofs.unsigned a <= Ptrofs.unsigned b.
-Proof.
-  split; intros.
-  - unfold Ptrofs.ltu in H.
-    destruct zlt; [discriminate | lia].
-  - unfold Ptrofs.ltu.
-    destruct zlt; [lia | reflexivity].
-Qed.
-
-Lemma ptrofs_lt_signed_lt : forall a b,
-  (a <u b)%ptrofs = true <->
-  Ptrofs.unsigned a < Ptrofs.unsigned b.
-Proof.
-  split; intros.
-  - unfold Ptrofs.ltu in H.
-    destruct zlt; [lia | discriminate].
-  - unfold Ptrofs.ltu.
-    destruct zlt; [reflexivity | lia].
 Qed.
 
 Lemma ptrofs_to_unsigned_eq : forall i j, i = j <-> Ptrofs.unsigned i = Ptrofs.unsigned j.

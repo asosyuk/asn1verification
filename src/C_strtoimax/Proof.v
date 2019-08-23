@@ -7,74 +7,20 @@ Import ListNotations.
 
 Local Open Scope Int64Scope.
 
-Lemma sem_Cle_Cge : forall i a b m is1 is2,
-  sem_cmp Cge (Vint a) (Tint is1 Signed noattr)
-              (Vint b) (Tint is2 Signed noattr) m
-  = Some (Val.of_bool i)
-  <->
-  sem_cmp Cle (Vint b) (Tint is2 Signed noattr)
-              (Vint a) (Tint is1 Signed noattr) m
-  = Some (Val.of_bool i).
-Proof.
-  unfold sem_cmp, sem_binarith, sem_cast,
-         classify_cmp, classify_cast, binarith_type;
-    simpl.
-  destruct is1, is2; simpl.
-  all: destruct Archi.ptr64; simpl.
-  all: unfold Val.of_bool.
-  all: split; intros.
-  all: repeat break_match.
-  all: try reflexivity.
-  all: try discriminate.
-Qed.
-
-Lemma int_le_sem_Cle : forall i a b m is1 is2,
-  (a <= b)%int = i <->
-  sem_cmp Cle (Vint a) (Tint is1 Signed noattr)
-              (Vint b) (Tint is2 Signed noattr) m
-  = Some (Val.of_bool i).
-Proof.
-  destruct i.
-  - unfold sem_cmp, sem_binarith, sem_cast, classify_cmp; simpl.
-    split; intros.
-    -- all: destruct is1, is2; simpl.
-       all: destruct Archi.ptr64; simpl.
-       all: rewrite H; reflexivity.
-    -- all: destruct is1, is2; simpl.
-       all: unfold classify_cast, binarith_type in H.
-       all: destruct Archi.ptr64; simpl in H.
-       all: unfold Val.of_bool in H.
-       all: break_match.
-       all: try discriminate.
-       all: try reflexivity.
-  - unfold sem_cmp, sem_binarith, sem_cast, classify_cmp; simpl.
-    split; intros.
-    -- all: destruct is1, is2; simpl.
-       all: destruct Archi.ptr64; simpl.
-       all: rewrite H; reflexivity.
-    -- all: destruct is1, is2; simpl.
-       all: unfold classify_cast, binarith_type in H.
-       all: destruct Archi.ptr64; simpl in H.
-       all: unfold Val.of_bool in H.
-       all: break_match.
-       all: try discriminate.
-       all: try reflexivity.   
-Qed.
-
 
 (* Lemmas for each `asn_strtox_result_e` case *)
 
 (* ASN_STRTOX_ERROR_INVAL: str >= *end *)
 Lemma asn_strtoimax_lim_ASN_STRTOX_ERROR_INVAL_correct :
-  forall m ge e le b str_ofs fin_ofs intp_ofs m' p s' val,
+  forall m ge e le str_b str_ofs fin_b fin_ofs intp_b intp_ofs m' p s' val,
     
-    le ! _str = Some (Vptr b str_ofs)  ->
-    le ! _end = Some (Vptr b fin_ofs) ->
-    le ! _intp = Some (Vptr b intp_ofs)  ->
+    le ! _str = Some (Vptr str_b str_ofs)  ->
+    le ! _end = Some (Vptr fin_b fin_ofs) ->
+    le ! _intp = Some (Vptr intp_b intp_ofs)  ->
     le ! _upper_boundary = Some (Vlong upper_boundary) ->
     le ! _sign = Some (Vint (Int.repr 1)) ->
 
-    asn_strtoimax_lim m (b, str_ofs) (b, fin_ofs) (b, intp_ofs) =
+    asn_strtoimax_lim m (str_b, str_ofs) (fin_b, fin_ofs) (intp_b, intp_ofs) =
     Some {| return_type := ASN_STRTOX_ERROR_INVAL;
             value := val;
             str_pointer := p; 
@@ -141,15 +87,15 @@ Qed.
 (* SN_STRTOX_EXPECT_MORE: reading + or - and reaching *end *)
 (* ASN_STRTOX_EXPECT_MORE: reading + or - and reaching *end *)
 Lemma asn_strtoimax_lim_ASN_STRTOX_EXPECT_MORE_correct :
-  forall m ge e le b str_ofs fin_ofs intp_ofs m' p s' val,
+  forall m ge e le str_b fin_b intp_b str_ofs fin_ofs intp_ofs m' p s' val,
     
-    le ! _str = Some (Vptr b str_ofs)  ->
-    le ! _end = Some (Vptr b fin_ofs) ->
-    le ! _intp = Some (Vptr b intp_ofs)  ->
+    le ! _str = Some (Vptr str_b str_ofs)  ->
+    le ! _end = Some (Vptr fin_b fin_ofs) ->
+    le ! _intp = Some (Vptr intp_b intp_ofs)  ->
     le ! _upper_boundary = Some (Vlong upper_boundary) ->
     le ! _sign = Some (Vint (Int.repr 1)) ->
 
-    asn_strtoimax_lim m (b, str_ofs) (b, fin_ofs) (b, intp_ofs) =
+    asn_strtoimax_lim m (str_b, str_ofs) (fin_b, fin_ofs) (intp_b, intp_ofs) =
     Some
       {|
         return_type := ASN_STRTOX_EXPECT_MORE;
@@ -255,12 +201,12 @@ Proof.
       Tactics.forward.
       eapply ptr_ge_to_sem_cmp; eassumption.
       all: Tactics.forward; try discriminate.
-  - pose proof (Loop (Some (n - 1)%nat) ((b, str_ofs) ++) 
-                     (b, fin_ofs) (b, intp_ofs) 0 (char_to_sign i0) 
+  - pose proof (Loop (Some (n - 1)%nat) ((str_b, str_ofs) ++) 
+                     (fin_b, fin_ofs) (intp_b, intp_ofs) 0 (char_to_sign i0) 
                      (max_sign (char_to_sign i0)) m'). 
       congruence.
-  - pose proof (Loop (Some n) ((b, str_ofs)) 
-                     (b, fin_ofs) (b, intp_ofs) 0 Unsigned 
+  - pose proof (Loop (Some n) ((str_b, str_ofs)) 
+                     (fin_b, fin_ofs) (intp_b, intp_ofs) 0 Unsigned 
                      last_digit_max m'). congruence.
 Qed.
 
@@ -1693,7 +1639,6 @@ Proof.
         econstructor.
         Admitted.
 
-
 Lemma asn_strtoimax_lim_correct :
   forall m ge e le str_b str_ofs fin_b fin_ofs intp_b intp_ofs m' res p s' val,
     
@@ -1720,32 +1665,21 @@ Proof.
     repeat break_match;
       unfold store_result in *;
       repeat break_match; try congruence.
-    erewrite dist_pred in *.
-    + destruct_orb_hyp.
+    + inversion Spec.
+      rewrite H2 in *.
+      destruct_orb_hyp.
       1 : (eapply exec_loop_minus).
       12: (eapply exec_loop_plus).
       all: repeat rewrite set_env_eq_ptree_set in *.
       all: repeat  eassumption.
-        eapply asn_strtoimax_lim_loop_ASN_STRTOX_ERROR_RANGE_correct;
+        all: eapply asn_strtoimax_lim_loop_ASN_STRTOX_ERROR_RANGE_correct;
         repeat (env_assumption || econstructor);
      (switch_destruct i0);
-     rewrite EQ in *; simpl in Heqo3.
-       instantiate (1 := Signed).
-       econstructor.
-       simpl.
-       inversion Spec; subst.
+     rewrite EQ in *; simpl in Heqo3; try econstructor;
+       eapply dist_pred;
+         try eassumption;
+       eapply ptr_ge_is_valid in Heqo3;
        eassumption.
-       eapply asn_strtoimax_lim_loop_ASN_STRTOX_ERROR_RANGE_correct;
-        repeat (env_assumption || econstructor);
-     (switch_destruct i0);
-     rewrite EQ in *; simpl in Heqo3.
-       instantiate (1 := Unsigned).
-       econstructor.
-       simpl.
-       inversion Spec; subst.
-       eassumption.
-    + eassumption. 
-    + eassumption. 
     + destruct_orb_hyp.
       eapply exec_loop_none; try eassumption;
         eapply asn_strtoimax_lim_loop_ASN_STRTOX_ERROR_RANGE_correct;
@@ -1765,36 +1699,21 @@ Proof.
     repeat break_match;
       unfold store_result in *;
       repeat break_match; try congruence.
-    erewrite dist_pred in *.
-    + destruct_orb_hyp.
+     + inversion Spec.
+      rewrite H2 in *.
+      destruct_orb_hyp.
       1 : (eapply exec_loop_minus).
       12: (eapply exec_loop_plus).
       all: repeat rewrite set_env_eq_ptree_set in *.
       all: repeat  eassumption.
-        eapply asn_strtoimax_lim_loop_ASN_STRTOX_EXTRA_DATA_correct;
+        all: eapply asn_strtoimax_lim_loop_ASN_STRTOX_EXTRA_DATA_correct;
         repeat (env_assumption || econstructor);
      (switch_destruct i0);
-     rewrite EQ in *; simpl in Heqo3.
-       instantiate (1 := Signed).
-       econstructor.
-       simpl.
-       inversion Spec; subst.
-       econstructor.
-        inversion Spec; subst.
+     rewrite EQ in *; simpl in Heqo3; try econstructor;
+       eapply dist_pred;
+         try eassumption;
+       eapply ptr_ge_is_valid in Heqo3;
        eassumption.
-       eapply asn_strtoimax_lim_loop_ASN_STRTOX_EXTRA_DATA_correct;
-        repeat (env_assumption || econstructor);
-     (switch_destruct i0);
-     rewrite EQ in *; simpl in Heqo3.
-       instantiate (1 := Unsigned).
-       econstructor.
-       simpl.
-       inversion Spec; subst.
-       econstructor.
-        inversion Spec; subst.
-       eassumption.
-    + eassumption. 
-    + eassumption. 
     + destruct_orb_hyp.
       eapply exec_loop_none; try eassumption;
         eapply asn_strtoimax_lim_loop_ASN_STRTOX_EXTRA_DATA_correct;
@@ -1804,14 +1723,14 @@ Proof.
       inversion Spec.
       all: try (econstructor || eassumption).
       inversion Spec; subst; eassumption.
-      
 - (* ASN_STRTOX_OK *)
     intros until val; intros Str End Intp UB Sign Spec.
-    unfold asn_strtoimax_lim in Spec;
-      repeat break_match;
+    unfold asn_strtoimax_lim in Spec.
+    repeat break_match;
       unfold store_result in *;
-      repeat break_match; try congruence; inversion Spec; subst.
-    + destruct_orb_hyp.
+      repeat break_match; try congruence.
+     + inversion Spec.
+       destruct_orb_hyp.
       * (* minus case *)
         destruct a0.
         switch_destruct i0.
@@ -1838,11 +1757,14 @@ Proof.
                                   (Vlong
                                      (Int64.not (cast_int_long Signed (Int.repr 0)) >>
                                       Int64.repr (Int.unsigned (Int.repr 1))))
-                                  (PTree.set _sign (Vint (Int.repr 1)) le))))))))))));
-          repeat env_assumption; try econstructor.
-        erewrite dist_pred; auto.
-        eassumption.
-        eassumption.
+                                  (PTree.set _sign (Vint (Int.repr 1)) le)))))))))))).
+        repeat env_assumption.
+        econstructor.
+        all : try  repeat env_assumption; try econstructor.
+        eapply dist_pred;
+          try eassumption;
+          eapply ptr_ge_is_valid in Heqo3;
+          eassumption.
         destruct H.
         break_and.
         repeat eexists.
@@ -1904,7 +1826,16 @@ Proof.
         repeat eexists.
         forward.
         subst.
+        simpl.
+        unfold mult_sign, sign_to_int.
+        break_match; try eassumption.
+        replace (Int64.repr (Int.signed (Int.repr 1))) with (1)%int64 
+          by (auto with ints).
+        replace (1 * i1) with i1.
         eassumption.
+        rewrite Int64.mul_commut.
+        rewrite Int64.mul_one.
+        reflexivity.
       * (* plus case *)
         destruct a0.
         switch_destruct i0.
@@ -1929,11 +1860,14 @@ Proof.
                             (Vlong
                                (Int64.not (cast_int_long Signed (Int.repr 0)) >>
                                 Int64.repr (Int.unsigned (Int.repr 1))))
-                            (PTree.set _sign (Vint (Int.repr 1)) le)))))))))) ;
-          repeat env_assumption; try econstructor.
-        erewrite dist_pred; auto.
-        eassumption.
-        eassumption.
+                            (PTree.set _sign (Vint (Int.repr 1)) le)))))))))).
+        repeat env_assumption.
+        econstructor.
+        all : try  repeat env_assumption; try econstructor.
+        eapply dist_pred;
+          try eassumption;
+          eapply ptr_ge_is_valid in Heqo3;
+          eassumption.
         destruct H.
         break_and.
         repeat eexists.
@@ -2000,31 +1934,29 @@ Proof.
         repeat eexists.
         forward.
         subst.
+         unfold mult_sign, sign_to_int.
+         break_match; try eassumption.
+         simpl.
+        replace (Int64.repr (Int.signed (Int.repr 1))) with (1)%int64 
+          by (auto with ints).
+        replace (1 * i1) with i1.
         eassumption.
-        simpl.
-        replace (sign plus_char) with Unsigned.
-        simpl.
-        replace (Int64.repr (Int.signed (Int.repr 1)))
-          with (Int64.repr 1) by auto with ints.
-        replace  (Int64.repr 1 * i1) with i1.
-        eassumption.
-        symmetry.
         rewrite Int64.mul_commut.
-        eapply Int64.mul_one.
+        rewrite Int64.mul_one.
         reflexivity.
-    + pose proof (OK_None_contradiction_1
-           (distance (str_b, str_ofs) (b, i) - 1)
+     + pose proof (OK_None_contradiction_1
+           (Some (n-1)%nat)
            ((str_b, str_ofs) ++) (fin_b, fin_ofs)
            (intp_b, intp_ofs) 0
-           (sign i0) (max_sign (sign i0))
-           m m' (Some i1)).
+           (char_to_sign i0) (max_sign (char_to_sign i0))
+           m m' s').
       congruence. 
     + pose proof (OK_None_contradiction_2
-           (distance (str_b, str_ofs) (b, i) - 1)
+           (Some (n-1)%nat)
            ((str_b, str_ofs) ++) (fin_b, fin_ofs)
            (intp_b, intp_ofs) 0
-           (sign i0) (max_sign (sign i0))
-           m m').
+           (char_to_sign i0) (max_sign (char_to_sign i0))
+           m m' s').
       congruence. 
     + destruct_orb_hyp.
       destruct a0.
@@ -2059,27 +1991,32 @@ Proof.
       repeat eexists.
       forward.
       subst.
-      eassumption.
       simpl.
-      replace (Int64.repr (Int.signed (Int.repr 1)))
-        with (Int64.repr 1) by auto with ints.
-      replace  (Int64.repr 1 * i1) with i1.
-      eassumption.
-      symmetry.
-      rewrite Int64.mul_commut.
-      eapply Int64.mul_one.
-     + pose proof (OK_None_contradiction_1
-           (distance (str_b, str_ofs) (b, i))
+      unfold mult_sign, sign_to_int.
+         break_match; try eassumption.
+         simpl.
+         inversion Spec.
+         reflexivity.
+         inversion Spec.
+        replace (Int64.repr (Int.signed (Int.repr (1)))) with (1)%int64 
+          by (auto with ints).
+        replace (1 * i1) with i1.
+        reflexivity.
+        rewrite Int64.mul_commut.
+        rewrite Int64.mul_one.
+        reflexivity.
+    + pose proof (OK_None_contradiction_1
+           (Some (n)%nat)
            ((str_b, str_ofs)) (fin_b, fin_ofs)
            (intp_b, intp_ofs) 0
            Unsigned last_digit_max
-           m m' (Some i1)).
+           m m' s').
       congruence. 
     + pose proof (OK_None_contradiction_2
-           (distance (str_b, str_ofs) (b, i))
+           (Some (n)%nat)
            ((str_b, str_ofs)) (fin_b, fin_ofs)
            (intp_b, intp_ofs) 0
            Unsigned last_digit_max
-           m m').
-      congruence. 
+           m m' s').
+      congruence.
 Qed.

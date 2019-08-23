@@ -251,6 +251,27 @@ Proof.
     destruct zlt; [reflexivity | lia].
 Qed.
 
+Lemma sem_Cle_Cge : forall i a b m is1 is2,
+  sem_cmp Cge (Vint a) (Tint is1 Signed noattr)
+              (Vint b) (Tint is2 Signed noattr) m
+  = Some (Val.of_bool i)
+  <->
+  sem_cmp Cle (Vint b) (Tint is2 Signed noattr)
+              (Vint a) (Tint is1 Signed noattr) m
+  = Some (Val.of_bool i).
+Proof.
+  unfold sem_cmp, sem_binarith, sem_cast,
+         classify_cmp, classify_cast, binarith_type;
+    simpl.
+  destruct is1, is2; simpl.
+  all: destruct Archi.ptr64; simpl.
+  all: unfold Val.of_bool.
+  all: split; intros.
+  all: repeat break_match.
+  all: try reflexivity.
+  all: try discriminate.
+Qed.
+
 Lemma int_le_sem_Cle : forall i a b m is1 is2,
   (a <= b)%int = i <->
   sem_cmp Cle (Vint a) (Tint is1 Signed noattr)
@@ -347,26 +368,6 @@ Proof.
   all: try discriminate.
 Qed.
 
-Lemma sem_Cle_Cge : forall i a b m is1 is2,
-  sem_cmp Cge (Vint a) (Tint is1 Signed noattr)
-              (Vint b) (Tint is2 Signed noattr) m
-  = Some (Val.of_bool i)
-  <->
-  sem_cmp Cle (Vint b) (Tint is2 Signed noattr)
-              (Vint a) (Tint is1 Signed noattr) m
-  = Some (Val.of_bool i).
-Proof.
-  unfold sem_cmp, sem_binarith, sem_cast,
-         classify_cmp, classify_cast, binarith_type;
-    simpl.
-  destruct is1, is2; simpl.
-  all: destruct Archi.ptr64; simpl.
-  all: unfold Val.of_bool.
-  all: split; intros.
-  all: repeat break_match.
-  all: try reflexivity.
-  all: try discriminate.
-Qed.
 
 Lemma sem_Clt_Cgt : forall a b m is1 is2,
   sem_cmp Cgt (Vint a) (Tint is1 Signed noattr)
@@ -405,7 +406,11 @@ Proof.
     apply int_lt_sem_Clt.
     apply int_lt_signed_lt.
     assumption.
-  - apply int_le_sem_Cle.
+  - replace Vtrue with (Val.of_bool true).
+      apply int_le_sem_Cle.
     apply int_le_signed_le.
     assumption.
+    reflexivity.
 Qed.
+
+

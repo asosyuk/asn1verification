@@ -390,5 +390,33 @@ Proof.
     intros Mem1 Mem2.
   split; rewrite Mem1 in Mem2;
     inversion Mem2; auto.
+Qed.
+
+Lemma ptr_ge_is_valid : forall m b1 b2 i1 i2 ,
+  ptr_ge m b1 b2 i1 i2 = Some false ->
+  Mem.weak_valid_pointer m b1 (Ptrofs.unsigned i1) = true.
+Proof.
+  unfold Mem.weak_valid_pointer.
+  intros.
+  unfold distance, sem_cmp, cmp_ptr, addr_ge, ptr_ge,
+  Val.cmplu_bool, Val.cmpu_bool, Ptrofs.cmpu,
+  Val.cmp_different_blocks,
+  classify_cmp in *.
+  repeat break_match;
+    try congruence; repeat destruct_andb_hyp;
+      try congruence;
+      repeat destruct_orb_hyp;
+      try congruence.
   Qed.
+
+Lemma ptrofs_le_unsigned_le_neg : forall a b,
+  (a <=u b)%ptrofs = false <->
+  not (Ptrofs.unsigned a <= Ptrofs.unsigned b)%Z.
+Proof.
+  split; intros; unfold not; intros.
+  - unfold Ptrofs.ltu in H.
+    destruct zlt; [nia | intuition].
+  - unfold Ptrofs.ltu.
+    destruct zlt; intuition.
+Qed.
 
