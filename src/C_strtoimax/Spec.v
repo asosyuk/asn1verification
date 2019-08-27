@@ -99,94 +99,87 @@ Definition digit_to_num s i v :=
       sign : signedness ;
       }.
 
-  Fixpoint asn_strtoimax_lim_loop' (str fin intp : addr) (value : int64)
-           (s: signedness) (last_digit : int64)
-           (dist : nat) (m'' : mem) {struct dist} : option asn_strtoimax_lim_result := 
-    match dist with
-    | O => Some {| return_type := ASN_STRTOX_OK;
-                  value := Some value;
-                  str_pointer := Some str;
-                  memory := Some m'';
-                  sign := s; |}
-    | S n => match load_addr Mint8signed m'' str with
-            | Some (Vint i) =>
-              if is_digit i
-              (* if *str >= 0x30 && *str <= 0x39 *)
-              then let d := int_to_int64 (i - zero_char)%int in
-                   (* int d = *str - '0' *)
-                   if value < upper_boundary
-                   then asn_strtoimax_lim_loop' (str++) fin intp
-                        (value * (Int64.repr 10) + d) s last_digit n m
-                        (* value = value * 10 + d; next iteration *)
-                   else if (value == upper_boundary) && (d <= last_digit)
-                        (* firstly check if str < *end, and if so, return *)
-                        then let value' := digit_to_num s i value in
-                             let s' := match s with 
-                                       | Signed => Unsigned 
-                                       | _ => Unsigned 
-                                       end in
-                             match (Mem.loadv Mptr m'' (vptr fin)) with
-                             | Some (Vptr b fin') =>
-                               match addr_lt m'' (str++) (b, fin') with
-                               | Some true => match (load_addr Mint8signed m'' 
-                                                              (str++)) with
-                                          | Some (Vint i') =>
-                                            if is_digit i'
-                                            then Some {|
-                                                     return_type := ASN_STRTOX_ERROR_RANGE;
-                                                     value := None;
-                                                     str_pointer := None;
-                                                     memory := (Mem.storev Mptr m'' 
-                                                                           (vptr fin) 
-                                                                           (vptr (str++)));
-                                                     sign := s'; |}
-                                            else match Mem.storev Mptr m'' (vptr fin) 
-                                                                              (vptr (str++)) with
-                                                 | Some m' => 
-                                                   Some {| 
-                                                       return_type := ASN_STRTOX_EXTRA_DATA; 
-                                                       value := Some (mult_sign s' value');
-                                                       str_pointer := Some str;
-                                                       memory := Mem.storev Mint64 m' (vptr intp)
-                                                              (Vlong (mult_sign s' value'));
-                                                       sign := s'; |}
-                               
-                                                 | _ => None
-                                                 end
-                                          | _ => None
-                                          end
-                               | Some false => Some {|
-                                                  return_type := ASN_STRTOX_OK;
-                                                  value := Some (mult_sign s' value');
-                                                  str_pointer := Some (str++);
-                                                  memory := Some m'';
-                                                  sign := s' |}
-                               | _ => None
-                               end
-                             | _ => None
-                             end
-                        else match (Mem.storev Mptr m'' (vptr fin) (vptr str)) with
-                             | Some m' => 
-                               Some {|
-                                   return_type := ASN_STRTOX_ERROR_RANGE;
-                                   value := None;
-                                   str_pointer := None;
-                                   memory := Some m';
-                                   sign := s; |}
-                             | None => None
-                             end                          
-              else match (Mem.storev Mptr m'' (vptr fin) (vptr str)) with
-                   | Some m' => Some {| return_type := ASN_STRTOX_EXTRA_DATA;
-                                       value := Some (mult_sign s value);
-                                       str_pointer := Some str;
-                                       memory := Mem.storev Mint64 m' (vptr intp) 
-                                                            (Vlong (mult_sign s value));
-                                       sign := s; |}
-                   | None => None
-                   end
-            | _ => None                
-            end
-    end.
+Fixpoint asn_strtoimax_lim_loop' (str fin intp : addr) (value : int64)
+         (s: signedness) (last_digit : int64)
+         (dist : nat) (m'' : mem) {struct dist} : option asn_strtoimax_lim_result := 
+  match dist with
+  | O => Some {| return_type := ASN_STRTOX_OK;
+                value := Some value;
+                str_pointer := Some str;
+                memory := Some m'';
+                sign := s; |}
+  | S n =>
+    match load_addr Mint8signed m'' str with
+    | Some (Vint i) =>
+      if is_digit i
+                  (* if *str >= 0x30 && *str <= 0x39 *)
+      then let d := int_to_int64 (i - zero_char)%int in
+           (* int d = *str - '0' *)
+           if value < upper_boundary
+           then asn_strtoimax_lim_loop' (str++) fin intp
+                                        (value * (Int64.repr 10) + d) s last_digit n m
+                                        (* value = value * 10 + d; next iteration *)
+           else if (value == upper_boundary) && (d <= last_digit)
+                                             (* firstly check if str < *end, and if so, return *)
+                then let value' := digit_to_num s i value in
+                     let s' := match s with 
+                               | Signed => Unsigned 
+                               | _ => Unsigned 
+                               end in
+                     match (Mem.loadv Mptr m'' (vptr fin)) with
+                     | Some (Vptr b fin') =>
+                       match addr_lt m'' (str++) (b, fin') with
+                       | Some true =>
+                         match Mem.storev Mptr m'' (vptr fin) (vptr (str++)) with
+                         | Some m' => match (load_addr Mint8signed m' (str++)) with
+                                     | Some (Vint i') =>
+                                       if is_digit i'
+                                       then Some {|
+                                                return_type := ASN_STRTOX_ERROR_RANGE;
+                                                value := None;
+                                                str_pointer := None;
+                                                memory := Some m';
+                                                sign := s'; |}
+                                       else Some {|
+                                                return_type := ASN_STRTOX_EXTRA_DATA; 
+                                                value := Some (mult_sign s' value');
+                                                str_pointer := Some str;
+                                                memory := Mem.storev Mint64 m'
+                                                                     (vptr intp)
+                                                       (Vlong (mult_sign s' value'));
+                                                sign := s'; |}       
+                                     | _ => None
+                                     end
+                         | _ => None
+                         end
+                       | Some false => Some {|
+                                          return_type := ASN_STRTOX_OK;
+                                          value := Some (mult_sign s' value');
+                                          str_pointer := Some (str++);
+                                          memory := Some m'';
+                                          sign := s' |}
+                       | _ => None
+                       end
+                     | _ => None
+                     end
+                else  Some {|
+                           return_type := ASN_STRTOX_ERROR_RANGE;
+                           value := None;
+                           str_pointer := None;
+                           memory := Mem.storev Mptr m'' (vptr fin) (vptr str);
+                           sign := s; |}
+      else match (Mem.storev Mptr m'' (vptr fin) (vptr str)) with
+           | Some m' => Some {| return_type := ASN_STRTOX_EXTRA_DATA;
+                               value := Some (mult_sign s value);
+                               str_pointer := Some str;
+                               memory := Mem.storev Mint64 m' (vptr intp) 
+                                                    (Vlong (mult_sign s value));
+                               sign := s; |}
+           | None => None
+           end
+    | _ => None                
+    end
+  end.
 
   Definition asn_strtoimax_lim_loop (str fin intp : addr) (value : int64) 
              (s: signedness) (last_digit : int64) 

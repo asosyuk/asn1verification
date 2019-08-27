@@ -7,7 +7,6 @@ Import ListNotations.
 
 Local Open Scope Int64Scope.
 
-
 (* Lemmas for each `asn_strtox_result_e` case *)
 
 (* ASN_STRTOX_ERROR_INVAL: str >= *end *)
@@ -528,9 +527,7 @@ Lemma asn_strtoimax_lim_loop_ASN_STRTOX_ERROR_RANGE_correct :
     le ! _sign = Some (Vint (sign_to_int s)) ->
     le ! _last_digit_max = Some (Vlong (max_sign s)) ->
 
-     load_addr Mptr m (fin_b, fin_ofs) = Some (Vptr b ofs) ->
-
-
+    load_addr Mptr m (fin_b, fin_ofs) = Some (Vptr b ofs) ->
     (distance m (str_b, str_ofs) (b,ofs)) = Some dist ->
 
     asn_strtoimax_lim_loop m (str_b, str_ofs) (fin_b, fin_ofs)
@@ -710,41 +707,17 @@ replace (asn_strtox_result_e_to_int ASN_STRTOX_ERROR_RANGE)
       forward.
       forward.
       eapply addr_lt_to_sem_cmp_lt;
-        eassumption.
+        eassumption.  
+      all: repeat (match goal with
+                     | [|- context[bool_val]]=> simpl; bool_rewrite
+                     | [|- context[Val.of_bool]] => simpl; bool_rewrite
+                     end ||
+                         forward ||
+                         replace (negb (1 == 0)%int) with true
+                    by (auto with ints)).
+      rewrite H8.
       forward.
-      replace (negb (1 == 0)%int) with true by (auto with ints).      
-      econstructor.
-      econstructor.
-      forward.
-      forward.
-      forward.
-      econstructor.
-      econstructor.
-      simpl.
-      eassumption.
-      forward.
-      instantiate (1 := (Vint i1)).
-      (* need a lemma about memory *)
-      admit.
-      apply sem_Cle_Cge.
-      apply int_le_sem_Cle.
-      eassumption.
-      forward.
-      replace (negb (1 == 0)%int) with true by (auto with ints).
-      forward.
-      instantiate (1 := (Vint i1)).
-      admit.
-      simpl.
-      apply int_le_sem_Cle.
-      eassumption.
-      forward.
-      replace (negb (1 == 0)%int) with true by (auto with ints).
-      forward.
-      econstructor.
-      econstructor.
-      econstructor.
       discriminate.
-      econstructor.
     + (* (inp_value == upper_boundary) && (int_to_int64 (i - zero_char)%int <= max_sign Signed) = true, Unsigned
           do one loop and return
        *)
@@ -822,50 +795,16 @@ replace (asn_strtox_result_e_to_int ASN_STRTOX_ERROR_RANGE)
       forward.
       eapply addr_lt_to_sem_cmp_lt;
         eassumption.
+       all: repeat (match goal with
+                     | [|- context[bool_val]]=> simpl; bool_rewrite
+                     | [|- context[Val.of_bool]] => simpl; bool_rewrite
+                     end ||
+                         forward ||
+                         replace (negb (1 == 0)%int) with true
+                    by (auto with ints)).
+      rewrite H8.
       forward.
-      replace (negb (1 == 0)%int) with true by (auto with ints).      
-      econstructor.
-      econstructor.
-      forward.
-      forward.
-      forward.
-      econstructor.
-      econstructor.
-      simpl. 
-      eassumption.
-      forward.
-      simpl.
-      instantiate (1 := (Vint i1)).
-      erewrite Mem.load_store_other;
-      try eassumption.
-      simpl.
-      replace ((Ptrofs.repr 1) * Ptrofs.of_ints (Int.repr 1))%ptrofs
-        with 1%ptrofs by auto with ptrofs.
-           admit.
-      apply sem_Cle_Cge.
-      apply int_le_sem_Cle.
-      eassumption.
-      forward.
-      replace (negb (1 == 0)%int) with true by (auto with ints).
-      forward.
-      instantiate (1 := (Vint i1)).
-      simpl. erewrite Mem.load_store_other;
-      try eassumption.
-      simpl.
-      replace ((Ptrofs.repr 1) * Ptrofs.of_ints (Int.repr 1))%ptrofs
-        with 1%ptrofs by auto with ptrofs.
-           admit.
-      simpl.
-      apply int_le_sem_Cle.
-      eassumption.
-      forward.
-      replace (negb (1 == 0)%int) with true by (auto with ints).
-      forward.
-      econstructor.
-      econstructor.
-      econstructor.
       discriminate.
-      econstructor.
     + (* is_digit i = true , return from the loop *)
       clear IHdist.
       unfold max_sign in *.
@@ -895,8 +834,6 @@ replace (asn_strtox_result_e_to_int ASN_STRTOX_ERROR_RANGE)
                          forward ||
                          replace (negb (1 == 0)%int) with true
                       by (auto with ints)).
-        rewrite H4.
-        forward.
       * inversion Spec; clear Spec.
         repeat rewrite set_env_eq_ptree_set in *.
         repeat eexists.
@@ -918,9 +855,7 @@ replace (asn_strtox_result_e_to_int ASN_STRTOX_ERROR_RANGE)
                          forward ||
                          replace (negb (1 == 0)%int) with true
                       by (auto with ints)).
-        rewrite H4.
-        forward.
-   Admitted.
+       Qed.
 
 
 Lemma asn_strtoimax_lim_loop_ASN_STRTOX_EXTRA_DATA_correct :
@@ -1123,39 +1058,13 @@ Proof.
         forward.
         eapply addr_lt_to_sem_cmp_lt;
           eassumption.
-        forward.
-        replace (negb (1 == 0)%int) with true by (auto with ints).      
-        econstructor.
-        econstructor.
-        forward.
-        forward.
-        forward.
-        econstructor.
-        econstructor.
-        simpl.
-        eassumption.
-        forward.
-        instantiate (1 := (Vint i1)).
-        (* need a lemma about memory *)
-        admit.
-        simpl.
-        apply sem_Cle_Cge.
-        apply int_le_sem_Cle.
-        eassumption.
-        forward.
-        replace (negb (1 == 0)%int) with true by (auto with ints).      
-        forward.
-        instantiate (1 := (Vint i1)).
-        (* need a lemma about memory *)
-        admit.
-        simpl.
-        apply int_le_sem_Cle.
-        eassumption.
-        forward.
-        forward.
-        forward.
-        forward.
-        unfold int_to_int64 in *.
+         all: repeat (match goal with
+                     | [|- context[bool_val]]=> simpl; bool_rewrite
+                     | [|- context[Val.of_bool]] => simpl; bool_rewrite
+                     end ||
+                         forward ||
+                         replace (negb (1 == 0)%int) with true
+                    by (auto with ints)).
         simpl.
         remember (Int64.neg inp_value * Int64.repr (Int.signed (Int.repr 10)) - 
                   Int64.repr (Int.signed (i - Int.repr 48)%int)) as res.
@@ -1164,12 +1073,11 @@ Proof.
         simpl.
         eassumption.
         replace (Int64.repr (Int.signed (Int.repr 1))) with (1)%int64
-          by (auto with ints).
+          by (auto with ints).       
         symmetry.
         rewrite Int64.mul_commut.
         eapply Int64.mul_one.
         discriminate.
-        econstructor.
       * inversion Spec.
         repeat eexists.
                eapply exec_Sloop_stop1.
@@ -1235,30 +1143,13 @@ Proof.
         forward.
         eapply addr_lt_to_sem_cmp_lt;
           eassumption.
-        forward.
-        replace (negb (1 == 0)%int) with true by (auto with ints).      
-        econstructor.
-        econstructor.
-        forward.
-        forward.
-        forward.
-        econstructor.
-        econstructor.
-        simpl.
-        eassumption.
-        forward.
-        instantiate (1 := (Vint i1)).
-        (* need a lemma about memory *)
-        admit.
-        simpl.
-        apply sem_Cle_Cge.
-        apply int_le_sem_Cle.
-        eassumption.
-        forward.
-        forward.
-        forward.
-        forward.
-        forward.
+        all: repeat (match goal with
+                     | [|- context[bool_val]]=> simpl; bool_rewrite
+                     | [|- context[Val.of_bool]] => simpl; bool_rewrite
+                     end ||
+                         forward ||
+                         replace (negb (1 == 0)%int) with true
+                    by (auto with ints)).
         simpl.
         unfold int_to_int64 in *.
         remember (Int64.neg inp_value * Int64.repr (Int.signed (Int.repr 10)) - 
@@ -1272,7 +1163,6 @@ Proof.
         rewrite Int64.mul_commut.
         eapply Int64.mul_one.
         discriminate.
-        econstructor.
      + (* (inp_value == upper_boundary) 
 && (int_to_int64 (i - zero_char)%int <= max_sign Signed) = true, UnSigned
           do one loop and return *)
@@ -1360,38 +1250,13 @@ Proof.
         forward.
         eapply addr_lt_to_sem_cmp_lt;
           eassumption.
-        forward.
-        replace (negb (1 == 0)%int) with true by (auto with ints).      
-        econstructor.
-        econstructor.
-        forward.
-        forward.
-        forward.
-        econstructor.
-        econstructor.
-        simpl.
-        eassumption.
-        forward.
-        instantiate (1 := (Vint i1)).
-        (* need a lemma about memory *)
-        admit.
-        simpl.
-        apply sem_Cle_Cge.
-        apply int_le_sem_Cle.
-        eassumption.
-        forward.
-        replace (negb (1 == 0)%int) with true by (auto with ints).      
-        forward.
-        instantiate (1 := (Vint i1)).
-        (* need a lemma about memory *)
-        admit.
-        simpl.
-        apply int_le_sem_Cle.
-        eassumption.
-        forward.
-        forward.
-        forward.
-        forward.
+        all: repeat (match goal with
+                     | [|- context[bool_val]]=> simpl; bool_rewrite
+                     | [|- context[Val.of_bool]] => simpl; bool_rewrite
+                     end ||
+                         forward ||
+                         replace (negb (1 == 0)%int) with true
+                    by (auto with ints)).
         unfold int_to_int64 in *.
         simpl.
         remember (inp_value * Int64.repr (Int.signed (Int.repr 10)) +
@@ -1406,7 +1271,6 @@ Proof.
         rewrite Int64.mul_commut.
         eapply Int64.mul_one.
         discriminate.
-        econstructor.
       * inversion Spec.
         repeat eexists.
                eapply exec_Sloop_stop1.
@@ -1473,29 +1337,13 @@ Proof.
         eapply addr_lt_to_sem_cmp_lt;
           eassumption.
         forward.
-        replace (negb (1 == 0)%int) with true by (auto with ints).      
-        econstructor.
-        econstructor.
-        forward.
-        forward.
-        forward.
-        econstructor.
-        econstructor.
-        simpl.
-        eassumption.
-        forward.
-        instantiate (1 := (Vint i1)).
-        (* need a lemma about memory *)
-        admit.
-        simpl.
-        apply sem_Cle_Cge.
-        apply int_le_sem_Cle.
-        eassumption.
-        forward.
-        forward.
-        forward.
-        forward.
-        forward.
+        all: repeat (match goal with
+                     | [|- context[bool_val]]=> simpl; bool_rewrite
+                     | [|- context[Val.of_bool]] => simpl; bool_rewrite
+                     end ||
+                         forward ||
+                         replace (negb (1 == 0)%int) with true
+                    by (auto with ints)).
         simpl.
         unfold int_to_int64 in *.
         remember (inp_value * Int64.repr (Int.signed (Int.repr 10)) +
@@ -1509,7 +1357,6 @@ Proof.
         rewrite Int64.mul_commut.
         eapply Int64.mul_one.
         discriminate.
-        econstructor.    
      + clear IHdist.
       unfold is_digit, andb in Heqb0.
       break_if; eexists; eexists.
@@ -1637,7 +1484,7 @@ Proof.
         econstructor.
         econstructor.
         econstructor.
-        Admitted.
+        Qed.
 
 Lemma asn_strtoimax_lim_correct :
   forall m ge e le str_b str_ofs fin_b fin_ofs intp_b intp_ofs m' res p s' val,
