@@ -142,8 +142,8 @@ Fixpoint asn_strtoimax_lim_loop' (str fin intp : addr) (value : int64)
                                                 sign := s'; |}
                                        else Some {|
                                                 return_type := ASN_STRTOX_EXTRA_DATA; 
-                                                value := Some (mult_sign s' value');
-                                                str_pointer := Some str;
+                                                value := Some value';
+                                                str_pointer := Some (str++);
                                                 memory := Mem.storev Mint64 m'
                                                                      (vptr intp)
                                                        (Vlong (mult_sign s' value'));
@@ -170,7 +170,7 @@ Fixpoint asn_strtoimax_lim_loop' (str fin intp : addr) (value : int64)
                            sign := s; |}
       else match (Mem.storev Mptr m'' (vptr fin) (vptr str)) with
            | Some m' => Some {| return_type := ASN_STRTOX_EXTRA_DATA;
-                               value := Some (mult_sign s value);
+                               value := Some value;
                                str_pointer := Some str;
                                memory := Mem.storev Mint64 m' (vptr intp) 
                                                     (Vlong (mult_sign s value));
@@ -181,14 +181,14 @@ Fixpoint asn_strtoimax_lim_loop' (str fin intp : addr) (value : int64)
     end
   end.
 
-  Definition asn_strtoimax_lim_loop (str fin intp : addr) (value : int64) 
-             (s: signedness) (last_digit : int64) 
-             (dist : option nat) (m : mem) : option asn_strtoimax_lim_result := 
-    match dist with
-    | Some d => 
-      asn_strtoimax_lim_loop' str fin intp value s last_digit d m
-    | None => None
-    end.
+Definition asn_strtoimax_lim_loop (str fin intp : addr) (value : int64) 
+          (s: signedness) (last_digit : int64) 
+          (dist : option nat) (m : mem) : option asn_strtoimax_lim_result := 
+ match dist with
+ | Some d => 
+   asn_strtoimax_lim_loop' str fin intp value s last_digit d m
+ | None => None
+ end.
 
 
 Definition store_result fin intp res :=

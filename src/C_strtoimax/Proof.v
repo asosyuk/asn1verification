@@ -9,6 +9,707 @@ Local Open Scope Int64Scope.
 
 (* Lemmas for each `asn_strtox_result_e` case *)
 
+Lemma asn_strtoimax_lim_loop_ASN_STRTOX_EXTRA_DATA_correct :
+  forall m ge e dist b ofs le strp_b strp_ofs str_b str_ofs fin_b 
+    fin_ofs intp_b intp_ofs inp_value  m' val s' s,
+    
+    le ! _str = Some (Vptr str_b str_ofs)  ->
+    le ! _end = Some (Vptr fin_b fin_ofs) ->
+    le ! _intp = Some (Vptr intp_b intp_ofs)  ->
+    le ! _value = Some (Vlong inp_value) ->
+    le ! _upper_boundary = Some (Vlong upper_boundary) ->
+    le ! _sign = Some (Vint (sign_to_int s)) ->
+    le ! _last_digit_max = Some (Vlong (max_sign s)) ->
+                                     
+    load_addr Mptr m (fin_b, fin_ofs) = Some (Vptr b ofs) ->
+    (distance m (str_b, str_ofs) (b,ofs)) = Some dist ->
+    
+    asn_strtoimax_lim_loop m (str_b, str_ofs) (fin_b, fin_ofs) (intp_b, intp_ofs)
+                           inp_value s (max_sign s) (Some dist) m =
+    Some {| return_type := ASN_STRTOX_EXTRA_DATA;
+            value := Some val;
+            str_pointer := Some (strp_b, strp_ofs);
+            memory := Some m';
+            sign := s' |}  ->
+
+   exists t le', exec_stmt ge e le m f_asn_strtoimax_lim_loop t le' m' 
+              (Out_return (Some (Vint
+                                   (asn_strtox_result_e_to_int
+                                      ASN_STRTOX_EXTRA_DATA), tint)))
+                 /\ le'! _end = Some (Vptr fin_b fin_ofs)
+                 /\ le'! _str = Some (Vptr strp_b strp_ofs)
+                 /\ le'! _sign = Some (Vint (sign_to_int s'))
+                 /\ le'! _intp = Some (Vptr intp_b intp_ofs)
+                 /\ le'! _value = Some (Vlong val)
+                 /\ Mem.loadv Mint64 m' (Vptr intp_b intp_ofs)
+                   = Some (Vlong (mult_sign s' val)).
+Proof.
+  replace (asn_strtox_result_e_to_int ASN_STRTOX_EXTRA_DATA)
+    with Int.one by (reflexivity).
+  induction dist; intros until s;
+    intros Str End Intp Value UB Sign LastD Load Dist Spec;
+    simpl in Spec.
+  - all: try break_match; congruence.
+  - repeat break_match;
+    unfold store_result in *;
+      repeat break_match; try congruence.
+    (* 4 cases *)
+    + (* Case   Heqb0 : is_digit i = true
+         Heqb1 : (inp_value < upper_boundary) = true *)
+      remember 
+         (PTree.set _str
+       (Vptr str_b
+             (str_ofs + Ptrofs.repr (sizeof ge tschar)
+                        * ptrofs_of_int Signed (Int.repr 1))%ptrofs)
+       (PTree.set _value
+          (Vlong
+             (inp_value * cast_int_long Signed (Int.repr 10) +
+              cast_int_long Signed (i - Int.repr 48)%int))
+          (PTree.set _d (Vint (i - Int.repr 48)%int)
+             (PTree.set _t'6 (Vint i)
+                (PTree.set _t'2 Vtrue
+                   (PTree.set _t'8 (Vint i)
+                    (PTree.set _t'7 (Vint i) (PTree.set _t'9 (Vptr b ofs) le))))))))
+        as le''.
+      pose proof (IHdist b ofs le'' strp_b strp_ofs str_b (str_ofs + 1)%ptrofs
+                         fin_b fin_ofs intp_b intp_ofs
+                         (digit_to_num Unsigned i inp_value) m' val s' s) as IH.
+      clear IHdist.
+      repeat rewrite set_env_eq_ptree_set in Heqle''.
+      destruct IH as [t IH]; subst;
+        try (repeat env_assumption || reflexivity).
+      eapply dist_succ_load;
+        eassumption.
+      destruct IH as [le' IH]. 
+      repeat rewrite set_env_eq_ptree_set in *.
+      repeat eexists.
+      eapply exec_Sloop_loop.
+      instantiate (1 := Out_normal).
+      econstructor. (* Wrong local env instantiated  by repeat econstructor ??? *)
+      econstructor.
+      econstructor.
+      repeat econstructor; try env_assumption.
+      repeat econstructor; try env_assumption.
+      try eassumption.
+      econstructor.
+      eapply distance_to_sem_cmp_lt;
+        eassumption.
+      repeat econstructor.
+      replace (negb (1 == 0)%int) with true by (auto with ints).
+      econstructor.
+      econstructor.
+      repeat econstructor; try env_assumption; try eassumption.
+      forward.
+      simpl.
+      unfold is_digit in Heqb0.
+      destruct_andb_hyp.
+      instantiate (1 := (Val.of_bool true)).
+      apply sem_Cle_Cge.
+      apply int_le_sem_Cle.
+      assumption.
+      forward.
+      replace (negb (1 == 0)%int) with true by (auto with ints).
+      econstructor.
+      econstructor.
+      repeat econstructor; try env_assumption; try eassumption.
+      forward.
+      forward.
+      simpl.
+      unfold is_digit in Heqb0.
+      destruct_andb_hyp.
+      rewrite H0.
+      reflexivity.
+      forward.
+      simpl.
+      rewrite Heqb1.
+      econstructor.
+      replace (negb (1 == 0)%int) with true by (auto with ints).
+      forward.
+      econstructor.
+      forward.
+      fold f_asn_strtoimax_lim_loop.
+      eapply IH.
+      all: break_and; eassumption.
+    + (* (inp_value == upper_boundary) 
+&& (int_to_int64 (i - zero_char)%int <= max_sign Signed) = true, Signed
+          do one loop and return *)
+      replace b0 with b in *
+        by (eapply mem_load_inj_ptr;
+         eassumption).
+      replace i0 with ofs in *
+        by (eapply mem_load_inj_ptr;
+         eassumption).
+      unfold max_sign in *.
+      unfold is_digit in *.
+      destruct_andb_hyp.
+      destruct_andb_hyp.
+      destruct (Int.repr 48 <= i1)%int eqn : I148.
+      destruct (i1 <= Int.repr 57)%int eqn : I157.
+      all: try intuition.
+      * (* replace b0 with b in *;
+        by (eapply mem_load_inj_ptr;
+         eassumption).
+      replace i0 with ofs in *
+        by (eapply mem_load_inj_ptr;
+         eassumption). *)
+        inversion Spec.
+        repeat eexists.
+        eapply exec_Sloop_stop1.
+        instantiate (1 := (Out_return (Some ((Vint Int.one), tint)))).
+        econstructor. (* Wrong local env instantiated  by repeat econstructor ??? *)
+        econstructor.
+        econstructor.
+        repeat econstructor; try env_assumption.
+        repeat econstructor; try env_assumption.
+        try eassumption.
+        econstructor.
+        eapply distance_to_sem_cmp_lt.
+        eassumption.
+        repeat econstructor.
+        replace (negb (1 == 0)%int) with true by (auto with ints).
+        econstructor.
+        econstructor.
+        repeat econstructor.
+        repeat env_assumption; try eassumption.
+        eassumption.
+        env_assumption.
+        econstructor.
+        apply sem_Cle_Cge.
+        apply int_le_sem_Cle.
+        eassumption.
+        forward.
+        replace (negb (1 == 0)%int) with true by (auto with ints).
+        econstructor.
+        econstructor.
+        repeat econstructor.
+        repeat env_assumption; try eassumption.
+        eassumption.
+        env_assumption.
+        econstructor.
+        forward.
+        simpl.
+        bool_rewrite.
+        reflexivity.
+        forward.
+        simpl.
+        bool_rewrite.
+        econstructor.
+        replace (negb (1 == 0)%int) with true by (auto with ints).
+        forward.
+        simpl.
+        bool_rewrite.
+        econstructor.
+        replace (negb (1 == 0)%int) with true by (auto with ints).
+        forward.
+        simpl.
+        unfold int_to_int64 in *.
+        unfold zero_char in *.
+        bool_rewrite.
+        forward.
+        replace (negb (1 == 0)%int) with true by (auto with ints).
+        econstructor.
+        forward.
+        econstructor.
+        forward.
+        eapply exec_Sseq_2.
+        econstructor.
+        forward.
+        forward.
+        eapply addr_lt_to_sem_cmp_lt;
+          eassumption.
+         all: repeat (match goal with
+                     | [|- context[bool_val]]=> simpl; bool_rewrite
+                     | [|- context[Val.of_bool]] => simpl; bool_rewrite
+                     end ||
+                         forward ||
+                         replace (negb (1 == 0)%int) with true
+                    by (auto with ints)).
+        simpl.
+        remember (Int64.neg inp_value * Int64.repr (Int.signed (Int.repr 10)) - 
+                  Int64.repr (Int.signed (i - Int.repr 48)%int)) as res.
+        replace (Int64.repr (Int.signed (Int.repr 1)) * res) with res.
+        subst.
+        simpl.
+        eassumption.
+        replace (Int64.repr (Int.signed (Int.repr 1))) with (1)%int64
+          by (auto with ints).       
+        symmetry.
+        rewrite Int64.mul_commut.
+        eapply Int64.mul_one.
+        discriminate.
+        subst. reflexivity.
+        simpl.
+        replace (Vlong (Int64.neg inp_value * Int64.repr 10
+                        - int_to_int64 (i - zero_char)%int))
+          with (Val.load_result Mint64 (Vlong
+                       (Int64.neg inp_value * Int64.repr 10
+                        - int_to_int64 (i - zero_char)%int))).
+        eapply Mem.load_store_same.
+        eassumption.
+        reflexivity.
+      * inversion Spec.
+        repeat eexists.
+               eapply exec_Sloop_stop1.
+        instantiate (1 := (Out_return (Some ((Vint Int.one), tint)))).
+        econstructor. (* Wrong local env instantiated  by repeat econstructor ??? *)
+        econstructor.
+        econstructor.
+        repeat econstructor; try env_assumption.
+        repeat econstructor; try env_assumption.
+        try eassumption.
+        econstructor.
+        eapply distance_to_sem_cmp_lt.
+        eassumption.
+        repeat econstructor.
+        replace (negb (1 == 0)%int) with true by (auto with ints).
+        econstructor.
+        econstructor.
+        repeat econstructor.
+        repeat env_assumption; try eassumption.
+        eassumption.
+        env_assumption.
+        econstructor.
+        apply sem_Cle_Cge.
+        apply int_le_sem_Cle.
+        eassumption.
+        forward.
+        replace (negb (1 == 0)%int) with true by (auto with ints).
+        econstructor.
+        econstructor.
+        repeat econstructor.
+        repeat env_assumption; try eassumption.
+        eassumption.
+        env_assumption.
+        econstructor.
+        forward.
+        simpl.
+        bool_rewrite.
+        reflexivity.
+        forward.
+        simpl.
+        bool_rewrite.
+        econstructor.
+        replace (negb (1 == 0)%int) with true by (auto with ints).
+        forward.
+        simpl.
+        bool_rewrite.
+        econstructor.
+        replace (negb (1 == 0)%int) with true by (auto with ints).
+        forward.
+        simpl.
+        unfold int_to_int64 in *.
+        unfold zero_char in *.
+        bool_rewrite.
+        forward.
+        replace (negb (1 == 0)%int) with true by (auto with ints).
+        econstructor.
+        forward.
+        econstructor.
+        forward.
+        eapply exec_Sseq_2.
+        econstructor.
+        forward.
+        forward.
+        eapply addr_lt_to_sem_cmp_lt;
+          eassumption.
+        all: repeat (match goal with
+                     | [|- context[bool_val]]=> simpl; bool_rewrite
+                     | [|- context[Val.of_bool]] => simpl; bool_rewrite
+                     end ||
+                         forward ||
+                         replace (negb (1 == 0)%int) with true
+                    by (auto with ints)).
+        simpl.
+        unfold int_to_int64 in *.
+        remember (Int64.neg inp_value * Int64.repr (Int.signed (Int.repr 10)) - 
+                  Int64.repr (Int.signed (i - Int.repr 48)%int)) as res.
+        replace (Int64.repr (Int.signed (Int.repr 1)) * res) with res.
+        subst.
+        eassumption.
+        replace (Int64.repr (Int.signed (Int.repr 1))) with (1)%int64
+          by (auto with ints).
+        symmetry.
+        rewrite Int64.mul_commut.
+        eapply Int64.mul_one.
+        discriminate.
+        subst; reflexivity.
+        simpl.
+        replace (Vlong (Int64.neg inp_value * Int64.repr 10
+                        - int_to_int64 (i - zero_char)%int))
+          with (Val.load_result Mint64 (Vlong
+                       (Int64.neg inp_value * Int64.repr 10
+                        - int_to_int64 (i - zero_char)%int))).
+        eapply Mem.load_store_same.
+        eassumption.
+        reflexivity.
+     + (* (inp_value == upper_boundary) 
+&& (int_to_int64 (i - zero_char)%int <= max_sign Signed) = true, UnSigned
+          do one loop and return *)
+      replace b0 with b in *
+        by (eapply mem_load_inj_ptr;
+         eassumption).
+      replace i0 with ofs in *
+        by (eapply mem_load_inj_ptr;
+         eassumption).
+      unfold max_sign in *.
+      unfold is_digit in *.
+      destruct_andb_hyp.
+      destruct_andb_hyp.
+      destruct (Int.repr 48 <= i1)%int eqn : I148.
+      destruct (i1 <= Int.repr 57)%int eqn : I157.
+      all: try intuition.
+      * (* replace b0 with b in *;
+        by (eapply mem_load_inj_ptr;
+         eassumption).
+      replace i0 with ofs in *
+        by (eapply mem_load_inj_ptr;
+         eassumption). *)
+        inversion Spec.
+        repeat eexists.
+        eapply exec_Sloop_stop1.
+        instantiate (1 := (Out_return (Some ((Vint Int.one), tint)))).
+        econstructor. (* Wrong local env instantiated  by repeat econstructor ??? *)
+        econstructor.
+        econstructor.
+        repeat econstructor; try env_assumption.
+        repeat econstructor; try env_assumption.
+        try eassumption.
+        econstructor.
+        eapply distance_to_sem_cmp_lt.
+        eassumption.
+        repeat econstructor.
+        replace (negb (1 == 0)%int) with true by (auto with ints).
+        econstructor.
+        econstructor.
+        repeat econstructor.
+        repeat env_assumption; try eassumption.
+        eassumption.
+        env_assumption.
+        econstructor.
+        apply sem_Cle_Cge.
+        apply int_le_sem_Cle.
+        eassumption.
+        forward.
+        replace (negb (1 == 0)%int) with true by (auto with ints).
+        econstructor.
+        econstructor.
+        repeat econstructor.
+        repeat env_assumption; try eassumption.
+        eassumption.
+        env_assumption.
+        econstructor.
+        forward.
+        simpl.
+        bool_rewrite.
+        reflexivity.
+        forward.
+        simpl.
+        bool_rewrite.
+        econstructor.
+        replace (negb (1 == 0)%int) with true by (auto with ints).
+        forward.
+        simpl.
+        bool_rewrite.
+        econstructor.
+        replace (negb (1 == 0)%int) with true by (auto with ints).
+        forward.
+        simpl.
+        unfold int_to_int64 in *.
+        unfold zero_char in *.
+        bool_rewrite.
+        forward.
+        replace (negb (1 == 0)%int) with true by (auto with ints).
+        econstructor.
+        forward.
+        econstructor.
+        forward.
+        eapply exec_Sseq_2.
+        econstructor.
+        forward.
+        forward.
+        eapply addr_lt_to_sem_cmp_lt;
+          eassumption.
+        all: repeat (match goal with
+                     | [|- context[bool_val]]=> simpl; bool_rewrite
+                     | [|- context[Val.of_bool]] => simpl; bool_rewrite
+                     end ||
+                         forward ||
+                         replace (negb (1 == 0)%int) with true
+                    by (auto with ints)).
+        unfold int_to_int64 in *.
+        simpl.
+        remember (inp_value * Int64.repr (Int.signed (Int.repr 10)) +
+                  Int64.repr (Int.signed (i - Int.repr 48)%int))  as res.
+        replace (Int64.repr (Int.signed (Int.repr 1)) * res) with res.
+        subst.
+        simpl.
+        eassumption.
+        replace (Int64.repr (Int.signed (Int.repr 1))) with (1)%int64
+          by (auto with ints).
+        symmetry.
+        rewrite Int64.mul_commut.
+        eapply Int64.mul_one.
+        discriminate.
+        subst; reflexivity.
+        simpl.
+        replace (Vlong (inp_value * Int64.repr 10
+                        + int_to_int64 (i - zero_char)%int))
+          with (Val.load_result Mint64 (Vlong (inp_value
+                                               * Int64.repr 10
+                                               + int_to_int64
+                                                   (i - zero_char)%int))).
+        eapply Mem.load_store_same.
+        eassumption.
+        reflexivity.
+      * inversion Spec.
+        repeat eexists.
+               eapply exec_Sloop_stop1.
+        instantiate (1 := (Out_return (Some ((Vint Int.one), tint)))).
+        econstructor. (* Wrong local env instantiated  by repeat econstructor ??? *)
+        econstructor.
+        econstructor.
+        repeat econstructor; try env_assumption.
+        repeat econstructor; try env_assumption.
+        try eassumption.
+        econstructor.
+        eapply distance_to_sem_cmp_lt.
+        eassumption.
+        repeat econstructor.
+        replace (negb (1 == 0)%int) with true by (auto with ints).
+        econstructor.
+        econstructor.
+        repeat econstructor.
+        repeat env_assumption; try eassumption.
+        eassumption.
+        env_assumption.
+        econstructor.
+        apply sem_Cle_Cge.
+        apply int_le_sem_Cle.
+        eassumption.
+        forward.
+        replace (negb (1 == 0)%int) with true by (auto with ints).
+        econstructor.
+        econstructor.
+        repeat econstructor.
+        repeat env_assumption; try eassumption.
+        eassumption.
+        env_assumption.
+        econstructor.
+        forward.
+        simpl.
+        bool_rewrite.
+        reflexivity.
+        forward.
+        simpl.
+        bool_rewrite.
+        econstructor.
+        replace (negb (1 == 0)%int) with true by (auto with ints).
+        forward.
+        simpl.
+        bool_rewrite.
+        econstructor.
+        replace (negb (1 == 0)%int) with true by (auto with ints).
+        forward.
+        simpl.
+        unfold int_to_int64 in *.
+        unfold zero_char in *.
+        bool_rewrite.
+        forward.
+        replace (negb (1 == 0)%int) with true by (auto with ints).
+        econstructor.
+        forward.
+        econstructor.
+        forward.
+        eapply exec_Sseq_2.
+        econstructor.
+        forward.
+        forward.
+        eapply addr_lt_to_sem_cmp_lt;
+          eassumption.
+        forward.
+        all: repeat (match goal with
+                     | [|- context[bool_val]]=> simpl; bool_rewrite
+                     | [|- context[Val.of_bool]] => simpl; bool_rewrite
+                     end ||
+                         forward ||
+                         replace (negb (1 == 0)%int) with true
+                    by (auto with ints)).
+        simpl.
+        unfold int_to_int64 in *.
+        remember (inp_value * Int64.repr (Int.signed (Int.repr 10)) +
+         Int64.repr (Int.signed (i - Int.repr 48)%int)) as res.
+        replace (Int64.repr (Int.signed (Int.repr 1)) * res) with res.
+        subst.
+        eassumption.
+        replace (Int64.repr (Int.signed (Int.repr 1))) with (1)%int64
+          by (auto with ints).
+        symmetry.
+        rewrite Int64.mul_commut.
+        eapply Int64.mul_one.
+        discriminate.
+        subst; reflexivity.
+        simpl.
+        replace (Vlong (inp_value * Int64.repr 10
+                        + int_to_int64 (i - zero_char)%int))
+          with (Val.load_result Mint64 (Vlong (inp_value
+                                               * Int64.repr 10
+                                               + int_to_int64
+                                                   (i - zero_char)%int))).
+        eapply Mem.load_store_same.
+        eassumption.
+        reflexivity.
+     + clear IHdist.
+      unfold is_digit, andb in Heqb0.
+      break_if; eexists; eexists.
+      * (* case when i > 57 *)
+        econstructor.
+        econstructor.
+        econstructor.
+        econstructor.
+        econstructor.
+        econstructor.
+        econstructor.
+        econstructor.
+         eassumption.
+         econstructor.
+         econstructor.
+        eassumption.
+        econstructor.
+        econstructor.
+        econstructor; gso_simpl; eassumption.
+        econstructor; gss_simpl; econstructor.
+        simpl.
+        eapply distance_to_sem_cmp_lt;
+          eassumption.
+        econstructor.
+        replace (negb (1 == 0)%int) with true by (auto with ints).
+        econstructor.
+        econstructor.
+        econstructor.
+        econstructor.
+        econstructor.
+        econstructor.
+        econstructor; gso_simpl; eassumption.
+        econstructor.
+        econstructor.
+        eassumption.
+        forward.
+        cbn.
+        rewrite Heqb1.
+        simpl.
+        econstructor.
+        forward.
+        cbn.
+        rewrite Heqb0.
+        simpl.
+        econstructor.
+        forward.
+        inv Spec.
+        simpl.
+        unfold mult_sign, sign_to_int.
+        break_match; [reflexivity | ].
+        replace (Int64.repr (Int.signed (Int.repr 1))) with (1)%int64 
+          by (auto with ints).
+        rewrite Int64.mul_commut.
+        rewrite Int64.mul_one.
+        reflexivity.
+        econstructor.
+        repeat env_assumption.
+        inversion Spec.
+        subst.
+        repeat split; try eassumption.
+        simpl.
+        replace (Vlong (mult_sign s' val))
+          with (Val.load_result Mint64 (Vlong (mult_sign s' val))).
+        eapply Mem.load_store_same.
+        eassumption.
+        reflexivity.        
+      * (* i < 48 *)
+        econstructor.
+        econstructor.
+        econstructor.
+        econstructor.
+        econstructor.
+        econstructor.
+        econstructor.
+        econstructor.
+        eassumption.
+        econstructor.
+        econstructor.
+        eassumption.
+        econstructor.
+        econstructor.
+        econstructor; gso_simpl; eassumption.
+        econstructor; gss_simpl; econstructor.
+        simpl.
+        eapply distance_to_sem_cmp_lt;
+          eassumption.
+        econstructor.
+        econstructor.
+        econstructor.
+        econstructor.
+        econstructor.
+        econstructor.
+        econstructor.
+        econstructor; gso_simpl; eassumption.
+        econstructor.
+        econstructor.
+        eassumption.
+        econstructor.
+        econstructor.
+        econstructor; gss_simpl; econstructor.
+        econstructor.
+        econstructor.
+        simpl.
+        rewrite Heqb1.
+        econstructor.
+        econstructor.
+        econstructor.
+        econstructor.
+        econstructor; gss_simpl; econstructor.
+        econstructor.
+        econstructor.
+        econstructor.
+        econstructor.
+        econstructor; repeat gso_simpl; eassumption.
+        econstructor; repeat gso_simpl; eassumption.
+        econstructor.
+        econstructor.
+        econstructor.
+        eassumption.
+        econstructor.
+        econstructor.
+        econstructor.
+        econstructor; repeat gso_simpl; eassumption.
+        econstructor.
+        econstructor; repeat gso_simpl; eassumption.
+        econstructor; repeat gso_simpl; eassumption.
+        econstructor.
+        econstructor.
+        econstructor.
+        econstructor.
+        inv Spec; cbn.
+        unfold  sign_to_int; unfold mult_sign in *; destruct s'.
+        eassumption.
+        replace (Int64.repr (Int.signed (Int.repr 1))) with (1)%int64 
+          by (auto with ints).
+        rewrite Int64.mul_commut.
+        rewrite Int64.mul_one.
+        assumption.
+        econstructor.
+        econstructor.
+        econstructor.
+        repeat env_assumption.
+        inversion Spec; subst.
+        repeat split; try eassumption.
+         simpl.
+        replace (Vlong (mult_sign s' val))
+          with (Val.load_result Mint64 (Vlong (mult_sign s' val))).
+        eapply Mem.load_store_same.
+        eassumption.
+        reflexivity.
+        Qed.
+
 (* ASN_STRTOX_ERROR_INVAL: str >= *end *)
 Lemma asn_strtoimax_lim_ASN_STRTOX_ERROR_INVAL_correct :
   forall m ge e le str_b str_ofs fin_b fin_ofs intp_b intp_ofs m' p s' val,
@@ -539,7 +1240,10 @@ Lemma asn_strtoimax_lim_loop_ASN_STRTOX_ERROR_RANGE_correct :
             sign := s';
            |}  ->
 
-    exists t le', exec_stmt ge e le m f_asn_strtoimax_lim_loop t le' m' (Out_return (Some (Vint (asn_strtox_result_e_to_int ASN_STRTOX_ERROR_RANGE), tint))).
+    exists t le', exec_stmt ge e le m f_asn_strtoimax_lim_loop t le' m'
+                       (Out_return
+                          (Some (Vint (asn_strtox_result_e_to_int
+                                               ASN_STRTOX_ERROR_RANGE), tint))).
    Proof.
 replace (asn_strtox_result_e_to_int ASN_STRTOX_ERROR_RANGE)
     with (Int.repr (-3)) by (reflexivity).
@@ -857,10 +1561,9 @@ replace (asn_strtox_result_e_to_int ASN_STRTOX_ERROR_RANGE)
                       by (auto with ints)).
        Qed.
 
-
-Lemma asn_strtoimax_lim_loop_ASN_STRTOX_EXTRA_DATA_correct :
+Lemma asn_strtoimax_lim_loop_ASN_STRTOX_EXTRA_DATA_correct' :
   forall m ge e dist b ofs le str_b str_ofs fin_b 
-    fin_ofs intp_b intp_ofs inp_value  m' p val s' s,
+    fin_ofs intp_b intp_ofs inp_value  m' val p s' s,
     
     le ! _str = Some (Vptr str_b str_ofs)  ->
     le ! _end = Some (Vptr fin_b fin_ofs) ->
@@ -883,608 +1586,23 @@ Lemma asn_strtoimax_lim_loop_ASN_STRTOX_EXTRA_DATA_correct :
 
    exists t le', exec_stmt ge e le m f_asn_strtoimax_lim_loop t le' m' 
               (Out_return (Some (Vint
-                (asn_strtox_result_e_to_int ASN_STRTOX_EXTRA_DATA), tint))). 
+                                   (asn_strtox_result_e_to_int
+                                      ASN_STRTOX_EXTRA_DATA), tint))).
 Proof.
-  replace (asn_strtox_result_e_to_int ASN_STRTOX_EXTRA_DATA)
-    with Int.one by (reflexivity).
-  induction dist; intros until s;
-    intros Str End Intp Value UB Sign LastD Load Dist Spec;
-    simpl in Spec.
-  - all: try break_match; congruence.
-  - repeat break_match;
-    unfold store_result in *;
-      repeat break_match; try congruence.
-    (* 4 cases *)
-    + (* Case   Heqb0 : is_digit i = true
-         Heqb1 : (inp_value < upper_boundary) = true *)
-      remember 
-         (PTree.set _str
-       (Vptr str_b
-             (str_ofs + Ptrofs.repr (sizeof ge tschar)
-                        * ptrofs_of_int Signed (Int.repr 1))%ptrofs)
-       (PTree.set _value
-          (Vlong
-             (inp_value * cast_int_long Signed (Int.repr 10) +
-              cast_int_long Signed (i - Int.repr 48)%int))
-          (PTree.set _d (Vint (i - Int.repr 48)%int)
-             (PTree.set _t'6 (Vint i)
-                (PTree.set _t'2 Vtrue
-                   (PTree.set _t'8 (Vint i)
-                    (PTree.set _t'7 (Vint i) (PTree.set _t'9 (Vptr b ofs) le))))))))
-        as le''.
-      pose proof (IHdist b ofs le''  str_b (str_ofs + 1)%ptrofs
-                         fin_b fin_ofs intp_b intp_ofs
-                         (digit_to_num Unsigned i inp_value) m' p val s' s) as IH.
-      clear IHdist.
-      repeat rewrite set_env_eq_ptree_set in Heqle''.
-      destruct IH as [t IH]; subst;
-        try (repeat env_assumption || reflexivity).
-      eapply dist_succ_load;
-        eassumption.
-      destruct IH as [le' IH]. 
-      repeat rewrite set_env_eq_ptree_set in *.
-      repeat eexists.
-      eapply exec_Sloop_loop.
-      instantiate (1 := Out_normal).
-      econstructor. (* Wrong local env instantiated  by repeat econstructor ??? *)
-      econstructor.
-      econstructor.
-      repeat econstructor; try env_assumption.
-      repeat econstructor; try env_assumption.
-      try eassumption.
-      econstructor.
-      eapply distance_to_sem_cmp_lt;
-        eassumption.
-      repeat econstructor.
-      replace (negb (1 == 0)%int) with true by (auto with ints).
-      econstructor.
-      econstructor.
-      repeat econstructor; try env_assumption; try eassumption.
-      forward.
-      simpl.
-      unfold is_digit in Heqb0.
-      destruct_andb_hyp.
-      instantiate (1 := (Val.of_bool true)).
-      apply sem_Cle_Cge.
-      apply int_le_sem_Cle.
-      assumption.
-      forward.
-      replace (negb (1 == 0)%int) with true by (auto with ints).
-      econstructor.
-      econstructor.
-      repeat econstructor; try env_assumption; try eassumption.
-      forward.
-      forward.
-      simpl.
-      unfold is_digit in Heqb0.
-      destruct_andb_hyp.
-      rewrite H0.
-      reflexivity.
-      forward.
-      simpl.
-      rewrite Heqb1.
-      econstructor.
-      replace (negb (1 == 0)%int) with true by (auto with ints).
-      forward.
-      econstructor.
-      forward.
-      fold f_asn_strtoimax_lim_loop.
-      eapply IH.
-      all: break_and; eassumption.
-    + (* (inp_value == upper_boundary) 
-&& (int_to_int64 (i - zero_char)%int <= max_sign Signed) = true, Signed
-          do one loop and return *)
-      replace b0 with b in *
-        by (eapply mem_load_inj_ptr;
-         eassumption).
-      replace i0 with ofs in *
-        by (eapply mem_load_inj_ptr;
-         eassumption).
-      unfold max_sign in *.
-      unfold is_digit in *.
-      destruct_andb_hyp.
-      destruct_andb_hyp.
-      destruct (Int.repr 48 <= i1)%int eqn : I148.
-      destruct (i1 <= Int.repr 57)%int eqn : I157.
-      all: try intuition.
-      * (* replace b0 with b in *;
-        by (eapply mem_load_inj_ptr;
-         eassumption).
-      replace i0 with ofs in *
-        by (eapply mem_load_inj_ptr;
-         eassumption). *)
-        inversion Spec.
-        repeat eexists.
-        eapply exec_Sloop_stop1.
-        instantiate (1 := (Out_return (Some ((Vint Int.one), tint)))).
-        econstructor. (* Wrong local env instantiated  by repeat econstructor ??? *)
-        econstructor.
-        econstructor.
-        repeat econstructor; try env_assumption.
-        repeat econstructor; try env_assumption.
-        try eassumption.
-        econstructor.
-        eapply distance_to_sem_cmp_lt.
-        eassumption.
-        repeat econstructor.
-        replace (negb (1 == 0)%int) with true by (auto with ints).
-        econstructor.
-        econstructor.
-        repeat econstructor.
-        repeat env_assumption; try eassumption.
-        eassumption.
-        env_assumption.
-        econstructor.
-        apply sem_Cle_Cge.
-        apply int_le_sem_Cle.
-        eassumption.
-        forward.
-        replace (negb (1 == 0)%int) with true by (auto with ints).
-        econstructor.
-        econstructor.
-        repeat econstructor.
-        repeat env_assumption; try eassumption.
-        eassumption.
-        env_assumption.
-        econstructor.
-        forward.
-        simpl.
-        bool_rewrite.
-        reflexivity.
-        forward.
-        simpl.
-        bool_rewrite.
-        econstructor.
-        replace (negb (1 == 0)%int) with true by (auto with ints).
-        forward.
-        simpl.
-        bool_rewrite.
-        econstructor.
-        replace (negb (1 == 0)%int) with true by (auto with ints).
-        forward.
-        simpl.
-        unfold int_to_int64 in *.
-        unfold zero_char in *.
-        bool_rewrite.
-        forward.
-        replace (negb (1 == 0)%int) with true by (auto with ints).
-        econstructor.
-        forward.
-        econstructor.
-        forward.
-        eapply exec_Sseq_2.
-        econstructor.
-        forward.
-        forward.
-        eapply addr_lt_to_sem_cmp_lt;
-          eassumption.
-         all: repeat (match goal with
-                     | [|- context[bool_val]]=> simpl; bool_rewrite
-                     | [|- context[Val.of_bool]] => simpl; bool_rewrite
-                     end ||
-                         forward ||
-                         replace (negb (1 == 0)%int) with true
-                    by (auto with ints)).
-        simpl.
-        remember (Int64.neg inp_value * Int64.repr (Int.signed (Int.repr 10)) - 
-                  Int64.repr (Int.signed (i - Int.repr 48)%int)) as res.
-        replace (Int64.repr (Int.signed (Int.repr 1)) * res) with res.
-        subst.
-        simpl.
-        eassumption.
-        replace (Int64.repr (Int.signed (Int.repr 1))) with (1)%int64
-          by (auto with ints).       
-        symmetry.
-        rewrite Int64.mul_commut.
-        eapply Int64.mul_one.
-        discriminate.
-      * inversion Spec.
-        repeat eexists.
-               eapply exec_Sloop_stop1.
-        instantiate (1 := (Out_return (Some ((Vint Int.one), tint)))).
-        econstructor. (* Wrong local env instantiated  by repeat econstructor ??? *)
-        econstructor.
-        econstructor.
-        repeat econstructor; try env_assumption.
-        repeat econstructor; try env_assumption.
-        try eassumption.
-        econstructor.
-        eapply distance_to_sem_cmp_lt.
-        eassumption.
-        repeat econstructor.
-        replace (negb (1 == 0)%int) with true by (auto with ints).
-        econstructor.
-        econstructor.
-        repeat econstructor.
-        repeat env_assumption; try eassumption.
-        eassumption.
-        env_assumption.
-        econstructor.
-        apply sem_Cle_Cge.
-        apply int_le_sem_Cle.
-        eassumption.
-        forward.
-        replace (negb (1 == 0)%int) with true by (auto with ints).
-        econstructor.
-        econstructor.
-        repeat econstructor.
-        repeat env_assumption; try eassumption.
-        eassumption.
-        env_assumption.
-        econstructor.
-        forward.
-        simpl.
-        bool_rewrite.
-        reflexivity.
-        forward.
-        simpl.
-        bool_rewrite.
-        econstructor.
-        replace (negb (1 == 0)%int) with true by (auto with ints).
-        forward.
-        simpl.
-        bool_rewrite.
-        econstructor.
-        replace (negb (1 == 0)%int) with true by (auto with ints).
-        forward.
-        simpl.
-        unfold int_to_int64 in *.
-        unfold zero_char in *.
-        bool_rewrite.
-        forward.
-        replace (negb (1 == 0)%int) with true by (auto with ints).
-        econstructor.
-        forward.
-        econstructor.
-        forward.
-        eapply exec_Sseq_2.
-        econstructor.
-        forward.
-        forward.
-        eapply addr_lt_to_sem_cmp_lt;
-          eassumption.
-        all: repeat (match goal with
-                     | [|- context[bool_val]]=> simpl; bool_rewrite
-                     | [|- context[Val.of_bool]] => simpl; bool_rewrite
-                     end ||
-                         forward ||
-                         replace (negb (1 == 0)%int) with true
-                    by (auto with ints)).
-        simpl.
-        unfold int_to_int64 in *.
-        remember (Int64.neg inp_value * Int64.repr (Int.signed (Int.repr 10)) - 
-                  Int64.repr (Int.signed (i - Int.repr 48)%int)) as res.
-        replace (Int64.repr (Int.signed (Int.repr 1)) * res) with res.
-        subst.
-        eassumption.
-        replace (Int64.repr (Int.signed (Int.repr 1))) with (1)%int64
-          by (auto with ints).
-        symmetry.
-        rewrite Int64.mul_commut.
-        eapply Int64.mul_one.
-        discriminate.
-     + (* (inp_value == upper_boundary) 
-&& (int_to_int64 (i - zero_char)%int <= max_sign Signed) = true, UnSigned
-          do one loop and return *)
-      replace b0 with b in *
-        by (eapply mem_load_inj_ptr;
-         eassumption).
-      replace i0 with ofs in *
-        by (eapply mem_load_inj_ptr;
-         eassumption).
-      unfold max_sign in *.
-      unfold is_digit in *.
-      destruct_andb_hyp.
-      destruct_andb_hyp.
-      destruct (Int.repr 48 <= i1)%int eqn : I148.
-      destruct (i1 <= Int.repr 57)%int eqn : I157.
-      all: try intuition.
-      * (* replace b0 with b in *;
-        by (eapply mem_load_inj_ptr;
-         eassumption).
-      replace i0 with ofs in *
-        by (eapply mem_load_inj_ptr;
-         eassumption). *)
-        inversion Spec.
-        repeat eexists.
-        eapply exec_Sloop_stop1.
-        instantiate (1 := (Out_return (Some ((Vint Int.one), tint)))).
-        econstructor. (* Wrong local env instantiated  by repeat econstructor ??? *)
-        econstructor.
-        econstructor.
-        repeat econstructor; try env_assumption.
-        repeat econstructor; try env_assumption.
-        try eassumption.
-        econstructor.
-        eapply distance_to_sem_cmp_lt.
-        eassumption.
-        repeat econstructor.
-        replace (negb (1 == 0)%int) with true by (auto with ints).
-        econstructor.
-        econstructor.
-        repeat econstructor.
-        repeat env_assumption; try eassumption.
-        eassumption.
-        env_assumption.
-        econstructor.
-        apply sem_Cle_Cge.
-        apply int_le_sem_Cle.
-        eassumption.
-        forward.
-        replace (negb (1 == 0)%int) with true by (auto with ints).
-        econstructor.
-        econstructor.
-        repeat econstructor.
-        repeat env_assumption; try eassumption.
-        eassumption.
-        env_assumption.
-        econstructor.
-        forward.
-        simpl.
-        bool_rewrite.
-        reflexivity.
-        forward.
-        simpl.
-        bool_rewrite.
-        econstructor.
-        replace (negb (1 == 0)%int) with true by (auto with ints).
-        forward.
-        simpl.
-        bool_rewrite.
-        econstructor.
-        replace (negb (1 == 0)%int) with true by (auto with ints).
-        forward.
-        simpl.
-        unfold int_to_int64 in *.
-        unfold zero_char in *.
-        bool_rewrite.
-        forward.
-        replace (negb (1 == 0)%int) with true by (auto with ints).
-        econstructor.
-        forward.
-        econstructor.
-        forward.
-        eapply exec_Sseq_2.
-        econstructor.
-        forward.
-        forward.
-        eapply addr_lt_to_sem_cmp_lt;
-          eassumption.
-        all: repeat (match goal with
-                     | [|- context[bool_val]]=> simpl; bool_rewrite
-                     | [|- context[Val.of_bool]] => simpl; bool_rewrite
-                     end ||
-                         forward ||
-                         replace (negb (1 == 0)%int) with true
-                    by (auto with ints)).
-        unfold int_to_int64 in *.
-        simpl.
-        remember (inp_value * Int64.repr (Int.signed (Int.repr 10)) +
-                  Int64.repr (Int.signed (i - Int.repr 48)%int))  as res.
-        replace (Int64.repr (Int.signed (Int.repr 1)) * res) with res.
-        subst.
-        simpl.
-        eassumption.
-        replace (Int64.repr (Int.signed (Int.repr 1))) with (1)%int64
-          by (auto with ints).
-        symmetry.
-        rewrite Int64.mul_commut.
-        eapply Int64.mul_one.
-        discriminate.
-      * inversion Spec.
-        repeat eexists.
-               eapply exec_Sloop_stop1.
-        instantiate (1 := (Out_return (Some ((Vint Int.one), tint)))).
-        econstructor. (* Wrong local env instantiated  by repeat econstructor ??? *)
-        econstructor.
-        econstructor.
-        repeat econstructor; try env_assumption.
-        repeat econstructor; try env_assumption.
-        try eassumption.
-        econstructor.
-        eapply distance_to_sem_cmp_lt.
-        eassumption.
-        repeat econstructor.
-        replace (negb (1 == 0)%int) with true by (auto with ints).
-        econstructor.
-        econstructor.
-        repeat econstructor.
-        repeat env_assumption; try eassumption.
-        eassumption.
-        env_assumption.
-        econstructor.
-        apply sem_Cle_Cge.
-        apply int_le_sem_Cle.
-        eassumption.
-        forward.
-        replace (negb (1 == 0)%int) with true by (auto with ints).
-        econstructor.
-        econstructor.
-        repeat econstructor.
-        repeat env_assumption; try eassumption.
-        eassumption.
-        env_assumption.
-        econstructor.
-        forward.
-        simpl.
-        bool_rewrite.
-        reflexivity.
-        forward.
-        simpl.
-        bool_rewrite.
-        econstructor.
-        replace (negb (1 == 0)%int) with true by (auto with ints).
-        forward.
-        simpl.
-        bool_rewrite.
-        econstructor.
-        replace (negb (1 == 0)%int) with true by (auto with ints).
-        forward.
-        simpl.
-        unfold int_to_int64 in *.
-        unfold zero_char in *.
-        bool_rewrite.
-        forward.
-        replace (negb (1 == 0)%int) with true by (auto with ints).
-        econstructor.
-        forward.
-        econstructor.
-        forward.
-        eapply exec_Sseq_2.
-        econstructor.
-        forward.
-        forward.
-        eapply addr_lt_to_sem_cmp_lt;
-          eassumption.
-        forward.
-        all: repeat (match goal with
-                     | [|- context[bool_val]]=> simpl; bool_rewrite
-                     | [|- context[Val.of_bool]] => simpl; bool_rewrite
-                     end ||
-                         forward ||
-                         replace (negb (1 == 0)%int) with true
-                    by (auto with ints)).
-        simpl.
-        unfold int_to_int64 in *.
-        remember (inp_value * Int64.repr (Int.signed (Int.repr 10)) +
-         Int64.repr (Int.signed (i - Int.repr 48)%int)) as res.
-        replace (Int64.repr (Int.signed (Int.repr 1)) * res) with res.
-        subst.
-        eassumption.
-        replace (Int64.repr (Int.signed (Int.repr 1))) with (1)%int64
-          by (auto with ints).
-        symmetry.
-        rewrite Int64.mul_commut.
-        eapply Int64.mul_one.
-        discriminate.
-     + clear IHdist.
-      unfold is_digit, andb in Heqb0.
-      break_if; eexists; eexists.
-      * (* case when i > 57 *)
-        econstructor.
-        econstructor.
-        econstructor.
-        econstructor.
-        econstructor.
-        econstructor.
-        econstructor; eassumption.
-        econstructor.
-        econstructor.
-        eassumption.
-        econstructor.
-        econstructor.
-        econstructor; gso_simpl; eassumption.
-        econstructor; gss_simpl; econstructor.
-        simpl.
-        eapply distance_to_sem_cmp_lt;
-          eassumption.
-        econstructor.
-        replace (negb (1 == 0)%int) with true by (auto with ints).
-        econstructor.
-        econstructor.
-        econstructor.
-        econstructor.
-        econstructor.
-        econstructor.
-        econstructor; gso_simpl; eassumption.
-        econstructor.
-        econstructor.
-        eassumption.
-        forward.
-        cbn.
-        rewrite Heqb1.
-        simpl.
-        econstructor.
-        forward.
-        cbn.
-        rewrite Heqb0.
-        simpl.
-        econstructor.
-        forward.
-        inv Spec.
-        simpl.
-        unfold mult_sign, sign_to_int.
-        break_match; [reflexivity | ].
-        replace (Int64.repr (Int.signed (Int.repr 1))) with (1)%int64 
-          by (auto with ints).
-        rewrite Int64.mul_commut.
-        rewrite Int64.mul_one.
-        reflexivity.
-        econstructor.
-      * (* i < 48 *)
-        econstructor.
-        econstructor.
-        econstructor.
-        econstructor.
-        econstructor.
-        econstructor.
-        econstructor; eassumption.
-        econstructor.
-        econstructor.
-        eassumption.
-        econstructor.
-        econstructor.
-        econstructor; gso_simpl; eassumption.
-        econstructor; gss_simpl; econstructor.
-        simpl.
-        eapply distance_to_sem_cmp_lt;
-          eassumption.
-        econstructor.
-        econstructor.
-        econstructor.
-        econstructor.
-        econstructor.
-        econstructor.
-        econstructor.
-        econstructor; gso_simpl; eassumption.
-        econstructor.
-        econstructor.
-        eassumption.
-        econstructor.
-        econstructor.
-        econstructor; gss_simpl; econstructor.
-        econstructor.
-        econstructor.
-        simpl.
-        rewrite Heqb1.
-        econstructor.
-        econstructor.
-        econstructor.
-        econstructor.
-        econstructor; gss_simpl; econstructor.
-        econstructor.
-        econstructor.
-        econstructor.
-        econstructor.
-        econstructor; repeat gso_simpl; eassumption.
-        econstructor; repeat gso_simpl; eassumption.
-        econstructor.
-        econstructor.
-        econstructor.
-        eassumption.
-        econstructor.
-        econstructor.
-        econstructor.
-        econstructor; repeat gso_simpl; eassumption.
-        econstructor.
-        econstructor; repeat gso_simpl; eassumption.
-        econstructor; repeat gso_simpl; eassumption.
-        econstructor.
-        econstructor.
-        econstructor.
-        econstructor.
-        inv Spec; cbn.
-        unfold  sign_to_int; unfold mult_sign in H2; destruct s'.
-        eassumption.
-        replace (Int64.repr (Int.signed (Int.repr 1))) with (1)%int64 
-          by (auto with ints).
-        rewrite Int64.mul_commut.
-        rewrite Int64.mul_one.
-        assumption.
-        econstructor.
-        econstructor.
-        econstructor.
-        Qed.
+  intros.
+  destruct val.
+  destruct p.
+  destruct a.
+  edestruct asn_strtoimax_lim_loop_ASN_STRTOX_EXTRA_DATA_correct;
+    try eassumption.
+  break_exists.
+  break_and.
+  repeat eexists.
+  eassumption.
+  pose proof ED_None_ptr_contradiction.
+  admit. (* contradiction *)
+  admit. (* contradiction *)
+  Admitted.
 
 Lemma asn_strtoimax_lim_correct :
   forall m ge e le str_b str_ofs fin_b fin_ofs intp_b intp_ofs m' res p s' val,
@@ -1541,19 +1659,19 @@ Proof.
   - (* ASN_STRTOX_EXPECT_MORE *)
     eapply asn_strtoimax_lim_ASN_STRTOX_EXPECT_MORE_correct. 
   - (*  ASN_STRTOX_EXTRA_DATA *)
-     intros until val; intros Str End Intp UB Sign Spec.
+    intros until val; intros Str End Intp UB Sign Spec.
     unfold asn_strtoimax_lim in Spec.
     repeat break_match;
       unfold store_result in *;
       repeat break_match; try congruence.
-     + inversion Spec.
+    + inversion Spec.
       rewrite H2 in *.
       destruct_orb_hyp.
       1 : (eapply exec_loop_minus).
       12: (eapply exec_loop_plus).
       all: repeat rewrite set_env_eq_ptree_set in *.
       all: repeat  eassumption.
-        all: eapply asn_strtoimax_lim_loop_ASN_STRTOX_EXTRA_DATA_correct;
+        all: eapply asn_strtoimax_lim_loop_ASN_STRTOX_EXTRA_DATA_correct';
         repeat (env_assumption || econstructor);
      (switch_destruct i0);
      rewrite EQ in *; simpl in Heqo3; try econstructor;
@@ -1563,7 +1681,7 @@ Proof.
        eassumption.
     + destruct_orb_hyp.
       eapply exec_loop_none; try eassumption;
-        eapply asn_strtoimax_lim_loop_ASN_STRTOX_EXTRA_DATA_correct;
+        eapply asn_strtoimax_lim_loop_ASN_STRTOX_EXTRA_DATA_correct';
          repeat rewrite set_env_eq_ptree_set in *;
         repeat (env_assumption || econstructor).                   
       instantiate (1 := Unsigned); simpl.
@@ -1791,14 +1909,14 @@ Proof.
         rewrite Int64.mul_commut.
         rewrite Int64.mul_one.
         reflexivity.
-     + pose proof (OK_None_contradiction_1
+     + pose proof (OK_None_ptr_contradiction
            (Some (n-1)%nat)
            ((str_b, str_ofs) ++) (fin_b, fin_ofs)
            (intp_b, intp_ofs) 0
            (char_to_sign i0) (max_sign (char_to_sign i0))
            m m' s').
       congruence. 
-    + pose proof (OK_None_contradiction_2
+    + pose proof (OK_None_val_contradiction
            (Some (n-1)%nat)
            ((str_b, str_ofs) ++) (fin_b, fin_ofs)
            (intp_b, intp_ofs) 0
@@ -1852,14 +1970,14 @@ Proof.
         rewrite Int64.mul_commut.
         rewrite Int64.mul_one.
         reflexivity.
-    + pose proof (OK_None_contradiction_1
+    + pose proof (OK_None_ptr_contradiction
            (Some (n)%nat)
            ((str_b, str_ofs)) (fin_b, fin_ofs)
            (intp_b, intp_ofs) 0
            Unsigned last_digit_max
            m m' s').
       congruence. 
-    + pose proof (OK_None_contradiction_2
+    + pose proof (OK_None_val_contradiction
            (Some (n)%nat)
            ((str_b, str_ofs)) (fin_b, fin_ofs)
            (intp_b, intp_ofs) 0
@@ -1867,3 +1985,36 @@ Proof.
            m m' s').
       congruence.
 Qed.
+
+Lemma asn_strtoimax_lim_ASN_STRTOX_EXTRA_DATA_correct :
+  forall m ge e le strp_b strp_ofs str_b str_ofs fin_b fin_ofs intp_b intp_ofs m' s' val,
+    
+    le ! _str = Some (Vptr str_b str_ofs)  ->
+    le ! _end = Some (Vptr fin_b fin_ofs) ->
+    le ! _intp = Some (Vptr intp_b intp_ofs)  ->
+    le ! _upper_boundary = Some (Vlong upper_boundary) ->
+    le ! _sign = Some (Vint (Int.repr 1)) ->
+
+    asn_strtoimax_lim m (str_b, str_ofs) (fin_b, fin_ofs) (intp_b, intp_ofs)
+    =  Some {| return_type := ASN_STRTOX_EXTRA_DATA;
+            value := Some val;
+            str_pointer := Some (strp_b, strp_ofs);
+            memory := Some m';
+            sign := s' |}  -> 
+    exists t le', exec_stmt ge e le m f_asn_strtoimax_lim.(fn_body)
+                                                       t le' m'
+                                                       (Out_return
+                                                          (Some
+                                                             ((Vint
+                                                                 (asn_strtox_result_e_to_int
+                                                                    ASN_STRTOX_EXTRA_DATA)),
+                                                              tint)))
+             /\ le'! _end = Some (Vptr fin_b fin_ofs)
+             /\ le'! _str = Some (Vptr strp_b strp_ofs)
+             /\ le'! _sign = Some (Vint (sign_to_int s'))
+             /\ le'! _intp = Some (Vptr intp_b intp_ofs)
+             /\ le'! _value = Some (Vlong val)
+             /\ Mem.loadv Mint64 m' (Vptr intp_b intp_ofs)
+               = Some (Vlong (mult_sign s' val)).
+Proof.
+  Admitted.
