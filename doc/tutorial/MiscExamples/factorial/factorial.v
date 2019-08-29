@@ -145,7 +145,7 @@ Qed.
 Fixpoint fact (n : nat) : nat :=
   match n with
   | O => 1
-  | S n' => n * fact n'
+  | S n' => (S n') * fact n'
   end.
 
 Inductive factorial : nat -> nat -> Prop :=

@@ -1,0 +1,133 @@
+\documentclass[10pt]{beamer}
+
+\usetheme[progressbar=frametitle]{metropolis}
+\usepackage{appendixnumberbeamer}
+
+\usepackage{booktabs}
+\usepackage[scale=2]{ccicons}
+
+\usepackage{pgfplots}
+\usepgfplotslibrary{dateplot}
+
+\usepackage{xspace}
+\newcommand{\themename}{\textbf{\textsc{metropolis}}\xspace}
+
+\usepackage{listings}
+
+\input{listings-coq}
+
+\title{Formal Verification of Computer Programs}
+\subtitle{A Primier}
+% \date{\today}
+\date{\date{}}
+\author[shortname]{Vadim Zaliva \textsuperscript{1} \and Nika Pona \inst{2}}
+\institute[shortinst]{\textsuperscript{1} Carnegie Mellon  University \and \inst{2} Digamma.ai}
+
+% \titlegraphic{\hfill\includegraphics[height=1.5cm]{logo.pdf}}
+
+\begin{document}
+
+\maketitle
+
+\begin{frame}{Table of contents}
+  \setbeamertemplate{section in toc}[sections numbered]
+  \tableofcontents[hideallsubsections]
+\end{frame}
+
+\begin{frame}{Outline}
+    \begin{enumerate}
+        \item What are formal methods?
+        \item Proof assistants (Coq) mini-intro
+        \item Reasoning about programs (semantics, specification, etc)
+        \item Motivating example (strtoimax\_lim)
+        \item Detailed example (strlen of similar)
+        \item Other languages? (Javascript, LLVM, etc.)
+        \item Other approaches (exraction)
+        \item Conclusions
+    \end{enumerate}
+\end{frame}
+
+\section{What are formal methods?}
+\begin{frame}{Formal verification - quick intro}
+ 
+  We want to have high assurance that our code works as intended. One of the methods is formal verification. This means we want to produce a formal proof that our code works as intended. What does it mean exactly and how do we do it?
+  
+  \begin{enumerate}
+  \item We start by writing a \emph{specification} in a formal language (like Coq or HOL) which strictly defines how our program should behave.
+  \item Then we derive the \emph{semantics} of our program which describes how it actually behaves. 
+  \item Finally we mathematically prove that semantics of our program matches our specification.
+\end{enumerate}
+  
+\end{frame}
+
+\begin{frame}{Coq intro}
+  As a formal language we choose {\bf Gallina}, mechanized version of Calculus of Inductive Constructions (aka dependent type theory), which is a very expressive theory well studied in mathematical logic.
+
+
+  \smallskip
+  
+  It is much more likely to make a mistake in a formal proof (which is typically way longer than the code), so we want assurance that our proof is correct.
+  \smallskip
+  
+  Hence we use a proof assistant Coq: a program that checks that your proof is correct. It also provides an environment to make the construction of proofs easier. Coq's language is based on dependent type theory and is called Gallina.
+  
+\end{frame}
+\begin{frame}{Coq intro}
+  
+ [Show some basic Coq definitions and proofs]
+  
+\end{frame}
+
+\begin{frame}[fragile]{Factorial example}
+  Mathematical specification of factorial is recursive equation, for ($0 \leq n$) :
+  \[ fact(0) = 1 \]
+  \[ fact(n + 1) = fact(n)*(n+1) \]
+  
+  We can write it in Coq as a fixpoint (recursive) definition:
+  \begin{lstlisting}[language=Coq]
+
+  Fixpoint fact (n : nat) : nat :=
+    match n with
+    | O => 1
+    | S n' => (S n') * fact n'
+    end.
+
+  \end{lstlisting}
+  
+  Note that this definition is also a functional program.
+ 
+\end{frame}
+
+\begin{frame}[fragile]{Factorial example: veryfing a functional program}
+
+  We can write a more efficient functional program to compute factorial
+
+  \begin{lstlisting}[language=Coq]
+
+  Fixpoint fact_acc (n : nat) (acc : nat) :=
+    match n with
+    | 0 => acc
+    | S k => fact_acc k (n * acc)
+    end.
+
+  Definition fact' (n : nat) :=
+    fact_acc n 1.
+
+  \end{lstlisting}
+
+  Now we want to show that it actually computes factorial. To do this we can show in Coq that:
+   \begin{lstlisting}[language=Coq]
+  Theorem fact'_correct : forall n, fact' n = fact n.
+  \end{lstlisting}
+ 
+\end{frame}
+
+
+\begin{frame}[allowframebreaks]{References}
+
+  \bibliography{demo}
+  \bibliographystyle{abbrv}
+
+\end{frame}
+
+\end{document}
