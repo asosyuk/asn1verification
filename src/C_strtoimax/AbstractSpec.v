@@ -39,7 +39,7 @@ Definition string_to_Z (s : string) :=
      end.
 
 (* The sign is determined by the first char in the string *)
-Definition signed_string_to_Z (s : string) (sign : signedness) :=
+Definition signed_string_to_Z (s : string) :=
   match s with
   | nil => None 
   | c :: tl => if c == minus_char
@@ -160,29 +160,92 @@ Definition signed_string_to_int s :=
 (* To relate the abstract spec we need to add assumption about memory *)
 Definition byte_of_int b := Byte.repr (Int.unsigned b).
 
-(* There is a string s of length dist at address str *)
+(* There is a string s at address str until fin *)
 (* Note: load returns value of type Vint, hence need a conversion from byte *)
-Fixpoint string_at_address m s str dist : option (list byte) :=
-  match dist with
-  | O => Some s
-  | S n => match load_addr Mint8signed m str with
-          | Some (Vint i) => string_at_address m ((byte_of_int i)::s) (str++) n
-          | _ => None
-          end
-  end.
-    
-
-Proposition asn_strtoimax_lim_fun_correct : forall s m strp str fin intp m' s' val dist,
-    asn_strtoimax_lim m str fin intp = Some {| return_type := ASN_STRTOX_OK ;
-                                               value := Some val ;
-                                               str_pointer := Some strp;
-                                               memory := m';
-                                            sign := s'; |}
-                                       <->
-         addr_ge m str fin = Some false
-         /\ distance m str fin = Some dist
-         /\ string_at_address m nil str dist = Some s
-         /\ signed_string_to_int s = Some val.
-Admitted.
+Definition string_at_address m str fin : option (list byte) :=
+  match distance m str fin with
+  | Some dist =>
+    let fix string_at_address m s str dist : option (list byte) :=
+        match dist with
+        | O => Some s
+        | S n => match load_addr Mint8signed m str with
+                | Some (Vint i) => string_at_address m
+                                                    ((byte_of_int i)::s)
+                                                    (str++) n
+                 | _ => None
+                 end
+        end in
+    string_at_address m nil str dist
+  | _ => None
+end.
 
 End IntSpec.
+
+Section RelationalSpec.
+
+Definition store_addr (chunk : memory_chunk) (m : mem) (a : addr) :=
+  match a with (b,ofs) => Mem.storev chunk m (Vptr b ofs) end.
+  
+  Inductive asn_strtoimax_lim_R m str fin intp : asn_strtox_result_e -> Prop :=
+    (* Input outside of supported numeric range *)
+  | ASN_STRTOX_ERROR_RANGE_R s z :
+      string_at_address m str fin = Some s ->
+      signed_string_to_Z s = Some z ->
+      (Int64.max_signed <= z)%Z \/ (z <= Int64.min_signed)%Z ->
+      asn_strtoimax_lim_R m str fin intp ASN_STRTOX_ERROR_RANGE
+    (* Invalid data encountered (e.g., "+-") *)
+  | ASN_STRTOX_ERROR_INVAL_R :
+      addr_ge m str fin = Some true ->
+      asn_strtoimax_lim_R m str fin intp ASN_STRTOX_ERROR_INVAL
+    (* More data expected (e.g. "+") *)
+  | ASN_STRTOX_EXPECT_MORE_R :
+      string_at_address m str fin = Some [plus_char] \/
+      string_at_address m str fin = Some [minus_char] ->
+      asn_strtoimax_lim_R m str fin intp ASN_STRTOX_EXPECT_MORE
+    (* Conversion succeded, but the string has extra stuff *)
+  | ASN_STRTOX_EXTRA_DATA_R s z m' :
+      string_at_address m str fin = Some s ->
+      signed_string_to_Z s = Some z ->
+      (Int64.min_signed <= z <= Int64.max_signed)%Z ->
+      (exists c, In c s /\ is_digit c = false) ->
+      store_addr Mint64 m intp (Vlong (Int64.repr z)) = Some m' -> 
+      asn_strtoimax_lim_R m str fin intp ASN_STRTOX_EXTRA_DATA
+      (* Conversion succeded *)
+  | ASN_STRTOX_OK_R s z m' :
+      string_at_address m str fin = Some s ->
+      signed_string_to_Z s = Some z ->
+      (Int64.min_signed <= z <= Int64.max_signed)%Z ->
+      store_addr Mint64 m intp (Vlong (Int64.repr z)) = Some m' -> 
+      asn_strtoimax_lim_R m str fin intp ASN_STRTOX_OK.  
+  
+End RelationalSpec.
+
+Theorem asn_strtoimax_lim_func_correct : forall m str fin fin' intp res,
+    asn_strtoimax_lim m str fin intp = Some res <->
+    (load_addr Mptr m fin = Some (vptr fin') /\
+     asn_strtoimax_lim_R m str fin' intp res.(return_type)).
+Proof.
+  intros.
+  destruct res.
+  destruct return_type.
+  split; intro.
+  - econstructor.
+    all: admit.
+  - inversion H.
+    unfold string_at_address in *.
+    unfold signed_string_to_Z in *.
+    unfold asn_strtoimax_lim in *.
+    unfold store_result in *.
+    unfold distance in *.
+    unfold vptr in *.
+    repeat break_match; try congruence.
+    unfold addr_ge, ptr_ge in *.
+    Admitted.
+    
+    
+    
+    
+  
+    
+    
+  
