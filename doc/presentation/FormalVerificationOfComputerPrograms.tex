@@ -1,0 +1,282 @@
+\documentclass[10pt]{beamer}
+
+\usetheme[progressbar=frametitle]{metropolis}
+\usepackage{appendixnumberbeamer}
+
+\usepackage{booktabs}
+\usepackage[scale=2]{ccicons}
+
+\usepackage{pgfplots}
+\usepgfplotslibrary{dateplot}
+
+\usepackage{xspace}
+\newcommand{\themename}{\textbf{\textsc{metropolis}}\xspace}
+
+\usepackage{listings}
+
+\input{listings-coq}
+
+\title{Formal Verification of Computer Programs}
+\subtitle{A Primier}
+% \date{\today}
+\date{\date{}}
+\author[shortname]{Vadim Zaliva \textsuperscript{1} \and Nika Pona \inst{2}}
+\institute[shortinst]{\textsuperscript{1}Carnegie Mellon  University \and \inst{2} Digamma.ai}
+
+% \titlegraphic{\hfill\includegraphics[height=1.5cm]{logo.pdf}}
+
+\begin{document}
+
+\maketitle
+
+\begin{frame}{Outline}
+    \begin{enumerate}
+        \item What are formal methods?
+        \item Proof assistants (Coq) mini-intro
+        \item Reasoning about programs (semantics, specification, etc)
+        \item Motivating example (strtoimax\_lim)
+        \item Detailed example (strlen of similar)
+        \item Other languages? (Javascript, LLVM, etc.)
+        \item Other approaches (exraction)
+        \item Conclusions
+    \end{enumerate}
+\end{frame}
+
+\begin{frame}{Table of contents}
+  \setbeamertemplate{section in toc}[sections numbered]
+  \tableofcontents[hideallsubsections]
+\end{frame}
+
+
+
+\section{What are formal methods?}
+\begin{frame}{Formal verification - quick intro}
+ 
+  We want to have high assurance that our code works as intended. One of the methods is formal verification. This means we want to produce a formal proof that our code works as intended. What does it mean exactly and how do we do it?
+  
+  \begin{enumerate}
+  \item We start by writing a \emph{specification} in a formal language (like Coq or HOL) which strictly defines how our program should behave.
+  \item Then we define the \emph{semantics} of our program which describes how it actually behaves. 
+  \item Finally we mathematically prove that semantics of our program matches our specification.
+\end{enumerate}
+  
+\end{frame}
+
+\begin{frame}{Coq intro}
+  As a formal language we choose {\bf Gallina}, mechanized version of Calculus of Inductive Constructions (aka dependent type theory), which is a very expressive theory well studied in mathematical logic.
+
+
+  \smallskip
+  
+  It is much more likely to make a mistake in a formal proof (which is typically way longer than the code), so we want assurance that our proof is correct.
+  \smallskip
+  
+  Hence we use a proof assistant Coq: a program that checks that your proof is correct. It also provides an environment to make the construction of proofs easier. 
+  
+  
+\end{frame}
+
+
+\section{Motivating Example}
+\begin{frame}{\texttt{asn\_strtoimax\_lim}}
+In this talk we are concentrating on formal verification of existing imperative programs. We took a function \texttt{asn\_strtoimax\_lim} from \texttt{asn1c} compiler to test our approach on a real-life function. Informal specification in the comments: 
+
+ \begin{quote}
+ Parse the number in the given string until the given *end position,
+ returning the position after the last parsed character back using the
+ same (*end) pointer.
+ WARNING: This behavior is different from the standard strtol/strtoimax(3).
+\end{quote}
+
+The code:
+ \url{https://github.com/vlm/asn1c/blob/9f470d60faf6b994de6b9d6c0dbfb9279d9bb48d/skeletons/INTEGER.c#L1033}
+\end{frame}
+
+\begin{frame}{\texttt{asn\_strtoimax\_lim}}
+
+
+While doing the correctness proof we found a bug, can you see it?
+
+  \url{https://github.com/vlm/asn1c/issues/344}
+  
+\end{frame}
+
+
+
+\begin{frame}{\texttt{asn\_strtoimax\_lim}}
+  Fixed version: \url{https://github.com/vlm/asn1c/blob/b361194599b46d97a398195e6a18f1d581f7fab9/skeletons/INTEGER.c#L1033}
+
+  Is this fix OK?
+  
+\end{frame}
+
+\section{Detailed example}
+
+
+\begin{frame}[fragile]{Factorial example}
+  Mathematical specification of factorial is recursive equation, for ($0 \leq n$) :
+  \[ fact(0) = 1 \]
+  \[ fact(n + 1) = fact(n)*(n+1) \]
+  
+  We can write it in Coq as a fixpoint (recursive) definition:
+  \begin{lstlisting}[language=Coq]
+
+  Fixpoint fact (n : nat) : nat :=
+    match n with
+    | O => 1
+    | S n' => (S n') * fact n'
+    end.
+
+  \end{lstlisting}
+  
+  Note that this definition is also a functional program.
+ 
+\end{frame}
+
+\begin{frame}{Coq quick-intro}
+
+Showcase some basic Coq stuff. (Fixpoint, Inductive defs: nat, Prop )
+    
+\end{frame}
+
+\begin{frame}[fragile]{Factorial example: veryfing a functional program}
+
+  We can write a more efficient functional program to compute factorial
+
+  \begin{lstlisting}[language=Coq]
+
+  Fixpoint fact_acc (n : nat) (acc : nat) :=
+    match n with
+    | 0 => acc
+    | S k => fact_acc k (n * acc)
+    end.
+
+  Definition fact' (n : nat) :=
+    fact_acc n 1.
+
+  \end{lstlisting}
+
+  Now we want to show that it actually computes factorial. To do this we can show in Coq that:
+   \begin{lstlisting}[language=Coq]
+  Theorem fact'_correct : forall n, fact' n = fact n.
+  \end{lstlisting}
+ 
+\end{frame}
+
+\begin{frame}{Factorial example: veryfing a functional program}
+Now using Coq's extraction mechanism we can automatically extract an OCaml or Haskell function that is provably correct. Alternatively, one could easily embed a functional language into Coq and reason about the existing implementation. What if you want to verify code written in imperative language?
+  \end{frame}
+
+
+  \begin{frame}{C light syntax and semantics: CompCert}
+
+    First, you need to embed the language into Coq, meaning model its syntax and semantics in Coq. Luckily, this has been already done in the project called CompCert, a verfied compiler for C, almost entirely written in Coq and proved to work according to the specification (\url{http://compcert.inria.fr/}).
+
+    \begin{quote}
+      The striking thing about our CompCert results is that the middle-end bugs we found in all other compilers are absent. As of early 2011,the under-development version of CompCert is the only compiler we have tested for which Csmith cannot find wrong-code errors.
+    \end{quote} ({\it Finding and Understanding Bugs in C Compilers}, Yang et al., 2011)
+
+  \end{frame}
+    
+  \begin{frame}{Verifying Imperative program}
+    So using CompCert our approach is as follows:
+  \begin{itemize}
+  \item parse C code into an abstract syntax tree using C light generator of CompCert
+  \item write a functional specification using CompCert's model of C light 
+  \item reason about the C light program using operational semantics defined in CompCert
+\end{itemize}
+\end{frame}
+
+
+\begin{frame}[fragile]{Verifying Imperative Programs}
+
+ Factorial C implementation that we want to verify
+
+\begin{lstlisting}
+
+unsigned int factorial (unsigned int input) {
+  unsigned int output = 1;
+  while (input){
+      output = output*input ;
+      input = input - 1 ;
+    } 
+  return output ;
+}
+
+\end{lstlisting}
+
+The specification stays the same. 
+
+\end{frame}
+
+\begin{frame}[fragile]{Mechanized Syntax and Semantics of C programs}
+C light AST corresponding to the factorial function: 
+  \begin{lstlisting}[language=Coq]
+(Ssequence
+  (* int output = 1 *)
+  (Sset _output (Econst_int (Int.repr 1) tuint)) 
+  (Ssequence 
+    (Swhile 
+      (Etempvar _input tuint) (* while (input) *)
+      (Ssequence  
+        (Sset _output
+          (Ebinop Omul (Etempvar _output tuint) 
+          (* output = output*input *)
+          (Etempvar _input tuint) tuint)) 
+        (Sset _input
+          (Ebinop Osub (Etempvar _input tuint) 
+          (* input = input - 1 *)
+          (Econst_int (Int.repr 1) tuint) tuint))))
+            (* return output *)
+    (Sreturn (Some (Etempvar _output tuint))))) |}.
+     \end{lstlisting}
+     
+\end{frame}
+
+
+\subsection{Operational semantics: bigstep}
+
+  \begin{frame}{Operational Semantics}
+    Our goal is to prove that programs written in C light behave as intented. To do this we need to formalize the notion of meaning of a C light program. We do this using what is called {\bf operational semantics}.
+
+    \bigskip
+    
+    An operational semantics is a mathematical model of programming language execution. It is basically an interpreter defined formally.
+    \bigskip
+    
+    We use big-step operational semantics used for all intermediate languages of CompCert.
+  \end{frame}
+  \begin{frame}{Operational Semantics}
+    We assign primitive values to constants and then compositionally compute values of expressions and outcomes of statements.
+   \begin{itemize}
+    \item Each syntactic element (expressions and statements) is related to the indended result of executing this element.    
+    \item Expressions are deterministically mapped to memory locations or values (integers, bool etc).
+    \item The execution of statements depends on memory state and values stored in the local environment and produces {\bf outcomes} (break, normal, return), updated memory and local environment. Moreover, {\bf trace} of external calls is recorded.
+      \end{itemize}
+    \end{frame}
+    \begin{frame}
+      Go to factorial tutorial: \url{~/asn1verification/doc/tutorial/MiscExamples/factorial}
+    \end{frame}
+
+    \begin{frame}
+      Going back to our first example:
+      
+       We wrote a formal specification of the function (based on the comment and analysis of the function), produced C light AST of the function using C light generator of CompCert and proved that the resulting AST evaluates to correct values on all valid inputs using operational semantics. 
+      \end{frame}
+
+\section{Other languages}
+
+\begin{frame}{Other languages}
+
+  \url{http://www.jscert.org/} JSCert: Certified JavaScript
+  
+  \end{frame}
+
+\begin{frame}[allowframebreaks]{References}
+
+  \bibliography{demo}
+  \bibliographystyle{abbrv}
+
+\end{frame}
+
+\end{document}
