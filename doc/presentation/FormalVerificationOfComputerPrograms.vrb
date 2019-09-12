@@ -1,0 +1,22 @@
+\frametitle{ Syntax of C programs in Coq}
+C light AST corresponding to the factorial function:
+  \begin{lstlisting}[language=Coq]
+(Ssequence
+  (* int output = 1 *)
+  (Sset _output (Econst_int (Int.repr 1) tuint))
+  (Ssequence
+    (Swhile
+      (Etempvar _input tuint) (* while (input) *)
+      (Ssequence
+        (Sset _output
+          (Ebinop Omul (Etempvar _output tuint)
+          (* output = output*input *)
+          (Etempvar _input tuint) tuint))
+        (Sset _input
+          (Ebinop Osub (Etempvar _input tuint)
+          (* input = input - 1 *)
+          (Econst_int (Int.repr 1) tuint) tuint))))
+            (* return output *)
+    (Sreturn (Some (Etempvar _output tuint))))) |}.
+     \end{lstlisting}
+

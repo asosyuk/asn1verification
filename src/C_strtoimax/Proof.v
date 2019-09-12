@@ -35,14 +35,7 @@ Lemma asn_strtoimax_lim_loop_ASN_STRTOX_EXTRA_DATA_correct :
    exists t le', exec_stmt ge e le m f_asn_strtoimax_lim_loop t le' m' 
               (Out_return (Some (Vint
                                    (asn_strtox_result_e_to_int
-                                      ASN_STRTOX_EXTRA_DATA), tint)))
-                 /\ le'! _end = Some (Vptr fin_b fin_ofs)
-                 /\ le'! _str = Some (Vptr strp_b strp_ofs)
-                 /\ le'! _sign = Some (Vint (sign_to_int s'))
-                 /\ le'! _intp = Some (Vptr intp_b intp_ofs)
-                 /\ le'! _value = Some (Vlong val)
-                 /\ Mem.loadv Mint64 m' (Vptr intp_b intp_ofs)
-                   = Some (Vlong (mult_sign s' val)).
+                                      ASN_STRTOX_EXTRA_DATA), tint))).
 Proof.
   replace (asn_strtox_result_e_to_int ASN_STRTOX_EXTRA_DATA)
     with Int.one by (reflexivity).
@@ -54,7 +47,7 @@ Proof.
     unfold store_result in *;
       repeat break_match; try congruence.
     (* 4 cases *)
-    + (* Case   Heqb0 : is_digit i = true
+    + putable (S O).(* Case   Heqb0 : is_digit i = true
          Heqb1 : (inp_value < upper_boundary) = true *)
       remember 
          (PTree.set _str
@@ -237,16 +230,6 @@ Proof.
         rewrite Int64.mul_commut.
         eapply Int64.mul_one.
         discriminate.
-        subst. reflexivity.
-        simpl.
-        replace (Vlong (Int64.neg inp_value * Int64.repr 10
-                        - int_to_int64 (i - zero_char)%int))
-          with (Val.load_result Mint64 (Vlong
-                       (Int64.neg inp_value * Int64.repr 10
-                        - int_to_int64 (i - zero_char)%int))).
-        eapply Mem.load_store_same.
-        eassumption.
-        reflexivity.
       * inversion Spec.
         repeat eexists.
                eapply exec_Sloop_stop1.
@@ -332,16 +315,6 @@ Proof.
         rewrite Int64.mul_commut.
         eapply Int64.mul_one.
         discriminate.
-        subst; reflexivity.
-        simpl.
-        replace (Vlong (Int64.neg inp_value * Int64.repr 10
-                        - int_to_int64 (i - zero_char)%int))
-          with (Val.load_result Mint64 (Vlong
-                       (Int64.neg inp_value * Int64.repr 10
-                        - int_to_int64 (i - zero_char)%int))).
-        eapply Mem.load_store_same.
-        eassumption.
-        reflexivity.
      + (* (inp_value == upper_boundary) 
 && (int_to_int64 (i - zero_char)%int <= max_sign Signed) = true, UnSigned
           do one loop and return *)
@@ -450,17 +423,6 @@ Proof.
         rewrite Int64.mul_commut.
         eapply Int64.mul_one.
         discriminate.
-        subst; reflexivity.
-        simpl.
-        replace (Vlong (inp_value * Int64.repr 10
-                        + int_to_int64 (i - zero_char)%int))
-          with (Val.load_result Mint64 (Vlong (inp_value
-                                               * Int64.repr 10
-                                               + int_to_int64
-                                                   (i - zero_char)%int))).
-        eapply Mem.load_store_same.
-        eassumption.
-        reflexivity.
       * inversion Spec.
         repeat eexists.
                eapply exec_Sloop_stop1.
@@ -547,22 +509,10 @@ Proof.
         rewrite Int64.mul_commut.
         eapply Int64.mul_one.
         discriminate.
-        subst; reflexivity.
-        simpl.
-        replace (Vlong (inp_value * Int64.repr 10
-                        + int_to_int64 (i - zero_char)%int))
-          with (Val.load_result Mint64 (Vlong (inp_value
-                                               * Int64.repr 10
-                                               + int_to_int64
-                                                   (i - zero_char)%int))).
-        eapply Mem.load_store_same.
-        eassumption.
-        reflexivity.
      + clear IHdist.
       unfold is_digit, andb in Heqb0.
       break_if; eexists; eexists.
       * (* case when i > 57 *)
-        econstructor.
         econstructor.
         econstructor.
         econstructor.
@@ -1589,22 +1539,9 @@ Lemma asn_strtoimax_lim_loop_ASN_STRTOX_EXTRA_DATA_correct' :
                                    (asn_strtox_result_e_to_int
                                       ASN_STRTOX_EXTRA_DATA), tint))).
 Proof.
-  intros.
-  destruct val.
-  destruct p.
-  destruct a.
-  edestruct asn_strtoimax_lim_loop_ASN_STRTOX_EXTRA_DATA_correct;
-    try eassumption.
-  break_exists.
-  break_and.
-  repeat eexists.
-  eassumption.
-  pose proof ED_None_ptr_contradiction.
-  admit. (* contradiction *)
-  admit. (* contradiction *)
-  Admitted.
 
-Lemma asn_strtoimax_lim_correct :
+
+  Lemma asn_strtoimax_lim_correct :
   forall m ge e le str_b str_ofs fin_b fin_ofs intp_b intp_ofs m' res p s' val,
     
     le ! _str = Some (Vptr str_b str_ofs)  ->
@@ -1986,35 +1923,3 @@ Proof.
       congruence.
 Qed.
 
-Lemma asn_strtoimax_lim_ASN_STRTOX_EXTRA_DATA_correct :
-  forall m ge e le strp_b strp_ofs str_b str_ofs fin_b fin_ofs intp_b intp_ofs m' s' val,
-    
-    le ! _str = Some (Vptr str_b str_ofs)  ->
-    le ! _end = Some (Vptr fin_b fin_ofs) ->
-    le ! _intp = Some (Vptr intp_b intp_ofs)  ->
-    le ! _upper_boundary = Some (Vlong upper_boundary) ->
-    le ! _sign = Some (Vint (Int.repr 1)) ->
-
-    asn_strtoimax_lim m (str_b, str_ofs) (fin_b, fin_ofs) (intp_b, intp_ofs)
-    =  Some {| return_type := ASN_STRTOX_EXTRA_DATA;
-            value := Some val;
-            str_pointer := Some (strp_b, strp_ofs);
-            memory := Some m';
-            sign := s' |}  -> 
-    exists t le', exec_stmt ge e le m f_asn_strtoimax_lim.(fn_body)
-                                                       t le' m'
-                                                       (Out_return
-                                                          (Some
-                                                             ((Vint
-                                                                 (asn_strtox_result_e_to_int
-                                                                    ASN_STRTOX_EXTRA_DATA)),
-                                                              tint)))
-             /\ le'! _end = Some (Vptr fin_b fin_ofs)
-             /\ le'! _str = Some (Vptr strp_b strp_ofs)
-             /\ le'! _sign = Some (Vint (sign_to_int s'))
-             /\ le'! _intp = Some (Vptr intp_b intp_ofs)
-             /\ le'! _value = Some (Vlong val)
-             /\ Mem.loadv Mint64 m' (Vptr intp_b intp_ofs)
-               = Some (Vlong (mult_sign s' val)).
-Proof.
-  Admitted.

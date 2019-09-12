@@ -2,7 +2,7 @@
 
 \usetheme[progressbar=frametitle]{metropolis}
 \usepackage{appendixnumberbeamer}
-
+\usepackage{bussproofs}
 \usepackage{booktabs}
 \usepackage[scale=2]{ccicons}
 
@@ -17,7 +17,7 @@
 \input{listings-coq}
 
 \title{Formal Verification of Computer Programs}
-\subtitle{A Primier}
+\subtitle{A Primer}
 % \date{\today}
 \date{\date{}}
 \author[shortname]{Vadim Zaliva \textsuperscript{1} \and Nika Pona \inst{2}}
@@ -50,12 +50,12 @@
 
 
 \section{What are formal methods?}
-\begin{frame}{Formal verification - quick intro}
+\begin{frame}{Formal verification}
  
-  We want to have high assurance that our code works as intended. One of the methods is formal verification. This means we want to produce a formal proof that our code works as intended. What does it mean exactly and how do we do it?
+  We want to have high assurance that our code works as intended. One of the methods is formal verification. This means we want to produce a formal proof that our code works as intended. What does it mean and how do we do it?
   
   \begin{enumerate}
-  \item We start by writing a \emph{specification} in a formal language (like Coq or HOL) which strictly defines how our program should behave.
+  \item We start by writing a \emph{specification} in a formal language which strictly defines how our program should behave.
   \item Then we define the \emph{semantics} of our program which describes how it actually behaves. 
   \item Finally we mathematically prove that semantics of our program matches our specification.
 \end{enumerate}
@@ -64,7 +64,6 @@
 
 \begin{frame}{Coq intro}
   As a formal language we choose {\bf Gallina}, mechanized version of Calculus of Inductive Constructions (aka dependent type theory), which is a very expressive theory well studied in mathematical logic.
-
 
   \smallskip
   
@@ -76,10 +75,111 @@
   
 \end{frame}
 
+\begin{frame}{What Coq does?}
+  In Coq you can:
+  \begin{itemize}
+  
+    \item define functions or predicates
+   \item state mathematical theorems and software specifications
+    \item  interactively develop formal proofs of these theorems
+   \item machine-check these proofs by a relatively small certification kernel
+    \item extract certified programs to languages like OCaml, Haskell or Scheme.
+    \end{itemize}
+
+  \end{frame}
+
+  \begin{frame}[fragile]{Logic in Coq}
+
+    \texttt{Prop} stands for Proposition: this is the type used for logical definitions.
+    
+  \begin{lstlisting}[language=Coq]
+
+    Inductive False : Prop := .
+
+    Inductive True : Prop :=
+    | I : True.
+
+    Theorem impl_to_and : (forall A B : Prop, A -> B -> A /\ B).
+
+  \end{lstlisting}
+  The theorem states that \texttt{impl\_to\_and} is a proof (to be constructed) of $\forall A \; B : \texttt{Prop}, A \rightarrow B \rightarrow A \wedge B$ or equivalently
+that $\forall A \; B : \texttt{Prop}, A \rightarrow B \rightarrow A \wedge B$ is the type of \texttt{impl\_to\_and}. 
+ 
+\end{frame}
+
+\begin{frame}[fragile]{Basic Types}
+
+  You can define basic inductive types using \texttt{Inductive} command:
+
+  \begin{lstlisting}[language=Coq]
+
+  Inductive bool : Set :=
+    | true : bool
+    | false : bool.
+
+  \end{lstlisting}
+  
+   \begin{lstlisting}[language=Coq]
+
+  Inductive nat : Set :=
+    | O : nat
+    | S : nat -> nat.
+    
+  \end{lstlisting}
+
+  And state and prove theorems about them:
+
+  \begin{lstlisting}[language=Coq]
+
+    Theorem zero_lt_Sn : (forall n : nat, 0 < S n).
+
+  \end{lstlisting}
+
+   \begin{lstlisting}[language=Coq]
+
+    Theorem bool_dec : (forall b : bool, b = true \/ b = false).
+
+  \end{lstlisting}
+ 
+\end{frame}
+
+\begin{frame}[fragile]{Recursive functions}
+
+  You can define recursive functions and use pattern-matching on inductive types.
+
+  \begin{lstlisting}[language=Coq]
+
+  Fixpoint fact (n : nat) : nat :=
+    match n with
+    | O => 1
+    | S n' => n * fact n'
+    end.
+
+  \end{lstlisting}
+  
+Note that you can only write terminating functions in Coq. (Hence, you often get the termination proof ``for free'').
+  
+\end{frame}
+
+
+  
+\end{frame}
+
+
+
+  
+ 
+\end{frame}
+
+  \begin{frame}{How does Coq work?}
+     Programs, properties and proofs can be formalized in the same language due to the so-called Curry-Howard isomorphism (correspondence between programs and terms, proofs and types respectively). All logical judgments in Coq are typing judgments and 
+thus checking the correctness of proofs amounts to type checking. We will see how Coq is used for veryfing programs in a bit. But first a motivating example.
+    \end{frame}
+
 
 \section{Motivating Example}
 \begin{frame}{\texttt{asn\_strtoimax\_lim}}
-In this talk we are concentrating on formal verification of existing imperative programs. We took a function \texttt{asn\_strtoimax\_lim} from \texttt{asn1c} compiler to test our approach on a real-life function. Informal specification in the comments: 
+In this talk we are concentrating on formal verification of existing imperative programs using Coq. We took a function \texttt{asn\_strtoimax\_lim} from \texttt{asn1c} compiler to test our approach on a real-life function. Informal specification from the comments: 
 
  \begin{quote}
  Parse the number in the given string until the given *end position,
@@ -103,11 +203,17 @@ While doing the correctness proof we found a bug, can you see it?
 
 
 
-\begin{frame}{\texttt{asn\_strtoimax\_lim}}
+\begin{frame}[fragile]{\texttt{asn\_strtoimax\_lim}}
   Fixed version: \url{https://github.com/vlm/asn1c/blob/b361194599b46d97a398195e6a18f1d581f7fab9/skeletons/INTEGER.c#L1033}
 
   Is this fix OK?
   
+\end{frame}
+
+\begin{frame}{\texttt{asn\_strtoimax\_lim}}
+
+This code has been extensively tested and used for 15 years. Formal verification guarantees absence of bugs this kind of bugs. 
+
 \end{frame}
 
 \section{Detailed example}
@@ -133,13 +239,8 @@ While doing the correctness proof we found a bug, can you see it?
  
 \end{frame}
 
-\begin{frame}{Coq quick-intro}
 
-Showcase some basic Coq stuff. (Fixpoint, Inductive defs: nat, Prop )
-    
-\end{frame}
-
-\begin{frame}[fragile]{Factorial example: veryfing a functional program}
+\begin{frame}[fragile]{Factorial example: verifying a functional program}
 
   We can write a more efficient functional program to compute factorial
 
@@ -163,14 +264,14 @@ Showcase some basic Coq stuff. (Fixpoint, Inductive defs: nat, Prop )
  
 \end{frame}
 
-\begin{frame}{Factorial example: veryfing a functional program}
-Now using Coq's extraction mechanism we can automatically extract an OCaml or Haskell function that is provably correct. Alternatively, one could easily embed a functional language into Coq and reason about the existing implementation. What if you want to verify code written in imperative language?
+\begin{frame}{Factorial example: verifying a functional program}
+Now using Coq's extraction mechanism we can automatically extract an OCaml or Haskell function that is provably correct. Alternatively, one could easily embed a functional language into Coq and reason about the existing implementation. But what if you want to verify code written in imperative language? Things get \emph{slightly} more complicated.
   \end{frame}
 
 
-  \begin{frame}{C light syntax and semantics: CompCert}
+  \begin{frame}{Factorial example: verifying a C program}
 
-    First, you need to embed the language into Coq, meaning model its syntax and semantics in Coq. Luckily, this has been already done in the project called CompCert, a verfied compiler for C, almost entirely written in Coq and proved to work according to the specification (\url{http://compcert.inria.fr/}).
+    To be able to state theorems about C programs in Coq you need to embed the language into Coq, meaning model its syntax (as abstract syntax trees) and semantics (modelling execution of programs) in Coq. Luckily, this has been already done in the project called CompCert, a verified compiler for C, almost entirely written in Coq and proved to work according to its specification (\url{http://compcert.inria.fr/}).
 
     \begin{quote}
       The striking thing about our CompCert results is that the middle-end bugs we found in all other compilers are absent. As of early 2011,the under-development version of CompCert is the only compiler we have tested for which Csmith cannot find wrong-code errors.
@@ -178,17 +279,17 @@ Now using Coq's extraction mechanism we can automatically extract an OCaml or Ha
 
   \end{frame}
     
-  \begin{frame}{Verifying Imperative program}
+  \begin{frame}{Verifying imperative programs}
     So using CompCert our approach is as follows:
   \begin{itemize}
-  \item parse C code into an abstract syntax tree using C light generator of CompCert
+  \item parse C code into an abstract syntax tree using C light\footnote{C light is a subset of C} generator of CompCert
   \item write a functional specification using CompCert's model of C light 
   \item reason about the C light program using operational semantics defined in CompCert
 \end{itemize}
 \end{frame}
 
 
-\begin{frame}[fragile]{Verifying Imperative Programs}
+\begin{frame}[fragile]{Factorial example: verifying a C program}
 
  Factorial C implementation that we want to verify
 
@@ -209,7 +310,7 @@ The specification stays the same.
 
 \end{frame}
 
-\begin{frame}[fragile]{Mechanized Syntax and Semantics of C programs}
+\begin{frame}[fragile]{ Syntax of C programs in Coq}
 C light AST corresponding to the factorial function: 
   \begin{lstlisting}[language=Coq]
 (Ssequence
@@ -234,10 +335,10 @@ C light AST corresponding to the factorial function:
 \end{frame}
 
 
-\subsection{Operational semantics: bigstep}
+\subsection{Semantics of C programs in Coq}
 
   \begin{frame}{Operational Semantics}
-    Our goal is to prove that programs written in C light behave as intented. To do this we need to formalize the notion of meaning of a C light program. We do this using what is called {\bf operational semantics}.
+    Our goal is to prove that programs written in C light behave as intended. To do this we need to formalize the notion of meaning of a C light program. We do this using {\bf operational semantics}.
 
     \bigskip
     
@@ -246,10 +347,11 @@ C light AST corresponding to the factorial function:
     
     We use big-step operational semantics used for all intermediate languages of CompCert.
   \end{frame}
+  
   \begin{frame}{Operational Semantics}
     We assign primitive values to constants and then compositionally compute values of expressions and outcomes of statements.
    \begin{itemize}
-    \item Each syntactic element (expressions and statements) is related to the indended result of executing this element.    
+    \item Each syntactic element (expressions and statements) is related to the intended result of executing this element.    
     \item Expressions are deterministically mapped to memory locations or values (integers, bool etc).
     \item The execution of statements depends on memory state and values stored in the local environment and produces {\bf outcomes} (break, normal, return), updated memory and local environment. Moreover, {\bf trace} of external calls is recorded.
       \end{itemize}
@@ -261,7 +363,7 @@ C light AST corresponding to the factorial function:
     \begin{frame}
       Going back to our first example:
       
-       We wrote a formal specification of the function (based on the comment and analysis of the function), produced C light AST of the function using C light generator of CompCert and proved that the resulting AST evaluates to correct values on all valid inputs using operational semantics. 
+       We wrote a formal specification of the function (based on the comment and analysis of the function), produced C light AST of the function using C light generator of CompCert and proved that the resulting AST evaluates to correct values on all valid inputs using operational semantics. Moreover, using CompCert's C memory model we can state properties about correct memory usage and heap and stack bounds.
       \end{frame}
 
 \section{Other languages}
