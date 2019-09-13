@@ -11,6 +11,8 @@ Definition next_addr (a : addr) := match a with
                                    end.
 Definition add_addr (a : addr) (i : ptrofs) := 
   match a with (b, ofs) => (b, Ptrofs.add ofs i) end.
+Definition store_addr (chunk : memory_chunk) (m : mem) (a : addr) :=
+  match a with (b,ofs) => Mem.storev chunk m (Vptr b ofs) end.
 Notation "a ++" := (next_addr a) (at level 20).
 
 (* Pointer comparison *)
