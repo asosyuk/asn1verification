@@ -121,7 +121,8 @@ Definition store_value (m : mem) (a : addr) (v : Z) :=
   let (b, ofs) := a in
   Mem.storev Mint64 m (Vptr b ofs) (Vlong (Int64.repr v)).
 
-Inductive asn_strtoimax_lim_R m str fin intp : mem -> asn_strtox_result_e -> Prop :=
+(* could add option Z to the type to store the resulting value *)
+Inductive asn_strtoimax_lim_R m str fin intp : mem -> option Z -> asn_strtox_result_e -> Prop :=
   
 (* Input outside of supported numeric range, first read sign *)
 | ASN_STRTOX_ERROR_RANGE_R_signed :
@@ -132,7 +133,7 @@ Inductive asn_strtoimax_lim_R m str fin intp : mem -> asn_strtox_result_e -> Pro
       Z_of_string sg s = Some z ->
       bounded (val z) = false ->
       store_pointer m fin str (index z) = Some m' -> 
-      asn_strtoimax_lim_R m str fin intp m' ASN_STRTOX_ERROR_RANGE
+      asn_strtoimax_lim_R m str fin intp m' None ASN_STRTOX_ERROR_RANGE
                           
 (* Input outside of supported numeric range *)
 | ASN_STRTOX_ERROR_RANGE_R_unsigned :
@@ -142,26 +143,26 @@ Inductive asn_strtoimax_lim_R m str fin intp : mem -> asn_strtox_result_e -> Pro
       Z_of_string plus_char s = Some z ->
       bounded (val z) = false ->
       store_pointer m fin str (index z) = Some m' -> 
-      asn_strtoimax_lim_R m str fin intp m' ASN_STRTOX_ERROR_RANGE
+      asn_strtoimax_lim_R m str fin intp m' None ASN_STRTOX_ERROR_RANGE
 
 (* Invalid data encountered (e.g., "+-", "a") *)                       
 | ASN_STRTOX_ERROR_INVAL_R_Some :
     forall s,
       bytes_between m str fin = Some s ->
       ~ (valid_input s) ->
-      asn_strtoimax_lim_R m str fin intp m ASN_STRTOX_ERROR_INVAL
+      asn_strtoimax_lim_R m str fin intp m None ASN_STRTOX_ERROR_INVAL
                           
 (* str >= * end and memory fail (could replace by just str >= *end *)                          
 | ASN_STRTOX_ERROR_INVAL_R_None :
     bytes_between m str fin = None ->
-    asn_strtoimax_lim_R m str fin intp m ASN_STRTOX_ERROR_INVAL
+    asn_strtoimax_lim_R m str fin intp m None ASN_STRTOX_ERROR_INVAL
                         
 (* More data expected (e.g. "+", "-") *)
 | ASN_STRTOX_EXPECT_MORE_R : forall m',
     bytes_between m str fin = Some [plus_char] \/
     bytes_between m str fin = Some [minus_char] ->
     store_pointer m fin str 1%Z = Some m' ->
-    asn_strtoimax_lim_R m str fin intp m' ASN_STRTOX_EXPECT_MORE
+    asn_strtoimax_lim_R m str fin intp m' None ASN_STRTOX_EXPECT_MORE
                         
 (* Conversion succeded, but the string has extra stuff, first read sign *)
 | ASN_STRTOX_EXTRA_DATA_R_signed :
@@ -174,7 +175,7 @@ Inductive asn_strtoimax_lim_R m str fin intp : mem -> asn_strtox_result_e -> Pro
       bounded (val z) = true ->
       store_pointer m fin str (index z) = Some m' ->
       store_value m' intp (val z) = Some m'' ->
-      asn_strtoimax_lim_R m str fin intp m'' ASN_STRTOX_EXTRA_DATA
+      asn_strtoimax_lim_R m str fin intp m'' (Some (val z)) ASN_STRTOX_EXTRA_DATA
 
 (* Conversion succeded, but the string has extra stuff *)                          
 | ASN_STRTOX_EXTRA_DATA_R_unsigned :
@@ -186,7 +187,7 @@ Inductive asn_strtoimax_lim_R m str fin intp : mem -> asn_strtox_result_e -> Pro
       bounded (val z) = true ->
       store_pointer m fin str (index z) = Some m' ->
       store_value m' intp (val z) = Some m'' ->
-      asn_strtoimax_lim_R m str fin intp m'' ASN_STRTOX_EXTRA_DATA
+      asn_strtoimax_lim_R m str fin intp m'' (Some (val z)) ASN_STRTOX_EXTRA_DATA
                           
 (* Conversion succeded, first read sign *)
 | ASN_STRTOX_OK_R_signed :
@@ -198,7 +199,7 @@ Inductive asn_strtoimax_lim_R m str fin intp : mem -> asn_strtox_result_e -> Pro
       bounded (val z) = true ->
       store_pointer m fin str (Zlength (sg :: s)) = Some m' ->
       store_value m' intp (val z) = Some m'' ->
-      asn_strtoimax_lim_R m str fin intp m'' ASN_STRTOX_OK
+      asn_strtoimax_lim_R m str fin intp m'' (Some (val z)) ASN_STRTOX_OK
 
 | ASN_STRTOX_OK_R_unsigned :
     forall s z m' m'',
@@ -208,15 +209,15 @@ Inductive asn_strtoimax_lim_R m str fin intp : mem -> asn_strtox_result_e -> Pro
       bounded (val z) = true ->
       store_pointer m fin str (Zlength s) = Some m' ->
       store_value m' intp (val z) = Some m'' ->
-      asn_strtoimax_lim_R m str fin intp m'' ASN_STRTOX_OK.                    
+      asn_strtoimax_lim_R m str fin intp m'' (Some (val z)) ASN_STRTOX_OK.                    
                         
-Theorem asn_strtoimax_lim_func_correct : forall m str fin intp res val p s' m',
-    asn_strtoimax_lim m str fin intp = Some {| return_type := res;
-                                               value := val;
-                                               str_pointer := p;
-                                               memory := Some m';
-                                               sign := s';|}
-    <-> asn_strtoimax_lim_R m str fin intp m' res.
+Theorem asn_strtoimax_lim_func_correct :
+  forall m str fin intp res v m' ret,
+
+    asn_strtoimax_lim_R m str fin intp m' (Some v) res <->
+    (asn_strtoimax_lim m str fin intp = Some ret
+     /\ value ret = Some (Int64.repr v)
+     /\ memory ret = Some m').
 Admitted.
     
 

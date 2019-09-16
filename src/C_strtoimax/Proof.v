@@ -1,7 +1,7 @@
 Require Import StructTact.StructTactics.
 Require Import Core.Core Core.Notations Core.IntLemmas Core.PtrLemmas
         Core.IntPtrLemmas Core.Tactics.
-Require Import AST Spec Switch SpecLemmas.
+Require Import AST Spec Switch SpecLemmas AbstractSpec.
 
 Import ListNotations.
 
@@ -9,9 +9,9 @@ Local Open Scope Int64Scope.
 
 (* Lemmas for each `asn_strtox_result_e` case *)
 
-Lemma asn_strtoimax_lim_loop_ASN_STRTOX_EXTRA_DATA_correct :
-  forall m ge e dist b ofs le strp_b strp_ofs str_b str_ofs fin_b 
-    fin_ofs intp_b intp_ofs inp_value  m' val s' s,
+  Lemma asn_strtoimax_lim_loop_ASN_STRTOX_EXTRA_DATA_correct :
+  forall m ge e dist b ofs le str_b str_ofs fin_b 
+    fin_ofs intp_b intp_ofs inp_value  m' val p s' s,
     
     le ! _str = Some (Vptr str_b str_ofs)  ->
     le ! _end = Some (Vptr fin_b fin_ofs) ->
@@ -27,8 +27,8 @@ Lemma asn_strtoimax_lim_loop_ASN_STRTOX_EXTRA_DATA_correct :
     asn_strtoimax_lim_loop m (str_b, str_ofs) (fin_b, fin_ofs) (intp_b, intp_ofs)
                            inp_value s (max_sign s) (Some dist) m =
     Some {| return_type := ASN_STRTOX_EXTRA_DATA;
-            value := Some val;
-            str_pointer := Some (strp_b, strp_ofs);
+            value := val;
+            str_pointer := p;
             memory := Some m';
             sign := s' |}  ->
 
@@ -47,7 +47,7 @@ Proof.
     unfold store_result in *;
       repeat break_match; try congruence.
     (* 4 cases *)
-    + putable (S O).(* Case   Heqb0 : is_digit i = true
+    + (* Case   Heqb0 : Spec.is_digit i = true
          Heqb1 : (inp_value < upper_boundary) = true *)
       remember 
          (PTree.set _str
@@ -64,9 +64,9 @@ Proof.
                    (PTree.set _t'8 (Vint i)
                     (PTree.set _t'7 (Vint i) (PTree.set _t'9 (Vptr b ofs) le))))))))
         as le''.
-      pose proof (IHdist b ofs le'' strp_b strp_ofs str_b (str_ofs + 1)%ptrofs
+      pose proof (IHdist b ofs le'' str_b (str_ofs + 1)%ptrofs
                          fin_b fin_ofs intp_b intp_ofs
-                         (digit_to_num Unsigned i inp_value) m' val s' s) as IH.
+                         (digit_to_num Unsigned i inp_value) m' val p s' s) as IH.
       clear IHdist.
       repeat rewrite set_env_eq_ptree_set in Heqle''.
       destruct IH as [t IH]; subst;
@@ -94,7 +94,7 @@ Proof.
       repeat econstructor; try env_assumption; try eassumption.
       forward.
       simpl.
-      unfold is_digit in Heqb0.
+      unfold Spec.is_digit in Heqb0.
       destruct_andb_hyp.
       instantiate (1 := (Val.of_bool true)).
       apply sem_Cle_Cge.
@@ -108,7 +108,7 @@ Proof.
       forward.
       forward.
       simpl.
-      unfold is_digit in Heqb0.
+      unfold Spec.is_digit in Heqb0.
       destruct_andb_hyp.
       rewrite H0.
       reflexivity.
@@ -124,7 +124,7 @@ Proof.
       eapply IH.
       all: break_and; eassumption.
     + (* (inp_value == upper_boundary) 
-&& (int_to_int64 (i - zero_char)%int <= max_sign Signed) = true, Signed
+&& (int_to_int64 (i - Spec.zero_char)%int <= max_sign Signed) = true, Signed
           do one loop and return *)
       replace b0 with b in *
         by (eapply mem_load_inj_ptr;
@@ -133,7 +133,7 @@ Proof.
         by (eapply mem_load_inj_ptr;
          eassumption).
       unfold max_sign in *.
-      unfold is_digit in *.
+      unfold Spec.is_digit in *.
       destruct_andb_hyp.
       destruct_andb_hyp.
       destruct (Int.repr 48 <= i1)%int eqn : I148.
@@ -196,7 +196,7 @@ Proof.
         forward.
         simpl.
         unfold int_to_int64 in *.
-        unfold zero_char in *.
+        unfold Spec.zero_char in *.
         bool_rewrite.
         forward.
         replace (negb (1 == 0)%int) with true by (auto with ints).
@@ -281,7 +281,7 @@ Proof.
         forward.
         simpl.
         unfold int_to_int64 in *.
-        unfold zero_char in *.
+        unfold Spec.zero_char in *.
         bool_rewrite.
         forward.
         replace (negb (1 == 0)%int) with true by (auto with ints).
@@ -316,7 +316,7 @@ Proof.
         eapply Int64.mul_one.
         discriminate.
      + (* (inp_value == upper_boundary) 
-&& (int_to_int64 (i - zero_char)%int <= max_sign Signed) = true, UnSigned
+&& (int_to_int64 (i - Spec.zero_char)%int <= max_sign Signed) = true, UnSigned
           do one loop and return *)
       replace b0 with b in *
         by (eapply mem_load_inj_ptr;
@@ -325,7 +325,7 @@ Proof.
         by (eapply mem_load_inj_ptr;
          eassumption).
       unfold max_sign in *.
-      unfold is_digit in *.
+      unfold Spec.is_digit in *.
       destruct_andb_hyp.
       destruct_andb_hyp.
       destruct (Int.repr 48 <= i1)%int eqn : I148.
@@ -388,7 +388,7 @@ Proof.
         forward.
         simpl.
         unfold int_to_int64 in *.
-        unfold zero_char in *.
+        unfold Spec.zero_char in *.
         bool_rewrite.
         forward.
         replace (negb (1 == 0)%int) with true by (auto with ints).
@@ -474,7 +474,7 @@ Proof.
         forward.
         simpl.
         unfold int_to_int64 in *.
-        unfold zero_char in *.
+        unfold Spec.zero_char in *.
         bool_rewrite.
         forward.
         replace (negb (1 == 0)%int) with true by (auto with ints).
@@ -510,7 +510,7 @@ Proof.
         eapply Int64.mul_one.
         discriminate.
      + clear IHdist.
-      unfold is_digit, andb in Heqb0.
+      unfold Spec.is_digit, andb in Heqb0.
       break_if; eexists; eexists.
       * (* case when i > 57 *)
         econstructor.
@@ -563,19 +563,8 @@ Proof.
         rewrite Int64.mul_commut.
         rewrite Int64.mul_one.
         reflexivity.
-        econstructor.
-        repeat env_assumption.
-        inversion Spec.
-        subst.
-        repeat split; try eassumption.
-        simpl.
-        replace (Vlong (mult_sign s' val))
-          with (Val.load_result Mint64 (Vlong (mult_sign s' val))).
-        eapply Mem.load_store_same.
-        eassumption.
-        reflexivity.        
+        econstructor.       
       * (* i < 48 *)
-        econstructor.
         econstructor.
         econstructor.
         econstructor.
@@ -649,15 +638,6 @@ Proof.
         econstructor.
         econstructor.
         econstructor.
-        repeat env_assumption.
-        inversion Spec; subst.
-        repeat split; try eassumption.
-         simpl.
-        replace (Vlong (mult_sign s' val))
-          with (Val.load_result Mint64 (Vlong (mult_sign s' val))).
-        eapply Mem.load_store_same.
-        eassumption.
-        reflexivity.
         Qed.
 
 (* ASN_STRTOX_ERROR_INVAL: str >= *end *)
@@ -944,7 +924,7 @@ Proof.
   - repeat break_match;
     unfold store_result in *;
       repeat break_match; try congruence.
-    + (* Case   Heqb0 : is_digit i = true
+    + (* Case   Heqb0 : Spec.is_digit i = true
          Heqb1 : (inp_value < upper_boundary) = true *)
       remember 
          (PTree.set _str
@@ -991,7 +971,7 @@ Proof.
       repeat econstructor; try env_assumption; try eassumption.
       forward.
       simpl.
-      unfold is_digit in Heqb0.
+      unfold Spec.is_digit in Heqb0.
       destruct_andb_hyp.
       apply sem_Cle_Cge.
       apply int_le_sem_Cle.
@@ -1004,7 +984,7 @@ Proof.
       forward.
       forward.
       simpl.
-      unfold is_digit in Heqb0.
+      unfold Spec.is_digit in Heqb0.
       destruct_andb_hyp.
       rewrite H0.
       reflexivity.
@@ -1020,7 +1000,7 @@ Proof.
       eapply IH.
       all: break_and; eassumption.
     + (* Case (inp_value == upper_boundary) 
-           && (int_to_int64 (i - zero_char)%int <= last_digit_max) = true 
+           && (int_to_int64 (i - Spec.zero_char)%int <= last_digit_max) = true 
          addr_lt m (str_b, (str_ofs + 1)%ptrofs) (b0, i0) = Some false
          Signed 
        *) (* go through one loop and break *)
@@ -1031,7 +1011,7 @@ Proof.
         by (eapply mem_load_inj_ptr;
          eassumption).
       unfold max_sign in *.
-      unfold is_digit in *.
+      unfold Spec.is_digit in *.
       repeat destruct_andb_hyp.
       inversion Spec.
       rewrite <- H7.
@@ -1080,7 +1060,7 @@ Proof.
       forward.
       simpl.
       unfold int_to_int64 in *.
-      unfold zero_char in *.
+      unfold Spec.zero_char in *.
       bool_rewrite.
       forward.
       replace (negb (1 == 0)%int) with true by (auto with ints).
@@ -1095,7 +1075,7 @@ Proof.
        all: inversion Spec;
          try reflexivity.   
     + (* Case (inp_value == upper_boundary) 
-           && (int_to_int64 (i - zero_char)%int <= last_digit_max) = true 
+           && (int_to_int64 (i - Spec.zero_char)%int <= last_digit_max) = true 
          addr_lt m (str_b, (str_ofs + 1)%ptrofs) (b0, i0) = Some false
          Unsigned *)
       (* go through one loop and break *)
@@ -1106,7 +1086,7 @@ Proof.
         by (eapply mem_load_inj_ptr;
          eassumption).
       unfold max_sign in *.
-      unfold is_digit in *.
+      unfold Spec.is_digit in *.
       repeat destruct_andb_hyp.
       repeat eexists.
       eapply exec_Sloop_stop1.
@@ -1153,7 +1133,7 @@ Proof.
       forward.
       simpl.
       unfold int_to_int64 in *.
-      unfold zero_char in *.
+      unfold Spec.zero_char in *.
       bool_rewrite.
       forward.
       replace (negb (1 == 0)%int) with true by (auto with ints).
@@ -1205,7 +1185,7 @@ replace (asn_strtox_result_e_to_int ASN_STRTOX_ERROR_RANGE)
     unfold store_result in *;
       repeat break_match; try congruence.
     (* 4 cases *)
-    + (* Case   Heqb0 : is_digit i = true
+    + (* Case   Heqb0 : Spec.is_digit i = true
          Heqb1 : (inp_value < upper_boundary) = true *)
       remember 
          (PTree.set _str
@@ -1252,7 +1232,7 @@ replace (asn_strtox_result_e_to_int ASN_STRTOX_ERROR_RANGE)
       repeat econstructor; try env_assumption; try eassumption.
       forward.
       simpl.
-      unfold is_digit in Heqb0.
+      unfold Spec.is_digit in Heqb0.
       destruct_andb_hyp.
       apply sem_Cle_Cge.
       apply int_le_sem_Cle.
@@ -1265,7 +1245,7 @@ replace (asn_strtox_result_e_to_int ASN_STRTOX_ERROR_RANGE)
       forward.
       forward.
       simpl.
-      unfold is_digit in Heqb0.
+      unfold Spec.is_digit in Heqb0.
       destruct_andb_hyp.
       rewrite H0.
       reflexivity.
@@ -1280,11 +1260,11 @@ replace (asn_strtox_result_e_to_int ASN_STRTOX_ERROR_RANGE)
       fold f_asn_strtoimax_lim_loop.
       eapply IH.
       all: break_and; eassumption.
-    + (* (inp_value == upper_boundary) && (int_to_int64 (i - zero_char)%int <= max_sign Signed) = true, Signed
+    + (* (inp_value == upper_boundary) && (int_to_int64 (i - Spec.zero_char)%int <= max_sign Signed) = true, Signed
           do one loop and return
        *)
       (* Case (inp_value == upper_boundary) 
-           && (int_to_int64 (i - zero_char)%int <= last_digit_max) = true 
+           && (int_to_int64 (i - Spec.zero_char)%int <= last_digit_max) = true 
          addr_lt m (str_b, (str_ofs + 1)%ptrofs) (b0, i0) = Some false
          Signed 
        *) (* go through one loop and break *)
@@ -1295,7 +1275,7 @@ replace (asn_strtox_result_e_to_int ASN_STRTOX_ERROR_RANGE)
         by (eapply mem_load_inj_ptr;
          eassumption).
       unfold max_sign in *.
-      unfold is_digit in *.
+      unfold Spec.is_digit in *.
       repeat destruct_andb_hyp.
       inversion Spec.
       repeat eexists.
@@ -1348,7 +1328,7 @@ replace (asn_strtox_result_e_to_int ASN_STRTOX_ERROR_RANGE)
       forward.
       simpl.
       unfold int_to_int64 in *.
-      unfold zero_char in *.
+      unfold Spec.zero_char in *.
       bool_rewrite.
       forward.
       replace (negb (1 == 0)%int) with true by (auto with ints).
@@ -1372,7 +1352,7 @@ replace (asn_strtox_result_e_to_int ASN_STRTOX_ERROR_RANGE)
       rewrite H8.
       forward.
       discriminate.
-    + (* (inp_value == upper_boundary) && (int_to_int64 (i - zero_char)%int <= max_sign Signed) = true, Unsigned
+    + (* (inp_value == upper_boundary) && (int_to_int64 (i - Spec.zero_char)%int <= max_sign Signed) = true, Unsigned
           do one loop and return
        *)
       replace b0 with b in *
@@ -1382,7 +1362,7 @@ replace (asn_strtox_result_e_to_int ASN_STRTOX_ERROR_RANGE)
         by (eapply mem_load_inj_ptr;
             eassumption).
       unfold max_sign in *.
-      unfold is_digit in *.
+      unfold Spec.is_digit in *.
       repeat destruct_andb_hyp.
       inversion Spec.
       repeat eexists.
@@ -1435,7 +1415,7 @@ replace (asn_strtox_result_e_to_int ASN_STRTOX_ERROR_RANGE)
       forward.
       simpl.
       unfold int_to_int64 in *.
-      unfold zero_char in *.
+      unfold Spec.zero_char in *.
       bool_rewrite.
       forward.
       replace (negb (1 == 0)%int) with true by (auto with ints).
@@ -1459,15 +1439,15 @@ replace (asn_strtox_result_e_to_int ASN_STRTOX_ERROR_RANGE)
       rewrite H8.
       forward.
       discriminate.
-    + (* is_digit i = true , return from the loop *)
+    + (* Spec.is_digit i = true , return from the loop *)
       clear IHdist.
       unfold max_sign in *.
-      unfold is_digit in *.
+      unfold Spec.is_digit in *.
       destruct_andb_hyp.
       destruct (inp_value == upper_boundary) eqn : S.
       simpl in Heqb2.
       * inversion Spec; clear Spec.
-        unfold int_to_int64 in *; unfold zero_char in *.
+        unfold int_to_int64 in *; unfold Spec.zero_char in *.
         repeat rewrite set_env_eq_ptree_set in *.
         repeat eexists.
         eapply exec_Sloop_stop1.
@@ -1539,6 +1519,7 @@ Lemma asn_strtoimax_lim_loop_ASN_STRTOX_EXTRA_DATA_correct' :
                                    (asn_strtox_result_e_to_int
                                       ASN_STRTOX_EXTRA_DATA), tint))).
 Proof.
+  Admitted.
 
 
   Lemma asn_strtoimax_lim_correct :
@@ -1618,7 +1599,7 @@ Proof.
        eassumption.
     + destruct_orb_hyp.
       eapply exec_loop_none; try eassumption;
-        eapply asn_strtoimax_lim_loop_ASN_STRTOX_EXTRA_DATA_correct';
+        eapply asn_strtoimax_lim_loop_ASN_STRTOX_EXTRA_DATA_correct;
          repeat rewrite set_env_eq_ptree_set in *;
         repeat (env_assumption || econstructor).                   
       instantiate (1 := Unsigned); simpl.
@@ -1646,7 +1627,7 @@ Proof.
              (PTree.set _sign (Vint (Int.neg (Int.repr 1)))
                 (PTree.set _last_digit_max
                    (Vlong last_digit_max_minus)
-                   (PTree.set _t'10 (Vint minus_char)
+                   (PTree.set _t'10 (Vint Spec.minus_char)
                       (PTree.set _t'12 (Vptr b i)
                          (PTree.set _last_digit_max
                             (Vlong last_digit_max)
@@ -1749,7 +1730,7 @@ Proof.
              (Vptr str_b
                 (str_ofs +
                  Ptrofs.repr (sizeof ge tschar) * ptrofs_of_int Signed (Int.repr 1))%ptrofs)
-             (PTree.set _t'10 (Vint plus_char)
+             (PTree.set _t'10 (Vint Spec.plus_char)
                 (PTree.set _t'12 (Vptr b i)
                    (PTree.set _last_digit_max
                       (Vlong last_digit_max)
@@ -1923,3 +1904,23 @@ Proof.
       congruence.
 Qed.
 
+
+(* Correctness wrt abstract spec *)
+ Lemma asn_strtoimax_lim_correct_R :
+  forall m ge e le str_b str_ofs fin_b fin_ofs intp_b intp_ofs m' res,
+    
+    le ! _str = Some (Vptr str_b str_ofs)  ->
+    le ! _end = Some (Vptr fin_b fin_ofs) ->
+    le ! _intp = Some (Vptr intp_b intp_ofs)  ->
+    le ! _upper_boundary = Some (Vlong upper_boundary) ->
+    le ! _sign = Some (Vint (Int.repr 1)) ->
+
+    asn_strtoimax_lim_R m (str_b, str_ofs) (fin_b, fin_ofs) (intp_b, intp_ofs) m' res ->
+    
+    exists t le', exec_stmt ge e le m f_asn_strtoimax_lim.(fn_body) t le' m'
+                  (Out_return (Some ((Vint (asn_strtox_result_e_to_int res)), tint))).
+   
+    (* /\ (res = ASN_STRTOX_OK  ->
+           Mem.loadv Mint64 m' (Vptr intp_b intp_ofs) = Some val -> 
+           le'!_value = Some val) *)
+   Admitted.
