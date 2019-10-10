@@ -1,16 +1,19 @@
 (* VST specification of asn_strtoimax_lim *)
-Require Import VST.floyd.proofauto.
 Require Import Clight.INTEGER.
-Instance CompSpecs : compspecs. make_compspecs prog. Defined.
-Definition Vprog : varspecs. mk_varspecs prog. Defined.
-Require Import Automaton AbstractSpec AutomatonExecSpecEquiv Spec.
+
+Require Import Spec Automaton AbstractSpec AutomatonExecSpecEquiv.
 Require Import Core.Core Core.Tactics Core.PtrLemmas.
+
+Require Import VST.floyd.proofauto.
+Definition Vprog : varspecs. mk_varspecs prog. Defined.
+Instance CompSpecs : compspecs. make_compspecs prog. Defined.
 
 Section VstStrtoimaxSpec.
 
-Parameter m : mem.
-(* Placeholder for abstract spec for OK case only *)
-Definition Z_of_string_OK (s : list int) : Z :=
+  Parameter m : mem.
+
+(* Placeholder for abstract spec for OK an EXTRA_DATA cases only *)
+Definition Z_of_string_OK (s : list byte) : Z :=
   let fix Z_of_string_loop s v  :=
       match s with
       | [] => v
@@ -23,14 +26,12 @@ Definition Z_of_string_OK (s : list int) : Z :=
      |  nil => 0 (* non-nil guaranteed *)
      |  sign::tl =>
         let res := (Z_of_string_loop tl 0%Z) in
-            if Int.eq sign plus_char
+            if Byte.eq sign plus_char
             then res
-            else if Int.eq sign minus_char 
+            else if Byte.eq sign minus_char 
                  then Z.opp res
                  else (Z_of_string_loop s 0%Z)
      end.
-
-Definition int_of_byte i := Int.repr (Byte.signed i).
 
 Definition asn_strtoimax_lim_vst_spec : ident * funspec :=
   DECLARE _asn_strtoimax_lim
@@ -40,8 +41,6 @@ Definition asn_strtoimax_lim_vst_spec : ident * funspec :=
          chars : list char,
          dist : nat,
          blen : nat,
-         value : Z,
-         P : Prop,
          res_state : strtoimax_state
     PRE [_str OF (tptr tschar), _end OF (tptr (tptr tschar)), _intp OF (tptr tlong)]
       PROP (readable_share sh; writable_share sh';
@@ -59,8 +58,51 @@ Definition asn_strtoimax_lim_vst_spec : ident * funspec :=
       SEP (data_at sh (tarray tschar (Z.of_nat dist)) (map Vbyte str_contents) (vptr str);
           imp (!! (result_of_state res_state = ASN_STRTOX_OK)) 
               (data_at sh' (tlong)
-                       (Vlong (Int64.repr (Z_of_string_OK (map int_of_byte str_contents)))) 
+                       (Vlong (Int64.repr (Z_of_string_OK str_contents))) 
+                       (vptr intp));
+           imp (!! (result_of_state res_state = ASN_STRTOX_EXTRA_DATA)) 
+              (data_at sh' (tlong)
+                       (Vlong (Int64.repr (Z_of_string_OK str_contents))) 
                        (vptr intp))).
-      
+End VstStrtoimaxSpec.
+
+Definition Gprog := ltac:(with_library prog [asn_strtoimax_lim_vst_spec]).
+
+Lemma body_sumarray: semax_body Vprog Gprog f_asn_strtoimax_lim  asn_strtoimax_lim_vst_spec.
+Proof.
+  start_function.  
+  repeat forward.
+  1-2: entailer!;
+       inversion H0;
+       inversion H11.
+  
+  entailer!.
+  all: autorewrite with sublist in *|-.
+  admit. (* is_pointer_or_null (vptr fin') *)
+
+  forward_if.
+  hint.
+  autorewrite with sublist in *|-.
+  hint.
+  entailer!.
+  (* separation logic statement :
+     data_at sh (tarray tschar (Z.of_nat dist)) (map Vbyte str_contents) (vptr str) *
+  data_at sh (tptr tschar) (vptr fin') (vptr fin) |-- denote_tc_test_order (vptr str) (vptr fin') 
+  *) admit.
+
+  forward.
+  autorewrite with sublist in *|-. (* why entailer doesn't work without this?? *)
+  entailer!.
+  (* Vint (Int.repr (-2)) = Vint (asn_strtox_result_e_to_int (result_of_state res_state)) *)
+  admit.
+  hint.
+  autorewrite with sublist in *|-.
+  entailer!.
+  (* reached identical state *)
+  admit.
+  Admitted.
+  
+
+  
              
              
