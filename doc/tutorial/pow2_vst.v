@@ -1,5 +1,5 @@
 Require Import Coq.Program.Basics.
-Require Import pow2.
+Require Import Clight.pow2.
 Require Import VST.floyd.proofauto.
 Instance CompSpecs : compspecs. make_compspecs prog. Defined.
 Definition Vprog : varspecs. mk_varspecs prog. Defined.
