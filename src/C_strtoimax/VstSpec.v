@@ -3,7 +3,7 @@ Require Import Clight.INTEGER.
 
 Require Import Spec Automaton AbstractSpec AutomatonExecSpecEquiv.
 Require Import Core.Core Core.Tactics Core.PtrLemmas.
-
+Require Import StructTact.StructTactics.
 Require Import VST.floyd.proofauto.
 Definition Vprog : varspecs. mk_varspecs prog. Defined.
 Instance CompSpecs : compspecs. make_compspecs prog. Defined.
@@ -35,72 +35,62 @@ Section VstStrtoimaxSpec.
 
 Definition asn_strtoimax_lim_vst_spec : ident * funspec :=
   DECLARE _asn_strtoimax_lim
-    WITH str : addr, fin : addr, fin' : addr, intp : addr,
+    WITH str_b : block, str_ofs : ptrofs,
+         end_b : block, end_ofs : ptrofs,
+         end'_b : block, end'_ofs : ptrofs,
+         intp_b : block, intp_ofs : ptrofs,
          sh : share, sh' : share,
-         str_contents : list byte,
+         contents : list byte,
          chars : list char,
-         dist : nat,
          blen : nat,
          res_state : strtoimax_state
     PRE [_str OF (tptr tschar), _end OF (tptr (tptr tschar)), _intp OF (tptr tlong)]
       PROP (readable_share sh; writable_share sh';
-            fsa_run (strtoimax_fsa blen) chars res_state;
-            map char_of_byte str_contents = chars;
-            distance m str fin = Some dist)
-      LOCAL (temp _str (vptr str);
-             temp _end (vptr fin); 
-             temp _intp (vptr intp))
-      SEP (data_at sh (tarray tschar (Z.of_nat dist)) (map Vbyte str_contents) (vptr str);
-           data_at sh (tptr tschar) (vptr fin') (vptr fin))
+            str_b = end'_b;
+            map char_of_byte contents = chars;
+            fsa_run (strtoimax_fsa blen) chars res_state)
+      LOCAL (temp _str (Vptr str_b str_ofs);
+             temp _end (Vptr end_b end_ofs); 
+             temp _intp (Vptr intp_b intp_ofs))
+      SEP (data_at sh (tarray tschar (Zlength contents))
+                   (map Vbyte contents) (Vptr str_b str_ofs);
+           data_at sh' (tptr tschar) (Vptr end'_b end'_ofs) (Vptr end_b end_ofs))
     POST [tint]
       PROP()
       LOCAL (temp ret_temp (Vint (asn_strtox_result_e_to_int (result_of_state res_state))))
-      SEP (data_at sh (tarray tschar (Z.of_nat dist)) (map Vbyte str_contents) (vptr str);
-          imp (!! (result_of_state res_state = ASN_STRTOX_OK)) 
+      SEP (data_at sh (tarray tschar (Zlength contents))
+                   (map Vbyte contents) (Vptr str_b str_ofs);
+           data_at sh' (tptr tschar) (Vptr end'_b end'_ofs) (Vptr end_b end_ofs)
+          (* ; imp (!! (result_of_state res_state = ASN_STRTOX_OK)) 
               (data_at sh' (tlong)
-                       (Vlong (Int64.repr (Z_of_string_OK str_contents))) 
-                       (vptr intp));
+                       (Vlong (Int64.repr (Z_of_string_OK contents))) 
+                       (Vptr intp_b intp_ofs));
            imp (!! (result_of_state res_state = ASN_STRTOX_EXTRA_DATA)) 
               (data_at sh' (tlong)
-                       (Vlong (Int64.repr (Z_of_string_OK str_contents))) 
-                       (vptr intp))).
+                       (Vlong (Int64.repr (Z_of_string_OK contents))) 
+                       (Vptr intp_b intp_ofs)) *)).
 End VstStrtoimaxSpec.
 
 Definition Gprog := ltac:(with_library prog [asn_strtoimax_lim_vst_spec]).
 
-Lemma body_sumarray: semax_body Vprog Gprog f_asn_strtoimax_lim  asn_strtoimax_lim_vst_spec.
+Lemma body_asn_strtoimax_lim : semax_body Vprog Gprog f_asn_strtoimax_lim  asn_strtoimax_lim_vst_spec.
 Proof.
   start_function.  
-  repeat forward.
-  1-2: entailer!;
-       inversion H0;
-       inversion H11.
-  
-  entailer!.
-  all: autorewrite with sublist in *|-.
-  admit. (* is_pointer_or_null (vptr fin') *)
-
+  forward.
+  forward.
+  forward.
+  normalize.
+  entailer!;
+       inversion H;
+       inversion H7.
+  forward.
+  normalize.
+  entailer!;
+       inversion H;
+       inversion H7.
+  forward.
+  normalize.
   forward_if.
-  hint.
-  autorewrite with sublist in *|-.
-  hint.
-  entailer!.
-  (* separation logic statement :
-     data_at sh (tarray tschar (Z.of_nat dist)) (map Vbyte str_contents) (vptr str) *
-  data_at sh (tptr tschar) (vptr fin') (vptr fin) |-- denote_tc_test_order (vptr str) (vptr fin') 
-  *) admit.
-
-  forward.
-  autorewrite with sublist in *|-. (* why entailer doesn't work without this?? *)
-  entailer!.
-  (* Vint (Int.repr (-2)) = Vint (asn_strtox_result_e_to_int (result_of_state res_state)) *)
-  admit.
-  hint.
-  autorewrite with sublist in *|-.
-  entailer!.
-  (* reached identical state *)
-  admit.
-  forward.
   Admitted.
   
 
