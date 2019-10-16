@@ -1,5 +1,5 @@
 Require Import Coq.Program.Basics.
-Require Import strlen.
+Require Import Clight.strlen_Apple.
 Require Import VST.floyd.proofauto.
 Instance CompSpecs : compspecs. make_compspecs prog. Defined.
 Definition Vprog : varspecs. mk_varspecs prog. Defined.
