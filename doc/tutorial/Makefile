@@ -9,5 +9,5 @@ clean:
 	find . -name "*.aux" -type f -delete
 
 clight:
-	clightgen C/*.c
+	clightgen -normalize C/*.c
 	$(COQC) C/*.v
