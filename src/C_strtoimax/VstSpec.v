@@ -12,12 +12,12 @@ Section VstStrtoimaxSpec.
 
   Parameter m : mem.
 
-(* Placeholder for abstract spec for OK an EXTRA_DATA cases only *)
-Definition Z_of_string_OK (s : list byte) : Z :=
-  let fix Z_of_string_loop s v  :=
-      match s with
-      | [] => v
-      | c :: tl =>
+  (* Placeholder for abstract spec for OK an EXTRA_DATA cases only *)
+  Definition Z_of_string_OK (s : list byte) : Z :=
+    let fix Z_of_string_loop s v  :=
+        match s with
+        | [] => v
+        | c :: tl =>
         if is_digit c
         then Z_of_string_loop tl v 
         else v              
@@ -100,6 +100,7 @@ Proof.
   entailer!.
   (* reached identical state *)
   admit.
+  forward.
   Admitted.
   
 

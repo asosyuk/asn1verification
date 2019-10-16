@@ -136,8 +136,7 @@ Proof.
   f_equal.
   unfold factZ.
   simpl.
-  eapply Int.divu_one.
-  assert (n - i = 0).
+  eapply Int.divu_one.  assert (n - i = 0).
    {
     replace (n - i) with (Int.unsigned (Int.repr (n - i))).
     replace (0) with (Int.unsigned Int.zero).
