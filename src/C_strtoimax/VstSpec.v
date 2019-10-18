@@ -61,16 +61,11 @@ Definition asn_strtoimax_lim_vst_spec : ident * funspec :=
       LOCAL (temp ret_temp (Vint (asn_strtox_result_e_to_int (result_of_state res_state))))
       SEP (data_at sh (tarray tschar (Zlength contents))
                    (map Vbyte contents) (Vptr str_b str_ofs);
-           data_at sh' (tptr tschar) (Vptr end'_b end'_ofs) (Vptr end_b end_ofs)
-          (* ; imp (!! (result_of_state res_state = ASN_STRTOX_OK)) 
-              (data_at sh' (tlong)
-                       (Vlong (Int64.repr (Z_of_string_OK contents))) 
-                       (Vptr intp_b intp_ofs));
-           imp (!! (result_of_state res_state = ASN_STRTOX_EXTRA_DATA)) 
-              (data_at sh' (tlong)
-                       (Vlong (Int64.repr (Z_of_string_OK contents))) 
-                       (Vptr intp_b intp_ofs)) *)).
+           data_at sh' (tptr tschar) (Vptr end'_b end'_ofs) (Vptr end_b end_ofs)).
 End VstStrtoimaxSpec.
+
+Print HintDb saturate_local.
+Print HintDb valid_pointer.
 
 Lemma sizeof_tarray_tschar : forall (n : Z), 
     0 <= n -> sizeof (tarray tschar n) = n.
@@ -105,20 +100,25 @@ Proof.
   unfold test_order_ptrs.
   unfold sameblock.
   destruct peq; [simpl|contradiction].
+  rewrite <-sepcon_corable_corable.
+  (* first part of subgoal *)
   pose proof readable_nonidentity SH.
-  destruct H1 as [Heq Heq1].
-  pose proof sizeof_tarray_tschar (Zlength contents) Heq.
-  assert (data_at sh (tarray tschar (Zlength contents)) 
-                       (map Vbyte contents) 
-                       (Vptr end'_b str_ofs) 
-                       |-- weak_valid_pointer (Vptr end'_b str_ofs)).
-  (* The problem is that Zlength contents >= 0, but if we can prove this, then we can move forward *)
-  assert (sizeof (tarray tschar (Zlength contents)) > 0).
-  {
-    subst.
-  }
+  assert (0 <= Zlength contents). { rewrite H1; apply Z.le_max_l. }
+  pose proof sizeof_tarray_tschar (Zlength contents) H0.
+  apply Z_le_lt_eq_dec in H0.
+  destruct H0.
+  assert (sizeof (tarray tschar (Zlength contents)) > 0). { rewrite H9; lia. }
   pose proof data_at_valid_ptr sh (tarray tschar (Zlength contents)) 
-       (map Vbyte contents) (Vptr end'_b str_ofs) H.
+       (map Vbyte contents) (Vptr end'_b str_ofs) H H0.
+  admit.
+  admit.
+  Compute (corable mpred).
+  unfold corable.
+  (* what is corable??? WHERE ARE DOCS *)
+  (* The problem is that Zlength contents >= 0, but if we can prove this, then we can move forward *)
+  (* if we can prove statement above, and the same statement for the second case *)
+  (* then we can use [cancel1_last] tactic to prove whole subgoal *)
+
 Admitted.
   
 
