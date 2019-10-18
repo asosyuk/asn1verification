@@ -48,6 +48,7 @@ Definition asn_strtoimax_lim_vst_spec : ident * funspec :=
       PROP (readable_share sh; writable_share sh';
             str_b = end'_b;
             map char_of_byte contents = chars;
+            Zlength contents = Z.max 0 (Ptrofs.signed (Ptrofs.sub end_ofs str_ofs));
             fsa_run (strtoimax_fsa blen) chars res_state)
       LOCAL (temp _str (Vptr str_b str_ofs);
              temp _end (Vptr end_b end_ofs); 
@@ -71,6 +72,18 @@ Definition asn_strtoimax_lim_vst_spec : ident * funspec :=
                        (Vptr intp_b intp_ofs)) *)).
 End VstStrtoimaxSpec.
 
+Lemma sizeof_tarray_tschar : forall (n : Z), 
+    0 <= n -> sizeof (tarray tschar n) = n.
+Proof.
+  intros.
+  unfold tarray.
+  unfold tschar.
+  induction n.
+  simpl; reflexivity.
+  simpl; reflexivity.
+  contradiction.
+Qed.
+
 Definition Gprog := ltac:(with_library prog [asn_strtoimax_lim_vst_spec]).
 
 Lemma body_asn_strtoimax_lim : semax_body Vprog Gprog f_asn_strtoimax_lim  asn_strtoimax_lim_vst_spec.
@@ -78,20 +91,35 @@ Proof.
   start_function.  
   forward.
   forward.
-  forward.
-  normalize.
+  forward; normalize.
   entailer!;
        inversion H;
-       inversion H7.
+       inversion H8.
   forward.
-  normalize.
   entailer!;
        inversion H;
-       inversion H7.
+       inversion H8.
   forward.
   normalize.
   forward_if.
-  Admitted.
+  unfold test_order_ptrs.
+  unfold sameblock.
+  destruct peq; [simpl|contradiction].
+  pose proof readable_nonidentity SH.
+  destruct H1 as [Heq Heq1].
+  pose proof sizeof_tarray_tschar (Zlength contents) Heq.
+  assert (data_at sh (tarray tschar (Zlength contents)) 
+                       (map Vbyte contents) 
+                       (Vptr end'_b str_ofs) 
+                       |-- weak_valid_pointer (Vptr end'_b str_ofs)).
+  (* The problem is that Zlength contents >= 0, but if we can prove this, then we can move forward *)
+  assert (sizeof (tarray tschar (Zlength contents)) > 0).
+  {
+    subst.
+  }
+  pose proof data_at_valid_ptr sh (tarray tschar (Zlength contents)) 
+       (map Vbyte contents) (Vptr end'_b str_ofs) H.
+Admitted.
   
 
   
