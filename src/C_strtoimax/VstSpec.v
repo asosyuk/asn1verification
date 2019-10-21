@@ -1,6 +1,7 @@
 (* VST specification of asn_strtoimax_lim *)
 Require Import Clight.INTEGER.
 
+
 Require Import Spec Automaton AbstractSpec AutomatonExecSpecEquiv.
 Require Import Core.Core Core.Tactics Core.PtrLemmas.
 Require Import StructTact.StructTactics.
@@ -33,6 +34,9 @@ Section VstStrtoimaxSpec.
                  else (Z_of_string_loop s 0%Z)
      end.
 
+  Locate tschar.
+   
+  
 Definition asn_strtoimax_lim_vst_spec : ident * funspec :=
   DECLARE _asn_strtoimax_lim
     WITH str_b : block, str_ofs : ptrofs,
@@ -52,14 +56,16 @@ Definition asn_strtoimax_lim_vst_spec : ident * funspec :=
             fsa_run (strtoimax_fsa blen) chars res_state)
       LOCAL (temp _str (Vptr str_b str_ofs);
              temp _end (Vptr end_b end_ofs); 
-             temp _intp (Vptr intp_b intp_ofs))
-      SEP (data_at sh (tarray tschar (Zlength contents))
+             temp _intp (Vptr intp_b intp_ofs) )
+      SEP ( valid_pointer (Vptr end'_b end'_ofs) && 
+             data_at sh (tarray tschar (Zlength contents))
                    (map Vbyte contents) (Vptr str_b str_ofs);
-           data_at sh' (tptr tschar) (Vptr end'_b end'_ofs) (Vptr end_b end_ofs))
+             data_at sh' (tptr tschar) (Vptr end'_b end'_ofs) (Vptr end_b end_ofs) )
     POST [tint]
       PROP()
       LOCAL (temp ret_temp (Vint (asn_strtox_result_e_to_int (result_of_state res_state))))
-      SEP (data_at sh (tarray tschar (Zlength contents))
+      SEP ( test_order_ptrs (Vptr end'_b str_ofs) (Vptr end'_b end'_ofs);
+                                                                        data_at sh (tarray tschar (Zlength contents))
                    (map Vbyte contents) (Vptr str_b str_ofs);
            data_at sh' (tptr tschar) (Vptr end'_b end'_ofs) (Vptr end_b end_ofs)).
 End VstStrtoimaxSpec.
@@ -86,20 +92,29 @@ Proof.
   start_function.  
   forward.
   forward.
-  forward; normalize.
-  entailer!;
-       inversion H;
-       inversion H8.
   forward.
   entailer!;
        inversion H;
-       inversion H8.
+       inversion H5.
   forward.
-  normalize.
+  entailer!;
+       inversion H;
+       inversion H5.
+  forward.
+
   forward_if.
+  
   unfold test_order_ptrs.
   unfold sameblock.
   destruct peq; [simpl|contradiction].
+  entailer!.
+
+  Search (_ |-- ?P && ?Q ).
+  eapply andp_right.
+  eapply H3.
+  
+  Search (_ && _ |-- _).
+  eapply andp_left1.
   rewrite <-sepcon_corable_corable.
   (* first part of subgoal *)
   pose proof readable_nonidentity SH.
@@ -112,8 +127,8 @@ Proof.
        (map Vbyte contents) (Vptr end'_b str_ofs) H H0.
   admit.
   admit.
-  Compute (corable mpred).
   unfold corable.
+  Locate weak_valid_pointer.
   (* what is corable??? WHERE ARE DOCS *)
   (* The problem is that Zlength contents >= 0, but if we can prove this, then we can move forward *)
   (* if we can prove statement above, and the same statement for the second case *)
