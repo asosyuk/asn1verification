@@ -46,26 +46,27 @@ Definition asn_strtoimax_lim_vst_spec : ident * funspec :=
          sh : share, sh' : share,
          contents : list byte,
          chars : list char,
+         ch : val,        
          blen : nat,
          res_state : strtoimax_state
     PRE [_str OF (tptr tschar), _end OF (tptr (tptr tschar)), _intp OF (tptr tlong)]
       PROP (readable_share sh; writable_share sh';
             str_b = end'_b;
             map char_of_byte contents = chars;
-            Zlength contents = Z.max 0 (Ptrofs.signed (Ptrofs.sub end_ofs str_ofs));
+            0 < Zlength contents;
             fsa_run (strtoimax_fsa blen) chars res_state)
       LOCAL (temp _str (Vptr str_b str_ofs);
              temp _end (Vptr end_b end_ofs); 
-             temp _intp (Vptr intp_b intp_ofs) )
-      SEP ( valid_pointer (Vptr end'_b end'_ofs) && 
-             data_at sh (tarray tschar (Zlength contents))
+             temp _intp (Vptr intp_b intp_ofs))
+      SEP (data_at sh tschar ch (Vptr end'_b end'_ofs);
+           data_at sh (tarray tschar (Zlength contents))
                    (map Vbyte contents) (Vptr str_b str_ofs);
-             data_at sh' (tptr tschar) (Vptr end'_b end'_ofs) (Vptr end_b end_ofs) )
+           data_at sh' (tptr tschar) (Vptr end'_b end'_ofs) (Vptr end_b end_ofs) )
     POST [tint]
       PROP()
       LOCAL (temp ret_temp (Vint (asn_strtox_result_e_to_int (result_of_state res_state))))
-      SEP ( test_order_ptrs (Vptr end'_b str_ofs) (Vptr end'_b end'_ofs);
-                                                                        data_at sh (tarray tschar (Zlength contents))
+      SEP (data_at sh tschar ch (Vptr end'_b end'_ofs);
+           data_at sh (tarray tschar (Zlength contents))
                    (map Vbyte contents) (Vptr str_b str_ofs);
            data_at sh' (tptr tschar) (Vptr end'_b end'_ofs) (Vptr end_b end_ofs)).
 End VstStrtoimaxSpec.
