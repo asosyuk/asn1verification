@@ -91,22 +91,20 @@ Definition Gprog := ltac:(with_library prog [asn_strtoimax_lim_vst_spec]).
 Lemma body_asn_strtoimax_lim : semax_body Vprog Gprog f_asn_strtoimax_lim  asn_strtoimax_lim_vst_spec.
 Proof.
   start_function.
+  rename H into EQB.
+  rename H0 into LEN.
   forward.
   forward.
   forward.
-  entailer!;
-       inversion H;
-       inversion H4.
+  entailer!; inversion H1; inversion H3.
   forward.
-  entailer!;
-       inversion H;
-       inversion H4.
-  destruct Z.ltb eqn:KEK.
+  entailer!; inversion H1; inversion H3.
+  destruct Z.ltb eqn:IFCON.
   all: Intros.
   all: forward.
   all: forward_if.
-  all: try apply Z.ltb_lt in KEK.
-  all: try apply Z.ltb_ge in KEK.
+  all: try apply Z.ltb_lt in IFCON.
+  all: try apply Z.ltb_ge in IFCON.
   
   - (* str < end' = true *)
     (* Valid pointer proof *)
@@ -115,22 +113,7 @@ Proof.
 
     apply andp_right.
     *
-      rewrite <-Z.lt_0_sub in KEK.
-      assert (Z.max 0 (Ptrofs.unsigned end'_ofs - Ptrofs.unsigned str_ofs) =
-              (Ptrofs.unsigned end'_ofs - Ptrofs.unsigned str_ofs)) as T.
-      {
-        unfold Z.max.
-        assert (0 < Ptrofs.unsigned end'_ofs - Ptrofs.unsigned str_ofs) 
-               by Lia.lia.
-        destruct Z.compare eqn:LOL. 
-        apply Z.compare_eq in LOL.
-        Lia.lia.
-        reflexivity.
-        rewrite Z.compare_gt_iff in LOL.
-        Lia.lia.
-      }
-        
-      rewrite T in H0; clear T.
+      autorewrite with sublist in *|-.
       assert (data_at sh_s (tarray tschar (Zlength con)) 
                       (map Vbyte (map Byte.repr con)) (Vptr end'_b str_ofs) * 
               data_at sh_e (tptr tschar) (Vptr end'_b end'_ofs) 
@@ -156,14 +139,13 @@ Proof.
 
   - (* str < end' = true || end' <= str = true (from forward_if) *)
     forward.
-    apply typed_true_ptr_ge in H1.
-    rewrite Z.geb_le in H1.
-    Lia.lia.
+    apply typed_true_ptr_ge in H.
+    rewrite Z.geb_le in H; Lia.lia.
 
   - (* str < end' = true || str < end' = true (from forward_if) *)
-    rewrite H in H1.
-    apply typed_false_ptr_ge in H1.
-    rewrite Z.gtb_lt in H1.
+    rewrite EQB in H; apply typed_false_ptr_ge in H.
+    rewrite Z.gtb_lt in H.
+    autorewrite with sublist in *|-.
     assert (0 < Ptrofs.unsigned end'_ofs - Ptrofs.unsigned str_ofs)
       by Lia.lia.
     admit.
@@ -197,27 +179,10 @@ Proof.
 
   - (* end' <= str = true || end' <= str = true (from forward_if) *)
     forward.
-    apply typed_true_ptr_ge in H1.
-    rewrite Z.geb_le in H1.
-
-    assert (Ptrofs.unsigned end'_ofs - Ptrofs.unsigned str_ofs <= 0) 
-      by Lia.lia.
-    assert (Z.max 0 (Ptrofs.unsigned end'_ofs - Ptrofs.unsigned str_ofs) 
-            = 0) as T.
-    {
-      unfold Z.max.
-      destruct Z.compare eqn:LOL.
-      reflexivity.
-      rewrite Z.compare_lt_iff in LOL.
-      Lia.lia.
-      reflexivity.
-    }
-    rewrite T in H0; clear T.
-    pose proof Zlength_nil_inv con H0.
-    rewrite H6; simpl; entailer!.
+    autorewrite with sublist in *|-.
+    pose proof Zlength_nil_inv con LEN as NIL.
+    rewrite NIL; simpl; entailer!.
   - (* end' <= str = true || str < end' = true (from forward_if) *)
-    rewrite H in H1.
-    apply typed_false_ptr_ge in H1.
-    rewrite Z.gtb_lt in H1.
-    Lia.lia.
+    rewrite EQB in H; apply typed_false_ptr_ge in H.
+    rewrite Z.gtb_lt in H; Lia.lia.
 Admitted.
