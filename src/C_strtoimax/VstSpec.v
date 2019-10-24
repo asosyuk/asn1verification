@@ -38,8 +38,8 @@ Section VstStrtoimaxSpec.
                data_at sh_e (tptr tschar) (Vptr end'_b end'_ofs) (Vptr end_b end_ofs) * 
                data_at sh_s tschar ch (Vptr end'_b end'_ofs)
           else valid_pointer (Vptr str_b str_ofs) * 
-               valid_pointer (Vptr end_b end_ofs) *
-               valid_pointer (Vptr end'_b end'_ofs);
+               valid_pointer (Vptr end'_b end'_ofs) *
+               data_at sh_e (tptr tschar) (Vptr end'_b end'_ofs) (Vptr end_b end_ofs);
           data_at sh_r tint res (Vptr intp_b intp_ofs))
     POST [tint]
       PROP()
@@ -52,20 +52,11 @@ Section VstStrtoimaxSpec.
                data_at sh_e (tptr tschar) (Vptr end'_b end'_ofs) (Vptr end_b end_ofs) * 
                data_at sh_s tschar ch (Vptr end'_b end'_ofs)
           else valid_pointer (Vptr str_b str_ofs) * 
-               valid_pointer (Vptr end_b end_ofs) *
-               valid_pointer (Vptr end'_b end'_ofs);
+               valid_pointer (Vptr end'_b end'_ofs) *
+               data_at sh_e (tptr tschar) (Vptr end'_b end'_ofs) (Vptr end_b end_ofs);
           data_at sh_r tint res (Vptr intp_b intp_ofs)).
 
-Arguments valid_pointer p : simpl never.
-
 End VstStrtoimaxSpec.
-
-Lemma Zmax0ltr : forall x, 0 < x -> Z.max 0 x = x.
-Proof.
-  intros.
-  unfold Z.max.
-  destruct Z.compare eqn:LOL; [congruence|reflexivity|congruence].
-Qed.
 
 Lemma typed_true_ptr_ge : forall b ptr1 ptr2, 
     typed_true tint (force_val (sem_cmp_pp Cge (Vptr b ptr1) (Vptr b ptr2))) ->
@@ -82,16 +73,18 @@ Qed.
 
 Lemma typed_false_ptr_ge : forall b ptr1 ptr2,
     typed_false tint (force_val (sem_cmp_pp Cge (Vptr b ptr1) (Vptr b ptr2))) ->
-    Ptrofs.unsigned ptr2 >=? Ptrofs.unsigned ptr1 = true.
+    Ptrofs.unsigned ptr2 >? Ptrofs.unsigned ptr1 = true.
 Proof.
   intros.
   unfold typed_false, force_val, sem_cmp_pp in H; simpl in H.
   destruct eq_block in H; [simpl in H|discriminate].
   unfold Ptrofs.ltu in H.
   destruct zlt in H; [simpl in H|discriminate].
-  rewrite Z.geb_le.
+  rewrite Z.gtb_lt.
   Lia.lia.
 Qed.
+
+Arguments valid_pointer p : simpl never.
 
 Definition Gprog := ltac:(with_library prog [asn_strtoimax_lim_vst_spec]).
 
@@ -109,55 +102,122 @@ Proof.
        inversion H;
        inversion H4.
   destruct Z.ltb eqn:KEK.
-  Intros.
-  forward.
-  apply Z.ltb_lt in KEK.
-  rewrite <-Z.lt_0_sub in KEK.
-  pose proof Zmax0ltr (Ptrofs.unsigned end_ofs - Ptrofs.unsigned str_ofs) KEK.
-  rewrite H1 in H0; clear H1.
-  forward_if.
+  all: Intros.
+  all: forward.
+  all: forward_if.
+  all: try apply Z.ltb_lt in KEK.
+  all: try apply Z.ltb_ge in KEK.
   
-  unfold test_order_ptrs; simpl.
-  destruct peq; [simpl|contradiction].
-  apply andp_right.
-  - 
-    assert (data_at sh_s (tarray tschar (Zlength con)) 
-                    (map Vbyte (map Byte.repr con)) (Vptr end'_b str_ofs) * 
-            data_at sh_e (tptr tschar) (Vptr end'_b end'_ofs) (Vptr end_b end_ofs) * 
-            data_at sh_s tschar ch (Vptr end'_b end'_ofs) * 
-            data_at sh_r tint res (Vptr intp_b intp_ofs) 
-                    |-- valid_pointer (Vptr end'_b str_ofs)) by entailer!.
-    pose proof valid_pointer_weak (Vptr end'_b str_ofs).
-    apply derives_trans with (Q := valid_pointer (Vptr end'_b str_ofs)).
-    all: assumption.
-  -
-    assert (data_at sh_s (tarray tschar (Zlength con)) 
-                    (map Vbyte (map Byte.repr con)) (Vptr end'_b str_ofs) * 
-            data_at sh_e (tptr tschar) (Vptr end'_b end'_ofs) (Vptr end_b end_ofs) * 
-            data_at sh_s tschar ch (Vptr end'_b end'_ofs) * 
-            data_at sh_r tint res (Vptr intp_b intp_ofs) 
-                    |-- valid_pointer (Vptr end'_b end'_ofs)) by entailer!.
-    pose proof valid_pointer_weak (Vptr end'_b end'_ofs).
-    apply derives_trans with (Q := valid_pointer (Vptr end'_b end'_ofs)).
-    all: assumption.
-  - (* str_ofs <= end_ofs = true *)
-    rewrite H in H1.
+  - (* str < end' = true *)
+    (* Valid pointer proof *)
+    unfold test_order_ptrs; simpl.
+    destruct peq; [simpl|contradiction].
+
+    apply andp_right.
+    *
+      rewrite <-Z.lt_0_sub in KEK.
+      assert (Z.max 0 (Ptrofs.unsigned end'_ofs - Ptrofs.unsigned str_ofs) =
+              (Ptrofs.unsigned end'_ofs - Ptrofs.unsigned str_ofs)) as T.
+      {
+        unfold Z.max.
+        assert (0 < Ptrofs.unsigned end'_ofs - Ptrofs.unsigned str_ofs) 
+               by Lia.lia.
+        destruct Z.compare eqn:LOL. 
+        apply Z.compare_eq in LOL.
+        Lia.lia.
+        reflexivity.
+        rewrite Z.compare_gt_iff in LOL.
+        Lia.lia.
+      }
+        
+      rewrite T in H0; clear T.
+      assert (data_at sh_s (tarray tschar (Zlength con)) 
+                      (map Vbyte (map Byte.repr con)) (Vptr end'_b str_ofs) * 
+              data_at sh_e (tptr tschar) (Vptr end'_b end'_ofs) 
+                      (Vptr end_b end_ofs) * 
+              data_at sh_s tschar ch (Vptr end'_b end'_ofs) * 
+              data_at sh_r tint res (Vptr intp_b intp_ofs) 
+                      |-- valid_pointer (Vptr end'_b str_ofs)) by entailer!.
+      pose proof valid_pointer_weak (Vptr end'_b str_ofs).
+      apply derives_trans with (Q := valid_pointer (Vptr end'_b str_ofs)).
+      all: assumption.
+    *
+      assert (data_at sh_s (tarray tschar (Zlength con)) 
+                      (map Vbyte (map Byte.repr con)) (Vptr end'_b str_ofs) * 
+              data_at sh_e (tptr tschar) (Vptr end'_b end'_ofs) 
+                      (Vptr end_b end_ofs) * 
+              data_at sh_s tschar ch (Vptr end'_b end'_ofs) * 
+              data_at sh_r tint res (Vptr intp_b intp_ofs) 
+                      |-- valid_pointer (Vptr end'_b end'_ofs)) 
+        by entailer!.
+      pose proof valid_pointer_weak (Vptr end'_b end'_ofs).
+      apply derives_trans with (Q := valid_pointer (Vptr end'_b end'_ofs)).
+      all: assumption.
+
+  - (* str < end' = true || end' <= str = true (from forward_if) *)
+    forward.
     apply typed_true_ptr_ge in H1.
     rewrite Z.geb_le in H1.
-    rewrite Z.lt_0_sub in KEK.
-    contradict KEK.
-    apply Znot_lt_ge.
-    
-    admit.
-  - (* str_ofs > end_ofs = true *)
+    Lia.lia.
+
+  - (* str < end' = true || str < end' = true (from forward_if) *)
     rewrite H in H1.
     apply typed_false_ptr_ge in H1.
-    rewrite Z.geb_le in H1.
-    rewrite Z.lt_0_sub in KEK.
-    *
-    
-    * entailer!.
-    
-  
+    rewrite Z.gtb_lt in H1.
+    assert (0 < Ptrofs.unsigned end'_ofs - Ptrofs.unsigned str_ofs)
+      by Lia.lia.
+    admit.
 
+  - (* end' <= str = true *)
+    (* Valid pointer proof *)
+    unfold test_order_ptrs; simpl.
+    destruct peq; [simpl|contradiction].
+
+    apply andp_right.
+    * 
+      assert (valid_pointer (Vptr end'_b str_ofs) * 
+              valid_pointer (Vptr end'_b end'_ofs) * 
+              data_at sh_e (tptr tschar) (Vptr end'_b end'_ofs) 
+                      (Vptr end_b end_ofs) * 
+              data_at sh_r tint res (Vptr intp_b intp_ofs) 
+                      |-- valid_pointer (Vptr end'_b str_ofs)) by entailer!.
+      pose proof valid_pointer_weak (Vptr end'_b str_ofs).
+      apply derives_trans with (Q := valid_pointer (Vptr end'_b str_ofs)).
+      all: assumption.
+    *
+      assert (valid_pointer (Vptr end'_b str_ofs) * 
+              valid_pointer (Vptr end'_b end'_ofs) * 
+              data_at sh_e (tptr tschar) (Vptr end'_b end'_ofs) 
+                      (Vptr end_b end_ofs) * 
+              data_at sh_r tint res (Vptr intp_b intp_ofs) 
+                      |-- valid_pointer (Vptr end'_b end'_ofs)) by entailer!.
+      pose proof valid_pointer_weak (Vptr end'_b end'_ofs).
+      apply derives_trans with (Q := valid_pointer (Vptr end'_b end'_ofs)).
+      all: assumption.
+
+  - (* end' <= str = true || end' <= str = true (from forward_if) *)
+    forward.
+    apply typed_true_ptr_ge in H1.
+    rewrite Z.geb_le in H1.
+
+    assert (Ptrofs.unsigned end'_ofs - Ptrofs.unsigned str_ofs <= 0) 
+      by Lia.lia.
+    assert (Z.max 0 (Ptrofs.unsigned end'_ofs - Ptrofs.unsigned str_ofs) 
+            = 0) as T.
+    {
+      unfold Z.max.
+      destruct Z.compare eqn:LOL.
+      reflexivity.
+      rewrite Z.compare_lt_iff in LOL.
+      Lia.lia.
+      reflexivity.
+    }
+    rewrite T in H0; clear T.
+    pose proof Zlength_nil_inv con H0.
+    rewrite H6; simpl; entailer!.
+  - (* end' <= str = true || str < end' = true (from forward_if) *)
+    rewrite H in H1.
+    apply typed_false_ptr_ge in H1.
+    rewrite Z.gtb_lt in H1.
+    Lia.lia.
 Admitted.
