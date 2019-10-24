@@ -4,7 +4,9 @@
 
     if(str >= *end) return 0;
 
-    switch(*str) {
+    char t = *str;
+    
+    switch(t) {
     case '-':
         sign = -1;
         /* FALL THROUGH */
