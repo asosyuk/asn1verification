@@ -3,20 +3,20 @@ Import ListNotations.
 
 (* Notations for integers and ptrofs *)
 
-Delimit Scope ByteScope with byte.
+(* Delimit Scope ByteScope with byte.
 Infix "==" := Byte.eq (at level 70) : ByteScope.
 Notation "x ~= y" := (negb Byte.eq x y) (at level 70) : ByteScope.
 Notation "x >> y" := (Byte.shru x y) (at level 70) : ByteScope.
 Notation "0" := Byte.zero : ByteScope.
 Notation "1" := Byte.one : ByteScope.
-Infix "+" := Byte.add : ByteScope.
-Infix "-" := Byte.sub : ByteScope.
-Infix "*" := Byte.mul : ByteScope.
-Infix "<" := Byte.lt : ByteScope.
+Infix "+" := Byte.add (at level 70) : ByteScope.
+Infix "-" := Byte.sub (at level 70) : ByteScope.
+Infix "*" := Byte.mul (at level 70) : ByteScope.
+Infix "<" := Byte.lt (at level 70) : ByteScope.
 Notation "x <=u y" := (negb (Byte.ltu y x)) (at level 70) : ByteScope.
 Notation "x <= y" := (negb (Byte.lt y x)) (at level 70) : ByteScope.
 Infix "%" := Byte.mods (at level 70) : ByteScope.
-Infix "//" := Byte.divs (at level 70) : ByteScope.
+Infix "//" := Byte.divs (at level 70) : ByteScope. *)
 
 Delimit Scope IntScope with int.
 Infix "==" := Int.eq (at level 70) : IntScope.
@@ -70,3 +70,19 @@ Definition s {A : Type} (a : (positive * A)) := PTree.set (fst a) (snd a).
 Notation "'in' env 'set' [ x ; .. ; y ]" :=
   ((s x) .. ((s y) env) ..)
     (at level 85, right associativity).
+
+
+Delimit Scope ByteScope with byte.
+Infix "==" := Byte.eq (at level 70) : ByteScope.
+Notation "x ~= y" := (negb Byte.eq x y) (at level 70) : ByteScope.
+Notation "x >> y" := (Byte.shru x y) (at level 70) : ByteScope.
+Notation "0" := Byte.zero : ByteScope.
+Notation "1" := Byte.one : ByteScope.
+Infix "+" := Byte.add : ByteScope.
+Infix "-" := Byte.sub : ByteScope.
+Infix "*" := Byte.mul : ByteScope. 
+Infix "<" := Byte.lt (at level 70) : ByteScope.
+Notation "x <=u y" := (negb (Byte.ltu y x)) (at level 70) : ByteScope.
+Notation "x <= y" := (negb (Byte.lt y x)) (at level 70) : ByteScope.
+Infix "%" := Byte.mods (at level 70) : ByteScope.
+Infix "//" := Byte.divs (at level 70) : ByteScope.

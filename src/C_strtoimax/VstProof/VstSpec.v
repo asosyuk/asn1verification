@@ -23,7 +23,7 @@ Section VstStrtoimaxSpec.
          (* pointers to store result in *)
          sh_s : share, sh_e : share, sh_r : share,
          (* string share, end share, result share *)
-         con : list Z, ch : val, res : val
+         con : list Z, ch : val, res : val                           
          (* contents, char at the end of string, initial value of intp *)
     PRE [_str OF (tptr tschar), _end OF (tptr (tptr tschar)), _intp OF (tptr tlong)]
       PROP(readable_share sh_s; writable_share sh_e; writable_share sh_r;
@@ -114,6 +114,7 @@ Proof.
     apply andp_right.
     *
       autorewrite with sublist in *|-.
+      (* follows from LEN and IFCON *)
       assert (data_at sh_s (tarray tschar (Zlength con)) 
                       (map Vbyte (map Byte.repr con)) (Vptr end'_b str_ofs) * 
               data_at sh_e (tptr tschar) (Vptr end'_b end'_ofs) 
