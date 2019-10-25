@@ -74,7 +74,7 @@ Definition asn_strtoimax_lim_vst_spec : ident * funspec :=
       LOCAL (temp ret_temp (Vint (asn_strtox_result_e_to_int 
                                    (res 
                                       (Z_of_string contents)))))
-      (* Propositions about memory that hold after executing the function *)            
+      (* Propositions about memory that hold after executing the function *)
       SEP( (* this part didn't change after execution *) 
            
            valid_pointer (Vptr end'_b end'_ofs) ;
@@ -137,7 +137,6 @@ Qed.
 
 Arguments valid_pointer p : simpl never.
 
-
 Lemma extend_weak_valid_pointer : forall b ofs P, 
     valid_pointer (Vptr b ofs) * P |-- weak_valid_pointer (Vptr b ofs).
 Proof.
@@ -178,20 +177,24 @@ Proof.
     *
       autorewrite with sublist in *|-.
       (* follows from LEN and IFCON *)
-      assert (valid_pointer (Vptr end'_b end'_ofs) * valid_pointer (Vptr end'_b str_ofs) *
-              data_at sh_str (tarray tschar (Zlength contents)) (map Vbyte contents) (Vptr end'_b str_ofs) *
-              data_at sh_end (tptr tschar) (Vptr end'_b end'_ofs) (Vptr end_b end_ofs) *
-              data_at sh_intp tlong v (Vptr intp_b intp_ofs)
+      assert (valid_pointer (Vptr end'_b end'_ofs) * 
+              valid_pointer (Vptr end'_b str_ofs) * 
+              data_at sh_str (tarray tschar (Zlength contents)) 
+                      (map Vbyte contents) (Vptr end'_b str_ofs) * 
+              data_at sh_end (tptr tschar) (Vptr end'_b end'_ofs) (Vptr end_b end_ofs) * 
+              data_at sh_intp tlong v (Vptr intp_b intp_ofs) 
                       |-- valid_pointer (Vptr end'_b str_ofs)) by entailer!.
       pose proof valid_pointer_weak (Vptr end'_b str_ofs).
       apply derives_trans with (Q := valid_pointer (Vptr end'_b str_ofs)).
       all: assumption.
     *
-      assert (valid_pointer (Vptr end'_b end'_ofs) * valid_pointer (Vptr end'_b str_ofs) *
-              data_at sh_str (tarray tschar (Zlength contents)) (map Vbyte contents) (Vptr end'_b str_ofs) *
-              data_at sh_end (tptr tschar) (Vptr end'_b end'_ofs) (Vptr end_b end_ofs) *
-              data_at sh_intp tlong v (Vptr intp_b intp_ofs)|-- valid_pointer (Vptr end'_b end'_ofs)) 
-        by entailer!.
+      assert (valid_pointer (Vptr end'_b end'_ofs) * 
+              valid_pointer (Vptr end'_b str_ofs) * 
+              data_at sh_str (tarray tschar (Zlength contents)) 
+                      (map Vbyte contents) (Vptr end'_b str_ofs) * 
+              data_at sh_end (tptr tschar) (Vptr end'_b end'_ofs) (Vptr end_b end_ofs) * 
+              data_at sh_intp tlong v (Vptr intp_b intp_ofs)
+                      |-- valid_pointer (Vptr end'_b end'_ofs)) by entailer!.
       pose proof valid_pointer_weak (Vptr end'_b end'_ofs).
       apply derives_trans with (Q := valid_pointer (Vptr end'_b end'_ofs)).
       all: assumption.
@@ -207,6 +210,28 @@ Proof.
     autorewrite with sublist in *|-.
     assert (0 < Ptrofs.unsigned end'_ofs - Ptrofs.unsigned str_ofs)
       by Lia.lia.
+    destruct contents.
+    replace (Zlength []) with (0) in LEN by reflexivity.
+    Lia.lia.
+    rewrite semax_lemmas.cons_app in LEN.
+    rewrite semax_lemmas.cons_app with (x := i).
+    rewrite Zlength_app in LEN.
+    assert (Zlength [i] = 1) as SING by reflexivity.
+    assert (Zlength contents = Ptrofs.unsigned end'_ofs - Ptrofs.unsigned str_ofs - 1) by Lia.lia.
+    rename H1 into LEN2.
+    assert (Zlength (map Vbyte [i]) = 1) as SINGB by reflexivity.
+    assert (Zlength (map Vbyte contents) = Zlength contents) 
+      as LENB by (apply Zlength_map); rewrite LEN2 in LENB.
+    rewrite <-Zlength_app in LEN; rewrite LEN; rewrite map_app.
+    rewrite split2_data_at_Tarray_app with (mid := 1).
+    Intros.
+    rename v into v0.
+    Compute (reptype tschar).
+    assert (map Vbyte [i] = [Vbyte i]) as T by reflexivity.
+    pose proof data_at_singleton_array_eq (sh_str) (tschar) (Vbyte i) 
+         (map Vbyte [i]) (Vptr str_b str_ofs) T as T1; rewrite T1.
+    clear T T1.
+    forward.
     admit.
 
   - (* end' <= str = true *)
@@ -216,18 +241,22 @@ Proof.
 
     apply andp_right.
     * 
-      assert ( valid_pointer (Vptr end'_b end'_ofs) * valid_pointer (Vptr end'_b str_ofs) *
-               data_at sh_str (tarray tschar (Zlength contents)) (map Vbyte contents) (Vptr end'_b str_ofs) *
-               data_at sh_end (tptr tschar) (Vptr end'_b end'_ofs) (Vptr end_b end_ofs) *
+      assert ( valid_pointer (Vptr end'_b end'_ofs) * 
+               valid_pointer (Vptr end'_b str_ofs) * 
+               data_at sh_str (tarray tschar (Zlength contents)) 
+                       (map Vbyte contents) (Vptr end'_b str_ofs) * 
+               data_at sh_end (tptr tschar) (Vptr end'_b end'_ofs) (Vptr end_b end_ofs) * 
                data_at sh_intp tlong v (Vptr intp_b intp_ofs) 
-                      |-- valid_pointer (Vptr end'_b str_ofs)) by entailer!.
+                       |-- valid_pointer (Vptr end'_b str_ofs)) by entailer!.
       pose proof valid_pointer_weak (Vptr end'_b str_ofs).
       apply derives_trans with (Q := valid_pointer (Vptr end'_b str_ofs)).
       all: assumption.
     *
-      assert (valid_pointer (Vptr end'_b end'_ofs) * valid_pointer (Vptr end'_b str_ofs) *
-              data_at sh_str (tarray tschar (Zlength contents)) (map Vbyte contents) (Vptr end'_b str_ofs) *
-              data_at sh_end (tptr tschar) (Vptr end'_b end'_ofs) (Vptr end_b end_ofs) *
+      assert (valid_pointer (Vptr end'_b end'_ofs) * 
+              valid_pointer (Vptr end'_b str_ofs) * 
+              data_at sh_str (tarray tschar (Zlength contents)) 
+                      (map Vbyte contents) (Vptr end'_b str_ofs) * 
+              data_at sh_end (tptr tschar) (Vptr end'_b end'_ofs) (Vptr end_b end_ofs) * 
               data_at sh_intp tlong v (Vptr intp_b intp_ofs) 
                       |-- valid_pointer (Vptr end'_b end'_ofs)) by entailer!.
       pose proof valid_pointer_weak (Vptr end'_b end'_ofs).
