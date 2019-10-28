@@ -1,7 +1,7 @@
 (* VST specification of asn_strtoimax_lim *)
-Require Import Clight.INTEGER. 
+Require Import Clight.INTEGER.
 Require Import Core.Core Core.Tactics Core.PtrLemmas.
-Require Import StructTact.StructTactics.
+Require Import StructTact.StructTactics Psatz.
 Require Import VST.floyd.proofauto.
 Definition Vprog : varspecs. mk_varspecs prog. Defined.
 Instance CompSpecs : compspecs. make_compspecs prog. Defined.
@@ -135,6 +135,10 @@ Proof.
   Lia.lia.
 Qed.
 
+Search data_at valid_pointer.
+
+(* Proposition data_at_array_valid_pointer *)
+
 Arguments valid_pointer p : simpl never.
 
 Lemma extend_weak_valid_pointer : forall b ofs P, 
@@ -150,7 +154,8 @@ Qed.
 
 Definition Gprog := ltac:(with_library prog [asn_strtoimax_lim_vst_spec]).
 
-Lemma body_asn_strtoimax_lim : semax_body Vprog Gprog f_asn_strtoimax_lim  asn_strtoimax_lim_vst_spec.
+Lemma body_asn_strtoimax_lim : semax_body Vprog Gprog f_asn_strtoimax_lim
+                                          asn_strtoimax_lim_vst_spec.
 Proof.
   start_function.
   rename H into EQB.
@@ -215,7 +220,8 @@ Proof.
          (map Vbyte [i]) (Vptr str_b str_ofs) T as T1; rewrite T1; clear T T1.
     forward.
     normalize.
-    forward_if True.
+    forward.
+    forward_if (True). (* TODO *)
     forward.
     entailer!.
     { replace (Int64.repr 0) with (Int64.zero) by reflexivity;
@@ -235,9 +241,176 @@ Proof.
     destruct peq; [simpl|contradiction].
 
     apply andp_right.
-    all: admit.
+    admit.
+    replace (valid_pointer (Vptr end'_b end'_ofs) * valid_pointer (Vptr end'_b str_ofs) *
+             data_at sh_str tschar (Vbyte i) (Vptr end'_b str_ofs) *
+             data_at sh_str (tarray tschar (Ptrofs.unsigned end'_ofs - Ptrofs.unsigned str_ofs - 1))
+                     (map Vbyte contents)
+                     (field_address0 (tarray tschar (Ptrofs.unsigned end'_ofs - Ptrofs.unsigned str_ofs))
+                                     [ArraySubsc 1] (Vptr end'_b str_ofs)) *
+             data_at sh_end (tptr tschar) (Vptr end'_b end'_ofs) (Vptr end_b end_ofs) *
+             data_at sh_intp tlong v0 (Vptr intp_b intp_ofs))
+      with
+        (valid_pointer (Vptr end'_b end'_ofs) * (valid_pointer (Vptr end'_b str_ofs) *
+  data_at sh_str tschar (Vbyte i) (Vptr end'_b str_ofs) *
+  data_at sh_str (tarray tschar (Ptrofs.unsigned end'_ofs - Ptrofs.unsigned str_ofs - 1))
+    (map Vbyte contents)
+    (field_address0 (tarray tschar (Ptrofs.unsigned end'_ofs - Ptrofs.unsigned str_ofs))
+       [ArraySubsc 1] (Vptr end'_b str_ofs)) *
+  data_at sh_end (tptr tschar) (Vptr end'_b end'_ofs) (Vptr end_b end_ofs) *
+  data_at sh_intp tlong v0 (Vptr intp_b intp_ofs))).
+    eapply extend_weak_valid_pointer.
+    repeat (erewrite sepcon_assoc; try reflexivity).
+    forward.
+    forward.
+    entailer!.
+    normalize.
+    eapply typed_true_ptr_ge in H1.
+    replace  (Ptrofs.add str_ofs (Ptrofs.mul (Ptrofs.repr 1) (Ptrofs.of_ints (Int.repr 1))))
+      with  (Ptrofs.add str_ofs (Ptrofs.repr 1)) in * by auto with ptrofs.
+    assert (contents = []) as N.
+    eapply Z.geb_le in H1.
+    replace (Ptrofs.unsigned (Ptrofs.add str_ofs (Ptrofs.repr 1)))
+            with (Ptrofs.unsigned str_ofs + 1) in * by admit. (* follows from IFCON *)
+    assert (Ptrofs.unsigned end'_ofs - Ptrofs.unsigned str_ofs - 1 = 0) as Z by nia.
+    
+    autorewrite with sublist in *|-.
+    rewrite Z in LEN2.
+    Search Zlength [].
+    apply Zlength_nil_inv.
+    assumption.
+    rewrite N.
+    unfold is_sign, plus_char, minus_char.
+    assert (Byte.eq i (Byte.repr 45) = true) as IS.
+    Search Byte.eq.
+    erewrite Byte.eq_signed.
+    break_if; auto.
+    rewrite IS; simpl.
+    replace (Byte.eq i (Byte.repr 43) || true)%bool with true.
+    reflexivity.
+    symmetry.
+    eapply orb_true_r.
 
-  - (* end' <= str = true *)
+    entailer!.
+    normalize.
+    eapply typed_true_ptr_ge in H1.
+    replace  (Ptrofs.add str_ofs (Ptrofs.mul (Ptrofs.repr 1) (Ptrofs.of_ints (Int.repr 1))))
+      with  (Ptrofs.add str_ofs (Ptrofs.repr 1)) in * by auto with ptrofs.
+    assert (contents = []) as N.
+    eapply Z.geb_le in H1.
+    replace (Ptrofs.unsigned (Ptrofs.add str_ofs (Ptrofs.repr 1)))
+            with (Ptrofs.unsigned str_ofs + 1) in * by admit. (* follows from IFCON *)
+    assert (Ptrofs.unsigned end'_ofs - Ptrofs.unsigned str_ofs - 1 = 0) as Z by nia.
+    
+    autorewrite with sublist in *|-.
+    rewrite Z in LEN2.
+    Search Zlength [].
+    apply Zlength_nil_inv.
+    assumption.
+    rewrite N.
+    unfold is_sign, plus_char, minus_char.
+    assert (Byte.eq i (Byte.repr 45) = true) as IS.
+    Search Byte.eq.
+    erewrite Byte.eq_signed.
+    break_if; auto.
+    rewrite IS; simpl.
+    replace (Byte.eq i (Byte.repr 43) || true)%bool with true.
+    simpl.
+    entailer.
+    Search data_at [?P].
+    erewrite data_at_singleton_array_eq.
+    instantiate (1 :=  (Vbyte i)).
+    entailer!.
+    rewrite <- H14.
+    Search data_at [] emp.
+    autorewrite with sublist.
+    rewrite data_at_zero_array_eq.
+    entailer!.
+    all: try auto.
+    symmetry.
+    eapply orb_true_r.
+
+    subst.
+    eapply typed_false_ptr_ge in H1.
+    replace (Ptrofs.add str_ofs (Ptrofs.mul (Ptrofs.repr 1) (Ptrofs.of_ints (Int.repr 1))))
+      with (Ptrofs.add str_ofs (Ptrofs.repr 1)) in * by auto with ptrofs.
+    hint.
+    forward.
+    normalize. 
+    admit. (* Why FF here? Comes from forward_if *)
+
+    repeat forward.
+    forward_if.
+    admit.
+    repeat forward.
+    entailer!.
+    normalize.
+    eapply typed_true_ptr_ge in H1.
+    replace  (Ptrofs.add str_ofs (Ptrofs.mul (Ptrofs.repr 1) (Ptrofs.of_ints (Int.repr 1))))
+      with  (Ptrofs.add str_ofs (Ptrofs.repr 1)) in * by auto with ptrofs.
+    assert (contents = []) as N.
+    eapply Z.geb_le in H1.
+    replace (Ptrofs.unsigned (Ptrofs.add str_ofs (Ptrofs.repr 1)))
+            with (Ptrofs.unsigned str_ofs + 1) in * by admit. (* follows from IFCON *)
+    assert (Ptrofs.unsigned end'_ofs - Ptrofs.unsigned str_ofs - 1 = 0) as Z by nia.
+    
+    autorewrite with sublist in *|-.
+    rewrite Z in LEN2.
+    Search Zlength [].
+    apply Zlength_nil_inv.
+    assumption.
+    rewrite N.
+    unfold is_sign, plus_char, minus_char.
+    assert (Byte.eq i (Byte.repr 43) = true) as IS.
+    Search Byte.eq.
+    erewrite Byte.eq_signed.
+    break_if; auto.
+    rewrite IS; simpl.
+    replace (true || Byte.eq i (Byte.repr 45))%bool with true.
+    reflexivity.
+    reflexivity.
+
+normalize.
+    eapply typed_true_ptr_ge in H1.
+    replace  (Ptrofs.add str_ofs (Ptrofs.mul (Ptrofs.repr 1) (Ptrofs.of_ints (Int.repr 1))))
+      with  (Ptrofs.add str_ofs (Ptrofs.repr 1)) in * by auto with ptrofs.
+    assert (contents = []) as N.
+    eapply Z.geb_le in H1.
+    replace (Ptrofs.unsigned (Ptrofs.add str_ofs (Ptrofs.repr 1)))
+            with (Ptrofs.unsigned str_ofs + 1) in * by admit. (* follows from IFCON *)
+    assert (Ptrofs.unsigned end'_ofs - Ptrofs.unsigned str_ofs - 1 = 0) as Z by nia.
+    
+    autorewrite with sublist in *|-.
+    rewrite Z in LEN2.
+    Search Zlength [].
+    apply Zlength_nil_inv.
+    assumption.
+    rewrite N.
+    unfold is_sign, plus_char, minus_char.
+    assert (Byte.eq i (Byte.repr 43) = true) as IS.
+    Search Byte.eq.
+    erewrite Byte.eq_signed.
+    break_if; auto.
+    rewrite IS; simpl.
+    replace (true || Byte.eq i (Byte.repr 45))%bool with true.
+    simpl.
+    entailer.
+    Search data_at [?P].
+    erewrite data_at_singleton_array_eq.
+    instantiate (1 :=  (Vbyte i)).
+    entailer!.
+    rewrite <- H14.
+    Search data_at [] emp.
+    autorewrite with sublist.
+    rewrite data_at_zero_array_eq.
+    entailer!.
+    all: try auto.
+    admit. (* FF *)
+
+    forward.
+
+    (* false *)
+    
     (* Valid pointer proof *)
     unfold test_order_ptrs; simpl.
     destruct peq; [simpl|contradiction].
