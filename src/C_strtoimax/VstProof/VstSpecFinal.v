@@ -220,8 +220,16 @@ Proof.
          (map Vbyte [i]) (Vptr str_b str_ofs) T as T1; rewrite T1; clear T T1.
     forward.
     normalize.
-    forward.
-    forward_if (True). (* TODO *)
+    forward_if (
+        (Byte.eq i (Byte.repr 45) || Byte.eq i (Byte.repr 43) ||
+        negb (Byte.eq i (Byte.repr 45) || Byte.eq i (Byte.repr 43)))%bool = true). (* TODO *)
+    * (* if *str = '-' *)
+      admit.
+    * (* if *str = '*' *)
+      admit.
+    * (* ? some kind of check of switch ??return?? ? *)
+      admit.
+    * (* if *str is neither of above *)
     forward.
     entailer!.
     { replace (Int64.repr 0) with (Int64.zero) by reflexivity;
@@ -242,28 +250,33 @@ Proof.
 
     apply andp_right.
     admit.
-    replace (valid_pointer (Vptr end'_b end'_ofs) * valid_pointer (Vptr end'_b str_ofs) *
-             data_at sh_str tschar (Vbyte i) (Vptr end'_b str_ofs) *
-             data_at sh_str (tarray tschar (Ptrofs.unsigned end'_ofs - Ptrofs.unsigned str_ofs - 1))
-                     (map Vbyte contents)
-                     (field_address0 (tarray tschar (Ptrofs.unsigned end'_ofs - Ptrofs.unsigned str_ofs))
-                                     [ArraySubsc 1] (Vptr end'_b str_ofs)) *
-             data_at sh_end (tptr tschar) (Vptr end'_b end'_ofs) (Vptr end_b end_ofs) *
-             data_at sh_intp tlong v0 (Vptr intp_b intp_ofs))
-      with
-        (valid_pointer (Vptr end'_b end'_ofs) * (valid_pointer (Vptr end'_b str_ofs) *
-  data_at sh_str tschar (Vbyte i) (Vptr end'_b str_ofs) *
-  data_at sh_str (tarray tschar (Ptrofs.unsigned end'_ofs - Ptrofs.unsigned str_ofs - 1))
-    (map Vbyte contents)
-    (field_address0 (tarray tschar (Ptrofs.unsigned end'_ofs - Ptrofs.unsigned str_ofs))
-       [ArraySubsc 1] (Vptr end'_b str_ofs)) *
-  data_at sh_end (tptr tschar) (Vptr end'_b end'_ofs) (Vptr end_b end_ofs) *
-  data_at sh_intp tlong v0 (Vptr intp_b intp_ofs))).
+    replace (valid_pointer (Vptr end'_b end'_ofs) * 
+             valid_pointer (Vptr end'_b str_ofs) *
+             data_at sh_str tschar (Vbyte i) (Vptr end'_b str_ofs) * 
+             data_at sh_str (tarray tschar (Ptrofs.unsigned end'_ofs - 
+                                            Ptrofs.unsigned str_ofs - 1)) 
+                     (map Vbyte contents) 
+                     (field_address0 (tarray tschar (Ptrofs.unsigned end'_ofs - 
+                                                     Ptrofs.unsigned str_ofs)) 
+                                     [ArraySubsc 1] (Vptr end'_b str_ofs)) * 
+             data_at sh_end (tptr tschar) (Vptr end'_b end'_ofs) (Vptr end_b end_ofs) * 
+             data_at sh_intp tlong v0 (Vptr intp_b intp_ofs)) 
+      with 
+        (valid_pointer (Vptr end'_b end'_ofs) * 
+         (valid_pointer (Vptr end'_b str_ofs) * 
+          data_at sh_str tschar (Vbyte i) (Vptr end'_b str_ofs) * 
+          data_at sh_str (tarray tschar (Ptrofs.unsigned end'_ofs - 
+                                         Ptrofs.unsigned str_ofs - 1)) 
+                  (map Vbyte contents) 
+                  (field_address0 (tarray tschar (Ptrofs.unsigned end'_ofs - 
+                                                  Ptrofs.unsigned str_ofs)) 
+                                  [ArraySubsc 1] (Vptr end'_b str_ofs)) * 
+          data_at sh_end (tptr tschar) (Vptr end'_b end'_ofs) (Vptr end_b end_ofs) * 
+          data_at sh_intp tlong v0 (Vptr intp_b intp_ofs))).
     eapply extend_weak_valid_pointer.
     repeat (erewrite sepcon_assoc; try reflexivity).
     forward.
     forward.
-    entailer!.
     normalize.
     eapply typed_true_ptr_ge in H1.
     replace  (Ptrofs.add str_ofs (Ptrofs.mul (Ptrofs.repr 1) (Ptrofs.of_ints (Int.repr 1))))
@@ -276,20 +289,25 @@ Proof.
     
     autorewrite with sublist in *|-.
     rewrite Z in LEN2.
-    Search Zlength [].
-    apply Zlength_nil_inv.
-    assumption.
+    apply Zlength_nil_inv; assumption.
     rewrite N.
     unfold is_sign, plus_char, minus_char.
     assert (Byte.eq i (Byte.repr 45) = true) as IS.
-    Search Byte.eq.
     erewrite Byte.eq_signed.
     break_if; auto.
     rewrite IS; simpl.
     replace (Byte.eq i (Byte.repr 43) || true)%bool with true.
-    reflexivity.
+    simpl.
+    entailer!.
+    admit.
     symmetry.
     eapply orb_true_r.
+    forward.
+    entailer!.
+    apply typed_false_ptr_ge in H1.
+    replace (Ptrofs.mul (Ptrofs.repr 1) (Ptrofs.of_ints (Int.repr 1)))
+            with (Ptrofs.one) in H1 by auto with ptrofs.
+    rewrite Z.gtb_lt in H1.
 
     entailer!.
     normalize.
