@@ -271,7 +271,14 @@ Proof.
       replace (Byte.eq i (Byte.repr 43) || true)%bool with true by intuition.
       simpl.
       entailer!.
-      admit.
+      assert (map Vbyte [i] = [Vbyte i]) as T by reflexivity.
+      rewrite <-T; rewrite SING.
+      pose proof data_at_singleton_array_eq (sh_str) (tschar) (Vbyte i) 
+           (map Vbyte [i]) (Vptr end'_b str_ofs) T as T1; rewrite T1; clear T T1. 
+      entailer!.
+      replace (Ptrofs.unsigned end'_ofs - Ptrofs.unsigned str_ofs - 1) with 0.
+      apply data_at_zero_array_inv; simpl; reflexivity.
+      admit. (* Need to add precondition about str_ofs + Zlength contents <= Ptrofs.unsigned_max *)
       admit.
       (* str_ofs + 1 < end_ofs *)
       forward.
