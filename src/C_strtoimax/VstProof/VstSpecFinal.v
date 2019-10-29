@@ -279,7 +279,6 @@ Proof.
       replace (Ptrofs.unsigned end'_ofs - Ptrofs.unsigned str_ofs - 1) with 0.
       apply data_at_zero_array_inv; simpl; reflexivity.
       admit. (* Need to add precondition about str_ofs + Zlength contents <= Ptrofs.unsigned_max *)
-      admit.
       (* str_ofs + 1 < end_ofs *)
       forward.
       entailer!.
