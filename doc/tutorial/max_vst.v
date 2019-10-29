@@ -29,7 +29,7 @@ Proof.
   forward_if (
       PROP(Z.max n1 n2 = n1 \/ Z.max n1 n2 = n2)
       LOCAL(temp _res (Vint (Int.repr (Z.max n1 n2))))
-      SEP())
+      SEP()).
   1,2: forward; entailer!.
   rewrite Z.max_comm.
   unfold Z.max.
