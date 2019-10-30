@@ -1,5 +1,4 @@
 VDIR := .
-VFILES := $(shell find . -name "*.v" -type f)
 COQARGS := $(strip $(shell cat _CoqProject))
 
 # path to asn1c sources
@@ -25,6 +24,8 @@ default: coq
 
 clight:
 	$(foreach FILE, $(ASN1C_FILES), $(call generate_clight, $(FILE)))
+
+VFILES := $(shell find . -name "*.v" -type f)
 
 CoqMakefile:
 	coq_makefile $(COQARGS) -o CoqMakefile $(VFILES)

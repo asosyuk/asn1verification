@@ -52,7 +52,7 @@ Lemma body_switch_fail_test: semax_body Vprog Gprog_switch f_switch_test_fail sw
    repeat forward.
    forward.
    forward.
-   entailer!.
+   entailer.
 Abort.
 
 Definition twice_spec :=
