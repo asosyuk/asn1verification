@@ -208,38 +208,34 @@ Proof.
       forward.
       forward.
       normalize.
-      pose (sep_precondition := valid_pointer (Vptr end'_b end'_ofs) *
-                                valid_pointer (Vptr end'_b str_ofs) *
-                                data_at sh_str tschar (Vbyte i) (Vptr end'_b str_ofs) *
-                                data_at sh_str (tarray tschar 
-                                                       (Ptrofs.unsigned end'_ofs - 
-                                                        Ptrofs.unsigned str_ofs - 1))
-                                        (map Vbyte contents)
-                                        (field_address0 (tarray tschar 
-                                                                (Ptrofs.unsigned end'_ofs - 
-                                                                 Ptrofs.unsigned str_ofs))
-                                                        [ArraySubsc 1] (Vptr end'_b str_ofs)) *
-                                data_at sh_end (tptr tschar) (Vptr end'_b end'_ofs) 
-                                        (Vptr end_b end_ofs) *
-                                data_at sh_intp tlong v0 (Vptr intp_b intp_ofs)).
+      pose (sep_precondition := 
+              valid_pointer (Vptr end'_b end'_ofs) *
+              valid_pointer (Vptr end'_b str_ofs) *
+              data_at sh_str tschar (Vbyte i) (Vptr end'_b str_ofs) *
+              data_at sh_str (tarray tschar 
+                                     (Ptrofs.unsigned end'_ofs - 
+                                      Ptrofs.unsigned str_ofs - 1))
+                      (map Vbyte contents)
+                      (field_address0 (tarray tschar 
+                                              (Ptrofs.unsigned end'_ofs - 
+                                               Ptrofs.unsigned str_ofs))
+                                      [ArraySubsc 1] (Vptr end'_b str_ofs)) *
+              data_at sh_end (tptr tschar) (Vptr end'_b end'_ofs) 
+                      (Vptr end_b end_ofs) *
+              data_at sh_intp tlong v0 (Vptr intp_b intp_ofs)).
       forward_if (
           if Byte.signed i =? 45
           then PROP()
-                   LOCAL( temp _sign (Vint (Int.repr (-1)));
-                          (if (Ptrofs.unsigned str_ofs + 1 <? Ptrofs.unsigned end'_ofs)
-                           then temp _str (Vptr end'_b (Ptrofs.add str_ofs (Ptrofs.repr 1)))
-                           else temp ret_temp (Vint (Int.repr (-1)))))
-                   SEP(sep_precondition)
+               LOCAL(temp _sign (Vint (Int.repr (-1)));
+                     temp _str (Vptr end'_b
+                                     (Ptrofs.add str_ofs (Ptrofs.repr 1))))
+               SEP(sep_precondition)
           else if Byte.signed i =? 43
                then PROP()
-                        LOCAL( (if (Ptrofs.unsigned str_ofs + 1 <? Ptrofs.unsigned end'_ofs)
-                                then temp _str (Vptr end'_b (Ptrofs.add str_ofs (Ptrofs.repr 1)))
-                                else temp ret_temp (Vint (Int.repr (-1)))))
-                        SEP(sep_precondition)
-
-               else PROP()
-                        LOCAL()
-                        SEP(sep_precondition)). 
+                    LOCAL( temp _str (Vptr end'_b 
+                                           (Ptrofs.add str_ofs (Ptrofs.repr 1))))
+                    SEP(sep_precondition)
+               else !!(Byte.signed i =? 43 = false /\ Byte.signed i =? 45 = false)). 
       * (* if *str = '-' = Int.repr 45 *)
         forward.
         entailer!.
@@ -343,7 +339,8 @@ Proof.
         reflexivity.
         normalize.
         eapply typed_true_ptr_ge in H1.
-        replace  (Ptrofs.add str_ofs (Ptrofs.mul (Ptrofs.repr 1) (Ptrofs.of_ints (Int.repr 1))))
+        replace  (Ptrofs.add str_ofs (Ptrofs.mul (Ptrofs.repr 1)
+                                                 (Ptrofs.of_ints (Int.repr 1))))
           with  (Ptrofs.add str_ofs (Ptrofs.repr 1)) in * by auto with ptrofs.
         assert (contents = []) as N.
         eapply Z.geb_le in H1.
@@ -388,14 +385,76 @@ Proof.
         unfold sep_precondition. entailer.
         admit.
         admit.
-        admit.
       * (* Loop *)
         repeat break_if.
-        (* case sign = -1 *)
-        Intros.
-        forward.
-        all: admit.
-  
+        ** forward.
+           forward_loop (
+               EX i : Z, 
+                 let i' := (Ptrofs.add str_ofs (Ptrofs.repr i)) in
+                 PROP(0 <= i <= Zlength contents)
+                 LOCAL(temp _end (Vptr end_b end_ofs); 
+                       temp _intp (Vptr intp_b intp_ofs);
+                       temp _str (Vptr end'_b i');
+                       temp _value (Vlong (Int64.repr 
+                                            (value (Z_of_string
+                                                      (sublist 0 i contents))))))
+                 SEP(
+                   valid_pointer (Vptr end'_b end'_ofs) *
+                   valid_pointer (Vptr end'_b i') *
+                   data_at sh_str
+                           (tarray tschar (Ptrofs.unsigned end'_ofs -
+                                           Ptrofs.unsigned str_ofs))
+                           (map Vbyte contents)
+                           (field_address0
+                              (tarray tschar (Ptrofs.unsigned end'_ofs -
+                                              Ptrofs.unsigned str_ofs))
+                              [ArraySubsc i] 
+                              (Vptr end'_b str_ofs)) *
+                   data_at sh_end (tptr tschar) (Vptr end'_b end'_ofs)
+                           (Vptr end_b end_ofs) *
+                   data_at sh_intp tlong v0 (Vptr intp_b intp_ofs)))
+           break: (PROP()
+                  LOCAL( if true then temp _sign (Vint (Int.repr 1))
+                         else temp _sign (Vint (Int.repr (-1)));
+
+                       temp _end (Vptr end_b end_ofs); 
+                       temp _intp (Vptr intp_b intp_ofs);
+                       temp _str 
+                             (Vptr end'_b 
+                                   (Ptrofs.add str_ofs 
+                                      (Ptrofs.repr (Zlength contents))));
+                      if true (* TODO *)
+                        then temp _value (Vlong (Int64.repr
+                                  (value (Z_of_string contents))))
+                        else temp _value (Vlong (Int64.repr
+                                  (- value (Z_of_string contents)))))
+                  SEP(valid_pointer (Vptr end'_b end'_ofs) ;
+                      valid_pointer (Vptr end'_b str_ofs) ;
+                      data_at sh_str (tarray tschar (Zlength contents)) 
+                                 (map Vbyte contents) (Vptr end'_b str_ofs) ; 
+                      data_at sh_end (tptr tschar) (Vptr end'_b end'_ofs) 
+                                 (Vptr end_b end_ofs);
+                      data_at sh_intp (tlong) v0 (Vptr intp_b intp_ofs))).
+           ***
+             Exists 1.
+             entailer!.
+             admit.
+             unfold sep_precondition.
+             entailer!.
+             admit. (* fix loop invariant *)
+         *** Intros x.
+             forward.
+             forward_if.
+             -- admit.
+             -- admit.
+             -- forward.
+                entailer!.
+                admit.
+         *** repeat forward.
+             admit.
+             
+        ** admit.
+        ** admit.
   - (* str >= end *)
     all: try apply Z.ltb_ge in IFCON.
     forward_if.
