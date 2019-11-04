@@ -24,8 +24,8 @@ Definition asn_strtoimax_lim_vst_spec : ident * funspec :=
          (* permission shares, cf. Verifiable C book (p.73) *)
          sh_str : share, sh_end : share, sh_intp : share,
          (* input string *)
-         contents : list byte,
-         (* contents of intp *)
+         ls : list byte,
+         (* ls of intp *)
          v : val
     (* Preconditions *)
     (* Type declaration for parameters of the function *)
@@ -43,8 +43,8 @@ Definition asn_strtoimax_lim_vst_spec : ident * funspec :=
            otherwise incomparable by C standard *)
           str_b = end'_b;
 
-          (* length of contents = distance between str and end' *)
-          Zlength contents =
+          (* length of ls = distance between str and end' *)
+          Zlength ls =
           Z.max 0 (Ptrofs.unsigned end'_ofs - Ptrofs.unsigned str_ofs))
       (* LOCAL: connects C light prameter identifiers and declared variables *)
       LOCAL (temp _str (Vptr str_b str_ofs);
@@ -56,9 +56,9 @@ Definition asn_strtoimax_lim_vst_spec : ident * funspec :=
       SEP ((* str and end' are comparable, i.e. point within the same object *)
            valid_pointer (Vptr end'_b end'_ofs) ;
            valid_pointer (Vptr str_b str_ofs) ;
-           (* str points to contents with readable permission *)
-           data_at sh_str (tarray tschar (Zlength contents)) 
-                   (map Vbyte contents) (Vptr str_b str_ofs) ; 
+           (* str points to ls with readable permission *)
+           data_at sh_str (tarray tschar (Zlength ls)) 
+                   (map Vbyte ls) (Vptr str_b str_ofs) ; 
            (* end points to end' with writable permission *)
            data_at sh_end (tptr tschar) (Vptr end'_b end'_ofs) 
                    (Vptr end_b end_ofs);
@@ -70,18 +70,18 @@ Definition asn_strtoimax_lim_vst_spec : ident * funspec :=
       (* No new propositions hold after executing the function *)
       PROP()
       (* Return value of the function corresponds to the result 
-         of abstract spec on contents *)
+         of abstract spec on ls *)
       LOCAL (temp ret_temp (Vint (asn_strtox_result_e_to_int 
                                    (res 
-                                      (Z_of_string contents)))))
+                                      (Z_of_string ls)))))
       (* Propositions about memory that hold after executing the function *)
       SEP( (* this part didn't change after execution *) 
            
            valid_pointer (Vptr end'_b end'_ofs) ;
            valid_pointer (Vptr str_b str_ofs) ;
-           data_at sh_str (tarray tschar (Zlength contents)) 
-                   (map Vbyte contents) (Vptr str_b str_ofs) ;
-           let r := res (Z_of_string contents) in
+           data_at sh_str (tarray tschar (Zlength ls)) 
+                   (map Vbyte ls) (Vptr str_b str_ofs) ;
+           let r := res (Z_of_string ls) in
             (* in 3 cases intp stays unchanged,
               otherwise store the end value of Z_of_string *)
             match r with 
@@ -90,14 +90,14 @@ Definition asn_strtoimax_lim_vst_spec : ident * funspec :=
               | ASN_STRTOX_EXPECT_MORE => 
                 data_at sh_intp (tlong) v (Vptr intp_b intp_ofs)
               | _ => data_at sh_intp (tlong) 
-                         (Vlong (Int64.repr (value (Z_of_string contents))))
+                         (Vlong (Int64.repr (value (Z_of_string ls))))
                          (Vptr intp_b intp_ofs) 
             end ;
            (* if str >= end, end doesn't change, 
               otherwise store the address of the last char read 
               (before going out of range, reading extra data 
               or successfully terminating) *)
-            let i := index (Z_of_string contents) in
+            let i := index (Z_of_string ls) in
             if (Ptrofs.unsigned str_ofs <? Ptrofs.unsigned end'_ofs)
             then data_at sh_end (tptr tschar) 
                          (Vptr str_b (Ptrofs.add str_ofs (Ptrofs.repr i))) 
@@ -106,6 +106,7 @@ Definition asn_strtoimax_lim_vst_spec : ident * funspec :=
                          (Vptr end_b end_ofs)).
 
 End VstSpec.
+
 
 (* Proof *)
 
@@ -185,18 +186,18 @@ Proof.
       rewrite Z.gtb_lt in H.
       assert (0 < Ptrofs.unsigned end'_ofs - Ptrofs.unsigned str_ofs)
         by Lia.lia.
-      destruct contents.
+      destruct ls.
       replace (Zlength []) with (0) in LEN by reflexivity.
       Lia.lia.
       rewrite semax_lemmas.cons_app in LEN.
       rewrite semax_lemmas.cons_app with (x := i).
       rewrite Zlength_app in LEN.
       assert (Zlength [i] = 1) as SING by reflexivity.
-      assert (Zlength contents = (Ptrofs.unsigned end'_ofs - 
+      assert (Zlength ls = (Ptrofs.unsigned end'_ofs - 
                                  Ptrofs.unsigned str_ofs) - 1) by lia.
       rename H1 into LEN2.
       assert (Zlength (map Vbyte [i]) = 1) as SINGB by reflexivity.
-      assert (Zlength (map Vbyte contents) = Zlength contents) 
+      assert (Zlength (map Vbyte ls) = Zlength ls) 
         as LENB by (apply Zlength_map); rewrite LEN2 in LENB.
       rewrite <-Zlength_app in LEN; rewrite LEN; rewrite map_app.
       rewrite split2_data_at_Tarray_app with (mid := 1) ; [|try eassumption | admit].
@@ -208,262 +209,131 @@ Proof.
       forward.
       forward.
       normalize.
-      pose (sep_precondition := valid_pointer (Vptr end'_b end'_ofs) *
-                                valid_pointer (Vptr end'_b str_ofs) *
-                                data_at sh_str tschar (Vbyte i) (Vptr end'_b str_ofs) *
-                                data_at sh_str (tarray tschar 
-                                                       (Ptrofs.unsigned end'_ofs - 
-                                                        Ptrofs.unsigned str_ofs - 1))
-                                        (map Vbyte contents)
-                                        (field_address0 (tarray tschar 
-                                                                (Ptrofs.unsigned end'_ofs - 
-                                                                 Ptrofs.unsigned str_ofs))
-                                                        [ArraySubsc 1] (Vptr end'_b str_ofs)) *
-                                data_at sh_end (tptr tschar) (Vptr end'_b end'_ofs) 
-                                        (Vptr end_b end_ofs) *
-                                data_at sh_intp tlong v0 (Vptr intp_b intp_ofs)).
+      pose (sep_precondition := 
+              valid_pointer (Vptr end'_b end'_ofs) *
+              valid_pointer (Vptr end'_b str_ofs) *
+              valid_pointer (Vptr end'_b (Ptrofs.add str_ofs (Ptrofs.repr 1))) *
+              data_at sh_str tschar (Vbyte i) (Vptr end'_b str_ofs) *
+              data_at sh_str (tarray tschar 
+                                     (Ptrofs.unsigned end'_ofs - 
+                                      Ptrofs.unsigned str_ofs - 1))
+                      (map Vbyte ls)
+                      (field_address0 (tarray tschar 
+                                              (Ptrofs.unsigned end'_ofs - 
+                                               Ptrofs.unsigned str_ofs))
+                                      [ArraySubsc 1] (Vptr end'_b str_ofs)) *
+              data_at sh_end (tptr tschar) (Vptr end'_b end'_ofs) 
+                      (Vptr end_b end_ofs) *
+              data_at sh_intp tlong v0 (Vptr intp_b intp_ofs)).
       forward_if (
           if Byte.signed i =? 45
-          then PROP()
-               LOCAL( temp _sign (Vint (Int.repr (-1)));
-                      (if (Ptrofs.unsigned str_ofs + 1 <? Ptrofs.unsigned end'_ofs)
-                       then temp _str (Vptr end'_b (Ptrofs.add str_ofs (Ptrofs.repr 1)))
-                       else temp ret_temp (Vint (Int.repr (-1)))))
+          then PROP(0 < Zlength ls)
+               LOCAL(temp _sign (Vint (Int.repr (-1)));
+                     temp _str (Vptr end'_b
+                                     (Ptrofs.add str_ofs (Ptrofs.repr 1)));
+                     temp _end (Vptr end_b end_ofs); 
+                     temp _intp (Vptr intp_b intp_ofs))
                SEP(sep_precondition)
           else if Byte.signed i =? 43
-               then PROP()
-                    LOCAL( (if (Ptrofs.unsigned str_ofs + 1 <? Ptrofs.unsigned end'_ofs)
-                            then temp _str (Vptr end'_b (Ptrofs.add str_ofs (Ptrofs.repr 1)))
-                            else temp ret_temp (Vint (Int.repr (-1)))))
+               then PROP(0 < Zlength ls)
+                    LOCAL(temp _str (Vptr end'_b 
+                                          (Ptrofs.add str_ofs (Ptrofs.repr 1)));
+                         temp _end (Vptr end_b end_ofs); 
+                     temp _intp (Vptr intp_b intp_ofs))
                     SEP(sep_precondition)
-
-               else
-                 EX v : val, 
-                        PROP ()
-                        LOCAL (temp _str (Vptr end'_b str_ofs);
-                               temp _end (Vptr end_b end_ofs); 
-                               temp _intp (Vptr intp_b intp_ofs))
-
-                        SEP (
-                          valid_pointer (Vptr end'_b end'_ofs) ;
-                          valid_pointer (Vptr end'_b str_ofs) ;
-                          data_at sh_str (tarray tschar (Zlength contents)) 
-                                  (map Vbyte contents) (Vptr end'_b str_ofs) ; 
-                          data_at sh_end (tptr tschar) (Vptr end'_b end'_ofs) 
-                                  (Vptr end_b end_ofs);
-                          data_at sh_intp (tlong) v (Vptr intp_b intp_ofs)) (* same precondition as the whole function*)). 
+               else !!(Byte.signed i =? 43 = false /\ Byte.signed i =? 45 = false)). 
       * (* if *str = '-' = Int.repr 45 *)
-        forward.
-        entailer!.
-        { replace (Int64.repr 0) with (Int64.zero) by reflexivity; 
-            replace (Int64.repr 1) with (Int64.one) by reflexivity.
-          rewrite Int64.not_zero.
-          unfold Int64.mods, Int64.shru, Z.shiftr.
-          rewrite Int64.unsigned_mone, Int64.unsigned_one; simpl.
-          repeat rewrite Int64.signed_repr;
-            unfold Int64.min_signed, Int64.max_signed;
-            unfold Int64.half_modulus, Int64.modulus;
-            cbn; Lia.lia. }
-        repeat forward.
-        forward_if.
-        ** unfold test_order_ptrs; simpl.
-           destruct peq; [simpl|contradiction].
-           apply andp_right.
-           admit.
-           apply derives_trans with (Q := valid_pointer (Vptr end'_b end'_ofs)).
-           entailer!.
-           apply valid_pointer_weak.
-           (* end_ofs <= str_ofs + 1, return EXPECT_MORE *)
-        ** repeat forward.
-           rename H1 into IFCON2.
-           apply typed_true_ptr_ge in IFCON2.
-           replace (Ptrofs.add str_ofs (Ptrofs.mul (Ptrofs.repr 1) 
-                                                   (Ptrofs.of_ints (Int.repr 1))))
-             with (Ptrofs.add str_ofs Ptrofs.one) in * by auto with ptrofs.
-           apply Z.geb_le in IFCON2.
-           replace (Ptrofs.unsigned (Ptrofs.add str_ofs Ptrofs.one)) 
-             with (Ptrofs.unsigned str_ofs + 1) in *. (* follows from IFCON *)
-           assert (Ptrofs.unsigned end'_ofs - Ptrofs.unsigned str_ofs - 1 = 0) as Z 
-               by nia.
-           assert (contents = []) as CONTENT.
-           rewrite Z in LEN2.
-           apply Zlength_nil_inv; assumption.
-           rewrite CONTENT.
-           unfold is_sign, plus_char, minus_char.
-           assert (Byte.eq i (Byte.repr 45) = true) as IS.
-           erewrite Byte.eq_signed.
-           break_if; auto.
-           rewrite IS; simpl.
-           replace (Byte.eq i (Byte.repr 43) || true)%bool with true by intuition.
-           simpl.
-           entailer!.
-           assert (map Vbyte [i] = [Vbyte i]) as T by reflexivity.
-           rewrite <-T; rewrite SING.
-           pose proof data_at_singleton_array_eq (sh_str) (tschar) (Vbyte i) 
-                (map Vbyte [i]) (Vptr end'_b str_ofs) T as T1; rewrite T1; clear T T1. 
-           entailer!.
-           replace (Ptrofs.unsigned end'_ofs - Ptrofs.unsigned str_ofs - 1) with 0.
-           apply data_at_zero_array_inv; simpl; reflexivity.
-           admit. (* Need to add precondition about str_ofs + Zlength contents <= Ptrofs.unsigned_max *)
-        ** (* str_ofs + 1 < end_ofs *)
-          forward.
-          rename H1 into IFCON2.
-          subst.
-          apply typed_false_ptr_ge in IFCON2.
-          replace (Ptrofs.add str_ofs (Ptrofs.mul (Ptrofs.repr 1) 
-                                                  (Ptrofs.of_ints (Int.repr 1))))
-            with (Ptrofs.add str_ofs Ptrofs.one) in * by auto with ptrofs.
-          rewrite Z.gtb_lt in IFCON2.
-          replace (Ptrofs.unsigned (Ptrofs.add str_ofs Ptrofs.one)) 
-            with (Ptrofs.unsigned str_ofs + 1) in *. (* follows from IFCON *)
-          rewrite E.
-          replace (Ptrofs.unsigned str_ofs + 1 <? Ptrofs.unsigned end'_ofs)
-            with true.
-          unfold sep_precondition. entailer!.
-          admit.
-          admit.
+        admit.
       * (* if *str = '+' *)
-        repeat forward.
-        forward_if.
         admit.
-        repeat forward.
-        entailer!.
-        normalize.
-        eapply typed_true_ptr_ge in H1.
-        replace  (Ptrofs.add str_ofs (Ptrofs.mul (Ptrofs.repr 1) (Ptrofs.of_ints (Int.repr 1))))
-          with  (Ptrofs.add str_ofs (Ptrofs.repr 1)) in * by auto with ptrofs.
-        assert (contents = []) as N.
-        eapply Z.geb_le in H1.
-        replace (Ptrofs.unsigned (Ptrofs.add str_ofs (Ptrofs.repr 1)))
-          with (Ptrofs.unsigned str_ofs + 1) in * by admit. (* follows from IFCON *)
-        assert (Ptrofs.unsigned end'_ofs - Ptrofs.unsigned str_ofs - 1 = 0) as Z by nia.
-        
-        autorewrite with sublist in *|-.
-        rewrite Z in LEN2.
-        Search Zlength [].
-        apply Zlength_nil_inv.
-        assumption.
-        rewrite N.
-        unfold is_sign, plus_char, minus_char.
-        assert (Byte.eq i (Byte.repr 43) = true) as IS.
-        Search Byte.eq.
-        erewrite Byte.eq_signed.
-        break_if; auto.
-        rewrite IS; simpl.
-        replace (true || Byte.eq i (Byte.repr 45))%bool with true.
-        reflexivity.
-        reflexivity.
-        normalize.
-        eapply typed_true_ptr_ge in H1.
-        replace  (Ptrofs.add str_ofs (Ptrofs.mul (Ptrofs.repr 1) (Ptrofs.of_ints (Int.repr 1))))
-          with  (Ptrofs.add str_ofs (Ptrofs.repr 1)) in * by auto with ptrofs.
-        assert (contents = []) as N.
-        eapply Z.geb_le in H1.
-        replace (Ptrofs.unsigned (Ptrofs.add str_ofs (Ptrofs.repr 1)))
-          with (Ptrofs.unsigned str_ofs + 1) in * by admit. (* follows from IFCON *)
-        assert (Ptrofs.unsigned end'_ofs - Ptrofs.unsigned str_ofs - 1 = 0) as Z by nia.
-        
-        autorewrite with sublist in *|-.
-        rewrite Z in LEN2.
-        apply Zlength_nil_inv.
-        assumption.
-        rewrite N.
-        unfold is_sign, plus_char, minus_char.
-        assert (Byte.eq i (Byte.repr 43) = true) as IS.
-        erewrite Byte.eq_signed.
-        break_if; auto.
-        rewrite IS; simpl.
-        replace (true || Byte.eq i (Byte.repr 45))%bool with true.
-        simpl.
-        entailer.
-        erewrite data_at_singleton_array_eq.
-        instantiate (1 :=  (Vbyte i)).
-        entailer!.
-        rewrite <- H14.
-        autorewrite with sublist.
-        rewrite data_at_zero_array_eq.
-        entailer!.
-        all: try auto.
-        
-        forward.
-        rewrite E.
-        replace (43 =? 45) with false by reflexivity.
-        replace (43 =? 43) with true by reflexivity.
-        replace (Ptrofs.unsigned str_ofs + 1 <? Ptrofs.unsigned end'_ofs)
-          with true.
-        unfold sep_precondition. entailer!.
-        admit.    
       * (* default case *) 
-        forward.
-        replace (Byte.signed i =? 45) with false.
-        replace (Byte.signed i =? 43) with false.
-        unfold sep_precondition.  Exists v0. entailer!.
-        admit.
-        admit.
         admit.
       * (* Loop *)
         repeat break_if.
-        ++ (* case first char -, sign = -1 *)
-          Intros.
-          forward.
-          forward_loop (  
-              EX i : Z, EX n : Z,
-                let sl := sublist i (Zlength contents) contents in             
-                PROP(n = 1 \/ n = -1;
-                     0 <= i <= Zlength contents) 
-                LOCAL(temp _sign (Vint (Int.repr n));
-                      temp _str (Vptr end'_b (Ptrofs.add str_ofs (Ptrofs.repr i)));
-                      temp _value (Vlong (Int64.repr (value (Z_of_string (sublist 0 i contents))))))
-                SEP(data_at sh_str (tarray tschar (Zlength sl)) (map Vbyte sl)
-                             (Vptr end'_b (Ptrofs.add str_ofs (Ptrofs.repr i))))) 
-                    break: (PROP() LOCAL() SEP(sep_precondition)).
-           ** (* Precondition implies Loop invariant *)
-            (* need: sep_precondition |-- loop sep *)
-            entailer!.
-            admit.
-          ** (* Prove that loop body preserves invariant *)
-            admit.
-          ** (* After the loop with break postcondition *)
-            admit.
-       ++ (* case first char +, sign = 1 *)
-         forward.
-         forward_loop (PROP ( )
-                            LOCAL (
-                              temp _str (Vptr end'_b str_ofs);
-                              temp _end (Vptr end_b end_ofs); 
-                              temp _intp (Vptr intp_b intp_ofs);
-                         temp _value (Vlong (Int64.repr (Int.signed (Int.repr 0))));
-                                   temp _sign (Vint (Int.repr (-1))); temp ret_temp (Vint (Int.repr (-1))))
-                            SEP (sep_precondition))
-                       break: (PROP() LOCAL() SEP(sep_precondition)).
-         hint.
-         autorewrite with norm.
-         hint.
-         all: admit.
-       ++ admit.
-       ++ admit.
-       ++ Intros x.
-          forward.
+        ** forward.
+           forward_loop (
+               EX j : Z, 
+                 let i' := (Ptrofs.add str_ofs (Ptrofs.repr (j + 1))) in
+                 PROP(0 <= j < Zlength ls)
+                 LOCAL(temp _end (Vptr end_b end_ofs); 
+                       temp _intp (Vptr intp_b intp_ofs);
+                       temp _str (Vptr end'_b i');
+                       temp _value (Vlong (Int64.repr 
+                                            (value (Z_of_string
+                                                      (sublist 0 j ls))))))
+                 SEP(
+                   valid_pointer (Vptr end'_b str_ofs) ;
+                   valid_pointer (Vptr end'_b end'_ofs) ;
+                   valid_pointer (Vptr end'_b i') ;
+                   
+                   (* str |-> sublist 0 j ls *)
 
-          forward_loop (  
-              EX i : Z, EX n : Z,
-               let sl := sublist i (Zlength contents) contents in             
-               PROP(n = 1 \/ n = -1;
-                    0 <= i <= Zlength contents) 
-               LOCAL(temp _sign (Vint (Int.repr n));
-                     temp _str (Vptr end'_b (Ptrofs.add str_ofs (Ptrofs.repr i)));
-                     temp _value (Vlong (Int64.repr (value (Z_of_string (sublist 0 i contents)))));
-                     temp _end (Vptr end_b end_ofs); 
-                               temp _intp (Vptr intp_b intp_ofs)) (* fixme *)
-               SEP(data_at sh_str (tarray tschar (Zlength sl)) (map Vbyte sl)
-                           (Vptr end'_b (Ptrofs.add str_ofs (Ptrofs.repr i))))) 
-                       break: (PROP() LOCAL() SEP(sep_precondition)).
-          Exists 0.
-          Exists 1.
-          entailer.
-          admit.
-          Intros i0 n.
-          all: admit.
+                   data_at sh_str (tarray tschar (j + 1))
+                           (map Vbyte (sublist 0 (j + 1) (i::ls)))
+                            (Vptr end'_b str_ofs); 
+                   
+                   (* str + j |-> sublist j |ls| ls  *)
+
+                  (* data_at sh_str (tarray tschar (Zlength ls - j))
+                           (map Vbyte (sublist j (Zlength ls) ls))
+                           (Vptr end'_b i') ;  *)
+
+                    data_at sh_str (tarray tschar 
+                                     (Zlength ls - j))
+                      (map Vbyte ls)
+                      (field_address0 (tarray tschar 
+                                              (1 + Zlength ls))
+                                      [ArraySubsc (j + 1)] (Vptr end'_b str_ofs)) ;
+                
+                   data_at sh_end (tptr tschar) (Vptr end'_b end'_ofs)
+                           (Vptr end_b end_ofs) ;
+                   data_at sh_intp tlong v0 (Vptr intp_b intp_ofs)))
+                        
+           break: (PROP()
+                  LOCAL( if true then temp _sign (Vint (Int.repr 1))
+                         else temp _sign (Vint (Int.repr (-1)));
+
+                       temp _end (Vptr end_b end_ofs); 
+                       temp _intp (Vptr intp_b intp_ofs);
+                       temp _str 
+                             (Vptr end'_b 
+                                   (Ptrofs.add str_ofs 
+                                      (Ptrofs.repr (Zlength ls))));
+                      if true (* TODO *)
+                        then temp _value (Vlong (Int64.repr
+                                  (value (Z_of_string ls))))
+                        else temp _value (Vlong (Int64.repr
+                                  (- value (Z_of_string ls)))))
+                  SEP(valid_pointer (Vptr end'_b end'_ofs) ;
+                      valid_pointer (Vptr end'_b str_ofs) ;
+                      data_at sh_str (tarray tschar (Zlength ls)) 
+                                 (map Vbyte ls) (Vptr end'_b str_ofs) ; 
+                      data_at sh_end (tptr tschar) (Vptr end'_b end'_ofs) 
+                                 (Vptr end_b end_ofs);
+                      data_at sh_intp (tlong) v0 (Vptr intp_b intp_ofs))).
+           ***
+             Exists 0.
+             unfold sep_precondition.
+             entailer!.
+             autorewrite with sublist in *|-.
+             rewrite <- LEN.
+             autorewrite with sublist.
+             erewrite <- data_at_singleton_array_eq.
+             entailer!.
+             auto.
+         *** Intros x.
+             forward.
+             forward_if.
+             -- admit.
+             -- admit.
+             -- forward.
+                entailer!.
+                admit.
+         *** repeat forward.
+             admit.
+             
+        ** admit.
+        ** admit.
   - (* str >= end *)
     all: try apply Z.ltb_ge in IFCON.
     forward_if.
@@ -485,9 +355,9 @@ Proof.
       try apply Z.ltb_ge in IFCON.
       assert ((Ptrofs.unsigned end'_ofs - Ptrofs.unsigned str_ofs) <= 0)
              by nia.
-      assert (Zlength contents = 0) as L by admit.
+      assert (Zlength ls = 0) as L by admit.
       subst.
-      pose proof Zlength_nil_inv contents L as NIL.
+      pose proof Zlength_nil_inv ls L as NIL.
       rewrite NIL; simpl; entailer!.
     +  (* end' <= str = true || str < end' = true (from forward_if) *)
       try apply Z.ltb_lt in IFCON.
