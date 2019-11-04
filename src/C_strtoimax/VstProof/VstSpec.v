@@ -252,85 +252,134 @@ Proof.
         repeat break_if.
         ** forward.
            forward_loop (
-               EX j : Z, 
-                 let i' := (Ptrofs.add str_ofs (Ptrofs.repr (j + 1))) in
-                 PROP(0 <= j < Zlength ls)
+               EX j : Z, EX c : byte,
+                      let i' := Ptrofs.add str_ofs (Ptrofs.repr (j + 1)) in
+                      let ls' := i :: ls in
+                 PROP(0 <= j + 1 < Zlength ls)
                  LOCAL(temp _end (Vptr end_b end_ofs); 
                        temp _intp (Vptr intp_b intp_ofs);
                        temp _str (Vptr end'_b i');
                        temp _value (Vlong (Int64.repr 
                                             (value (Z_of_string
-                                                      (sublist 0 j ls))))))
+                                                      (sublist 0 j ls'))))))
                  SEP(
                    valid_pointer (Vptr end'_b str_ofs) ;
                    valid_pointer (Vptr end'_b end'_ofs) ;
                    valid_pointer (Vptr end'_b i') ;
-                   
-                   (* str |-> sublist 0 j ls *)
 
-                   data_at sh_str (tarray tschar (j + 1))
-                           (map Vbyte (sublist 0 (j + 1) (i::ls)))
-                            (Vptr end'_b str_ofs); 
+                   (* str |-> i *)
+                   
+                   data_at sh_str tschar (Vbyte i)
+                           (Vptr end'_b str_ofs);
+                   
+                   (* str |-> sublist 1 j ls *)
+
+                   data_at sh_str (tarray tschar j)
+                           (map Vbyte (sublist 1 (j + 1) ls))
+                            (Vptr end'_b str_ofs);
                    
                    (* str + j |-> sublist j |ls| ls  *)
 
-                  (* data_at sh_str (tarray tschar (Zlength ls - j))
+                   data_at sh_str (tarray tschar (Zlength ls - j))
                            (map Vbyte (sublist j (Zlength ls) ls))
-                           (Vptr end'_b i') ;  *)
+                           (Vptr end'_b i') ; 
 
-                    data_at sh_str (tarray tschar 
-                                     (Zlength ls - j))
-                      (map Vbyte ls)
-                      (field_address0 (tarray tschar 
-                                              (1 + Zlength ls))
-                                      [ArraySubsc (j + 1)] (Vptr end'_b str_ofs)) ;
-                
                    data_at sh_end (tptr tschar) (Vptr end'_b end'_ofs)
                            (Vptr end_b end_ofs) ;
+                   
                    data_at sh_intp tlong v0 (Vptr intp_b intp_ofs)))
                         
            break: (PROP()
-                  LOCAL( if true then temp _sign (Vint (Int.repr 1))
-                         else temp _sign (Vint (Int.repr (-1)));
+                   LOCAL( if true then temp _sign (Vint (Int.repr 1))
+                          else temp _sign (Vint (Int.repr (-1)));
 
-                       temp _end (Vptr end_b end_ofs); 
-                       temp _intp (Vptr intp_b intp_ofs);
-                       temp _str 
-                             (Vptr end'_b 
-                                   (Ptrofs.add str_ofs 
-                                      (Ptrofs.repr (Zlength ls))));
-                      if true (* TODO *)
-                        then temp _value (Vlong (Int64.repr
-                                  (value (Z_of_string ls))))
-                        else temp _value (Vlong (Int64.repr
-                                  (- value (Z_of_string ls)))))
-                  SEP(valid_pointer (Vptr end'_b end'_ofs) ;
-                      valid_pointer (Vptr end'_b str_ofs) ;
-                      data_at sh_str (tarray tschar (Zlength ls)) 
-                                 (map Vbyte ls) (Vptr end'_b str_ofs) ; 
-                      data_at sh_end (tptr tschar) (Vptr end'_b end'_ofs) 
-                                 (Vptr end_b end_ofs);
-                      data_at sh_intp (tlong) v0 (Vptr intp_b intp_ofs))).
+                          temp _end (Vptr end_b end_ofs); 
+                          temp _intp (Vptr intp_b intp_ofs);
+                          temp _str 
+                               (Vptr end'_b 
+                                     (Ptrofs.add str_ofs 
+                                                 (Ptrofs.repr (Zlength ls))));
+                          if true (* TODO *)
+                          then temp _value (Vlong (Int64.repr
+                                                     (value (Z_of_string ls))))
+                          else temp _value (Vlong (Int64.repr
+                                                     (- value (Z_of_string ls)))))
+                   SEP(valid_pointer (Vptr end'_b end'_ofs) ;
+                       valid_pointer (Vptr end'_b str_ofs) ;
+                       data_at sh_str (tarray tschar (Zlength ls)) 
+                               (map Vbyte ls) (Vptr end'_b str_ofs) ; 
+                       data_at sh_end (tptr tschar) (Vptr end'_b end'_ofs) 
+                               (Vptr end_b end_ofs);
+                       data_at sh_intp (tlong) v0 (Vptr intp_b intp_ofs))).
            ***
-             Exists 0.
+             Exists 0. 
              unfold sep_precondition.
              entailer!.
-             autorewrite with sublist in *|-.
-             rewrite <- LEN.
-             autorewrite with sublist.
-             erewrite <- data_at_singleton_array_eq.
+             eapply andp_right.
              entailer!.
-             auto.
-         *** Intros x.
+             (* ls is non-empty since we are not in EXPECT MORE *)
+             admit.
+             entailer!.
+             repeat  rewrite  <- LENB.
+             autorewrite with sublist in *.
+             rewrite <- LEN.
+             simpl.
+              assert_PROP (Vptr end'_b (Ptrofs.add str_ofs (Ptrofs.repr (1))) =
+                          field_address0 (tarray tschar (1 + Zlength ls))  [ArraySubsc 1]
+                                         (Vptr end'_b str_ofs))
+                          as J.
+             { entailer!.
+               rewrite field_address0_offset.
+               simpl.
+               autorewrite with norm.
+               reflexivity.
+               econstructor.
+               easy.
+               repeat split.
+               simpl.
+               autorewrite with norm.
+               (* Ptrofs.unsigned str_ofs + (1 + Zlength ls) < Ptrofs.modulus *)
+               admit.
+               autorewrite with sublist in *|-.
+               constructor.
+               intros.
+               econstructor.
+               econstructor.
+               simpl.
+               autorewrite with norm.
+               all: try nia || auto with zarith. }
+             rewrite J.
+             entailer!.
+             erewrite data_at_zero_array_eq.
+             entailer!.
+             all: try auto.
+         *** Intros j c.
              forward.
              forward_if.
-             -- admit.
-             -- admit.
-             -- forward.
-                entailer!.
-                admit.
-         *** repeat forward.
-             admit.
+             (* move to a tactic *)
+              { unfold test_order_ptrs; simpl.
+                destruct peq; [simpl|contradiction].
+                apply andp_right.
+                * apply derives_trans with (Q := valid_pointer
+                                      (Vptr end'_b (Ptrofs.add str_ofs (Ptrofs.repr (j + 1))))).
+                  entailer!.
+                  apply valid_pointer_weak.
+                * apply derives_trans with (Q := valid_pointer (Vptr end'_b end'_ofs)).
+                  entailer!.
+                  apply valid_pointer_weak. }
+
+              (* now read a char from (sublist j (Zlength ls) ls) 
+- we know it is of the form h :: tl since : *)
+             assert (Ptrofs.unsigned (Ptrofs.add str_ofs (Ptrofs.repr (j + 1))) <
+                     Ptrofs.unsigned end'_ofs).
+             { (* follows from H3 *)
+               admit. }
+
+             (* then use  rewrite split2_data_at_Tarray_app with (mid := 1) *)
+             
+             all: admit.
+
+         *** admit.
              
         ** admit.
         ** admit.
