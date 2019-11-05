@@ -107,7 +107,6 @@ Definition asn_strtoimax_lim_vst_spec : ident * funspec :=
 
 End VstSpec.
 
-
 (* Proof *)
 
 Lemma typed_true_ptr_ge : forall b ptr1 ptr2, 
@@ -151,15 +150,77 @@ Proof.
 Qed.
 
 
+Proposition split_non_empty_list ls sh b ofs:
+  0 < Zlength ls  -> Ptrofs.unsigned ofs + Zlength ls < Ptrofs.modulus -> exists i ls',
+      data_at sh (tarray tschar (Zlength ls)) (map Vbyte ls) (Vptr b ofs) =
+      data_at sh tschar (Vbyte i) (Vptr b ofs) *
+      data_at sh (tarray tschar (Zlength ls')) (map Vbyte ls')
+              (Vptr b (Ptrofs.add ofs Ptrofs.one)).
+Proof.
+  intros LEN MOD.
+  destruct ls.
+  erewrite (Zlength_nil byte) in LEN; nia.
+  exists i. exists ls.  
+  rewrite semax_lemmas.cons_app in LEN.
+  rewrite semax_lemmas.cons_app with (x := i).
+  rewrite Zlength_app in LEN.
+  assert (Zlength [i] = 1) as SING by reflexivity.
+  assert (Zlength (map Vbyte [i]) = 1) as SINGB by reflexivity.
+  assert (Zlength (map Vbyte ls) = Zlength ls) 
+    as LENB by (apply Zlength_map).
+  rewrite map_app.
+  rewrite split2_data_at_Tarray_app with (mid := 1).
+
+  assert (map Vbyte [i] = [Vbyte i]) as T by reflexivity.
+  pose proof data_at_singleton_array_eq sh tschar (Vbyte i) 
+       (map Vbyte [i]) (Vptr b ofs) T as T1; rewrite T1; clear T T1.
+
+  assert (Vptr b (Ptrofs.add ofs Ptrofs.one) =
+          field_address0 (tarray tschar (Zlength (app [i] ls))) [ArraySubsc 1]
+                         (Vptr b ofs))
+    as J.
+  { 
+    rewrite field_address0_offset.
+    reflexivity.
+    econstructor.
+    easy.
+    repeat split.
+    simpl; autorewrite with norm.
+    eassumption.
+    constructor.
+    intros.
+    repeat econstructor.
+    simpl; autorewrite with norm.
+    reflexivity.
+    all: try nia || auto with zarith.
+    autorewrite with sublist.
+    nia.
+  }
+  rewrite J.
+  replace (Zlength (app [i] ls) - 1) with (Zlength ls).
+  reflexivity.
+  all: try autorewrite with sublist; auto.
+Qed.
+
+  
+           
+
 Definition Gprog := ltac:(with_library prog [asn_strtoimax_lim_vst_spec]).
 
 Lemma body_asn_strtoimax_lim : semax_body Vprog Gprog f_asn_strtoimax_lim
                                           asn_strtoimax_lim_vst_spec.
 Proof.
   start_function.
+  pose (upper_boundary := (Vlong
+         (Int64.divs
+            (Int64.shru (Int64.not (Int64.repr (Int.signed (Int.repr 0))))
+                        (Int64.repr (Int.unsigned (Int.repr 1))))
+            (Int64.repr (Int.signed (Int.repr 10)))))).
   rename H into EQB.
   rename H0 into LEN.
   all: repeat forward; try entailer!.
+  
+           
   1-2: break_and; inversion H7.
 
   destruct Z.ltb eqn:IFCON.
@@ -255,13 +316,14 @@ Proof.
                EX j : Z, EX c : byte,
                       let i' := Ptrofs.add str_ofs (Ptrofs.repr (j + 1)) in
                       let ls' := i :: ls in
-                 PROP(0 <= j + 1 < Zlength ls)
+                 PROP(0 < j + 1 < Zlength ls)
                  LOCAL(temp _end (Vptr end_b end_ofs); 
                        temp _intp (Vptr intp_b intp_ofs);
                        temp _str (Vptr end'_b i');
                        temp _value (Vlong (Int64.repr 
                                             (value (Z_of_string
-                                                      (sublist 0 j ls'))))))
+                                                      (sublist 0 j ls')))));
+                       temp _upper_boundary upper_boundary)
                  SEP(
                    valid_pointer (Vptr end'_b str_ofs) ;
                    valid_pointer (Vptr end'_b end'_ofs) ;
@@ -367,7 +429,6 @@ Proof.
                 * apply derives_trans with (Q := valid_pointer (Vptr end'_b end'_ofs)).
                   entailer!.
                   apply valid_pointer_weak. }
-
               (* now read a char from (sublist j (Zlength ls) ls) 
 - we know it is of the form h :: tl since : *)
              assert (Ptrofs.unsigned (Ptrofs.add str_ofs (Ptrofs.repr (j + 1))) <
@@ -375,8 +436,81 @@ Proof.
              { (* follows from H3 *)
                admit. }
 
-             (* then use  rewrite split2_data_at_Tarray_app with (mid := 1) *)
+             (* now split the data_at to read a char from the array *)
+             remember (sublist j (Zlength ls) ls) as ls'.
+             assert (0 < Zlength ls').
+             { subst.
+               autorewrite with sublist in *|-.
+               autorewrite with sublist.
+               nia. }
+             destruct ls'.
+             erewrite (Zlength_nil byte) in H5.
+             nia.
+             replace (Zlength ls - j) with (Zlength ((i0::ls'))).
+             edestruct split_non_empty_list with (sh := sh_str) (b := end'_b)
+             (ofs := (Ptrofs.add str_ofs (Ptrofs.repr (j + 1)))).
+             eassumption.
+             admit.
+             destruct H6.
+             erewrite H6.
              
+             Intros.
+             forward.
+             
+             forward_if (
+                 PROP ( )
+                      LOCAL (
+                        temp _upper_boundary upper_boundary;
+                        temp _t'2
+                                  (if Byte.signed x >=? 48
+                                  then (Val.of_bool (Byte.signed x <=? 57))
+                                  else  Vfalse) ;
+                 temp _t'7 (Vbyte x); temp _t'9 (Vptr end'_b end'_ofs);
+                 temp _end (Vptr end_b end_ofs); temp _intp (Vptr intp_b intp_ofs);
+                 temp _str (Vptr end'_b (Ptrofs.add str_ofs (Ptrofs.repr (j + 1))));
+                 temp _value (Vlong (Int64.repr (value (Z_of_string (sublist 0 j (i :: ls)))))))
+                 SEP (valid_pointer (Vptr end'_b str_ofs); valid_pointer (Vptr end'_b end'_ofs);
+                      valid_pointer (Vptr end'_b (Ptrofs.add str_ofs (Ptrofs.repr (j + 1))));
+                      data_at sh_str tschar (Vbyte i) (Vptr end'_b str_ofs);
+                      data_at sh_str (tarray tschar j) (map Vbyte (sublist 1 (j + 1) ls)) (Vptr end'_b str_ofs);
+                      data_at sh_str tschar (Vbyte x) (Vptr end'_b (Ptrofs.add str_ofs (Ptrofs.repr (j + 1))));
+                      data_at sh_str (tarray tschar (Zlength x0)) (map Vbyte x0)
+                              (Vptr end'_b (Ptrofs.add (Ptrofs.add str_ofs (Ptrofs.repr (j + 1))) Ptrofs.one));
+                      data_at sh_end (tptr tschar) (Vptr end'_b end'_ofs) (Vptr end_b end_ofs);
+                      data_at sh_intp tlong v0 (Vptr intp_b intp_ofs))). (* TODO *)
+             forward.
+             forward.
+             entailer!.
+             replace (Byte.signed x >=? 48) with true.
+             admit.
+             admit.
+             
+             forward.
+
+             replace (Byte.signed x >=? 48) with false by admit.
+             entailer!.
+
+             forward_if.
+             forward.
+             forward.
+             forward_if.
+             forward.
+             entailer.
+             (* proof that value is bounded *)
+             admit.
+             forward.
+             hint.
+             Exists (j + 1).
+             entailer!.
+             entailer!.
+             repeat split.
+             nia.
+             admit. (* ? *)
+             admit. (* maybe *)
+             entailer!.
+             (* seems wrong *)
+             admit.
+                          
              all: admit.
 
          *** admit.
