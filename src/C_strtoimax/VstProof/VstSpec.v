@@ -224,7 +224,6 @@ Proof.
   destruct Z.ltb eqn:IFCON.
   - (* str < end' = true *)
     all: Intros.
-
     forward_if; apply Z.ltb_lt in IFCON.
     + (* Valid pointer proof *)
       { unfold test_order_ptrs; simpl.
@@ -290,25 +289,30 @@ Proof.
       * (* default case *) 
         admit.
       * (* Loop *)
-        repeat break_if; unfold sep_precondition.
+        repeat break_if;
+          unfold sep_precondition.
         ** forward.
+           remember (Ptrofs.add str_ofs Ptrofs.one) as str_ofs'.
+
+           Definition value j l := 
+             (value (Z_of_string (sublist 0 j l))). 
+
+           remember (Int64.unsigned upper_boundary) as ub.
+           remember (i :: ls) as ls'. 
            forward_loop (
                EX j : Z,
-                 let ub := Int64.unsigned upper_boundary in
                  let i' := Ptrofs.add str_ofs (Ptrofs.repr (j + 1)) in
-                 let ls' := i :: ls in
-                 let value' := (value (Z_of_string (sublist 0 j ls'))) in
-                 PROP(0 < j + 1 < Zlength ls;
+                 PROP(0 < j + 1 < Zlength ls';
                       Ptrofs.unsigned str_ofs + j + 1 < Ptrofs.modulus)
                  LOCAL(temp _end (Vptr end_b end_ofs); 
                        temp _intp (Vptr intp_b intp_ofs);
                        temp _str (Vptr end'_b i');
 
-                       if Z.abs value' <? Int64.unsigned upper_boundary
-                       then temp _value (Vlong (Int64.repr (Z.abs value')))
-                       else temp _value (Vlong (Int64.repr value')) ;
+                       if Z.abs (value j ls') <? ub
+                       then temp _value (Vlong (Int64.repr (Z.abs (value j ls'))))
+                       else temp _value (Vlong (Int64.repr (value j ls'))) ;
 
-                       if Z.abs value' <? Int64.unsigned upper_boundary
+                       if Z.abs (value j ls') <? ub
                        then temp _sign (Vint (Int.repr (-1)))
                        else temp _sign (Vint (Int.repr 1));
                        
@@ -318,20 +322,20 @@ Proof.
                  SEP(
                    valid_pointer (Vptr end'_b str_ofs) ;
                    valid_pointer (Vptr end'_b end'_ofs) ;
-                   valid_pointer (Vptr end'_b i') ;
+                   (* valid_pointer (Vptr end'_b i') ; *)
 
                    (* str |-> i *)                  
                    data_at sh_str tschar (Vbyte i)
                            (Vptr end'_b str_ofs);
                    
-                   (* str |-> sublist 1 (j + 1) ls *)
+                   (* str + 1 |-> sublist 1 (j + 1) ls *)
                    data_at sh_str (tarray tschar j)
-                           (map Vbyte (sublist 1 (j + 1) ls))
-                            (Vptr end'_b str_ofs);
+                           (map Vbyte (sublist 1 (j + 1) ls'))
+                            (Vptr end'_b (Ptrofs.add str_ofs Ptrofs.one));
                    
-                   (* str + j |-> sublist j |ls| ls  *)
-                   data_at sh_str (tarray tschar (Zlength ls - j))
-                           (map Vbyte (sublist j (Zlength ls) ls))
+                   (* str + j + 1 |-> sublist (j + 1) |ls'| ls'  *)
+                   data_at sh_str (tarray tschar (Zlength ls' - j - 1))
+                           (map Vbyte (sublist (j + 1) (Zlength ls') ls'))
                            (Vptr end'_b i') ; 
 
                    data_at sh_end (tptr tschar) (Vptr end'_b end'_ofs)
@@ -339,85 +343,22 @@ Proof.
                    
                    data_at sh_intp tlong v (Vptr intp_b intp_ofs)))
                         
-           break: (let ub := Int64.unsigned upper_boundary in
-                   let value' := (value (Z_of_string ls)) in
-                
-                 PROP()
-                 LOCAL(
-                   if Z.abs value' <? ub
-                   then temp _sign (Vint (Int.repr (-1)))
-                   else temp _sign (Vint (Int.repr 1));
-
-                   if Z.abs value' <? ub
-                   then temp _value (Vlong (Int64.repr (Z.abs value')))
-                   else temp _value (Vlong (Int64.repr value')) ;
-
-                   temp _end (Vptr end_b end_ofs); 
-                   temp _intp (Vptr intp_b intp_ofs);
-                   temp _str (Vptr end'_b 
-                              (Ptrofs.add str_ofs 
-                                          (Ptrofs.repr (Zlength ls)))))
-
-                   SEP(
-                    valid_pointer (Vptr end'_b end'_ofs) ;
-                    valid_pointer (Vptr end'_b str_ofs) ;
-                    data_at sh_str (tarray tschar (Zlength ls)) 
-                            (map Vbyte ls) (Vptr end'_b str_ofs) ; 
-                    data_at sh_end (tptr tschar) (Vptr end'_b end'_ofs) 
-                            (Vptr end_b end_ofs);
-                    data_at sh_intp (tlong) v (Vptr intp_b intp_ofs))).
+           break: (PROP() LOCAL() SEP()). (* see previous commits *)
            ***
              Exists 0.
-             (* simpl breaks forward *)
-             assert (
-
-ENTAIL Delta,
-  PROP ( )
-  LOCAL (temp _value (Vlong (Int64.repr (Int.signed (Int.repr 0))));
-  temp _sign (Vint (Int.repr (-1)));
-  temp _str (Vptr end'_b (Ptrofs.add str_ofs (Ptrofs.repr 1))); temp _end (Vptr end_b end_ofs);
-  temp _intp (Vptr intp_b intp_ofs);
-  temp _last_digit_max (Vlong (Int64.add last_digit_max Int64.one));
-  temp _upper_boundary (Vlong upper_boundary))
-  SEP (valid_pointer (Vptr end'_b end'_ofs); valid_pointer (Vptr str_b str_ofs);
-  data_at sh_str tschar (Vbyte i) (Vptr str_b str_ofs);
-  data_at sh_str (tarray tschar (Zlength ls)) (map Vbyte ls)
-    (Vptr str_b (Ptrofs.add str_ofs Ptrofs.one));
-  data_at sh_end (tptr tschar) (Vptr end'_b end'_ofs) (Vptr end_b end_ofs);
-  data_at sh_intp tlong v (Vptr intp_b intp_ofs))
-
-   |--
-
-   (PROP (0 < 1 < Zlength ls; Ptrofs.unsigned str_ofs + 0 + 1 < Ptrofs.modulus)
-       LOCAL (temp _end (Vptr end_b end_ofs); temp _intp (Vptr intp_b intp_ofs);
-       temp _str (Vptr end'_b (Ptrofs.add str_ofs (Ptrofs.repr 1)));
-       if 0 <? Int64.unsigned upper_boundary
-       then temp _value (Vlong (Int64.repr 0))
-       else temp _value (Vlong (Int64.repr 0));
-       if 0 <? Int64.unsigned upper_boundary
-       then temp _sign (Vint (Int.repr (-1)))
-       else temp _sign (Vint (Int.repr 1)); temp _upper_boundary (Vlong upper_boundary);
-       temp _last_digit_max (Vlong (Int64.add last_digit_max Int64.one)))
-       SEP (valid_pointer (Vptr end'_b str_ofs); valid_pointer (Vptr end'_b end'_ofs);
-       valid_pointer (Vptr end'_b (Ptrofs.add str_ofs (Ptrofs.repr 1)));
-       data_at sh_str tschar (Vbyte i) (Vptr end'_b str_ofs);
-       data_at sh_str (tarray tschar 0) [] (Vptr end'_b str_ofs);
-       data_at sh_str (tarray tschar (Zlength ls - 0)) (map Vbyte (sublist 0 (Zlength ls) ls))
-         (Vptr end'_b (Ptrofs.add str_ofs (Ptrofs.repr 1)));
-       data_at sh_end (tptr tschar) (Vptr end'_b end'_ofs) (Vptr end_b end_ofs);
-       data_at sh_intp tlong v (Vptr intp_b intp_ofs)))
-               ).
-             
-             replace (0 <? Int64.unsigned upper_boundary) with true.
+             replace (Z.abs (value 0 ls') <? ub) with true.
              entailer!.
-             autorewrite with sublist in *|-.
-             repeat rewrite  <- LENB.
-             autorewrite with sublist in *.
+             autorewrite with sublist.
+             auto with zarith.
              erewrite data_at_zero_array_eq.
+             replace (Zlength (i :: ls) - 0 - 1) with (Zlength ls).
+             replace (sublist 1 (Zlength (i :: ls)) (i :: ls)) with ls.
              entailer!.
-             admit.
-             all: try auto.
-           
+             all: try (erewrite sublist_1_cons || autorewrite with sublist);
+             autorewrite with sublist; (reflexivity || auto with zarith || auto).
+             subst.
+             unfold upper_boundary.
+             normalize.
          *** Intros j.
            break_if.
         ++
