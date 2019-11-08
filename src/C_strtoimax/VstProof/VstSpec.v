@@ -144,17 +144,6 @@ Qed.
 
 Arguments valid_pointer p : simpl never.
 
-Lemma extend_weak_valid_pointer : forall b ofs P, 
-    valid_pointer (Vptr b ofs) * P |-- weak_valid_pointer (Vptr b ofs).
-Proof.
-  intros.
-  pose proof valid_pointer_weak (Vptr b ofs).
-  apply derives_trans with (Q := valid_pointer (Vptr b ofs)).
-  entailer!.
-  eassumption.
-Qed.
-
-
 Proposition split_non_empty_list i ls' ls sh b ofs:
       ls = i::ls'  -> Ptrofs.unsigned ofs + Zlength ls < Ptrofs.modulus -> 
       data_at sh (tarray tschar (Zlength ls)) (map Vbyte ls) (Vptr b ofs) =
@@ -401,8 +390,23 @@ Proof.
              { subst.
                autorewrite with sublist in *|-.
                autorewrite with sublist.
-               (* follows from H5 *)
-               admit. }
+               unfold typed_true, force_val, sem_cmp_pp in H5; simpl in H5.
+               destruct eq_block in H5; [simpl in H5|discriminate].
+               unfold Ptrofs.ltu in H5.
+               destruct zlt in H5; [simpl in H5|discriminate].
+               unfold Ptrofs.add in l. 
+               rewrite Ptrofs.unsigned_repr with (z := j) in l.
+               rewrite Ptrofs.unsigned_repr with (z := 
+                                                    (Ptrofs.unsigned str_ofs + 
+                                                     Ptrofs.unsigned Ptrofs.one)) 
+                 in l.
+               rewrite Ptrofs.unsigned_repr in l.
+               all: unfold Ptrofs.add in H4; rewrite Ptrofs.unsigned_repr in H4.
+               all: replace (Ptrofs.unsigned Ptrofs.one) with 1 in * by reflexivity.
+               lia.
+               all: rewrite <-initialize.max_unsigned_modulus in *.
+               all: pose proof Ptrofs.unsigned_range str_ofs. 
+               all: try lia. }
              destruct ls''.
              try erewrite (Zlength_nil byte) in *.
              nia.
@@ -468,6 +472,18 @@ Proof.
            { forward.
              entailer!.
              (* use lemma  lt_ub_bounded *)
+             {
+               all: unfold typed_true, strict_bool_val in H7.
+               break_if; simpl in H7;[|discriminate].
+               unfold Val.of_bool in H7.
+               destruct (Byte.signed i0 <=? 57) eqn:I057; simpl in H7; [|discriminate].
+               unfold value_until, Z_of_string.
+               destruct (sublist 0 j ls) eqn:SB.
+               cbn.
+               replace (Int64.signed (Int64.repr 0)) with 0 by reflexivity.
+               rewrite Z.geb_le, Z.leb_le in *.
+               lia.
+             }
              admit.
              forward.
              (* show that loop invariant holds after the loop *)
