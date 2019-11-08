@@ -302,13 +302,13 @@ Proof.
            forward_loop (
                EX j : Z, EX vl : Z, 
                  let i' := Ptrofs.add str_ofs' (Ptrofs.repr j) in
-                 PROP(0 <= j < Zlength ls;
+                 PROP(0 <= j <= Zlength ls;
                       Ptrofs.unsigned str_ofs' + j < Ptrofs.modulus)
                  LOCAL(temp _end (Vptr end_b end_ofs); 
                        temp _intp (Vptr intp_b intp_ofs);
                        temp _str (Vptr end'_b i');
                        temp _value (Vlong (Int64.repr (value_until j ls))) ;
-                       temp _sign (Vint (Int.repr (-1))); (* ignore sign change for now *)
+                       temp _sign (Vint (Int.repr (-1)));
                        temp _upper_boundary (Vlong upper_boundary);
                        temp _last_digit_max
                             (Vlong (Int64.add last_digit_max Int64.one)))
@@ -336,16 +336,22 @@ Proof.
                    
                    data_at sh_intp tlong v (Vptr intp_b intp_ofs)))
                
-           (* Fix break condition *)         
-           break: (PROP()
-                  LOCAL(
-                   if (value (Z_of_string ls)) <? ub
+           (* FIX break condition *)         
+           break: (EX j : Z, 
+                   PROP()
+                   LOCAL(
+                   if (Ptrofs.unsigned str_ofs' + j >=? Zlength ls)
+                   then  temp _value (Vlong (Int64.repr ((value (Z_of_string ls)))))
+                   else  if (value (Z_of_string ls)) <? ub
+                         then temp _value (Vlong (Int64.repr ((value (Z_of_string ls)))))
+                         else temp _value (Vlong (Int64.repr (-(value (Z_of_string ls)))));
+                   
+                   if (Ptrofs.unsigned str_ofs' + j >=? Zlength ls)
+                   then temp _sign (Vint (Int.repr (-1)))
+                   else if (value (Z_of_string ls)) <? ub
                    then temp _sign (Vint (Int.repr (-1)))
                    else temp _sign (Vint (Int.repr 1));
 
-                   if (value (Z_of_string ls)) <? ub
-                   then temp _value (Vlong (Int64.repr ((value (Z_of_string ls)))))
-                   else temp _value (Vlong (Int64.repr (-(value (Z_of_string ls)))));
 
                    temp _end (Vptr end_b end_ofs); 
                    temp _intp (Vptr intp_b intp_ofs);
@@ -385,6 +391,7 @@ Proof.
                                                         (Ptrofs.add str_ofs Ptrofs.one) 
                                                         (Ptrofs.repr j)))).
                  entailer!.
+                 admit.
                  apply valid_pointer_weak.
                * apply derives_trans with (Q := valid_pointer (Vptr end'_b end'_ofs)).
                  entailer!.
@@ -394,7 +401,8 @@ Proof.
              { subst.
                autorewrite with sublist in *|-.
                autorewrite with sublist.
-               nia. }
+               (* follows from H5 *)
+               admit. }
              destruct ls''.
              try erewrite (Zlength_nil byte) in *.
              nia.
@@ -413,147 +421,202 @@ Proof.
              forward.
              forward.
              entailer!.
-             replace (Byte.signed i0 >=? 48) with true.
-             admit.
-             admit.
-             
-             forward.
 
-             replace (Byte.signed i0 >=? 48) with false by admit.
+             { destruct (Byte.signed i0 >=? 48) eqn : I48.
+               destruct (Byte.signed i0 <=? 57) eqn : I57.
+               destruct (negb (Int.lt (Int.repr 57)
+                                      (Int.repr (Byte.signed i0)))) eqn : LT.
+               reflexivity.
+               unfold Int.lt in *.
+               destruct zlt.
+               eapply Zle_bool_imp_le in I57.
+               autorewrite with norm in *.
+               nia.
+               easy.
+               destruct (negb (Int.lt (Int.repr 57) 
+                                      (Int.repr (Byte.signed i0)))) eqn : LT.
+               unfold Int.lt in *.
+               destruct zlt.
+               easy.
+               eapply Z.leb_gt in I57.
+               autorewrite with norm in *.
+               nia.
+               reflexivity.
+               eapply Z.ge_le in H7.
+               rewrite Z.geb_leb in *.
+               eapply Zle_imp_le_bool in H7.
+               rewrite H7 in I48. 
+               easy.
+             }
+
+             forward.
              entailer!.
+
+             { break_if.
+               rewrite Z.geb_leb in *.
+               try rewrite <- Zle_is_le_bool in *.
+               nia.
+               reflexivity. }
+
 
              forward_if.
              forward.
              forward.
              forward_if.
-              (* vl < ub *)
-             forward.
+               
+            (* Case:  vl < ub *)
+           { forward.
              entailer!.
-             (* true, need a lemma *)
+             (* use lemma  lt_ub_bounded *)
              admit.
              forward.
-             normalize.
-             (* we are in case vl < ub, 
-                need to show that loop invariant holds after the loop *)
+             (* show that loop invariant holds after the loop *)
              Exists (j + 1) (value_until (j + 1) ls).
              entailer!.
              repeat split; try nia.
-             admit. (* not sure how to prove this, see verif_strlib - similar goal *) 
              (* true *)
+             (* follows from H5 *)
              admit.
-             (* true *)
+             (* true, since j + 1 <= Zlength ls and H1 *)
+             admit.
+             (* true, use next_value lemma *)
              admit.
              (*true *)
-             admit.
+             admit. }
+
              forward_if.
-             (* vl == ub *)
-             forward_if.
+           (* vl == ub *)
+           { forward_if.
              (* d <= last_digit_max *)
-             forward_if 
-                (PROP ( )
+             { forward_if 
+                 (PROP ( )
      LOCAL (
+       temp _value (Vlong (Int64.repr (- (value_until j ls) * 10 - (Byte.signed i0 - 48))));
+       temp _sign (Vint (Int.repr 1));
 
-     temp _value (Vlong (Int64.repr ( -vl * 10 - (Byte.signed i0 - 48))));
-     temp _sign (Vint (Int.repr 1));
-
-     temp _d (Vint (Int.sub (Int.repr (Byte.signed i0)) (Int.repr 48)));
-     temp _t'6 (Vbyte i0);
-     temp _t'2 (if Byte.signed i0 >=? 48 then Val.of_bool (Byte.signed i0 <=? 57) else Vfalse);
-     temp _t'7 (Vbyte i0); temp _t'9 (Vptr end'_b end'_ofs); temp _end (Vptr end_b end_ofs);
-     temp _intp (Vptr intp_b intp_ofs);
-     temp _str (Vptr end'_b (Ptrofs.add str_ofs' (Ptrofs.repr j)));
-     
-     temp _upper_boundary (Vlong upper_boundary);
-     temp _last_digit_max (Vlong (Int64.add last_digit_max Int64.one)))
-     SEP (valid_pointer (Vptr end'_b str_ofs); valid_pointer (Vptr end'_b end'_ofs);
-     data_at sh_str tschar (Vbyte i) (Vptr end'_b str_ofs);
-     data_at sh_str (tarray tschar j) (map Vbyte (sublist 1 (j + 1) ls')) (Vptr end'_b str_ofs');
-     data_at sh_str tschar (Vbyte i0) (Vptr end'_b (Ptrofs.add str_ofs' (Ptrofs.repr j)));
-     data_at sh_str (tarray tschar (Zlength ls'')) (map Vbyte ls'')
-       (Vptr end'_b (Ptrofs.add (Ptrofs.add str_ofs' (Ptrofs.repr j)) Ptrofs.one));
-     data_at sh_end (tptr tschar) (Vptr end'_b end'_ofs) (Vptr end_b end_ofs);
-     data_at sh_intp tlong v (Vptr intp_b intp_ofs))).
-             (* 0 < s *)
-
+       temp _d (Vint (Int.sub (Int.repr (Byte.signed i0)) (Int.repr 48)));
+       temp _t'6 (Vbyte i0);
+       temp _t'2 (if Byte.signed i0 >=? 48 
+                  then Val.of_bool (Byte.signed i0 <=? 57) 
+                  else Vfalse);
+       temp _t'7 (Vbyte i0); temp _t'9 (Vptr end'_b end'_ofs); 
+       temp _end (Vptr end_b end_ofs);
+       temp _intp (Vptr intp_b intp_ofs);
+       temp _str (Vptr end'_b (Ptrofs.add str_ofs' (Ptrofs.repr j)));
+       
+       temp _upper_boundary (Vlong upper_boundary);
+       temp _last_digit_max (Vlong (Int64.add last_digit_max Int64.one)))
+     SEP (
+       valid_pointer (Vptr end'_b str_ofs);
+       valid_pointer (Vptr end'_b end'_ofs);
+       data_at sh_str tschar (Vbyte i) (Vptr end'_b str_ofs);
+       data_at sh_str (tarray tschar j) (map Vbyte (sublist 1 (j + 1) ls')) (Vptr end'_b str_ofs');
+       data_at sh_str tschar (Vbyte i0) (Vptr end'_b (Ptrofs.add str_ofs' (Ptrofs.repr j)));
+       data_at sh_str (tarray tschar (Zlength ls'')) (map Vbyte ls'')
+               (Vptr end'_b (Ptrofs.add (Ptrofs.add str_ofs' (Ptrofs.repr j)) Ptrofs.one));
+       data_at sh_end (tptr tschar) (Vptr end'_b end'_ofs) (Vptr end_b end_ofs);
+       data_at sh_intp tlong v (Vptr intp_b intp_ofs))).
+             
+               (* 0 < s *)
+              easy. 
+               (* s = -1 *)
              forward.
-
-             (* s = -1 *)
-             entailer!.
-             forward.
              forward.
              entailer!.
-             admit. (* error: DEBUG THIS *)
-             entailer!.
-             (* true *)
+             (* typecheck error: DEBUG THIS *)
              admit.
+             entailer!.
+             (* true, data_at_succ_sublist lemma *)
              admit.
+             
              repeat forward.
-
              forward_if.
-             entailer!.
+             (* compare pointers *)
              admit.
              (* str + j + 1 < end *)
+             admit. (* break list to read as before
+                       + see VC for tactics *)
 
-             admit. (* break list to read - see VC for tactics *)
-
-             (* str + j + 1 >= end *)
+             (* BREAK: str + j + 1 >= end *)
              forward.
-             
-             
+            
              (* post-if implies break condition *)
-             { replace (value (Z_of_string ls) <? ub) with false.
+             { Exists j.
+               replace (Ptrofs.unsigned str_ofs' + (j) >=? Zlength ls)
+                       with false by admit. (* H5 *)
+               replace (value (Z_of_string ls) <? ub) with false by admit.
+               (* H9 and H10 *)
                entailer!.
                split.
-               admit. (* add a lemma *)
-               (* follows from H11 *)
+               (* lemma *)
                admit. 
-               entailer!.
-               (* put back the list *)
-               admit.
                (* since we are in the upper limit case *)
                admit.
+               admit.
              }
-             
+
+             } (* end of vl = ub && d <= last_digit *)
+
              (* vl = ub && d > ld, out of range *)
+             { 
              forward.
              forward.
              entailer!.
-             (* from H9 and H10 *)
+             (* from H9 and H10, lemma ub_last_digit_error_range *)
              admit.
-             (* true : from H9 and H10, need lemma about index *)
-             admit.
+             (* true : from H9 and H10,  ub_last_digit_error_range_index *)
+             admit. }
+             } (* end of case vl = ub && d > last_digit *)
 
+             (* case vl > ub *) 
+             {
              repeat forward.
              entailer!.
-             (* true, from H8 and H9 *)
+             (* true, from H8 and H9, ub_last_digit_error_range *)
              admit.
-              repeat forward.
-             entailer!.
-             admit.
+             (*  ub_last_digit_error_range_index *)
+             admit. }
 
              (* i0 non-digit: extra data *)
-             repeat forward.
+           { repeat forward.
              entailer!.
+             (* lemma value_always_bounded *)
              admit.
              entailer!.
              (* from H7 *)
              admit.
-             (* true from Heqls'' *)
-             admit.
+             (* true extra_data_index *)
+             admit. }
+
              reflexivity.
+             (* true, from Heqls'' and H! *)
              admit.
+             (* true, from Heqls'' *)
              admit.
-             
-             (* str + 1 + j >= end *)
+  
+             (* BREAK : str + 1 + j >= end *)
              forward.
              
              (* post entails break : check TODO *)
-             admit.
+             { Exists j.
+               replace (Ptrofs.unsigned str_ofs' + j >=? Zlength ls)
+                       with true by admit. (* H5 *)
+               entailer!.
+               split.
+               repeat f_equal.
+               unfold value_until.
+               autorewrite with sublist.
+               (* since str + 1 + j >= end, ls = sublist 0 j ls *)
+              admit.
+              admit.
+              admit.
+             }
            *** (* BREAK IMPLIES THE REST OF THE FUNCTION *)
              admit.
-             
         ** admit.
         ** admit.
+        * reflexivity.
+        * eassumption.
   - (* str >= end *)
     all: try apply Z.ltb_ge in IFCON.
     forward_if.

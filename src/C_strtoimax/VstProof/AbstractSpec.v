@@ -53,7 +53,7 @@ Section AbstractSpec.
   }.
 
   Definition Z_of_string (s : list byte) : Z_of_string_result :=
-    let fix Z_of_string_loop s v i sg :=
+    let fix Z_of_string_loop s v i :=
         match s with
         | [] => {| res := ASN_STRTOX_OK ;
                    value := v ;
