@@ -294,26 +294,21 @@ Proof.
         ** forward.
            remember (Ptrofs.add str_ofs Ptrofs.one) as str_ofs'.
 
-           Definition value j l := 
+           Definition value_until j l := 
              (value (Z_of_string (sublist 0 j l))). 
 
            remember (Int64.unsigned upper_boundary) as ub.
            remember (i :: ls) as ls'.
            forward_loop (
-               EX j : Z, EX vl : Z, EX s : Z,
+               EX j : Z, EX vl : Z, 
                  let i' := Ptrofs.add str_ofs' (Ptrofs.repr j) in
                  PROP(0 <= j < Zlength ls;
-                      Ptrofs.unsigned str_ofs' + j < Ptrofs.modulus;
-                      vl = value j ls';
-                      0 <= vl;
-                      s = 1 \/ s = -1;
-                      s = 1 -> vl >= ub
-                     )
+                      Ptrofs.unsigned str_ofs' + j < Ptrofs.modulus)
                  LOCAL(temp _end (Vptr end_b end_ofs); 
                        temp _intp (Vptr intp_b intp_ofs);
                        temp _str (Vptr end'_b i');
-                       temp _value (Vlong (Int64.repr vl)) ;
-                       temp _sign (Vint (Int.repr s));
+                       temp _value (Vlong (Int64.repr (value_until j ls))) ;
+                       temp _sign (Vint (Int.repr (-1))); (* ignore sign change for now *)
                        temp _upper_boundary (Vlong upper_boundary);
                        temp _last_digit_max
                             (Vlong (Int64.add last_digit_max Int64.one)))
@@ -340,10 +335,34 @@ Proof.
                            (Vptr end_b end_ofs) ;
                    
                    data_at sh_intp tlong v (Vptr intp_b intp_ofs)))
-                        
-           break: (PROP() LOCAL() SEP()). (* see previous commits *)
+               
+           (* Fix break condition *)         
+           break: (PROP()
+                  LOCAL(
+                   if (value (Z_of_string ls)) <? ub
+                   then temp _sign (Vint (Int.repr (-1)))
+                   else temp _sign (Vint (Int.repr 1));
+
+                   if (value (Z_of_string ls)) <? ub
+                   then temp _value (Vlong (Int64.repr ((value (Z_of_string ls)))))
+                   else temp _value (Vlong (Int64.repr (-(value (Z_of_string ls)))));
+
+                   temp _end (Vptr end_b end_ofs); 
+                   temp _intp (Vptr intp_b intp_ofs);
+                   temp _str (Vptr end'_b 
+                              (Ptrofs.add str_ofs 
+                                          (Ptrofs.repr (Zlength ls)))))
+
+                   SEP(
+                    valid_pointer (Vptr end'_b end'_ofs);
+                    valid_pointer (Vptr end'_b str_ofs);
+                    data_at sh_str (tarray tschar (Zlength ls)) 
+                            (map Vbyte ls) (Vptr end'_b str_ofs); 
+                    data_at sh_end (tptr tschar) (Vptr end'_b end'_ofs) 
+                            (Vptr end_b end_ofs);
+                    data_at sh_intp (tlong) v (Vptr intp_b intp_ofs))).
            ***
-             Exists 0 0 (-1).
+             Exists 0 0.
              entailer!.
              autorewrite with sublist.
              auto with zarith.
@@ -354,7 +373,7 @@ Proof.
              entailer!.
              all: try (erewrite sublist_1_cons || autorewrite with sublist);
              autorewrite with sublist; (reflexivity || auto with zarith || auto).
-         *** Intros j vl s.
+         *** Intros j vl.
              forward.
              forward_if.
              (* move to a tactic *)
@@ -407,13 +426,16 @@ Proof.
              forward.
              forward.
              forward_if.
+              (* vl < ub *)
              forward.
              entailer!.
              (* true, need a lemma *)
              admit.
              forward.
              normalize.
-             Exists (j + 1) (vl * 10 + (Byte.signed i0 - 48)) (-1).
+             (* we are in case vl < ub, 
+                need to show that loop invariant holds after the loop *)
+             Exists (j + 1) (value_until (j + 1) ls).
              entailer!.
              repeat split; try nia.
              admit. (* not sure how to prove this, see verif_strlib - similar goal *) 
@@ -423,14 +445,6 @@ Proof.
              admit.
              (*true *)
              admit.
-             destruct H7.
-             subst.
-             (* contradiction H11 an H7 *)
-             admit.
-             subst; reflexivity.
-             (* true *)
-             admit.
- 
              forward_if.
              (* vl == ub *)
              forward_if.
@@ -439,9 +453,7 @@ Proof.
                 (PROP ( )
      LOCAL (
 
-     temp _value (Vlong (Int64.repr 
-                           (if s =? 1 then (vl * 10 + (Byte.signed i0 - 48))
-                           else (- vl * 10 - (Byte.signed i0 - 48)))));
+     temp _value (Vlong (Int64.repr ( -vl * 10 - (Byte.signed i0 - 48))));
      temp _sign (Vint (Int.repr 1));
 
      temp _d (Vint (Int.sub (Int.repr (Byte.signed i0)) (Int.repr 48)));
@@ -464,68 +476,77 @@ Proof.
              (* 0 < s *)
 
              forward.
-             entailer!.
-             (* true *)
-             admit.
-              replace (s =? 1) with true by admit. (* from H15 and H7 *)
-             entailer!.
-             assert ( s = 1) by nia; subst.
-             reflexivity.
-             (* true *)
-             admit.
-             
-             (* s = -1 *)
 
+             (* s = -1 *)
+             entailer!.
              forward.
              forward.
              entailer!.
-             (* DEBUG THIS *)
-             admit.
-             
-             replace (s =? 1) with false by admit. (* from H15 and H7 *)
+             admit. (* error: DEBUG THIS *)
              entailer!.
              (* true *)
+             admit.
              admit.
              repeat forward.
 
              forward_if.
+             entailer!.
              admit.
              (* str + j + 1 < end *)
-             forward.
-             admit.
+
+             admit. (* break list to read - see VC for tactics *)
 
              (* str + j + 1 >= end *)
              forward.
-             (* post-if implies break condition *)
-             admit.
              
-             (* out of range *)
+             
+             (* post-if implies break condition *)
+             { replace (value (Z_of_string ls) <? ub) with false.
+               entailer!.
+               split.
+               admit. (* add a lemma *)
+               (* follows from H11 *)
+               admit. 
+               entailer!.
+               (* put back the list *)
+               admit.
+               (* since we are in the upper limit case *)
+               admit.
+             }
+             
+             (* vl = ub && d > ld, out of range *)
              forward.
              forward.
              entailer!.
-             (* from H13 and H14 *)
+             (* from H9 and H10 *)
              admit.
-             (* true : from H13 and H14, need lemma about index *)
+             (* true : from H9 and H10, need lemma about index *)
              admit.
 
              repeat forward.
-             (* true, from H12 and H13 *)
+             entailer!.
+             (* true, from H8 and H9 *)
+             admit.
+              repeat forward.
+             entailer!.
              admit.
 
              (* i0 non-digit: extra data *)
              repeat forward.
              entailer!.
              admit.
-             (* true *)
-             admit.
-             reflexivity.
-             (* true *)
+             entailer!.
+             (* from H7 *)
              admit.
              (* true from Heqls'' *)
+             admit.
+             reflexivity.
+             admit.
              admit.
              
              (* str + 1 + j >= end *)
              forward.
+             
              (* post entails break : check TODO *)
              admit.
            *** (* BREAK IMPLIES THE REST OF THE FUNCTION *)
