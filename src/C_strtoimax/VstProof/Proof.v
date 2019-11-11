@@ -100,7 +100,7 @@ Proof.
            remember (Ptrofs.add str_ofs Ptrofs.one) as str_ofs'.
 
            Definition value_until j l := 
-             (value (Z_of_string (sublist 0 j l))). 
+             (value (Z_of_string (sublist 0 j l))).
 
            remember (Int64.unsigned upper_boundary) as ub.
            remember (i :: ls) as ls'.
@@ -208,7 +208,6 @@ Proof.
                    replace end'_ofs with (Ptrofs.repr (Ptrofs.unsigned end'_ofs))
                      by auto with ints.
                    f_equal.
-                   Search Ptrofs.repr.
                    rewrite Ptrofs.unsigned_repr_eq.
                    rewrite Zmod_small.
                    nia.
@@ -287,22 +286,17 @@ Proof.
                rewrite H7 in I48. 
                easy.
              }
-
              forward.
              entailer!.
-
              { break_if.
                rewrite Z.geb_leb in *.
                try rewrite <- Zle_is_le_bool in *.
                nia.
                reflexivity. }
-
-
              forward_if.
              forward.
              forward.
              forward_if.
-               
             (* Case:  vl < ub *)
            { forward.
              entailer!.
@@ -321,6 +315,7 @@ Proof.
                admit.
              }
              forward.
+             
              (* show that loop invariant holds after the loop *)
              Exists (j + 1) (value_until (j + 1) ls).
              entailer!.
@@ -353,7 +348,7 @@ Proof.
        temp _t'7 (Vbyte i0); temp _t'9 (Vptr end'_b end'_ofs); 
        temp _end (Vptr end_b end_ofs);
        temp _intp (Vptr intp_b intp_ofs);
-       temp _str (Vptr end'_b (Ptrofs.add str_ofs' (Ptrofs.repr j)));
+       temp _str (Vptr end'_b (Ptrofs.add str_ofs (Ptrofs.repr (j + 1))));
        
        temp _upper_boundary (Vlong upper_boundary);
        temp _last_digit_max (Vlong (Int64.add last_digit_max Int64.one)))
@@ -377,13 +372,78 @@ Proof.
              (* typecheck error: DEBUG THIS *)
              admit.
              entailer!.
-             admit
-             (* true, data_at_succ_sublist lemma *)
              admit.
+             (* true, data_at_succ_sublist lemma *)
+          
              
              repeat forward.
              forward_if.
              (* compare pointers *)
+             { replace ls'' with (sublist (j + 1) (Zlength ls) ls).
+               autorewrite with sublist.
+               replace (Zlength (sublist (j + 1) (Zlength ls) ls)) with (Zlength ls - j - 1).
+               
+               unfold test_order_ptrs; simpl.
+               destruct peq; [simpl|contradiction].
+               apply andp_right.
+                destruct (Z_lt_le_dec (j + 1) (Zlength ls)).
+               * apply derives_trans with (Q := valid_pointer
+                                                  (Vptr end'_b
+                                                        (Ptrofs.add
+                                                           (Ptrofs.add
+                                                              str_ofs Ptrofs.one)
+                                                           (Ptrofs.repr (j + 1))))).
+                 entailer!.
+                 replace (Ptrofs.add (Ptrofs.add str_ofs (Ptrofs.repr (j + 1))) Ptrofs.one)
+                   with
+                     (Ptrofs.add (Ptrofs.add str_ofs Ptrofs.one) (Ptrofs.repr (j + 1))).
+                 entailer!.
+                 rewrite Ptrofs.add_assoc.
+                 rewrite Ptrofs.add_assoc.
+                 f_equal.
+                 rewrite Ptrofs.add_commut.
+                 reflexivity.
+                 replace (Ptrofs.add (Ptrofs.add str_ofs Ptrofs.one) (Ptrofs.repr (j + 1)))
+                   with
+                     (Ptrofs.add str_ofs (Ptrofs.repr (j + 1 + 1))).
+                 apply valid_pointer_weak.
+                 admit. (* maybe change back LI for str_ofs' + j *)
+               * apply derives_trans with (Q := valid_pointer (Vptr end'_b end'_ofs)).
+                 entailer!.
+                 replace end'_ofs with (Ptrofs.add str_ofs (Ptrofs.repr (j + 1 + 1))).
+                 apply valid_pointer_weak.
+                 { assert (j < Zlength ls) by admit. (* Clt lemma *)
+                   autorewrite with sublist in LEN.
+                   replace (Zlength ls) with (j + 1) in LEN by nia.
+                   assert (Ptrofs.unsigned str_ofs + j + 1 + 1 = Ptrofs.unsigned end'_ofs)
+                     by nia.
+                   unfold Ptrofs.add.
+                   replace end'_ofs with (Ptrofs.repr (Ptrofs.unsigned end'_ofs))
+                     by auto with ints.
+                   f_equal.
+                   rewrite Ptrofs.unsigned_repr_eq.
+                   rewrite Zmod_small.
+                   nia.
+                   assert (0 <= Ptrofs.unsigned str_ofs).
+                   destruct str_ofs.
+                   unfold Ptrofs.unsigned.
+                   simpl.
+                   all: try nia.
+                   assert (Zlength ls = j + 1) by nia.
+                   autorewrite with sublist in H1.
+                   replace (Zlength ls) with (j + 1) in H1 by nia.
+                   rep_omega_setup.
+                   nia.
+                 }
+               * apply derives_trans with (Q := valid_pointer (Vptr end'_b end'_ofs)).
+                 entailer!.
+                 apply valid_pointer_weak.
+               * erewrite Zlength_sublist.
+                 all: try nia.
+                 assert (j < Zlength ls) by admit. (* Clt lemma *)
+                 nia.
+               * admit. }
+             }
              admit.
              (* str + j + 1 < end *)
              admit. (* break list to read as before
