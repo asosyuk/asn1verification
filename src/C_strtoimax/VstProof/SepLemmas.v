@@ -1,5 +1,5 @@
 Require Import VST.floyd.proofauto Psatz.
-
+Require Import StructTact.StructTactics Psatz.
 
 Lemma split2_data_at_Tarray_tschar {cs: compspecs} sh n n1 (v: list val) p:
    0 <= n1 <= n ->
@@ -164,6 +164,29 @@ Ltac rewrite_comparison :=
                                            eapply typed_true_ptr_ge in H)
   end.
                                     
+
+
+Proposition Zge_bool_Intge : 
+  forall i, (Byte.signed i <=? 57) = (negb (Int.lt (Int.repr 57)
+                                              (Int.repr (Byte.signed i)))).
+Proof.
+  intros.
+  unfold Int.lt.
+  break_if; try easy.
+  destruct (Byte.signed i <=? 57) eqn : I57.
+  eapply Zle_bool_imp_le in I57.
+  autorewrite with norm in l.
+  nia.
+  easy.
+  destruct (Byte.signed i <=? 57) eqn : I57.
+  eapply Zle_bool_imp_le in I57.
+  autorewrite with norm in g.
+  easy.
+
+  eapply Z.leb_gt in I57.
+  autorewrite with norm in g.
+  nia.
+Qed.
 
 Lemma data_at_succ_sublist: forall (cs : compspecs) j i ls sh_str end'_b str_ofs,
 data_at sh_str (tarray tschar j) (map Vbyte (sublist 0 j ls))
