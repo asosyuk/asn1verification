@@ -128,6 +128,43 @@ Proof.
 Qed.
 
 
+Lemma typed_true_ptr_lt : forall b ptr1 ptr2, 
+    typed_true tint (force_val (sem_cmp_pp Clt (Vptr b ptr1) (Vptr b ptr2))) ->
+    Ptrofs.unsigned ptr1 < Ptrofs.unsigned ptr2.
+Proof.
+  intros.
+  unfold typed_true, force_val, sem_cmp_pp in H; simpl in H.
+  destruct eq_block in H; [simpl in H|discriminate].
+  unfold Ptrofs.ltu in H.
+  destruct zlt in H; try (discriminate || simpl in H).
+  auto.
+Qed.
+
+Lemma typed_false_ptr_lt : forall b ptr1 ptr2, 
+    typed_false tint (force_val (sem_cmp_pp Clt (Vptr b ptr1) (Vptr b ptr2))) ->
+    Ptrofs.unsigned ptr1 >= Ptrofs.unsigned ptr2.
+Proof.
+  intros.
+  unfold typed_true, force_val, sem_cmp_pp in H; simpl in H.
+  destruct eq_block in H; [simpl in H|discriminate].
+  unfold Ptrofs.ltu in H.
+  destruct zlt in H; try (discriminate || simpl in H).
+  auto.
+Qed.
+
+Ltac rewrite_comparison :=
+  match goal with 
+  | [H : context[typed_true] |- _ ] => (eapply typed_false_ptr_lt in H||
+                                           eapply typed_true_ptr_lt in H ||
+                                           eapply typed_false_ptr_ge in H ||
+                                           eapply typed_true_ptr_ge in H)
+ | [H : context [typed_false] |- _ ] => (eapply typed_false_ptr_lt in H||
+                                           eapply typed_true_ptr_lt in H ||
+                                           eapply typed_false_ptr_ge in H ||
+                                           eapply typed_true_ptr_ge in H)
+  end.
+                                    
+
 Lemma data_at_succ_sublist: forall (cs : compspecs) j i ls sh_str end'_b str_ofs,
 data_at sh_str (tarray tschar j) (map Vbyte (sublist 0 j ls))
     (Vptr end'_b (Ptrofs.add str_ofs Ptrofs.one))
