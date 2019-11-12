@@ -1,6 +1,24 @@
 Require Import VST.floyd.proofauto Psatz.
 Require Import StructTact.StructTactics Psatz.
 
+
+Proposition sublist_first : forall (A : Type) j (ls : list A),
+    Inhabitant A ->
+    0 <= j < Zlength ls ->
+    0 < Zlength (sublist j (Zlength ls) ls) ->
+    exists i : A, (sublist j (Zlength ls) ls) = 
+             i :: (sublist (j + 1) (Zlength ls) ls). 
+Proof.
+  intros.
+  eexists.
+  rewrite sublist_split with (mid := j + 1).
+  erewrite sublist_len_1.
+  reflexivity.
+  eassumption.
+  nia.
+  nia.
+Qed.
+
 Lemma split2_data_at_Tarray_tschar {cs: compspecs} sh n n1 (v: list val) p:
    0 <= n1 <= n ->
    Zlength v = n ->
@@ -188,9 +206,3 @@ Proof.
   nia.
 Qed.
 
-Lemma data_at_succ_sublist: forall (cs : compspecs) j i ls sh_str end'_b str_ofs,
-data_at sh_str (tarray tschar j) (map Vbyte (sublist 0 j ls))
-    (Vptr end'_b (Ptrofs.add str_ofs Ptrofs.one))
-  |-- data_at sh_str (tarray tschar j) (map Vbyte (sublist 1 (j + 1) (i :: ls)))
-  (Vptr end'_b (Ptrofs.add str_ofs Ptrofs.one)).
-  Admitted.

@@ -186,6 +186,7 @@ Proof.
              all: try (erewrite sublist_1_cons || autorewrite with sublist);
                autorewrite with sublist; (reflexivity || auto with zarith || auto).
          *** Intros j vl.
+             
              forward.
              forward_if.
              { unfold test_order_ptrs; simpl.
@@ -201,62 +202,43 @@ Proof.
                  entailer!.
                  replace end'_ofs with (Ptrofs.add str_ofs (Ptrofs.repr (j + 1))).
                  apply valid_pointer_weak.
-                 {
-                   autorewrite with sublist in LEN.
+                 { autorewrite with sublist in LEN.
                    replace (Zlength ls) with j in LEN by nia.
                    assert (Ptrofs.unsigned str_ofs + 1 + j = Ptrofs.unsigned end'_ofs) by nia.
-                   unfold Ptrofs.add.
+                   ptrofs_compute_add_mul.
                    replace end'_ofs with (Ptrofs.repr (Ptrofs.unsigned end'_ofs))
                      by auto with ints.
                    f_equal.
-                   rewrite Ptrofs.unsigned_repr_eq.
-                   rewrite Zmod_small.
-                   nia.
-                   assert (0 <= Ptrofs.unsigned str_ofs).
-                   destruct str_ofs.
-                   unfold Ptrofs.unsigned.
-                   simpl.
-                   all: nia. }
+                   all: rep_omega_setup; try nia. }
                * apply derives_trans with (Q := valid_pointer (Vptr end'_b end'_ofs)).
                  entailer!.
                  apply valid_pointer_weak.
              }
 
-             Proposition read_char_sublist : forall (A : Type) j (ls : list A),
-                 0 <= j <= Zlength ls ->
-                 0 < Zlength (sublist j (Zlength ls) ls) ->
-                 exists i : A, (sublist j (Zlength ls) ls) = 
-                      i :: (sublist (j + 1) (Zlength ls) ls). 
-               Admitted.
-                 
-            
-             assert (0 < Zlength (sublist j (Zlength ls) ls)).
-             { subst.
-               rewrite_comparison.
-               autorewrite with sublist in *|-.
-               autorewrite with sublist.
-               unfold Ptrofs.add in *.
-               rewrite Ptrofs.unsigned_repr in *.
-               rewrite Ptrofs.unsigned_repr in *.
-               all: replace (Ptrofs.unsigned Ptrofs.one) with 1 in * by reflexivity.
-               lia.
-               all: rewrite <-initialize.max_unsigned_modulus in *.
-               all: pose proof Ptrofs.unsigned_range str_ofs. 
-               all: try lia.
-               rewrite Ptrofs.unsigned_repr.
-               all: nia.
-               }
-             edestruct read_char_sublist with (j := j) (ls := ls) as [i0 Sub];
-               try nia.
-             erewrite Sub.
+             rewrite_comparison.
+             replace (Ptrofs.unsigned (Ptrofs.add str_ofs (Ptrofs.repr (j + 1)))) 
+                           with (Ptrofs.unsigned str_ofs + (j + 1)) in * by
+                 (ptrofs_compute_add_mul;
+                  rep_omega_setup;
+                  nia).
+             assert (j < Zlength ls) as jLS by nia.
+             assert (0 < Zlength (sublist j (Zlength ls) ls)) by
+                  (autorewrite with sublist; nia).
 
-             replace (Zlength ls - j) with (Zlength
-                                              ((i0::(sublist (j + 1) (Zlength ls) ls)))).
+             edestruct sublist_first with (j := j) (ls := ls) as [i0 Sub];
+               try nia.
+             econstructor.
+             instantiate (1 := 0).
+             cbv; easy.
+             erewrite Sub.
+             replace (Zlength ls - j) with
+                 (Zlength ((i0::(sublist (j + 1) (Zlength ls) ls)))).
              
              (* reading a char i0 *)
-             erewrite split_non_empty_list with (i := i0) (ls' :=
-                                                          (sublist (j + 1) (Zlength ls) ls))
-             (ofs := (Ptrofs.add str_ofs (Ptrofs.repr (j + 1)))).
+             erewrite split_non_empty_list with 
+                 (i := i0) 
+                 (ls' := (sublist (j + 1) (Zlength ls) ls))
+                 (ofs := (Ptrofs.add str_ofs (Ptrofs.repr (j + 1)))).
              
              Intros.
              forward.
@@ -266,11 +248,9 @@ Proof.
                                else  Vfalse)).
              forward.
              forward.
-              entailer!.
+             entailer!.
 
-             {
-
-               erewrite Z.ge_le_iff in *.
+             { erewrite Z.ge_le_iff in *.
                erewrite <- Z.leb_le in *.
                break_if.
                replace (negb (Int.lt (Int.repr 57) (Int.repr (Byte.signed i0))))
@@ -311,16 +291,33 @@ Proof.
              Exists (j + 1) (value_until (j + 1) ls).
              entailer!.
              repeat split; try nia.
-             (* true *)
-             (* follows from H5 *)
-             admit.
-             (* true, since j + 1 <= Zlength ls and H1 *)
-             admit.
              (* true, use next_value lemma *)
              admit.
-             (*true *)
-             admit. }
-
+             entailer!.
+             erewrite sepcon_assoc.
+             erewrite <- split_non_empty_list
+               with (ls :=  (sublist j (Zlength ls) ls)).
+             entailer.
+             Search data_at sublist.
+             autorewrite with sublist.
+             pose proof split_data_at_sublist_tschar.
+             replace (Ptrofs.add str_ofs (Ptrofs.repr (j + 1))) with
+                 (Ptrofs.add (Ptrofs.add str_ofs Ptrofs.one) (Ptrofs.repr j)).
+             erewrite <- split_data_at_sublist_tschar.
+             replace (Ptrofs.add str_ofs (Ptrofs.repr (j + 1 + 1)))
+                     with (Ptrofs.add (Ptrofs.add str_ofs Ptrofs.one) (Ptrofs.repr (j + 1))).
+              erewrite <- split_data_at_sublist_tschar.
+              entailer.
+              all: 
+                ptrofs_compute_add_mul;
+                replace (Ptrofs.unsigned Ptrofs.one)
+                           with 1 by auto with ptrofs;
+                rep_omega_setup; try (nia || f_equal).
+              all: try nia.
+              eassumption.
+              autorewrite with sublist.
+              nia. 
+           }
              forward_if.
            (* vl == ub *)
            { forward_if.
@@ -357,23 +354,26 @@ Proof.
        data_at sh_intp tlong v (Vptr intp_b intp_ofs))).
              
                (* 0 < s *)
-              easy. 
+             easy. 
                (* s = -1 *)
              forward.
              forward.
              entailer!.
              (* typecheck error: DEBUG THIS *)
              admit.
+             entailer.
+             replace (sublist 1 (j + 1) (i :: ls)) with
+                 (sublist 0 j ls).
              entailer!.
-             admit.
-             (* true, data_at_succ_sublist lemma *)
-          
-             
+             replace (i :: ls) with (app [i] ls)
+                                   by reflexivity.
+             erewrite sublist_app2.
+             all: autorewrite with sublist; try nia; auto.
+
              repeat forward.
              forward_if.
              (* compare pointers *)
-             { rewrite_comparison. 
-               autorewrite with sublist.
+             {  autorewrite with sublist.
                replace (Zlength (sublist (j + 1) (Zlength ls) ls)) with (Zlength ls - j - 1).
                
                unfold test_order_ptrs; simpl.
@@ -401,22 +401,15 @@ Proof.
                    with
                      (Ptrofs.add str_ofs (Ptrofs.repr (j + 1 + 1))).
                  apply valid_pointer_weak.
-                 admit. (* maybe change back LI for str_ofs' + j *)
-               * 
-                  assert (j < Zlength ls) as jLS.
-                 {  unfold Ptrofs.add in H5.
-                    repeat rewrite Ptrofs.unsigned_repr_eq in H5.
-                    rewrite Zmod_small in H5.
-                    rewrite Zmod_small in H5.
-                    rep_omega_setup.
-                    all: try nia.
-                    rep_omega_setup.
-                    nia.
-                    rep_omega_setup.
-                    rewrite Zmod_small.
-                    nia. nia.
-                 }
-                 apply derives_trans with (Q := valid_pointer (Vptr end'_b end'_ofs)).
+                 replace (Ptrofs.unsigned Ptrofs.one) with 1
+                   by auto with ptrofs.
+                 ptrofs_compute_add_mul;
+                   rep_omega_setup; try nia;
+                      replace (Ptrofs.unsigned Ptrofs.one) with 1
+                   by auto with ptrofs.
+                 f_equal.
+                 all: nia.
+               *  apply derives_trans with (Q := valid_pointer (Vptr end'_b end'_ofs)).
                  entailer!.
                  replace end'_ofs with (Ptrofs.add str_ofs (Ptrofs.repr (j + 1 + 1))).
                  apply valid_pointer_weak.
@@ -434,69 +427,49 @@ Proof.
                  entailer!.
                  apply valid_pointer_weak.
                * erewrite Zlength_sublist.
-                 all: try nia.
-                  assert (j < Zlength ls) as jLS.
-                 { replace (Ptrofs.unsigned (Ptrofs.add str_ofs (Ptrofs.repr (j + 1)))) 
-                           with
-                       (Ptrofs.unsigned str_ofs + (j + 1)) in *.
-                   nia.
-                   autorewrite with norm.
-                ptrofs_compute_add_mul.
-                all: try (rep_omega_setup;
-                          nia).
-                 }
-                 nia. }
+                 all: try nia. }
               forward.
+             rewrite_comparison.
+             replace  (Ptrofs.unsigned
+          (Ptrofs.add (Ptrofs.add str_ofs (Ptrofs.repr (j + 1)))
+             (Ptrofs.mul (Ptrofs.repr 1) (Ptrofs.of_ints (Int.repr 1)))))
+                                         with 
+                                           (Ptrofs.unsigned str_ofs + j + 1 + 1) in *
+               by (normalize;ptrofs_compute_add_mul;
+                rep_omega_setup;
+               nia).
 
+             
              assert (0 < Zlength (sublist (j + 1) (Zlength ls) ls)).
              { subst.
                replace (Ptrofs.add (Ptrofs.add str_ofs (Ptrofs.repr (j + 1)))
                       (Ptrofs.mul (Ptrofs.repr 1) (Ptrofs.of_ints (Int.repr 1))))
                        with (Ptrofs.add (Ptrofs.add str_ofs (Ptrofs.repr (j + 1))) (Ptrofs.repr 1))
                            in * by (autorewrite with norm; reflexivity).
-               rewrite_comparison.
-               destruct (Z_lt_le_dec (Ptrofs.unsigned str_ofs + j + 1 + 1) Ptrofs.modulus).
                
-               replace (Ptrofs.unsigned (Ptrofs.add (Ptrofs.add str_ofs 
-                          (Ptrofs.repr (j + 1))) (Ptrofs.repr 1))) 
-               with (Ptrofs.unsigned str_ofs + j + 1 + 1) in *.
+               destruct (Z_lt_le_dec (Ptrofs.unsigned str_ofs + j + 1 + 1) Ptrofs.modulus).                       *
                erewrite Zlength_sublist.
                all: try nia.
-               autorewrite with norm.
-                ptrofs_compute_add_mul.
-                all: try (rep_omega_setup;
-               nia).
-
+               *
                 autorewrite with norm in H11.
-                rewrite_comparison.
-                replace (Ptrofs.unsigned (Ptrofs.add str_ofs (Ptrofs.repr (j + 1))))
-                                         with 
-                                         (Ptrofs.unsigned str_ofs + j + 1) in *.  
-                rep_omega_setup.
-                nia.
                 ptrofs_compute_add_mul.
                 all: try (rep_omega_setup;
                nia).
                }
-             edestruct read_char_sublist with (j := j + 1) (ls := ls) as [i1 Sub2];
+             edestruct sublist_first with (j := j + 1) (ls := ls) as [i1 Sub2];
                try nia.
-             repeat rewrite_comparison.
-             assert (j < Zlength ls) as jLS.
-                 { replace (Ptrofs.unsigned (Ptrofs.add str_ofs (Ptrofs.repr (j + 1)))) 
-                           with
-                       (Ptrofs.unsigned str_ofs + (j + 1)) in *.
-                   nia.
-                   autorewrite with norm.
-                ptrofs_compute_add_mul.
-                all: try (rep_omega_setup;
-                          nia).
-                 }
-             nia.
+             econstructor.
+             instantiate (1 := 0); cbv; auto.
             erewrite Sub2.
              (* reading a char i0 *)
-             erewrite split_non_empty_list with (i := i1) (ls' :=
-                                                          (sublist (j + 1 + 1) (Zlength ls) ls))
-             (ofs := (Ptrofs.add (Ptrofs.add str_ofs (Ptrofs.repr (j + 1))) Ptrofs.one)).
+
+            replace (Zlength ls - (j + 1)) with 
+                (Zlength (i1::(sublist (j + 1 + 1) (Zlength ls) ls))).
+            erewrite split_non_empty_list with
+                 (i := i1) (ls' := (sublist (j + 1 + 1) (Zlength ls) ls))
+                 (ofs :=  (Ptrofs.add (Ptrofs.add str_ofs 
+                                                  (Ptrofs.repr (j + 1))) Ptrofs.one)).
+
               (* str + j + 1 < end *)
              Intros.
              forward.
@@ -532,6 +505,8 @@ Proof.
              admit.
              auto.
              admit.
+             autorewrite with sublist.
+             nia.
 
              (* BREAK: str + j + 1 >= end *)
              forward.
@@ -584,14 +559,14 @@ Proof.
              admit. }
 
              reflexivity.
-             (* true, from Heqls'' and H! *)
-             admit.
-             (* true, from Heqls'' *)
-             admit.
+             autorewrite with sublist.
+             ptrofs_compute_add_mul;
+               rep_omega_setup; try nia.
+
+             autorewrite with sublist; nia.
   
              (* BREAK : str + 1 + j >= end *)
              forward.
-             
              (* post entails break : check TODO *)
              { Exists j.
                replace (Ptrofs.unsigned str_ofs' + j >=? Zlength ls)
