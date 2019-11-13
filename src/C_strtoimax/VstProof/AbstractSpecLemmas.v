@@ -15,7 +15,6 @@ Lemma lt_ub_bounded : forall j ls,
     bounded (value_until (j + 1) ls) = true.
 Abort.
 
-
 Lemma value_always_bounded : forall j ls,
   0 <= j < Zlength ls ->
   bounded (value_until j ls) = true.

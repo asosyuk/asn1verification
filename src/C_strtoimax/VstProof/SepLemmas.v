@@ -2,6 +2,15 @@ Require Import VST.floyd.proofauto Psatz.
 Require Import StructTact.StructTactics Psatz.
 
 
+Proposition merge_char_to_list : 
+   forall (cs : compspecs) sh ls b ofs j,
+
+   data_at sh tschar (Vbyte i) (Vptr b ofs) *
+  data_at sh_str (tarray tschar j) (map Vbyte (sublist 1 (j + 1) (i :: ls)))
+    (Vptr end'_b (Ptrofs.add ofs Ptrofs.one)) = 
+    data_at sh_str (tarray tschar (j + 1)) (map Vbyte (sublist 0 (j + 1) (i :: ls)))
+    (Vptr end'_b ofs).
+
 Proposition sublist_first : forall (A : Type) j (ls : list A),
     Inhabitant A ->
     0 <= j < Zlength ls ->
