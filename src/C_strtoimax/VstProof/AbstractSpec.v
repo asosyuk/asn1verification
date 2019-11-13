@@ -61,9 +61,9 @@ Section AbstractSpec.
         | c :: tl =>
           let i' := Zlength s - Zlength tl - 1 in (* index of c in s *)
           if is_digit c
-          then let v := v * 10 + (Z_of_char c) in
-               if bounded v
-               then Z_of_string_loop tl v i
+          then let v1 := v * 10 + (Z_of_char c) in
+               if bounded v1
+               then Z_of_string_loop tl v1 i
                else {| res := ASN_STRTOX_ERROR_RANGE ;
                        value := v ;
                        index := i' ; |}      
