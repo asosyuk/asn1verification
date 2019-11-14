@@ -57,18 +57,17 @@ Section AbstractSpec.
     | [] => {| res := ASN_STRTOX_OK ; 
               value := v ; 
               index := i |}
-    | c :: tl =>
-      let i' := Zlength s - Zlength tl - 1 in (* index of c in s *)
+    | c :: tl => 
       if is_digit c
       then let v1 := v * 10 + (Z_of_char c) in 
            if bounded v1
-           then Z_of_string_loop tl v1 i
+           then Z_of_string_loop tl v1 (i + 1)
            else {| res := ASN_STRTOX_ERROR_RANGE ;
                    value := v ;
-                   index := i' ; |}      
+                   index := i ; |}      
       else {| res := ASN_STRTOX_EXTRA_DATA ;
               value := v ;
-              index := i' ; |}              
+              index := i ; |}              
     end.
 
   Definition Z_of_string (s : list byte) : Z_of_string_result := 

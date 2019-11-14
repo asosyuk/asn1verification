@@ -57,40 +57,35 @@ Lemma next_value : forall j ls b,
 Proof.
   induction ls using rev_ind; intros.
   admit.
-  apply Z_le_lt_eq_dec in H0.
-  inversion H0.
-  rewrite Zlength_app in H3; cbn in H3.
-  assert (j + 1 <= Zlength ls) by Lia.lia.
-  assert (j < Zlength ls) by Lia.lia.
-  rewrite app_Znth1 in H1 by assumption.
-  specialize (IHls b H H4 H1 H2).
-  unfold value_until in *; do 2 rewrite sublist_firstn in *.
-  rewrite Zfirstn_app1 by Lia.lia.
-  rewrite Zfirstn_app1 by Lia.lia.
-  rewrite IHls; reflexivity.
-  rewrite Zlength_app in H3. 
-  pose proof H3; cbn in H3.
-  assert (j = Zlength ls) by Lia.lia.
-  rewrite app_Znth2 in H1 by Lia.lia.
-  rewrite <-H5 in H1; cbn in H1.
-  rewrite Z.sub_diag in H1.
-  rewrite Znth_0_cons in H1.
-  rewrite H1 in *.
-  unfold value_until; do 2 rewrite sublist_firstn.
-  rewrite H4.
-  rewrite <-Zlength_app.
-  rewrite ZtoNat_Zlength.
-  rewrite firstn_all.
-  rewrite Zfirstn_app1 by Lia.lia.
-  rewrite H5.
-  rewrite ZtoNat_Zlength.
-  rewrite firstn_all.
-  clear - H2.
-  unfold Z_of_string.
-  break_match.
-  pose proof app_cons_not_nil ls [] b.
-  symmetry in Heql.
-  contradiction.
+  apply Z_le_lt_eq_dec in H0; inversion H0; clear H0.
+  *
+    rewrite Zlength_app in H3; cbn in H3.
+    assert (j + 1 <= Zlength ls) by Lia.lia.
+    assert (j < Zlength ls) by Lia.lia.
+    rewrite app_Znth1 in H1 by assumption.
+    specialize (IHls b H H0 H1 H2).
+    unfold value_until in *; do 2 rewrite sublist_firstn in *.
+    do 2 rewrite Zfirstn_app1 by Lia.lia.
+    rewrite IHls; reflexivity.
+  *
+    rewrite Zlength_app in H3. 
+    pose proof H3; cbn in H3.
+    assert (j = Zlength ls) by Lia.lia.
+    rewrite app_Znth2 in H1 by Lia.lia.
+    rewrite <-H4 in H1; cbn in H1.
+    rewrite Z.sub_diag in H1.
+    rewrite Znth_0_cons in H1.
+    rewrite H1 in *.
+    unfold value_until; do 2 rewrite sublist_firstn.
+    rewrite H0.
+    rewrite <-Zlength_app.
+    rewrite ZtoNat_Zlength.
+    rewrite firstn_all.
+    rewrite Zfirstn_app1 by Lia.lia.
+    rewrite H4.
+    rewrite ZtoNat_Zlength.
+    rewrite firstn_all.
+    clear - H2.
 Admitted.
 
 
@@ -113,12 +108,25 @@ Lemma ub_last_digit_error_range_index : forall j i i0 ls,
  Admitted.
 
 
-Lemma extra_data_index : forall j i ls,
-  0 <= j < Zlength ls ->
-  Znth j ls = i ->
-  is_digit i ->
-  (index (Z_of_string ls)) = j.
- Admitted.
+Lemma extra_data_index : forall j i ls, 
+    0 <= j < Zlength ls -> 
+    Znth j ls = i -> 
+    is_digit i = true -> 
+    (index (Z_of_string ls)) = j.
+Proof.
+  intros.
+  induction ls using rev_ind.
+  cbn in H; Lia.lia.
+  assert (0 <= j <= Zlength ls) by (rewrite Zlength_app in H; cbn in H; Lia.lia).
+  inversion H2.
+  apply Z_le_lt_eq_dec in H4.
+  inversion H4; clear H4.
+  rewrite app_Znth1 in H0 by assumption.
+  assert (0 <= j < Zlength ls) by Lia.lia. 
+  specialize (IHls H4 H0).
+  rewrite <-IHls.
+  inversion H; clear H.
+Admitted.
 
 (** Need a tactic to take out arithmetic hypotheses from this:
 
