@@ -110,7 +110,7 @@ Proof.
                  let i' := Ptrofs.add str_ofs (Ptrofs.repr (j + 1)) in
                  PROP(0 <= j <= Zlength ls;
                       Ptrofs.unsigned str_ofs + j + 1 < Ptrofs.modulus;
-                      forall i : Z, 0 <= i < j -> is_digit (Znth i ls) = true)
+                      res (Z_of_string (sublist 0 j ls)) = ASN_STRTOX_OK)
                  LOCAL(temp _end (Vptr end_b end_ofs); 
                        temp _intp (Vptr intp_b intp_ofs);
                        temp _str (Vptr end'_b i');
@@ -143,10 +143,11 @@ Proof.
                    data_at sh_intp tlong v (Vptr intp_b intp_ofs)))
                
            (* FIX break condition *)         
-           break: (EX j : Z, 
+           break: ( EX j : Z,
                    PROP(0 <= j <= Zlength ls;
-                       forall i, 0 <= i < Zlength ls -> 
-                            is_digit (Znth i ls) = true)
+                      (* forall i, 0 <= i < Zlength ls -> 
+                            is_digit (Znth i ls) = true; *)
+                       (res (Z_of_string ls)) = ASN_STRTOX_OK )
                    LOCAL(
                      temp _value 
                           (Vlong (Int64.repr 
@@ -187,8 +188,7 @@ Proof.
                admit.
                forward.
                entailer!.
-               (* lemma about OK, H4 *)
-               admit.
+               admit. (* true, H4 and Heqb *)
                autorewrite with sublist.
                entailer!. 
                break_if.
@@ -198,8 +198,8 @@ Proof.
            ***
              Exists 0 0.
              entailer!.
-             (* patch *)
-             { intros. nia. }
+             (* wrong on empty list INVAL *)
+             { admit. }
              autorewrite with sublist.
              erewrite data_at_zero_array_eq.
              entailer!.
@@ -232,6 +232,8 @@ Proof.
                replace (Z.succ (Zlength ls) - 1)
                            with (Zlength ls) by nia.                                          
                entailer!.
+               repeat split.
+               admit. (* H5 easy true *)
                repeat f_equal.
                unfold value_until.
                autorewrite with sublist;
@@ -354,7 +356,7 @@ Proof.
              Exists (j + 1) (value_until (j + 1) ls).
              entailer!.
              repeat split; try nia.
-             (* from H5 and H8 *)
+             (* from H4 and H8 *)
              admit.
              (* true, use next_value lemma *)
              admit.
@@ -435,9 +437,81 @@ Proof.
 
              repeat forward.
              forward_if.
-            
              
+             3 : 
+               { (* BREAK: str + j + 1 + 1 >= end *)
+             forward.
+             rewrite_comparison.
+             replace (Ptrofs.unsigned
+          (Ptrofs.add (Ptrofs.add str_ofs (Ptrofs.repr (j + 1)))
+             (Ptrofs.mul (Ptrofs.repr 1) (Ptrofs.of_ints (Int.repr 1)))))
+                     with (Ptrofs.unsigned str_ofs + j + 1 + 1) in *
+               by (autorewrite with norm;
+                   ptrofs_compute_add_mul;
+                   rep_omega_setup;
+                   nia).
+             (* post-if implies break condition *)
+             { Exists j.
+               replace (Ptrofs.unsigned str_ofs + j + 1 >=?
+                                                        Ptrofs.unsigned end'_ofs)
+                       with false.
+                entailer!.
+               repeat split.
+
+               Lemma typed_true_to_digit : forall i, 
+                typed_true tint
+            (if 48 <=? Byte.signed i 
+             then Val.of_bool (Byte.signed i <=? 57) 
+             else Vfalse) -> 
+                is_digit i = true.
+                 Admitted.
+                 eapply typed_true_to_digit in H8.
+                 assert (ls = app (sublist 0 j ls) [i0]).  
+               
+               (* Sub, H4 and H8 *)
+               admit.
+               (* next_value lemma *)
+               admit.
+               replace (Zlength ls) with (j + 1) by nia.
+               auto. 
+               replace (sublist 1 (j + 1) (i :: ls)) with
+                   (sublist 0 j ls).
+               erewrite sepcon_assoc.
+               replace (Zlength ls - (j + 1))
+                 with (Zlength (sublist (j + 1) (Zlength ls) ls)).
+
+               erewrite <- split_non_empty_list
+                 with (ls :=  (sublist j (Zlength ls) ls)).
+               replace 
+                 (Zlength (sublist j  (Zlength ls) ls))
+                 with (Zlength ls - j ).
+               replace (Ptrofs.add str_ofs (Ptrofs.repr (j + 1))) with
+                   (Ptrofs.add (Ptrofs.add str_ofs Ptrofs.one) (Ptrofs.repr j)).
+               erewrite sepcon_assoc.
+               erewrite <- split_data_at_sublist_tschar.
+               erewrite <- split_non_empty_list with (ls := i::ls).
+               autorewrite with sublist.
+               entailer!.
+               all: auto;
+                 autorewrite with sublist;
+                 ptrofs_compute_add_mul;
+                 replace (Ptrofs.unsigned Ptrofs.one)
+                   with 1 by auto with ptrofs;
+                 rep_omega_setup; try (nia).
+               f_equal. nia.
+               replace (i :: ls) with (app [i] ls)
+                 by reflexivity.
+               erewrite sublist_app2.
+               all: autorewrite with sublist; try nia; auto.
+               symmetry.
+               
+               rewrite Z.geb_leb.
+               rewrite Z.leb_gt.
+               nia. } 
+             }
+          }
              (* compare pointers *)
+
              {  autorewrite with sublist.
                replace (Zlength (sublist (j + 1) (Zlength ls) ls)) with (Zlength ls - j - 1).
                
@@ -572,66 +646,7 @@ Proof.
              autorewrite with sublist.
              nia.
              
-            { (* BREAK: str + j + 1 + 1 >= end *)
-             forward.
-             rewrite_comparison.
-             replace (Ptrofs.unsigned
-          (Ptrofs.add (Ptrofs.add str_ofs (Ptrofs.repr (j + 1)))
-             (Ptrofs.mul (Ptrofs.repr 1) (Ptrofs.of_ints (Int.repr 1)))))
-                     with (Ptrofs.unsigned str_ofs + j + 1 + 1) in *
-               by (autorewrite with norm;
-                   ptrofs_compute_add_mul;
-                   rep_omega_setup;
-                   nia).
-             (* post-if implies break condition *)
-             { Exists j.
-               replace (Ptrofs.unsigned str_ofs + j + 1 >=?
-                                                        Ptrofs.unsigned end'_ofs)
-                       with false.
-                entailer!.
-               repeat split.
-               (* Sub, H5 and H8 *)
-               admit.
-               (* next_value lemma *)
-               admit.
-               replace (Zlength ls) with (j + 1) by nia.
-               auto. 
-               replace (sublist 1 (j + 1) (i :: ls)) with
-                   (sublist 0 j ls).
-               erewrite sepcon_assoc.
-               replace (Zlength ls - (j + 1))
-                 with (Zlength (sublist (j + 1) (Zlength ls) ls)).
-
-               erewrite <- split_non_empty_list
-                 with (ls :=  (sublist j (Zlength ls) ls)).
-               replace 
-                 (Zlength (sublist j  (Zlength ls) ls))
-                 with (Zlength ls - j ).
-               replace (Ptrofs.add str_ofs (Ptrofs.repr (j + 1))) with
-                   (Ptrofs.add (Ptrofs.add str_ofs Ptrofs.one) (Ptrofs.repr j)).
-               erewrite sepcon_assoc.
-               erewrite <- split_data_at_sublist_tschar.
-               erewrite <- split_non_empty_list with (ls := i::ls).
-               autorewrite with sublist.
-               entailer!.
-               all: auto;
-                 autorewrite with sublist;
-                 ptrofs_compute_add_mul;
-                 replace (Ptrofs.unsigned Ptrofs.one)
-                   with 1 by auto with ptrofs;
-                 rep_omega_setup; try (nia).
-               f_equal. nia.
-               replace (i :: ls) with (app [i] ls)
-                 by reflexivity.
-               erewrite sublist_app2.
-               all: autorewrite with sublist; try nia; auto.
-               symmetry.
-               
-               rewrite Z.geb_leb.
-               rewrite Z.leb_gt.
-               nia. }
-             }
-          }
+           
               (* end of vl = ub && d <= last_digit *)
 
              (* vl = ub && d > ld, out of range *)

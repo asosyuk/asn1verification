@@ -179,6 +179,14 @@ Proof.
   auto.
 Qed.
 
+Lemma typed_true_to_digit : forall i, 
+                typed_true tint
+            (if 48 <=? Byte.signed i 
+             then Val.of_bool (Byte.signed i <=? 57) 
+             else Vfalse) -> 
+                48 <=? Byte.signed i = true /\
+                (Byte.signed i <=? 57).
+
 Ltac rewrite_comparison :=
   match goal with 
   | [H : context[typed_true] |- _ ] => (eapply typed_false_ptr_lt in H||

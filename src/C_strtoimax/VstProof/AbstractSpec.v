@@ -52,42 +52,43 @@ Section AbstractSpec.
     index : Z ;
   }.
 
-  Definition Z_of_string (s : list byte) : Z_of_string_result :=
-    let fix Z_of_string_loop s v i :=
-        match s with
-        | [] => {| res := ASN_STRTOX_OK ;
+  Fixpoint Z_of_string_loop s v i :=
+    match s with
+    | [] => {| res := ASN_STRTOX_OK ;
+              value := v ;
+              index := i |}
+    | c :: tl =>
+      let i' := Zlength s - Zlength tl - 1 in (* index of c in s *)
+      if is_digit c
+      then let v1 := v * 10 + (Z_of_char c) in
+           if bounded v1
+           then Z_of_string_loop tl v1 i
+           else {| res := ASN_STRTOX_ERROR_RANGE ;
                    value := v ;
-                   index := i |}
-        | c :: tl =>
-          let i' := Zlength s - Zlength tl - 1 in (* index of c in s *)
-          if is_digit c
-          then let v1 := v * 10 + (Z_of_char c) in
-               if bounded v1
-               then Z_of_string_loop tl v1 i
-               else {| res := ASN_STRTOX_ERROR_RANGE ;
-                       value := v ;
-                       index := i' ; |}      
-          else {| res := ASN_STRTOX_EXTRA_DATA ;
-                  value := v ;
-                  index := i' ; |}              
-        end
-    in match s with
-       |  nil => {| res := ASN_STRTOX_ERROR_INVAL ;
-                    value := 0 ;
-                    index := 0 ; |} 
-       | [ch] => if is_sign ch 
-                 then {| res := ASN_STRTOX_EXPECT_MORE ;
-                         value := 0 ;
-                         index := 1 ; |} 
-                 else Z_of_string_loop s 0 0
-       |  ch :: tl => let result := Z_of_string_loop tl 0 0 in
-                     if (ch == plus_char)%byte
-                     then result
-                     else if (ch == minus_char)%byte
-                          then {| res := ASN_STRTOX_OK ;
-                                  value := Z.opp (value result) ;
-                                  index := index result ; |}
-                          else Z_of_string_loop s 0 0
-       end.
+                   index := i' ; |}      
+      else {| res := ASN_STRTOX_EXTRA_DATA ;
+              value := v ;
+              index := i' ; |}              
+    end.
+
+  Definition Z_of_string (s : list byte) : Z_of_string_result :=
+    match s with
+    |  nil => {| res := ASN_STRTOX_ERROR_INVAL ;
+                value := 0 ;
+                index := 0 ; |} 
+    | [ch] => if is_sign ch 
+             then {| res := ASN_STRTOX_EXPECT_MORE ;
+                     value := 0 ;
+                     index := 1 ; |} 
+             else Z_of_string_loop s 0 0
+    |  ch :: tl => let result := Z_of_string_loop tl 0 0 in
+                 if (ch == plus_char)%byte
+                 then result
+                 else if (ch == minus_char)%byte
+                      then {| res := ASN_STRTOX_OK ;
+                              value := Z.opp (value result) ;
+                              index := index result ; |}
+                      else Z_of_string_loop s 0 0
+    end.
 
 End AbstractSpec.
