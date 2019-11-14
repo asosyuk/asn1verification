@@ -10,25 +10,89 @@ Definition upper_boundary := Z.div ASN1_INTMAX_MAX 10.
 Definition last_digit_max := Zmod ASN1_INTMAX_MAX 10.
 Definition last_digit_max_minus := last_digit_max + 1.
 
+
+Lemma typed_true_to_digit : forall i, 
+    typed_true tint (if 48 <=? Byte.signed i 
+                     then Val.of_bool (Byte.signed i <=? 57) 
+                     else Vfalse) -> 
+    is_digit i = true.
+Proof.
+  intros.
+  unfold is_digit; unfold typed_true, strict_bool_val, Val.of_bool in H; 
+    unfold zero_char, nine_char, Byte.lt.
+  rewrite andb_true_iff.
+  cbn in H.
+  assert (Int.eq Int.one Int.zero = false) 
+    by (unfold Int.eq; break_match; [discriminate|reflexivity]).
+  break_match; repeat break_match; cbn; auto; try discriminate.
+  all: try rewrite Z.leb_le in *.
+  all: rewrite Byte.signed_repr in l by (cbn; Lia.lia).
+  all: try rewrite Byte.signed_repr in l0 by (cbn; Lia.lia).
+  all: try Lia.lia.
+  all: apply Vint_inj in Heqv.
+  all: rewrite <-Heqv in H.
+  all: try rewrite H0 in *.
+  all: cbn in H.
+  all: discriminate.
+Qed.
+
+
 Lemma lt_ub_bounded : forall j ls, 
+    0 <= j -> j + 1 <= Zlength ls ->
     value_until j ls < upper_boundary -> 
+    Byte.signed (Znth j ls) - Byte.signed zero_char <= last_digit_max ->
     bounded (value_until (j + 1) ls) = true.
 Abort.
 
 Lemma value_always_bounded : forall j ls,
-  0 <= j < Zlength ls ->
+  j <= Zlength ls ->
   bounded (value_until j ls) = true.
-Abort.
+Admitted.
+  
+Lemma next_value : forall j ls b,
+    0 <= j -> j + 1 <= Zlength ls ->
+    Znth j ls = b -> is_digit b = true ->
+    value_until (j + 1) ls =
+    value_until j ls * 10 + Z_of_char b.
+Proof.
+  induction ls using rev_ind; intros.
+  admit.
+  apply Z_le_lt_eq_dec in H0.
+  inversion H0.
+  rewrite Zlength_app in H3; cbn in H3.
+  assert (j + 1 <= Zlength ls) by Lia.lia.
+  assert (j < Zlength ls) by Lia.lia.
+  rewrite app_Znth1 in H1 by assumption.
+  specialize (IHls b H H4 H1 H2).
+  unfold value_until in *; do 2 rewrite sublist_firstn in *.
+  rewrite Zfirstn_app1 by Lia.lia.
+  rewrite Zfirstn_app1 by Lia.lia.
+  rewrite IHls; reflexivity.
+  rewrite Zlength_app in H3. 
+  pose proof H3; cbn in H3.
+  assert (j = Zlength ls) by Lia.lia.
+  rewrite app_Znth2 in H1 by Lia.lia.
+  rewrite <-H5 in H1; cbn in H1.
+  rewrite Z.sub_diag in H1.
+  rewrite Znth_0_cons in H1.
+  rewrite H1 in *.
+  unfold value_until; do 2 rewrite sublist_firstn.
+  rewrite H4.
+  rewrite <-Zlength_app.
+  rewrite ZtoNat_Zlength.
+  rewrite firstn_all.
+  rewrite Zfirstn_app1 by Lia.lia.
+  rewrite H5.
+  rewrite ZtoNat_Zlength.
+  rewrite firstn_all.
+  clear - H2.
+  unfold Z_of_string.
+  break_match.
+  pose proof app_cons_not_nil ls [] b.
+  symmetry in Heql.
+  contradiction.
+Admitted.
 
-Lemma next_value_plus:
-  forall (ls : list byte) (j : Z) (b : byte),
-    0 <= j ->
-    j + 1 <= Zlength ls -> 
-    Znth j ls = b ->
-    ((Byte.signed b >=? 48) && (Byte.signed b <=? 57))%bool = true ->
-    (value_until (j + 1) ls) =
-    (value_until j ls * 10 + (Byte.signed b - 48)).
-Abort.
 
 Lemma ub_last_digit_error_range : forall j i i0 ls,
   0 <= j < Zlength ls ->
