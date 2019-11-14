@@ -422,6 +422,12 @@ Proof.
              forward.
              forward.
              entailer!.
+             (*
+               (Eunop Oneg (Etempvar _value tlong) tlong)
+               going through typechecking functions I found where FF comes from:
+               look at isUnOpResultType or just do Compute below to see it.
+              *)
+             Compute (isUnOpResultType Oneg (Etempvar _value tlong) tlong).
              (* typecheck error: DEBUG THIS *)
              admit.
              entailer.
