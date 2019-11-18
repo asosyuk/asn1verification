@@ -1,3 +1,4 @@
+Require Import Core.Core Core.Tactics.
 Require Import AbstractSpec.
 Require Import VST.floyd.proofauto.
 Require Import StructTact.StructTactics.
@@ -10,6 +11,72 @@ Definition upper_boundary := Z.div ASN1_INTMAX_MAX 10.
 Definition last_digit_max := Zmod ASN1_INTMAX_MAX 10.
 Definition last_digit_max_minus := last_digit_max + 1.
 
+Lemma all_digits_OK_or_ERROR_RANGE_loop : forall ls v i,
+    (forall i, 0 <= i < Zlength ls -> is_digit (Znth i ls)  = true) ->
+    res (Z_of_string_loop ls v i) = ASN_STRTOX_OK \/
+    res (Z_of_string_loop ls v i) = ASN_STRTOX_ERROR_RANGE.
+Proof.
+  induction ls; intros v i DIG.
+  - autorewrite with sublist in *.
+    auto.
+  - simpl.
+    + replace (is_digit a) with true.
+      break_if.
+      eapply IHls.
+      (* from DIG *)
+      admit.
+      auto.
+      (* from DIG *)
+      admit.
+Admitted.
+
+Lemma all_digits_OK_or_ERROR_RANGE : forall ls,
+    0 < Zlength ls -> 
+    (forall i, 0 <= i < Zlength ls -> is_digit (Znth i ls)  = true) ->
+    res (Z_of_string ls) = ASN_STRTOX_OK \/
+    res (Z_of_string ls) = ASN_STRTOX_ERROR_RANGE.
+Proof.
+  intros.
+  destruct ls.
+   - autorewrite with sublist in *.
+     nia.
+   - simpl.
+     replace (is_sign i) with false.
+     replace (is_digit i) with true.
+     replace (bounded (0 + Z_of_char i)) with true.
+     replace (Byte.eq i plus_char) with false.
+     replace (Byte.eq i minus_char) with false.
+     break_match.
+     auto.
+     eapply all_digits_OK_or_ERROR_RANGE_loop.
+     (* true, from H0 *)
+     admit.
+Admitted.
+
+Lemma value_next_loop : forall ls v i b,
+    is_digit b = true ->
+    (res (Z_of_string_loop ls v i)) = ASN_STRTOX_OK ->
+    bounded ((value (Z_of_string_loop ls v i)) * 10 + (Z_of_char b))
+            = true ->
+    is_digit b = true ->
+    value (Z_of_string_loop (ls ++ [b]) v i) = 
+    (value (Z_of_string_loop ls v i)) * 10 + (Z_of_char b).
+  Proof.
+    induction ls; intros.
+    * simpl in *.
+      repeat bool_rewrite.
+      easy.
+    * simpl.
+      break_if.
+      break_if.
+      erewrite IHls.
+      reflexivity.
+      eassumption.
+      all: simpl in *;
+      repeat break_if;
+        try congruence; simpl in *;
+      try congruence.
+ Qed.
 
 Lemma typed_true_to_digit : forall i, 
     typed_true tint (if 48 <=? Byte.signed i 
