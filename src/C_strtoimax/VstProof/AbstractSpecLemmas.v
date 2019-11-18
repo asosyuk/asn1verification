@@ -89,6 +89,85 @@ Lemma eq_ub_not_bounded_plus : forall v d,
     bounded (v*10 + d) = false.
 Admitted.
 
+Lemma sign_not_digit : forall  i, is_sign i = true -> is_digit i = false.
+Admitted.
+
+Lemma digit_not_sign : forall i, is_digit i = true -> is_sign i = false.
+Admitted.
+
+Lemma ERROR_RANGE_not_bounded_loop : forall ls v i,
+  res (Z_of_string_loop ls v i) = ASN_STRTOX_ERROR_RANGE ->
+  bounded (value (Z_of_string_loop ls v i)) = false.
+Proof.
+  induction ls; intros v i.
+  - discriminate.
+  - cbn.
+    repeat break_match;
+      simpl; try congruence.
+    eapply IHls; intuition.
+  Qed.
+
+Lemma ERROR_RANGE_not_bounded : forall ls,
+  res (Z_of_string ls) = ASN_STRTOX_ERROR_RANGE ->
+  bounded (value (Z_of_string ls)) = false.
+Proof.
+  destruct ls.
+  - discriminate.
+  - cbn.
+    repeat break_match;
+      simpl; 
+     repeat break_if;
+       simpl; try congruence;
+     eapply ERROR_RANGE_not_bounded_loop.
+Qed.
+
+Lemma bounded_to_OK : forall ls,
+  0 < Zlength ls ->
+  bounded (value (Z_of_string ls)) = true ->
+  (forall i, 0 <= i < Zlength ls -> is_digit (Znth i ls)  = true) ->
+  res (Z_of_string ls) = ASN_STRTOX_OK.
+Proof.
+  intros.
+  edestruct all_digits_OK_or_ERROR_RANGE with (ls := ls)
+  as [OK | ER];
+    intuition.
+  eapply ERROR_RANGE_not_bounded in ER.
+  congruence.
+Qed.
+
+Lemma bounded_to_OK_loop : forall ls,
+  0 < Zlength ls ->
+  bounded (value (Z_of_string_loop ls 0 0)) = true ->
+  (forall i, 0 <= i < Zlength ls -> is_digit (Znth i ls)  = true) ->
+  res (Z_of_string_loop ls 0 0) = ASN_STRTOX_OK.
+Proof.
+  intros.
+  edestruct all_digits_OK_or_ERROR_RANGE_loop with (ls := ls)
+  as [OK | ER];
+    intuition;
+    try eassumption.
+  eapply ERROR_RANGE_not_bounded_loop in ER.
+  congruence.
+Qed.
+                                           
+Lemma app_char_to_OK_loop : forall ls i,
+    0 < Zlength ls ->
+    is_sign i = true ->
+    res (Z_of_string_loop ls 0 0) = ASN_STRTOX_OK ->
+    res (Z_of_string (i :: ls)) = ASN_STRTOX_OK.
+Proof.
+  intros until i. intros N S OK.
+  pose proof (sign_not_digit i S).
+  unfold is_sign in S.
+  destruct_orb_hyp.
+  all:
+  simpl;
+    repeat break_if; autorewrite with sublist in *;
+      try nia;
+    try eapply sign_not_digit in S;
+    intuition; try congruence.
+  Qed.
+
 (* *)
 Lemma value_next_loop : forall ls v i b,
     is_digit b = true ->

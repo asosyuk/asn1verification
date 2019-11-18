@@ -63,7 +63,7 @@ Section AbstractSpec.
            if bounded v1
            then Z_of_string_loop tl v1 (i + 1)
            else {| res := ASN_STRTOX_ERROR_RANGE ;
-                   value := v ;
+                   value := v1 ;
                    index := i ; |}      
       else {| res := ASN_STRTOX_EXTRA_DATA ;
               value := v ;
