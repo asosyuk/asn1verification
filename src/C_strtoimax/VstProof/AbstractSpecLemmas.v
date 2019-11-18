@@ -53,6 +53,43 @@ Proof.
      admit.
 Admitted.
 
+Lemma exists_non_digit_EXTRA_DATA : forall ls,
+    0 < Zlength ls -> 
+    (exists i, 0 <= i < Zlength ls /\ is_digit (Znth i ls) = false) ->
+    res (Z_of_string ls) = ASN_STRTOX_EXTRA_DATA.
+Proof.
+Admitted.
+
+Lemma lt_ub_to_bounded : forall v,
+    0 <= v < upper_boundary -> bounded v = true.
+Admitted.
+
+Lemma lt_ub_to_next_bounded : forall v d,
+    0 <= d <= 9 -> (* is digit *)
+    0 <= v < upper_boundary -> bounded (v*10 + d) = true.
+Admitted.
+
+Lemma gt_ub_to_not_bounded : forall v,
+    0 <= v -> upper_boundary < v -> bounded v = false.
+Admitted.
+
+Lemma eq_ub_bounded_plus : forall v d,
+    0 <= v ->
+    0 <= d <= 9 -> 
+    v = upper_boundary ->
+    d <= last_digit_max ->
+    bounded (v*10 + d) = true.
+Admitted.
+
+Lemma eq_ub_not_bounded_plus : forall v d,
+    0 <= v ->
+    0 <= d <= 9 -> 
+    v = upper_boundary ->
+    d > last_digit_max ->
+    bounded (v*10 + d) = false.
+Admitted.
+
+(* *)
 Lemma value_next_loop : forall ls v i b,
     is_digit b = true ->
     (res (Z_of_string_loop ls v i)) = ASN_STRTOX_OK ->
