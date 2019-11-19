@@ -1,7 +1,7 @@
 Require Import Core.Tactics Core.PtrLemmas.
 Require Import StructTact.StructTactics Psatz.
 Require Import SepLemmas.
-Require Import VstSpec AbstractSpec.
+Require Import VstSpec AbstractSpec AbstractSpecLemmas.
 Require Import VST.floyd.proofauto Psatz.
 Require Import Clight.INTEGER.
 Arguments valid_pointer p : simpl never.
@@ -103,6 +103,9 @@ Proof.
            Definition value_until j l := 
              (value (Z_of_string (sublist 0 j l))).
 
+           Definition res_until j l := 
+             (res (Z_of_string (sublist 0 j l))).
+
            remember (Int64.unsigned upper_boundary) as ub.
            remember (i :: ls) as ls'.
            forward_loop (
@@ -110,7 +113,8 @@ Proof.
                  let i' := Ptrofs.add str_ofs (Ptrofs.repr (j + 1)) in
                  PROP(0 <= j <= Zlength ls;
                       Ptrofs.unsigned str_ofs + j + 1 < Ptrofs.modulus;
-                      res (Z_of_string (sublist 0 j ls)) = ASN_STRTOX_OK)
+                      forall i : Z, 0 <= i < j -> is_digit (Znth i ls) = true;
+                        bounded (value (Z_of_string_loop (sublist 0 j ls) 0 0)) = true)
                  LOCAL(temp _end (Vptr end_b end_ofs); 
                        temp _intp (Vptr intp_b intp_ofs);
                        temp _str (Vptr end'_b i');
@@ -122,32 +126,27 @@ Proof.
                  SEP(
                    valid_pointer (Vptr end'_b str_ofs) ;
                    valid_pointer (Vptr end'_b end'_ofs) ;
-
                    (* str |-> i *)                  
                    data_at sh_str tschar (Vbyte i)
-                           (Vptr end'_b str_ofs);
-                   
+                           (Vptr end'_b str_ofs);                  
                    (* str + 1 |-> sublist 1 (j + 1) ls *)
                    data_at sh_str (tarray tschar j)
                            (map Vbyte (sublist 0 j ls))
-                            (Vptr end'_b str_ofs');
-                   
+                            (Vptr end'_b str_ofs');                   
                    (* str + j + 1 |-> sublist (j + 1) |ls'| ls'  *)
                    data_at sh_str (tarray tschar (Zlength ls - j))
                            (map Vbyte (sublist j (Zlength ls) ls))
                            (Vptr end'_b i') ; 
-
                    data_at sh_end (tptr tschar) (Vptr end'_b end'_ofs)
                            (Vptr end_b end_ofs) ;
-                   
                    data_at sh_intp tlong v (Vptr intp_b intp_ofs)))
                
            (* FIX break condition *)         
            break: ( EX j : Z,
                    PROP(0 <= j <= Zlength ls;
-                      (* forall i, 0 <= i < Zlength ls -> 
-                            is_digit (Znth i ls) = true; *)
-                       (res (Z_of_string ls)) = ASN_STRTOX_OK )
+                       forall i, 0 <= i < Zlength ls -> 
+                            is_digit (Znth i ls) = true;
+                        bounded (value (Z_of_string_loop ls 0 0)) = true)
                    LOCAL(
                      temp _value 
                           (Vlong (Int64.repr 
@@ -180,16 +179,22 @@ Proof.
            
            (* BREAK IMPLIES THE REST OF THE FUNCTION *)
            3: 
-             { Intro (j).
+             { Intro j.
                forward.
                forward.
                entailer!.
-               (* true, always_bounded lemma *)
+               break_if.
+               (* true, from H5 *)
+               admit.
                admit.
                forward.
                entailer!.
-               admit. (* true, H4 and Heqb *)
-               autorewrite with sublist.
+               erewrite app_char_to_OK_loop. 
+               reflexivity.
+               nia.
+               unfold is_sign.
+               admit.
+               eapply bounded_to_OK_loop; try (nia || eassumption).
                entailer!. 
                break_if.
                (* both true *)
@@ -198,8 +203,8 @@ Proof.
            ***
              Exists 0 0.
              entailer!.
-             (* wrong on empty list INVAL *)
-             { admit. }
+             { intros. nia.
+                }
              autorewrite with sublist.
              erewrite data_at_zero_array_eq.
              entailer!.
@@ -231,9 +236,10 @@ Proof.
                autorewrite with sublist.
                replace (Z.succ (Zlength ls) - 1)
                            with (Zlength ls) by nia.                                          
-               entailer!.
-               repeat split.
-               admit. (* H5 easy true *)
+               entailer!. 
+               split.
+               autorewrite with  sublist in *.
+               eassumption.
                repeat f_equal.
                unfold value_until.
                autorewrite with sublist;
@@ -279,7 +285,7 @@ Proof.
                  entailer!.
                  apply valid_pointer_weak.
              }
-      (* str + j + 1 <  end *)
+             (* str + j + 1 <  end *)
            { rewrite_comparison.
              replace (Ptrofs.unsigned (Ptrofs.add str_ofs (Ptrofs.repr (j + 1)))) 
                            with (Ptrofs.unsigned str_ofs + (j + 1)) in * by
@@ -314,7 +320,6 @@ Proof.
              forward.
              forward.
              entailer!.
-
              { erewrite Z.ge_le_iff in *.
                erewrite <- Z.leb_le in *.
                break_if.
@@ -336,27 +341,18 @@ Proof.
             (* Case:  vl < ub *)
            { forward.
              entailer!.
-             (* use lemma  lt_ub_bounded *)
-             {
-               all: unfold typed_true, strict_bool_val in H7.
-               break_if; simpl in H7;[|discriminate].
-               unfold Val.of_bool in H7.
-               destruct (Byte.signed i0 <=? 57) eqn:I057; simpl in H7; [|discriminate].
-               unfold value_until, Z_of_string.
-               destruct (sublist 0 j ls) eqn:SB.
-               cbn.
-               replace (Int64.signed (Int64.repr 0)) with 0 by reflexivity.
-               try rewrite Z.geb_le, Z.leb_le in *.
-               admit.
-               admit.
+             (* use lemma lt_ub_bounded *)
+             { admit.
              }
              forward.
              
-             (* show that loop invariant holds after the loop *)
+             (* show that loop invariant holds after normal  loop body execution *)
              Exists (j + 1) (value_until (j + 1) ls).
              entailer!.
              repeat split; try nia.
              (* from H4 and H8 *)
+             admit.
+             (* H6 and H10 *)
              admit.
              (* true, use next_value lemma *)
              admit.
@@ -424,6 +420,12 @@ Proof.
              forward.
              forward.
              entailer!.
+             (*
+               (Eunop Oneg (Etempvar _value tlong) tlong)
+               going through typechecking functions I found where FF comes from:
+               look at isUnOpResultType or just do Compute below to see it.
+              *)
+             Compute (isUnOpResultType Oneg (Etempvar _value tlong) tlong).
              (* typecheck error: DEBUG THIS *)
              admit.
              entailer.
@@ -437,9 +439,13 @@ Proof.
 
              repeat forward.
              forward_if.
+<<<<<<< HEAD
              
              3 : 
                { (* BREAK: str + j + 1 + 1 >= end *)
+=======
+             3: { (* BREAK: str + j + 1 + 1 >= end *)
+>>>>>>> 46d36d9eff540bdee832bc9be843c7ef3a2649a7
              forward.
              rewrite_comparison.
              replace (Ptrofs.unsigned
@@ -456,6 +462,7 @@ Proof.
                                                         Ptrofs.unsigned end'_ofs)
                        with false.
                 entailer!.
+<<<<<<< HEAD
                repeat split.
 
                Lemma typed_true_to_digit : forall i, 
@@ -469,6 +476,11 @@ Proof.
                  assert (ls = app (sublist 0 j ls) [i0]).  
                
                (* Sub, H4 and H8 *)
+=======
+                repeat split.
+               (* Sub, H5 and H8 *)
+               admit.
+>>>>>>> 46d36d9eff540bdee832bc9be843c7ef3a2649a7
                admit.
                (* next_value lemma *)
                admit.
@@ -507,9 +519,9 @@ Proof.
                
                rewrite Z.geb_leb.
                rewrite Z.leb_gt.
-               nia. } 
+               nia. }
              }
-          }
+ 
              (* compare pointers *)
 
              {  autorewrite with sublist.
@@ -634,8 +646,10 @@ Proof.
                nia.
                reflexivity. }
              forward_if.
-             forward.
-             admit.
+               forward.
+               entailer!.
+               admit.
+               admit.
              forward.
              forward.
              entailer!.
@@ -645,11 +659,9 @@ Proof.
              admit.
              autorewrite with sublist.
              nia.
-             
-           
-              (* end of vl = ub && d <= last_digit *)
+          } (* end of vl = ub && d <= last_digit *)
 
-             (* vl = ub && d > ld, out of range *)
+             (* vl > ub && d > ld, out of range *)
              { 
              forward.
              forward.
@@ -668,7 +680,6 @@ Proof.
              admit.
              (*  ub_last_digit_error_range_index *)
              admit. }
-
              (* i0 non-digit: extra data *)
            { repeat forward.
              entailer!.
@@ -679,12 +690,10 @@ Proof.
              admit.
              (* true extra_data_index *)
              admit. }
-
              reflexivity.
              autorewrite with sublist.
              ptrofs_compute_add_mul;
                rep_omega_setup; try nia.
-
              autorewrite with sublist; nia.
              }
         ** admit.
