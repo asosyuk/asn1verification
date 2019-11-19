@@ -15,6 +15,10 @@ Ltac ints_compute_add_mul :=
       simpl; unfold Int.add; unfold Int.mul;
       repeat rewrite Int.unsigned_repr_eq;  repeat rewrite Int.unsigned_repr_eq; repeat rewrite Zmod_small.
 
+Ltac ints64_compute_add_mul :=
+      simpl; unfold Int64.add; unfold Int.mul;
+      repeat rewrite Int64.unsigned_repr_eq;  repeat rewrite Int64.unsigned_repr_eq; repeat rewrite Zmod_small.
+
 Ltac crush_match := repeat break_match;
                     try congruence.
 

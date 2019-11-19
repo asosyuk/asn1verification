@@ -3,32 +3,101 @@ Require Import AbstractSpec.
 Require Import VST.floyd.proofauto.
 Require Import StructTact.StructTactics.
 
-Lemma loop_aux : forall ls v ind i r, 
-    Z_of_string_loop ls v ind = r ->
-    res r = ASN_STRTOX_OK ->
-    is_digit i = true ->
-    bounded (value r * 10 + (Byte.signed i - 48)) = true ->
-    Z_of_string_loop (app ls [i]) v ind = {| res := ASN_STRTOX_OK;
-         value := (value r * 10 + (Byte.signed i - 48));
-         index := (index r) + 1
-      |}.
-Proof.
-  intros.
-  unfold Z_of_string_loop.
-             
-   
 Definition value_until j l := 
              (value (Z_of_string (sublist 0 j l))). 
 
-Definition ASN1_INTMAX_MAX := Int64.max_unsigned.
+Definition ASN1_INTMAX_MAX := Int64.max_signed.
 Definition upper_boundary := Z.div ASN1_INTMAX_MAX 10.
 Definition last_digit_max := Zmod ASN1_INTMAX_MAX 10.
 Definition last_digit_max_minus := last_digit_max + 1.
 
+Ltac Zbool_to_Prop := try (rewrite Z.leb_le ||  rewrite Z.eqb_eq ||
+                           rewrite Z.eqb_neq).
+Lemma is_digit_to_Z : forall c, is_digit c = true -> 0 <= Z_of_char c <= 9.
+Proof.
+  unfold is_digit, Z_of_char.
+  intro.
+  rewrite andb_true_iff in *.
+  repeat Zbool_to_Prop.
+  unfold zero_char, nine_char.
+  nia.
+Qed.
+
+Lemma bounded_bool_to_Prop :
+  forall v, bounded v = true ->  
+       Int64.min_signed <= v <= Int64.max_signed.
+Proof.
+  unfold bounded.
+  intro.
+  rewrite andb_true_iff in *.
+  repeat Zbool_to_Prop.
+  auto.
+Qed.
+
+Lemma lt_inv64:
+ forall i j,
+   Int64.lt i j = true -> (Int64.signed i < Int64.signed j)%Z.
+Proof.
+intros.
+unfold Int64.lt in H. if_tac in H; inv H. auto.
+Qed.
+
+
+Lemma lt_ub_to_next_bounded_bool : forall v d,
+    0 <= d <= 9 -> 
+    0 <= v < upper_boundary -> bounded (v*10 + d) = true.
+Proof.
+  unfold upper_boundary.
+  unfold bounded.
+  intros.
+  rewrite andb_true_iff in *.
+  repeat Zbool_to_Prop.
+  cbn in *.
+  nia.
+Qed.
+
+Lemma lt_ub_to_next_bounded_Prop : forall v d,
+    0 <= d <= 9 -> (* is digit *)
+    0 <= v < upper_boundary -> 
+    Int64.min_signed <= v * 10 + d <= Int64.max_signed
+   /\  Int64.min_signed <= v * 10  <= Int64.max_signed.
+Proof.
+  unfold upper_boundary.
+  unfold bounded.
+  intros.
+  cbn in *.
+  nia.
+Qed.
+
+
+Definition upper_boundary_int := (
+         (Int64.divs
+            (Int64.shru (Int64.not (Int64.repr (Int.signed (Int.repr 0))))
+                        (Int64.repr (Int.unsigned (Int.repr 1))))
+            (Int64.repr (Int.signed (Int.repr 10))))).
+
+Lemma lt_ub_bounded_Prop : forall v d,
+    0 <= d <= 9 ->
+    0 <= v ->
+    Int64.min_signed <= v  <= Int64.max_signed ->
+    Int64.lt (Int64.repr v) upper_boundary_int = true ->
+    Int64.min_signed <= v * 10 + d <= Int64.max_signed /\ 
+    Int64.min_signed <= v * 10 <= Int64.max_signed.
+Proof.
+  intros v d D V V' Lt.
+  eapply lt_ub_to_next_bounded_Prop.
+  eassumption.
+  eapply lt_inv64 in Lt.
+  rewrite Int64.signed_repr in *.
+  replace (Int64.signed upper_boundary_int) with upper_boundary
+   in Lt by normalize.
+  all: nia.
+Qed.
+  
 Lemma all_digits_OK_or_ERROR_RANGE_loop : forall ls v i,
     (forall i, 0 <= i < Zlength ls -> is_digit (Znth i ls)  = true) ->
-    res (Z_of_string_loop ls v i) = ASN_STRTOX_OK \/
-    res (Z_of_string_loop ls v i) = ASN_STRTOX_ERROR_RANGE.
+    res (Z_of_string_loop ls v i) = OK \/
+    res (Z_of_string_loop ls v i) = ERROR_RANGE.
 Proof.
   induction ls; intros v i DIG.
   - autorewrite with sublist in *.
@@ -47,8 +116,8 @@ Admitted.
 Lemma all_digits_OK_or_ERROR_RANGE : forall ls,
     0 < Zlength ls -> 
     (forall i, 0 <= i < Zlength ls -> is_digit (Znth i ls)  = true) ->
-    res (Z_of_string ls) = ASN_STRTOX_OK \/
-    res (Z_of_string ls) = ASN_STRTOX_ERROR_RANGE.
+    res (Z_of_string ls) = OK \/
+    res (Z_of_string ls) = ERROR_RANGE.
 Proof.
   intros.
   destruct ls.
@@ -58,8 +127,8 @@ Proof.
      replace (is_sign i) with false.
      replace (is_digit i) with true.
      replace (bounded (0 + Z_of_char i)) with true.
-     replace (Byte.eq i plus_char) with false.
-     replace (Byte.eq i minus_char) with false.
+     replace (Byte.signed i =? plus_char) with false.
+     replace (Byte.signed i =? minus_char) with false.
      break_match.
      auto.
      eapply all_digits_OK_or_ERROR_RANGE_loop.
@@ -70,7 +139,7 @@ Admitted.
 Lemma exists_non_digit_EXTRA_DATA : forall ls,
     0 < Zlength ls -> 
     (exists i, 0 <= i < Zlength ls /\ is_digit (Znth i ls) = false) ->
-    res (Z_of_string ls) = ASN_STRTOX_EXTRA_DATA.
+    res (Z_of_string ls) = EXTRA_DATA.
 Proof.
 Admitted.
 
@@ -78,10 +147,6 @@ Lemma lt_ub_to_bounded : forall v,
     0 <= v < upper_boundary -> bounded v = true.
 Admitted.
 
-Lemma lt_ub_to_next_bounded : forall v d,
-    0 <= d <= 9 -> (* is digit *)
-    0 <= v < upper_boundary -> bounded (v*10 + d) = true.
-Admitted.
 
 Lemma gt_ub_to_not_bounded : forall v,
     0 <= v -> upper_boundary < v -> bounded v = false.
@@ -109,51 +174,77 @@ Admitted.
 Lemma digit_not_sign : forall i, is_digit i = true -> is_sign i = false.
 Admitted.
 
+Lemma neg_bounded : forall v, 
+    0 <= v -> 
+    bounded v = true -> bounded (-1 * v) = true.
+  Proof.
+    unfold bounded.
+    cbn.
+    intros v H.
+     repeat rewrite andb_true_iff in *.
+     repeat rewrite Z.leb_le in *;
+    try nia.
+Qed.
+
+Lemma loop_non_neg : forall ls v i, 0 <= v -> 0 <= value (Z_of_string_loop ls v i).
+  Proof.
+    induction ls.
+    - intuition.
+    - intros.
+      simpl;
+        repeat break_if;
+      simpl; try congruence;
+         eapply is_digit_to_Z in Heqb.
+      eapply IHls.
+      all: nia.
+Qed.
+
 Lemma ERROR_RANGE_not_bounded_loop : forall ls v i,
-  res (Z_of_string_loop ls v i) = ASN_STRTOX_ERROR_RANGE ->
+  res (Z_of_string_loop ls v i) = ERROR_RANGE ->
   bounded (value (Z_of_string_loop ls v i)) = false.
 Proof.
   induction ls; intros v i.
   - discriminate.
   - cbn.
-    repeat break_match;
+ repeat break_match;
       simpl; try congruence.
     eapply IHls; intuition.
-  Qed.
+Qed.
+
+(* Maybe don't need these:
 
 Lemma ERROR_RANGE_not_bounded : forall ls,
-  res (Z_of_string ls) = ASN_STRTOX_ERROR_RANGE ->
+  res (Z_of_string ls) = ERROR_RANGE ->
   bounded (value (Z_of_string ls)) = false.
 Proof.
   destruct ls.
   - discriminate.
   - cbn.
-    repeat break_match;
-      simpl; 
      repeat break_if;
        simpl; try congruence;
-     eapply ERROR_RANGE_not_bounded_loop.
-Qed.
+         repeat break_if;
+       simpl; try congruence;
+         try eapply ERROR_RANGE_not_bounded_loop.
+Admitted.
 
 Lemma bounded_to_OK : forall ls,
   0 < Zlength ls ->
   bounded (value (Z_of_string ls)) = true ->
   (forall i, 0 <= i < Zlength ls -> is_digit (Znth i ls)  = true) ->
-  res (Z_of_string ls) = ASN_STRTOX_OK.
+  res (Z_of_string ls) = OK.
 Proof.
   intros.
   edestruct all_digits_OK_or_ERROR_RANGE with (ls := ls)
   as [OK | ER];
     intuition.
   eapply ERROR_RANGE_not_bounded in ER.
-  congruence.
-Qed.
+Admitted. *)
 
-Lemma bounded_to_OK_loop : forall ls,
+Lemma bounded_to_OK_loop : forall ls v i,
   0 < Zlength ls ->
-  bounded (value (Z_of_string_loop ls 0 0)) = true ->
+  bounded (value (Z_of_string_loop ls v i)) = true ->
   (forall i, 0 <= i < Zlength ls -> is_digit (Znth i ls)  = true) ->
-  res (Z_of_string_loop ls 0 0) = ASN_STRTOX_OK.
+  res (Z_of_string_loop ls v i) = OK.
 Proof.
   intros.
   edestruct all_digits_OK_or_ERROR_RANGE_loop with (ls := ls)
@@ -167,10 +258,10 @@ Qed.
 Lemma app_char_to_OK_loop : forall ls i,
     0 < Zlength ls ->
     is_sign i = true ->
-    res (Z_of_string_loop ls 0 0) = ASN_STRTOX_OK ->
-    res (Z_of_string (i :: ls)) = ASN_STRTOX_OK.
+    res (Z_of_string_loop ls 0 1) = OK ->
+    res (Z_of_string (i :: ls)) = OK.
 Proof.
-  intros until i. intros N S OK.
+  intros until i. intros N S Ok.
   pose proof (sign_not_digit i S).
   unfold is_sign in S.
   destruct_orb_hyp.
@@ -182,10 +273,45 @@ Proof.
     intuition; try congruence.
   Qed.
 
-(* *)
+
+(* Lemmas about index *)
+
+Lemma OK_index_loop : forall ls v i,
+  res (Z_of_string_loop ls v i) = OK -> index (Z_of_string_loop ls v i) = i + Zlength ls.
+Proof.
+   induction ls; intros v i.
+  - intuition.
+  - simpl.
+    repeat break_match;
+      autorewrite with sublist;
+      simpl; try congruence.
+    replace (i + Z.succ (Zlength ls)) with
+        ((i+1) + Zlength ls) by nia.
+    eapply IHls; intuition.
+Qed.
+
+Lemma OK_index : forall ls,
+    res (Z_of_string ls) = OK -> index (Z_of_string ls) = Zlength ls.
+  Proof.
+    destruct ls.
+    - intuition.
+    - simpl.
+      break_if.
+      * repeat break_if;
+        simpl;
+        autorewrite with sublist;
+        try congruence; try nia.
+      * repeat break_if.
+        all: replace (Zlength (i :: i0 :: l))
+                     with (1 + Zlength (i0::l)).
+        all: try eapply OK_index_loop.
+        all: autorewrite with sublist;
+        try nia; simpl; easy.
+Qed.
+
 Lemma value_next_loop : forall ls v i b,
     is_digit b = true ->
-    (res (Z_of_string_loop ls v i)) = ASN_STRTOX_OK ->
+    (res (Z_of_string_loop ls v i)) = OK ->
     bounded ((value (Z_of_string_loop ls v i)) * 10 + (Z_of_char b))
             = true ->
     is_digit b = true ->
@@ -223,9 +349,6 @@ Proof.
     by (unfold Int.eq; break_match; [discriminate|reflexivity]).
   break_match; repeat break_match; cbn; auto; try discriminate.
   all: try rewrite Z.leb_le in *.
-  all: rewrite Byte.signed_repr in l by (cbn; Lia.lia).
-  all: try rewrite Byte.signed_repr in l0 by (cbn; Lia.lia).
-  all: try Lia.lia.
   all: apply Vint_inj in Heqv.
   all: rewrite <-Heqv in H.
   all: try rewrite H0 in *.
@@ -233,11 +356,10 @@ Proof.
   all: discriminate.
 Qed.
 
-
 Lemma lt_ub_bounded : forall j ls, 
     0 <= j -> j + 1 <= Zlength ls ->
     value_until j ls < upper_boundary -> 
-    Byte.signed (Znth j ls) - Byte.signed zero_char <= last_digit_max ->
+    Byte.signed (Znth j ls) - zero_char <= last_digit_max ->
     bounded (value_until (j + 1) ls) = true.
 Abort.
 
@@ -292,7 +414,7 @@ Lemma ub_last_digit_error_range : forall j i i0 ls,
   (value_until j ls > upper_boundary \/
   (value_until j ls = upper_boundary /\
   last_digit_max < (Byte.signed i0 - 48))) ->
-  (res (Z_of_string (i :: ls))) = ASN_STRTOX_ERROR_RANGE.
+  (res (Z_of_string (i :: ls))) = ERROR_RANGE.
  Admitted.
 
 Lemma ub_last_digit_error_range_index : forall j i i0 ls,
@@ -308,7 +430,7 @@ Lemma ub_last_digit_error_range_index : forall j i i0 ls,
 Lemma extra_data_index : forall j i ls, 
     0 <= j < Zlength ls -> 
     Znth j ls = i -> 
-    is_digit i = true -> 
+    is_digit i = false -> 
     (index (Z_of_string ls)) = j.
 Proof.
   intros.
@@ -325,28 +447,6 @@ Proof.
   inversion H; clear H.
 Admitted.
 
- Lemma LI_to_spec_OK : forall i ls,
-                  (forall i : Z, 0 <= i < Zlength ls -> is_digit (Znth i ls) = true) ->
-                   ->
-                  res (Z_of_string (i :: ls)) = ASN_STRTOX_OK.
-                 Proof.
-                   intros until ls; intro DIG.
-                   simpl.
-                   rewrite SIGN.
-                   break_match; try  easy.
-                   break_if.
-                  
-                   pose proof (DIG 0) as G.
-                   assert (0 <= 0 < Zlength (i0 :: l)) as J by admit.
-                   pose proof (G J).
-                   replace (is_digit i0) with true.
-                   replace (bounded (0 * 10 + Z_of_char i0))
-                           with true.
-                   simpl.
-
-                   autorewrite with sublist.
-                   admit.
-                   
                    
                     
                    
