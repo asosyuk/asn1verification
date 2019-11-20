@@ -13,6 +13,7 @@ Definition last_digit_max_minus := last_digit_max + 1.
 
 Ltac Zbool_to_Prop := try (rewrite Z.leb_le ||  rewrite Z.eqb_eq ||
                            rewrite Z.eqb_neq).
+
 Lemma is_digit_to_Z : forall c, is_digit c = true -> 0 <= Z_of_char c <= 9.
 Proof.
   unfold is_digit, Z_of_char.
@@ -140,7 +141,7 @@ Proof.
       intuition.
 Admitted.
 
-Lemma exist_digit_EXTRA_DATA_or_ERROR_RANGE : forall ls,
+(* Lemma exist_digit_EXTRA_DATA_or_ERROR_RANGE : forall ls,
     1 < Zlength ls -> 
     (exists i, 0 <= i < Zlength ls /\ is_digit (Znth i ls)  = false) ->
     res (Z_of_string ls) = EXTRA_DATA \/
@@ -162,7 +163,7 @@ Proof.
        admit.
        admit.
        admit.
-Admitted.
+Admitted. *)
 
 Lemma all_digits_OK_or_ERROR_RANGE_loop : forall ls v i,
     (forall i, 0 <= i < Zlength ls -> is_digit (Znth i ls)  = true) ->
@@ -234,7 +235,86 @@ Lemma exists_EXTRA_DATA_loop : forall ls v i,
   congruence.
 Qed.
 
-Lemma eq_ub_bounded_plus : forall v d,
+Lemma EXTRA_DATA_index :
+  forall ls v k j i, 
+    0 <= j < Zlength ls ->
+    Znth j ls = i -> 
+    is_digit i = false -> 
+    bounded (value (Z_of_string_loop ls v k)) = true ->
+    index (Z_of_string_loop ls v k) = (Zlength ls - j) + k.
+Proof.
+   induction ls; intros v k j i N Dig Bound.
+  - autorewrite with sublist in *.
+    nia.
+  - simpl.
+    repeat break_if.
+    replace (Zlength (a :: ls) - j + k)
+      with (Zlength ls - j + (k + 1)).                                    
+    eapply IHls.
+    admit.
+    instantiate (1 := i).
+     (* from DIG *)
+     admit.
+     eassumption. 
+     autorewrite with sublist.
+     auto with zarith.
+     simpl.
+     congruence.
+      simpl.
+      intuition.
+Admitted. (* FIX *)
+
+
+Lemma EXTRA_DATA_ER_result :
+  forall ls v k j i, 
+    0 <= j < Zlength ls ->
+    Znth j ls = i -> 
+    is_digit i = false -> 
+    res (Z_of_string_loop ls v k) = EXTRA_DATA \/
+    res (Z_of_string_loop ls v k) = ERROR_RANGE.
+Proof.
+   induction ls; intros v k j i N Dig Bound.
+  - autorewrite with sublist in *.
+    nia.
+  - simpl.
+    repeat break_if.
+    eapply IHls.
+    instantiate (1 := j - 1).
+   autorewrite with sublist in *.
+   auto with zarith.
+   admit.
+    instantiate (1 := i).
+      (* from DIG *)
+      admit.
+      eassumption.      
+      simpl.
+      intuition.
+      simpl.
+      intuition.
+Admitted.
+
+
+Lemma ERROR_RANGE_all_digits : forall ls v k,
+   res (Z_of_string_loop ls v k) = ERROR_RANGE
+   -> (forall i, 0 <= i < Zlength ls -> is_digit (Znth i ls)  = true).
+  Proof.
+    induction ls.
+    - autorewrite with sublist; intros; try nia.
+    - intros v k.
+      simpl. repeat break_if;
+      simpl; try congruence.
+      intro H.
+      intro i.
+      intro B.
+      replace (Znth i (a :: ls)) with (Znth (i - 1) ls).
+    eapply IHls; intuition.
+    eassumption.
+    admit.
+    admit.
+    admit.
+Admitted.
+      
+  Lemma eq_ub_bounded_plus : forall v d,
     0 <= v ->
     0 <= d <= 9 -> 
     v = upper_boundary ->

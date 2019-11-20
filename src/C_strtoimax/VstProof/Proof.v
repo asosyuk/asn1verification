@@ -694,7 +694,22 @@ Proof.
              (*  ub_last_digit_error_range_index *)
              admit. }
              (* i0 non-digit: extra data *)
-           { repeat forward.
+           { eapply typed_false_to_digit in H9.
+             assert (Znth j ls = i0) as ZN.
+             { replace (i0 :: sublist (j + 1) (Zlength ls) ls)
+                       with (app [i0] (sublist (j + 1) (Zlength ls) ls))
+                            in Sub.
+               erewrite <- sublist_rejoin' 
+                        with (mid := j + 1)
+                             (mid' := j + 1)
+                 in Sub.
+               eapply app_inv_tail in Sub.
+               erewrite  sublist_len_1 in Sub.
+               inversion Sub.
+               all: auto.
+               all: try nia.
+             }
+             repeat forward.
              entailer!.
              (* lemma value_always_bounded *)
              rewrite Int64.signed_repr.
@@ -704,8 +719,9 @@ Proof.
              eassumption.
              eapply bounded_bool_to_Prop;
              eassumption.
-             replace (res (Z_of_string (i :: ls))) with EXTRA_DATA.
-             Focus 2.
+             replace (res (Z_of_string (i :: ls))) with EXTRA_DATA.  
+          
+             2:
              { symmetry.
                simpl.
                break_match.
@@ -714,6 +730,11 @@ Proof.
                - unfold plus_char, minus_char.
                  bool_rewrite.
                  replace (Byte.signed i =? 43) with false.
+                 edestruct EXTRA_DATA_ER_result with (j := j) (i := Znth j ls);
+                 try eassumption; try nia; subst; try easy.
+                 admit.
+                 admit.
+                  } (* add lemmas about ERROR range *)
                  
              (* eapply typed_false_to_digit in H9. *)
              entailer!.
@@ -741,7 +762,19 @@ Proof.
              entailer!.
              autorewrite with sublist.
              entailer!.
-
+             9:
+             { repeat f_equal.
+               simpl.
+                break_match.
+               - autorewrite with sublist in H2.
+                 nia.
+               - unfold plus_char, minus_char.
+                 bool_rewrite.
+                 replace (Byte.signed i =? 43) with false.
+                 symmetry.
+                 admit.
+                 admit.
+             } 
               all: 
                 ptrofs_compute_add_mul;
                 replace (Ptrofs.unsigned Ptrofs.one)
@@ -751,9 +784,7 @@ Proof.
               eassumption.
               autorewrite with sublist.
               nia. 
-}
-             (* true extra_data_index *)
-             admit. }
+}  }
              reflexivity.
              autorewrite with sublist.
              ptrofs_compute_add_mul;
