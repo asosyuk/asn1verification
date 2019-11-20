@@ -699,11 +699,59 @@ Proof.
              (* lemma value_always_bounded *)
              rewrite Int64.signed_repr.
              eapply bounded_bool_to_Prop.
-             replace 
-             admit.
+             eapply neg_bounded.
+             eapply loop_non_neg; nia.
+             eassumption.
+             eapply bounded_bool_to_Prop;
+             eassumption.
+             replace (res (Z_of_string (i :: ls))) with EXTRA_DATA.
+             Focus 2.
+             { symmetry.
+               simpl.
+               break_match.
+               - autorewrite with sublist in H2.
+                 nia.
+               - unfold plus_char, minus_char.
+                 bool_rewrite.
+                 replace (Byte.signed i =? 43) with false.
+                 
+             (* eapply typed_false_to_digit in H9. *)
              entailer!.
-             (* from H7 *)
-             admit.
+             {
+               replace (value (Z_of_string (i :: ls))) with 
+               (-1 * value_until j ls)%Z.
+               entailer!.
+              
+               replace (Ptrofs.add str_ofs 
+                       (Ptrofs.repr (index (Z_of_string (i :: ls))))) with
+                   (Ptrofs.add str_ofs (Ptrofs.repr (j + 1))).
+               entailer!.
+             erewrite sepcon_assoc.      
+             erewrite <- split_non_empty_list
+               with (ls :=  (sublist j (Zlength ls) ls)).
+             entailer.
+             autorewrite with sublist.
+             replace (Ptrofs.add str_ofs (Ptrofs.repr (j + 1))) with
+                 (Ptrofs.add (Ptrofs.add str_ofs Ptrofs.one) (Ptrofs.repr j)).
+               erewrite sepcon_assoc.  
+             erewrite <- split_data_at_sublist_tschar.
+             replace (Ptrofs.add str_ofs (Ptrofs.repr (j + 1 + 1)))
+                     with (Ptrofs.add (Ptrofs.add str_ofs Ptrofs.one) (Ptrofs.repr (j + 1))).
+             erewrite <- split_non_empty_list with (ls := i :: ls).
+             entailer!.
+             autorewrite with sublist.
+             entailer!.
+
+              all: 
+                ptrofs_compute_add_mul;
+                replace (Ptrofs.unsigned Ptrofs.one)
+                           with 1 by auto with ptrofs;
+                rep_omega_setup; try (nia || f_equal).
+              all: try nia.
+              eassumption.
+              autorewrite with sublist.
+              nia. 
+}
              (* true extra_data_index *)
              admit. }
              reflexivity.

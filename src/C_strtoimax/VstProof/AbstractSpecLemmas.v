@@ -122,6 +122,48 @@ Proof.
   all: nia.
 Qed.
   
+Lemma exist_digit_EXTRA_DATA_or_ERROR_RANGE_loop : forall ls v i,
+    (exists i, 0 <= i < Zlength ls /\ is_digit (Znth i ls)  = false) ->
+    res (Z_of_string_loop ls v i) = EXTRA_DATA \/
+    res (Z_of_string_loop ls v i) = ERROR_RANGE.
+Proof.
+  induction ls; intros v i DIG.
+  - autorewrite with sublist in *.
+    destruct DIG.
+    nia.
+  - simpl.
+    repeat break_if.
+    eapply IHls.
+      (* from DIG *)
+      admit.
+      intuition.
+      intuition.
+Admitted.
+
+Lemma exist_digit_EXTRA_DATA_or_ERROR_RANGE : forall ls,
+    1 < Zlength ls -> 
+    (exists i, 0 <= i < Zlength ls /\ is_digit (Znth i ls)  = false) ->
+    res (Z_of_string ls) = EXTRA_DATA \/
+    res (Z_of_string ls) = ERROR_RANGE.
+Proof.
+  intros.
+  destruct ls.
+   - autorewrite with sublist in *.
+     nia.
+   - simpl.
+     break_match.
+     + repeat break_if; intuition.
+       autorewrite with sublist in *.
+       nia.
+        autorewrite with sublist in *.
+       nia.
+     + repeat break_if; intuition;
+       try eapply exist_digit_EXTRA_DATA_or_ERROR_RANGE_loop.
+       admit.
+       admit.
+       admit.
+Admitted.
+
 Lemma all_digits_OK_or_ERROR_RANGE_loop : forall ls v i,
     (forall i, 0 <= i < Zlength ls -> is_digit (Znth i ls)  = true) ->
     res (Z_of_string_loop ls v i) = OK \/
@@ -164,21 +206,33 @@ Proof.
      admit.
 Admitted.
 
-Lemma exists_non_digit_EXTRA_DATA : forall ls,
-    0 < Zlength ls -> 
-    (exists i, 0 <= i < Zlength ls /\ is_digit (Znth i ls) = false) ->
-    res (Z_of_string ls) = EXTRA_DATA.
+Lemma ERROR_RANGE_not_bounded_loop : forall ls v i,
+  res (Z_of_string_loop ls v i) = ERROR_RANGE ->
+  bounded (value (Z_of_string_loop ls v i)) = false.
 Proof.
-Admitted.
+  induction ls; intros v i.
+  - discriminate.
+  - cbn.
+ repeat break_match;
+      simpl; try congruence.
+    eapply IHls; intuition.
+Qed.
 
-Lemma lt_ub_to_bounded : forall v,
-    0 <= v < upper_boundary -> bounded v = true.
-Admitted.
 
-
-Lemma gt_ub_to_not_bounded : forall v,
-    0 <= v -> upper_boundary < v -> bounded v = false.
-Admitted.
+Lemma exists_EXTRA_DATA_loop : forall ls v i,
+  0 < Zlength ls ->
+  bounded (value (Z_of_string_loop ls v i)) = true ->
+  (exists i, 0 <= i < Zlength ls /\ is_digit (Znth i ls)  = false) ->
+    res (Z_of_string_loop ls v i) = EXTRA_DATA.
+ Proof.
+  intros.
+  edestruct exist_digit_EXTRA_DATA_or_ERROR_RANGE_loop with (ls := ls)
+  as [OK | ER];
+    intuition;
+    try eassumption.
+  eapply ERROR_RANGE_not_bounded_loop in ER.
+  congruence.
+Qed.
 
 Lemma eq_ub_bounded_plus : forall v d,
     0 <= v ->
@@ -227,17 +281,6 @@ Lemma loop_non_neg : forall ls v i, 0 <= v -> 0 <= value (Z_of_string_loop ls v 
       all: nia.
 Qed.
 
-Lemma ERROR_RANGE_not_bounded_loop : forall ls v i,
-  res (Z_of_string_loop ls v i) = ERROR_RANGE ->
-  bounded (value (Z_of_string_loop ls v i)) = false.
-Proof.
-  induction ls; intros v i.
-  - discriminate.
-  - cbn.
- repeat break_match;
-      simpl; try congruence.
-    eapply IHls; intuition.
-Qed.
 
 (* Maybe don't need these:
 
@@ -395,8 +438,7 @@ Lemma value_next_loop : forall ls v i b,
    nia.
    nia.
 Admitted.
-    
-   
+       
 Lemma typed_true_to_digit : forall i, 
     typed_true tint (if 48 <=? Byte.signed i 
                      then Val.of_bool (Byte.signed i <=? 57) 
@@ -419,57 +461,28 @@ Proof.
   all: discriminate.
 Qed.
 
-Lemma lt_ub_bounded : forall j ls, 
-    0 <= j -> j + 1 <= Zlength ls ->
-    value_until j ls < upper_boundary -> 
-    Byte.signed (Znth j ls) - zero_char <= last_digit_max ->
-    bounded (value_until (j + 1) ls) = true.
-Abort.
-
-Lemma value_always_bounded : forall j ls,
-  j <= Zlength ls ->
-  bounded (value_until j ls) = true.
-Admitted.
-  
-Lemma next_value : forall j ls b,
-    0 <= j -> j + 1 <= Zlength ls ->
-    Znth j ls = b -> is_digit b = true ->
-    value_until (j + 1) ls =
-    value_until j ls * 10 + Z_of_char b.
-Proof.
-  induction ls using rev_ind; intros.
-  admit.
-  apply Z_le_lt_eq_dec in H0; inversion H0; clear H0.
-  *
-    rewrite Zlength_app in H3; cbn in H3.
-    assert (j + 1 <= Zlength ls) by Lia.lia.
-    assert (j < Zlength ls) by Lia.lia.
-    rewrite app_Znth1 in H1 by assumption.
-    specialize (IHls b H H0 H1 H2).
-    unfold value_until in *; do 2 rewrite sublist_firstn in *.
-    do 2 rewrite Zfirstn_app1 by Lia.lia.
-    rewrite IHls; reflexivity.
-  *
-    rewrite Zlength_app in H3. 
-    pose proof H3; cbn in H3.
-    assert (j = Zlength ls) by Lia.lia.
-    rewrite app_Znth2 in H1 by Lia.lia.
-    rewrite <-H4 in H1; cbn in H1.
-    rewrite Z.sub_diag in H1.
-    rewrite Znth_0_cons in H1.
-    rewrite H1 in *.
-    unfold value_until; do 2 rewrite sublist_firstn.
-    rewrite H0.
-    rewrite <-Zlength_app.
-    rewrite ZtoNat_Zlength.
-    rewrite firstn_all.
-    rewrite Zfirstn_app1 by Lia.lia.
-    rewrite H4.
-    rewrite ZtoNat_Zlength.
-    rewrite firstn_all.
-    clear - H2.
-Admitted.
-
+Lemma typed_false_to_digit : forall i,  
+    typed_false tint
+         (if 48 <=? Byte.signed i 
+          then Val.of_bool (Byte.signed i <=? 57)
+          else Vfalse) ->
+    is_digit i = false.
+  Proof.
+     intros.
+  unfold is_digit; unfold typed_false, strict_bool_val, Val.of_bool in H; 
+    unfold zero_char, nine_char, Byte.lt.
+  rewrite andb_false_iff.
+  cbn in H.
+  assert (Int.eq Int.one Int.zero = false) 
+    by (unfold Int.eq; break_match; [discriminate|reflexivity]).
+  break_match; repeat break_match; cbn; auto; try discriminate.
+  all: try rewrite Z.leb_le in *.
+  all: apply Vint_inj in Heqv.
+  all: rewrite <-Heqv in H.
+  all: try rewrite H0 in *.
+  all: cbn in H.
+  all: discriminate.
+Qed.
 
 Lemma ub_last_digit_error_range : forall j i i0 ls,
   0 <= j < Zlength ls ->
