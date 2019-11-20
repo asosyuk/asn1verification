@@ -3,8 +3,8 @@ Require Import AbstractSpec.
 Require Import VST.floyd.proofauto.
 Require Import StructTact.StructTactics.
 
-Definition value_until j l := 
-             (value (Z_of_string (sublist 0 j l))). 
+ Definition value_until j l := 
+             (value (Z_of_string_loop (sublist 0 j l) 0 1)).
 
 Definition ASN1_INTMAX_MAX := Int64.max_signed.
 Definition upper_boundary := Z.div ASN1_INTMAX_MAX 10.
@@ -45,13 +45,28 @@ Qed.
 
 Lemma lt_ub_to_next_bounded_bool : forall v d,
     0 <= d <= 9 -> 
-    0 <= v < upper_boundary -> bounded (v*10 + d) = true.
+    0 <= v < upper_boundary -> 
+    bounded (v*10 + d) = true /\
+    bounded (v*10) = true /\
+    bounded v = true.
 Proof.
   unfold upper_boundary.
   unfold bounded.
   intros.
-  rewrite andb_true_iff in *.
+  repeat rewrite andb_true_iff in *.
   repeat Zbool_to_Prop.
+  cbn in *.
+  nia.
+Qed.
+
+Lemma lt_ub_to_bounded_Prop : forall v d,
+    0 <= d <= 9 -> (* is digit *)
+    0 <= v < upper_boundary -> 
+    Int64.min_signed <= v <= Int64.max_signed.
+Proof.
+  unfold upper_boundary.
+  unfold bounded.
+  intros.
   cbn in *.
   nia.
 Qed.
@@ -59,8 +74,8 @@ Qed.
 Lemma lt_ub_to_next_bounded_Prop : forall v d,
     0 <= d <= 9 -> (* is digit *)
     0 <= v < upper_boundary -> 
-    Int64.min_signed <= v * 10 + d <= Int64.max_signed
-   /\  Int64.min_signed <= v * 10  <= Int64.max_signed.
+    Int64.min_signed <= v * 10 + d <= Int64.max_signed /\
+    Int64.min_signed <= v * 10 <= Int64.max_signed. 
 Proof.
   unfold upper_boundary.
   unfold bounded.
@@ -76,10 +91,23 @@ Definition upper_boundary_int := (
                         (Int64.repr (Int.unsigned (Int.repr 1))))
             (Int64.repr (Int.signed (Int.repr 10))))).
 
+Lemma lt_ub_to_Z : forall v,
+    Int64.min_signed <= v <= Int64.max_signed ->
+    Int64.lt (Int64.repr v) upper_boundary_int = true ->
+    v < upper_boundary.
+  Proof.
+    intros v B Lt.
+    eapply lt_inv64 in Lt.
+  rewrite Int64.signed_repr in *.
+  replace (Int64.signed upper_boundary_int) with upper_boundary
+   in Lt by normalize.
+  all: eassumption.
+Qed.
+
 Lemma lt_ub_bounded_Prop : forall v d,
     0 <= d <= 9 ->
     0 <= v ->
-    Int64.min_signed <= v  <= Int64.max_signed ->
+    Int64.min_signed <= v <= Int64.max_signed ->
     Int64.lt (Int64.repr v) upper_boundary_int = true ->
     Int64.min_signed <= v * 10 + d <= Int64.max_signed /\ 
     Int64.min_signed <= v * 10 <= Int64.max_signed.
@@ -334,6 +362,41 @@ Lemma value_next_loop : forall ls v i b,
       try congruence.
  Qed.
 
+ Lemma next_value_lt_ub : forall ls j i,
+      (forall i : Z, 0 <= i < Zlength ls ->
+                is_digit (Znth i ls) = true) ->
+      0 < j + 1 <= Zlength ls ->
+      (value_until j ls) < upper_boundary ->
+      Znth j ls = i ->
+      is_digit i = true ->
+      (value_until (j + 1) ls) = (value_until j ls * 10 + (Z_of_char i)).
+ Proof.
+   unfold value_until.
+   intros.
+   rewrite sublist_last_1.
+   subst.
+   eapply value_next_loop.
+   eassumption.
+   eapply bounded_to_OK_loop.
+   admit.
+   eapply lt_ub_to_next_bounded_bool.
+   instantiate (1 := 0); nia.
+   split.
+   eapply loop_non_neg; nia.
+   eassumption.
+   autorewrite with sublist in *.
+   admit.
+   apply lt_ub_to_next_bounded_bool.
+   eapply is_digit_to_Z; eassumption.
+    split.
+   eapply loop_non_neg; nia.
+   eassumption.
+   eassumption.
+   nia.
+   nia.
+Admitted.
+    
+   
 Lemma typed_true_to_digit : forall i, 
     typed_true tint (if 48 <=? Byte.signed i 
                      then Val.of_bool (Byte.signed i <=? 57) 

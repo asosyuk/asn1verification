@@ -99,9 +99,6 @@ Proof.
         ** forward.
            remember (Ptrofs.add str_ofs Ptrofs.one) as str_ofs'.
 
-           Definition value_until j l := 
-             (value (Z_of_string_loop (sublist 0 j l) 0 1)).
-
            Definition res_until j l := 
              (res (Z_of_string (sublist 0 j l))).
 
@@ -262,10 +259,10 @@ Proof.
                    (ls := i :: ls) (j := 1).
                autorewrite with sublist.
                replace (Z.succ (Zlength ls) - 1)
-                           with (Zlength ls) by nia.                                          
-               entailer!.
+                           with (Zlength ls) by nia.     
+               unfold value_until in *.
                autorewrite with  sublist in *.
-               eassumption.
+               entailer!.
                erewrite data_at_zero_array_eq.
                entailer!.
                replace (sublist 1 (Z.succ (Zlength ls)) (i :: ls)) with
@@ -362,30 +359,36 @@ Proof.
              forward.
              forward_if.
             (* Case:  vl < ub *)
-           { forward.
+           { pose proof (bounded_bool_to_Prop _ H6).
+             pose proof (is_digit_to_Z i0 H9).
+             eapply lt_ub_to_Z in H10; try nia.
+             assert (0 <= value_until j ls < AbstractSpecLemmas.upper_boundary).
+             unfold Z_of_char in *.
+             { split.
+                  eapply loop_non_neg; nia.
+             eassumption. }
+                                 forward.
              entailer!.
              { repeat rewrite Int64.signed_repr.
-               eapply lt_ub_bounded_Prop.
-               eapply is_digit_to_Z.
-               eassumption.
-                eapply loop_non_neg; nia.
-               all: try eapply lt_ub_bounded_Prop;
-                 try eassumption.
-               all: try eapply bounded_bool_to_Prop;
-               try eassumption.
-               instantiate (1 := 0); nia.
-               eapply loop_non_neg; nia. }
+                eapply lt_ub_to_next_bounded_Prop.
+                 try eassumption; try nia.
+                 all: try nia.
+                  eapply lt_ub_to_next_bounded_Prop.
+                 try eassumption; try nia.
+                 all: try nia. }
              forward.
              (* show that loop invariant holds after normal  loop body execution *)
              Exists (j + 1) (value_until (j + 1) ls).
              entailer!.
+             erewrite next_value_lt_ub with (i := i0).
              repeat split; try nia.
              (* from H4 and H8 *)
              admit.
-             (* H6 and H10 *)
-             admit.
-             (* true, use next_value lemma *)
-             admit.
+             apply lt_ub_to_next_bounded_bool.
+             all: try eassumption; try nia.
+             autorewrite with sublist.
+             admit.  (* change premise *)
+             admit. (* from Sub *)
              entailer!.
              erewrite sepcon_assoc.
              erewrite <- split_non_empty_list
@@ -487,7 +490,8 @@ Proof.
                                                         Ptrofs.unsigned end'_ofs)
                        with false.
                 entailer!.
-                repeat split.
+                repeat split; try eassumption; try nia.
+                autorewrite with sublist.
                (* Sub, H5 and H8 *)
                admit.
                admit.
