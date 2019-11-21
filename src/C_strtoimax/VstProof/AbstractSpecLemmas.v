@@ -214,6 +214,14 @@ Qed.
       bounded (v*10 + d) = false.
   Admitted.          
 
+  Lemma eq_ub_bounded_minus : forall v d,
+      0 <= v ->
+      0 <= d <= 9 -> 
+      v = upper_boundary ->
+      d <= last_digit_max_minus ->
+      bounded (v*10 + d) = true.
+  Admitted.
+
 
 (* Lemmas about Spec *) 
 

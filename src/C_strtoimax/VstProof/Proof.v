@@ -684,14 +684,7 @@ Proof.
               eapply bounded_bool_to_Prop in H6.
 
               assert (bounded (value_until (j + 1) ls) = true) as Bound.
-              Lemma eq_ub_bounded_minus : forall v d,
-                  0 <= v ->
-                  0 <= d <= 9 -> 
-                  v = upper_boundary ->
-                  d <= last_digit_max_minus ->
-                  bounded (v*10 + d) = true.
-              Admitted.
-
+             
                   { erewrite next_value_lt_ub.
                     eapply eq_ub_bounded_minus with (d := Z_of_char (Znth j ls)).
                     eapply loop_non_neg; nia.
@@ -699,28 +692,15 @@ Proof.
                     all: unfold value_until, Z_of_char in *;
                       try eassumption; try nia; auto. } 
 
-               assert (res (Z_of_string_loop ls 0 1) = ERROR_RANGE) as Result_loop.
-               eapply  ub_last_digit_error_range;
-                 try eassumption; try nia.
-
-              assert (res (Z_of_string (i :: ls)) = ERROR_RANGE) as Result.
-               {  simpl.
-                  replace (is_sign i) with true.
-                  replace ( Byte.signed i =? minus_char) with true.
-                  replace ( Byte.signed i =? plus_char) with false.
-                  break_match. 
-                  autorewrite with sublist in H2;
-                    try nia.
-                  eassumption.
-                  1-2: admit. }  
-
-                 admit.
-                 
-               }
+               admit. 
+                  admit.
+                  admit. } 
                admit.
+
                forward.
                forward.
                entailer!.
+               (* Extra data case *)
                admit.
                admit.
                auto.
