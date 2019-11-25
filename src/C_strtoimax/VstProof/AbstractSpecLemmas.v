@@ -25,6 +25,18 @@ Proof.
   nia.
 Qed.
 
+Lemma app_is_digit : forall ls j,
+    0 <= j < Zlength ls ->
+    (forall i : Z, 0 <= i < j -> is_digit (Znth i ls) = true) ->
+    is_digit (Znth j ls) = true ->
+    forall i0 : Z, 0 <= i0 < j + 1 -> is_digit (Znth i0 ls) = true.
+Proof.
+  intros.
+  destruct (zle j i0).
+  - replace i0 with j by nia.
+    eassumption.
+  - eapply H0. nia.
+Qed.
 
 Lemma sign_not_digit : forall  i, is_sign i = true -> is_digit i = false.
 Admitted.
@@ -52,7 +64,14 @@ intros.
 unfold Int64.lt in H. if_tac in H; inv H. auto.
 Qed.
 
-
+Lemma lt_false_inv64:
+  forall i j,
+    Int64.lt i j = false -> (Int64.signed i >= Int64.signed j)%Z.
+Proof.
+  intros.
+  unfold Int64.lt in H. if_tac in H; inv H. auto.
+Qed.
+               
 Lemma lt_ub_to_next_bounded_bool : forall v d,
     0 <= d <= 9 -> 
     0 <= v < upper_boundary -> 
@@ -146,6 +165,15 @@ Lemma lt_ub_to_Z5 :  forall v,
     v <> upper_boundary.
 Admitted.
 
+Lemma lt_ub_to_Z6 :  forall v i,
+    Int64.min_signed <= v <= Int64.max_signed ->
+    Int64.lt last_digit_max_minus_int
+             (Int64.repr (Int.signed (Int.sub 
+                                        (Int.repr (Byte.signed i)) (Int.repr 48)))) = false ->
+      (Byte.signed i - 48) <= last_digit_max_minus.
+                      
+                
+
 Lemma eq_ub_not_bounded_minus : forall v d,
     0 <= v ->
     0 <= d <= 9 -> 
@@ -222,6 +250,13 @@ Qed.
       bounded (v*10 + d) = true.
   Admitted.
 
+  Lemma eq_ub_next : forall v d,
+      0 <= v ->
+      0 <= d  -> 
+      v = upper_boundary ->
+      v*10 + d > upper_boundary.
+  Admitted.
+
 
 (* Lemmas about Spec *) 
 
@@ -240,7 +275,7 @@ Proof.
 Qed.
 
  Lemma sublist_ERROR_RANGE : forall ls v k j i, 
-     0 <= j < Zlength ls ->
+     0 <= j <= Zlength ls ->
      0 <= k < j ->
      res (Z_of_string_loop (sublist k j ls) v i) = ERROR_RANGE ->
      res (Z_of_string_loop ls v i) = ERROR_RANGE.

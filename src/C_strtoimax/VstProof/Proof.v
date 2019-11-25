@@ -234,7 +234,9 @@ Proof.
              entailer!.
              all: try (erewrite sublist_1_cons || autorewrite with sublist);
                autorewrite with sublist; (reflexivity || auto with zarith || auto).
-         *** Intros j vl.
+           ***
+             Intros j vl.
+             assert ( 0 <= value_until j ls) as NN by (eapply loop_non_neg; nia).
              forward.
              forward_if.
            3:
@@ -329,35 +331,8 @@ Proof.
                  (i := i0) 
                  (ls' := (sublist (j + 1) (Zlength ls) ls))
                  (ofs := (Ptrofs.add str_ofs (Ptrofs.repr (j + 1)))).
-             
-             Intros.
-             forward.
-             forward_if (temp _t'2
-                              (if 48 <=? Byte.signed i0 
-                               then (Val.of_bool (Byte.signed i0 <=? 57))
-                               else  Vfalse)).
-             forward.
-             forward.
-             entailer!.
-             { erewrite Z.ge_le_iff in *.
-               erewrite <- Z.leb_le in *.
-               break_if.
-               replace (negb (Int.lt (Int.repr 57) (Int.repr (Byte.signed i0))))
-                 with (Byte.signed i0 <=? 57).
-               destruct (Byte.signed i0 <=? 57); easy.
-               eapply Zge_bool_Intge.
-               easy. }
-             forward.
-             entailer!.
-             { break_if.
-               try rewrite <- Zle_is_le_bool in *.
-               nia.
-               reflexivity. }
-             forward_if.
-             eapply typed_true_to_digit in H9.
-             forward.
-             forward.
-             assert (Znth j ls = i0) as ZN.
+
+              assert (Znth j ls = i0) as ZN.
              { replace (i0 :: sublist (j + 1) (Zlength ls) ls)
                        with (app [i0] (sublist (j + 1) (Zlength ls) ls))
                             in Sub.
@@ -370,7 +345,35 @@ Proof.
                inversion Sub.
                all: auto.
                all: try nia.
-             }
+             }             
+             Intros.
+             forward.
+             forward_if (temp _t'2
+                              (if 48 <=? Byte.signed i0 
+                               then (Val.of_bool (Byte.signed i0 <=? 57))
+                               else  Vfalse)).
+             forward.
+             forward.
+             entailer!.
+             { erewrite Z.ge_le_iff in *.
+               erewrite <- Z.leb_le in *.
+               break_if.
+               replace (negb (Int.lt (Int.repr 57) (Int.repr (Byte.signed (Znth j ls)))))
+                 with (Byte.signed (Znth j ls) <=? 57).
+               destruct (Byte.signed (Znth j ls) <=? 57); easy.
+               eapply Zge_bool_Intge.
+               easy. }
+             forward.
+             entailer!.
+             { break_if.
+               try rewrite <- Zle_is_le_bool in *.
+               nia.
+               reflexivity. }
+             forward_if.
+             eapply typed_true_to_digit in H9.
+             forward.
+             forward.
+            
              forward_if.
             (* Case:  vl < ub *)
            { pose proof (bounded_bool_to_Prop _ H6).
@@ -378,10 +381,8 @@ Proof.
               lt_ub_to_Z  H10; try nia.
              assert (0 <= value_until j ls < AbstractSpecLemmas.upper_boundary).
              unfold Z_of_char in *.
-             { split.
-                  eapply loop_non_neg; nia.
-             eassumption. }
-                                 forward.
+             nia.
+             forward.
              entailer!.
              { repeat rewrite Int64.signed_repr.
                 eapply lt_ub_to_next_bounded_Prop.
@@ -396,8 +397,20 @@ Proof.
              entailer!.
              erewrite next_value_lt_ub with (i := Znth j ls).
              repeat split; try nia.
-             (* from H4 and H8 *)
-             admit.
+             Lemma app_is_digit : forall ls j,
+                 0 <= j < Zlength ls ->
+               (forall i : Z, 0 <= i < j -> is_digit (Znth i ls) = true) ->
+                        is_digit (Znth j ls) = true ->
+                        forall i0 : Z, 0 <= i0 < j + 1 -> is_digit (Znth i0 ls) = true.
+             Proof.
+               intros.
+               destruct (zle j i0).
+               - replace i0 with j by nia.
+                 eassumption.
+               - eapply H0. nia.
+             Qed.
+
+             eapply app_is_digit; try nia; try eassumption.
              apply lt_ub_to_next_bounded_bool.
              all: try eassumption; try nia; auto.
              entailer!.
@@ -421,7 +434,7 @@ Proof.
               all: try nia.
               eassumption.
               autorewrite with sublist.
-              nia. 
+              nia.
            }
              forward_if.
            (* vl == ub *)
@@ -497,19 +510,50 @@ Proof.
                    nia).
              (* post-if implies break condition *)
              { Exists j.
+               lt_ub_to_Z H10.
+               lt_ub_to_Z H11.
+               lt_ub_to_Z H12.
+               Locate  lt_inv.
+               cleanup_repr H12.
+               assert (Byte.signed i0 - 48 <= last_digit_max_minus)
+                 by admit. clear H12.
+               (* replace Int64 with Int and use vst tactic: *)                   
                replace (Ptrofs.unsigned str_ofs + j + 1 >=?
                                                         Ptrofs.unsigned end'_ofs)
                        with false.
                 entailer!.
-                repeat split; try eassumption; try nia.
-               (* Sub, H5 and H8 *)
-               admit.
-               unfold value_until in *.
-               admit.
-               (* next_value lemma *)
-               admit.
-               replace (Zlength ls) with (j + 1) by nia.
-               auto. 
+                 repeat split; try easy.
+                 replace (Zlength ls) with (j + 1) by nia.
+                eapply app_is_digit; try easy.
+                replace ls with (sublist 0 (j + 1) ls).
+                replace (value (Z_of_string_loop (sublist 0 (j + 1) ls) 0 1)) with
+                    (value_until (j + 1) ls).
+                erewrite  next_value_lt_ub.
+                eapply eq_ub_bounded_minus;
+                  try eassumption.
+                eapply is_digit_to_Z in H9.
+                                          
+                  all: try nia; try
+                eassumption; auto.
+                replace (j + 1) with (Zlength ls) by nia.
+                autorewrite with sublist; auto.
+
+                f_equal.
+                f_equal.
+
+                  replace ls with (sublist 0 (j + 1) ls) at 1.
+                replace (value (Z_of_string_loop (sublist 0 (j + 1) ls) 0 1)) with
+                    (value_until (j + 1) ls).
+                erewrite  next_value_lt_ub.
+                unfold value_until.
+                instantiate (1 := (Znth j ls)).
+                unfold Z_of_char.
+                nia.
+                 all: try eassumption; try nia; auto.
+                  replace (j + 1) with (Zlength ls) by nia.
+                autorewrite with sublist; auto.
+              
+               replace (Zlength ls) with (j + 1) by nia; auto. 
                replace (sublist 1 (j + 1) (i :: ls)) with
                    (sublist 0 j ls).
                erewrite sepcon_assoc.
@@ -528,12 +572,13 @@ Proof.
                erewrite <- split_non_empty_list with (ls := i::ls).
                autorewrite with sublist.
                entailer!.
-               all: auto;
+               all:  try eapply bounded_bool_to_Prop in H6; auto;
                  autorewrite with sublist;
                  ptrofs_compute_add_mul;
                  replace (Ptrofs.unsigned Ptrofs.one)
                    with 1 by auto with ptrofs;
-                 rep_omega_setup; try (nia).
+                 rep_omega_setup; try nia.
+               
                f_equal. nia.
                replace (i :: ls) with (app [i] ls)
                  by reflexivity.
@@ -543,7 +588,8 @@ Proof.
                
                rewrite Z.geb_leb.
                rewrite Z.leb_gt.
-               nia. }
+               nia.
+             }
              }
  
              (* compare pointers *)
@@ -614,13 +660,10 @@ Proof.
                 rep_omega_setup;
                nia).
 
-              assert (0 < Zlength (sublist (j + 1) (Zlength ls) ls)).
-             { subst.
-               replace (Ptrofs.add (Ptrofs.add str_ofs (Ptrofs.repr (j + 1)))
-                      (Ptrofs.mul (Ptrofs.repr 1) (Ptrofs.of_ints (Int.repr 1))))
-                       with (Ptrofs.add (Ptrofs.add str_ofs (Ptrofs.repr (j + 1))) (Ptrofs.repr 1))
-                           in * by (autorewrite with norm; reflexivity).
-               
+             assert (0 < Zlength (sublist (j + 1) (Zlength ls) ls)).
+
+            
+             { subst.               
                destruct (Z_lt_le_dec (Ptrofs.unsigned str_ofs + j + 1 + 1) Ptrofs.modulus).                       *
                erewrite Zlength_sublist.
                all: try nia.
@@ -636,7 +679,6 @@ Proof.
              instantiate (1 := 0); cbv; auto.
             erewrite Sub2.
              (* reading a char i0 *)
-
             replace (Zlength ls - (j + 1)) with 
                 (Zlength (i1::(sublist (j + 1 + 1) (Zlength ls) ls))).
             erewrite split_non_empty_list with
@@ -669,34 +711,112 @@ Proof.
                try rewrite <- Zle_is_le_bool in *.
                nia.
                reflexivity. }
-             forward_if.
-               forward.
-               entailer!.
-               (* ERROR RANGE CASE *)
-               { eapply typed_true_to_digit in H15.
+               assert (Znth (j + 1) ls = i1) as ZN1.
+               { replace (i1 :: sublist (j + 1 + 1) (Zlength ls) ls)
+                   with (app [i1] (sublist (j + 1 + 1) (Zlength ls) ls))
+                   in Sub2.
+                 erewrite <- sublist_rejoin' 
+                   with (mid := (j + 1) + 1)
+                        (mid' := (j + 1) + 1)
+                   in Sub2.
+                 eapply app_inv_tail in Sub2.
+                 erewrite  sublist_len_1 in Sub2.
+                 inversion Sub2.
+                 all: auto.
+                 all: try nia.
+               }
+
+               assert ( 0 <= value_until (j + 1) ls) as NN1 by (eapply loop_non_neg; nia).
+               
+               forward_if.
+
+                (* ERROR RANGE CASE *)
+               {rewrite <- ZN1 in *.
+                rewrite <- ZN in *.
+                 eapply typed_true_to_digit in H15.
                  lt_ub_to_Z H10.
                  lt_ub_to_Z H11.
                  lt_ub_to_Z H12.
+                 assert ((Byte.signed (Znth j ls) - 48) <= last_digit_max_minus)
+                     by admit. clear H12.
+                 inversion H6.
+                 eapply bounded_bool_to_Prop in H6.
 
-              assert ((Byte.signed (Znth j ls) - 48) <= last_digit_max_minus)
-                     by admit.
-              inversion H6.
-              eapply bounded_bool_to_Prop in H6.
-
-              assert (bounded (value_until (j + 1) ls) = true) as Bound.
-             
+                 assert (bounded (value_until (j + 1) ls) = true) as Bound.             
                   { erewrite next_value_lt_ub.
-                    eapply eq_ub_bounded_minus with (d := Z_of_char (Znth j ls)).
-                    eapply loop_non_neg; nia.
-                    eapply is_digit_to_Z ; eassumption.
+                    eapply eq_ub_bounded_minus with (d := Z_of_char (Znth j ls)); try nia.
+                    eapply is_digit_to_Z; subst; eassumption.
                     all: unfold value_until, Z_of_char in *;
-                      try eassumption; try nia; auto. } 
+                      subst; try eassumption; try nia; auto. }
 
-               admit. 
-                  admit.
-                  admit. } 
-               admit.
+                  assert (bounded (value_until ((j + 1) + 1) ls) = false) as BoundF.
+             
+                  { 
+                    erewrite next_value_lt_ub with (i := Znth (j + 1) ls).
+                    eapply lt_ub_not_bounded.
+                    eassumption.
+                    eapply is_digit_to_Z;
+                    eassumption.
+                    erewrite next_value_lt_ub with (i := Znth j ls).
+                    eapply eq_ub_next; try nia
+                     eapply is_digit_to_Z.
+                    all: try eassumption; try nia.
+                    eapply is_digit_to_Z; eassumption; auto.
+                    auto.
+                    eapply app_is_digit; try eassumption; try nia;
+                      auto.
+                    auto. }
 
+                  assert (j + 1 + 1 <= Zlength ls) as LS_len2 by nia.
+                  assert (res (Z_of_string (i :: ls)) = ERROR_RANGE) as Result.
+                  {
+                    simpl.
+                    replace (is_sign i) with true.
+                    replace ( Byte.signed i =? minus_char) with true.
+                    replace ( Byte.signed i =? plus_char) with false.
+                    break_match. 
+                    autorewrite with sublist in H2;
+                      try nia.
+                    assert ((Zlength (sublist 0 (j + 1 + 1) ls))
+                            =  (j + 1 + 1)) as SB
+                          by  (erewrite Zlength_sublist;
+                      subst;
+                      try nia).
+                    edestruct all_digits_OK_or_ERROR_RANGE_loop
+                      with (ls := (sublist 0 (j + 1 + 1) ls)) (v:= 0) (i := 1); try rewrite SB.
+                    eapply app_is_digit;  try rewrite SB;
+                    try nia.
+                    eapply app_is_digit;  try rewrite SB;
+                      try nia.                  
+                    intros.
+                    erewrite Znth_sublist.
+                    normalize.
+                    subst.
+                    eapply H5.
+                    all: try nia.
+                    all: try erewrite Znth_sublist;
+                    try nia; normalize; subst; try eassumption.
+
+                    eapply  OK_bounded_loop in H12.
+                    unfold value_until in *.
+                    congruence.
+                    admit.
+                    unfold value_until in *.
+                    eapply sublist_ERROR_RANGE in H12.
+                    subst.
+                    eassumption.
+                    subst.
+                    admit. (* fix sublist lemma *)
+                    nia.
+                    1-2: admit. 
+                  }
+                  assert (index (Z_of_string (i :: ls)) = j + 1 + 1) as Index.
+                  { admit. }
+                  
+                  forward.
+                  erewrite Result, Index.
+                  entailer!.
+                  1-3: admit. }
                forward.
                forward.
                entailer!.
