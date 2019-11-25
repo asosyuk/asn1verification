@@ -1,5 +1,5 @@
 Require Import VST.floyd.proofauto Psatz.
-Require Import StructTact.StructTactics Psatz.
+Require Import StructTact.StructTactics Psatz AbstractSpec.
 
 Proposition sublist_first : forall (A : Type) j (ls : list A),
     Inhabitant A ->
@@ -205,3 +205,49 @@ Proof.
   nia.
 Qed.
 
+Lemma typed_true_to_digit : forall i, 
+    typed_true tint (if 48 <=? Byte.signed i 
+                     then Val.of_bool (Byte.signed i <=? 57) 
+                     else Vfalse) -> 
+    is_digit i = true.
+Proof.
+  intros.
+  unfold is_digit; unfold typed_true, strict_bool_val, Val.of_bool in H; 
+    unfold zero_char, nine_char, Byte.lt.
+  rewrite andb_true_iff.
+  cbn in H.
+  assert (Int.eq Int.one Int.zero = false) 
+    by (unfold Int.eq; break_match; [discriminate|reflexivity]).
+  break_match; repeat break_match; cbn; auto; try discriminate.
+  all: try rewrite Z.leb_le in *.
+  all: apply Vint_inj in Heqv.
+  all: rewrite <-Heqv in H.
+  all: try rewrite H0 in *.
+  all: cbn in H.
+  all: discriminate.
+Qed.
+
+
+
+Lemma typed_false_to_digit : forall i,  
+    typed_false tint
+         (if 48 <=? Byte.signed i 
+          then Val.of_bool (Byte.signed i <=? 57)
+          else Vfalse) ->
+    is_digit i = false.
+  Proof.
+     intros.
+  unfold is_digit; unfold typed_false, strict_bool_val, Val.of_bool in H; 
+    unfold zero_char, nine_char, Byte.lt.
+  rewrite andb_false_iff.
+  cbn in H.
+  assert (Int.eq Int.one Int.zero = false) 
+    by (unfold Int.eq; break_match; [discriminate|reflexivity]).
+  break_match; repeat break_match; cbn; auto; try discriminate.
+  all: try rewrite Z.leb_le in *.
+  all: apply Vint_inj in Heqv.
+  all: rewrite <-Heqv in H.
+  all: try rewrite H0 in *.
+  all: cbn in H.
+  all: discriminate.
+Qed.

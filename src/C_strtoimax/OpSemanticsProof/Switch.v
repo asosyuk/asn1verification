@@ -72,10 +72,10 @@ Proof.
 
 (* Below are lemmas that allow to execute AST until the loop,
 used in asn_strtoimac_lim_correct *)
-Proposition AST_decompose : pre_loop f_asn_strtoimax_lim_loop post_loop
+(*Proposition AST_decompose : pre_loop f_asn_strtoimax_lim_loop post_loop
                             = f_asn_strtoimax_lim.(fn_body).
   reflexivity.
-Qed.
+Qed. *)
 
 (* Case 1: If str < *fin and the first character read is minus_char 
 and s1 (loop) executes to a return statement:

@@ -92,9 +92,9 @@ Definition asn_strtoimax_lim_vst_spec : ident * funspec :=
             (* in 3 cases intp stays unchanged,
               otherwise store the end value of Z_of_string *)
             match r with 
-              | ASN_STRTOX_ERROR_RANGE 
-              | ASN_STRTOX_ERROR_INVAL 
-              | ASN_STRTOX_EXPECT_MORE => 
+              | ERROR_RANGE 
+              | ERROR_INVAL 
+              | EXPECT_MORE => 
                 data_at sh_intp (tlong) v (Vptr intp_b intp_ofs)
               | _ => data_at sh_intp (tlong) 
                          (Vlong (Int64.repr (value (Z_of_string ls))))
