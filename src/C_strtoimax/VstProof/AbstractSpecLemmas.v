@@ -38,12 +38,26 @@ Proof.
   - eapply H0. nia.
 Qed.
 
+
 Lemma sign_not_digit : forall  i, is_sign i = true -> is_digit i = false.
-Admitted.
+Proof.
+  intros.
+  unfold is_sign, is_digit in *.
+  unfold zero_char, plus_char, minus_char, nine_char in *.
+  rewrite andb_false_iff; do 2 rewrite Z.leb_gt.
+  rewrite orb_true_iff in H; do 2 rewrite Z.eqb_eq in H.
+  lia.
+Qed.
 
 Lemma digit_not_sign : forall i, is_digit i = true -> is_sign i = false.
-Admitted.
-
+Proof.
+  intros.
+  unfold is_sign, is_digit in *.
+  unfold zero_char, plus_char, minus_char, nine_char in *.
+  rewrite orb_false_iff; do 2 rewrite Z.eqb_neq.
+  rewrite andb_true_iff in H; do 2 rewrite Z.leb_le in H.
+  lia.
+Qed.
 
 Lemma bounded_bool_to_Prop :
   forall v, bounded v = true ->  
@@ -133,30 +147,61 @@ Lemma lt_ub_to_Z1 : forall v,
   all: eassumption.
 Qed.
 
+Lemma upper_boundary_int_repr:
+  upper_boundary_int = 
+  Int64.repr 922337203685477580.
+Proof.
+  reflexivity.
+Qed.
+
 Lemma lt_ub_to_Z2 :  forall v,
     Int64.min_signed <= v <= Int64.max_signed ->
     Int64.lt (Int64.repr v) upper_boundary_int = false ->
     v >= upper_boundary.
-Admitted.
-
+Proof.
+  intros.
+  cbn in *.
+  unfold Int64.lt in H0.
+  destruct zlt in H0; [discriminate|].
+  rewrite upper_boundary_int_repr in g.
+  do 2 rewrite Int64.signed_repr in g; cbn; lia.
+Qed.
 
 Lemma lt_ub_to_Z3 :  forall v,
-    Int64.min_signed <= v <= Int64.max_signed ->
+    0 <= v <= Int64.max_unsigned ->
     Int64.eq (Int64.repr v) upper_boundary_int = true ->
     v = upper_boundary.
-Admitted.
+Proof.
+  intros.
+  unfold Int64.eq in H0.
+  destruct zeq in H0; [|discriminate].
+  rewrite upper_boundary_int_repr in e.
+  replace (Int64.unsigned (Int64.repr 922337203685477580)) 
+    with 922337203685477580 in e by reflexivity.
+  rewrite Int64.unsigned_repr in e; cbn in *; lia.
+Qed.
 
 Definition last_digit_max_minus_int :=
    (Int64.add
-      (Int64.mods (Int64.shru (Int64.not (Int64.repr 0)) (Int64.repr 1)) (Int64.repr 10))
-             Int64.one).
+      (Int64.mods (Int64.shru (Int64.not (Int64.repr 0)) 
+                              (Int64.repr 1)) 
+                  (Int64.repr 10)) 
+      Int64.one).
 
-Lemma lt_ub_to_Z4 :  forall v i,
-                      Int64.min_signed <= v <= Int64.max_signed ->
-                      Int64.lt last_digit_max_minus_int
-                               (Int64.repr (Int.signed (Int.sub 
-(Int.repr (Byte.signed i)) (Int.repr 48)))) = true ->
-                      last_digit_max_minus < (Byte.signed i - 48).
+Lemma last_digit_max_minus_int_repr :
+  last_digit_max_minus_int =
+  Int64.repr (8).
+Proof.
+  reflexivity.
+Qed.
+
+Lemma lt_ub_to_Z4 :  forall v i, 
+    Int64.min_signed <= v <= Int64.max_signed -> 
+    Int64.lt last_digit_max_minus_int 
+             (Int64.repr (Int.signed (Int.sub (Int.repr (Byte.signed i)) 
+                                              (Int.repr 48)))) = true -> 
+    last_digit_max_minus < (Byte.signed i - 48).
+Proof.
 Admitted.
 
 Lemma lt_ub_to_Z5 :  forall v,
@@ -180,7 +225,12 @@ Lemma eq_ub_not_bounded_minus : forall v d,
     v = upper_boundary ->
     d > last_digit_max_minus ->
     bounded (v*10 + d) = false.
-Admitted.
+Proof.
+  intros.
+  unfold bounded; cbn in *.
+  rewrite andb_false_iff; do 2 rewrite Z.leb_gt.
+  lia.
+Qed.
 
 Ltac lt_ub_to_Z H := try (eapply lt_ub_to_Z1 in H ||
                             eapply lt_ub_to_Z2 in H ||
@@ -205,22 +255,6 @@ Proof.
    in Lt by normalize.
   all: nia.
 Qed.
-
-  Lemma eq_ub_bounded_plus : forall v d,
-    0 <= v ->
-    0 <= d <= 9 -> 
-    v = upper_boundary ->
-    d <= last_digit_max ->
-    bounded (v*10 + d) = true.
-Admitted.
-
-Lemma eq_ub_not_bounded_plus : forall v d,
-    0 <= v ->
-    0 <= d <= 9 -> 
-    v = upper_boundary ->
-    d > last_digit_max ->
-    bounded (v*10 + d) = false.
-Admitted.
 
 Lemma neg_bounded : forall v, 
     0 <= v -> 
@@ -449,31 +483,33 @@ Proof.
     instantiate (1 := i).
     (* from DIG *)
     admit.
-    eassumption.      
-    simpl.
-    intuition.
-    simpl.
-    intuition.
 Admitted.
-
-Lemma exists_EXTRA_DATA_loop :  forall ls v k j i, 
-    0 < Zlength ls -> 
-    0 <= j < Zlength ls ->
-    Znth j ls = i -> 
-    is_digit i = false -> 
-    res (Z_of_string_loop ls v k) = EXTRA_DATA.
- Proof.
+      
+Lemma eq_ub_bounded_plus : forall v d, 
+      0 <= v ->
+      0 <= d <= 9 -> 
+      v = upper_boundary ->
+      d <= last_digit_max ->
+      bounded (v*10 + d) = true.
+Proof.
   intros.
-  edestruct EXTRA_DATA_ER_result with (ls := ls) (j := j)
-  as [OK | ER];
-    intuition;
-    try eassumption.
-  subst.
-  eassumption.
-  eapply ERROR_RANGE_not_bounded_loop in ER.
-  (* Extra data to bounded *)
-  admit.
-Admitted.
+  unfold bounded; cbn in *.
+  rewrite andb_true_iff; do 2 rewrite Z.leb_le.
+  lia.
+Qed.
+
+Lemma eq_ub_not_bounded_plus : forall v d, 
+    0 <= v ->
+    0 <= d <= 9 -> 
+    v = upper_boundary ->
+    d > last_digit_max ->
+    bounded (v*10 + d) = false.
+Proof.
+  intros.
+  unfold bounded; cbn in *.
+  rewrite andb_false_iff; do 2 rewrite Z.leb_gt.
+  lia.
+Qed.
 
 Lemma loop_non_neg : forall ls v i, 0 <= v -> 0 <= value (Z_of_string_loop ls v i).
   Proof.
@@ -494,44 +530,44 @@ Lemma value_next_loop : forall ls v i b,
     is_digit b = true ->
     value (Z_of_string_loop (ls ++ [b]) v i) = 
     (value (Z_of_string_loop ls v i)) * 10 + (Z_of_char b).
-  Proof.
-    induction ls; intros.
-    * simpl in *.
-      repeat bool_rewrite.
-      break_if; easy.
-    * simpl.
-      break_if.
-      break_if.
-      erewrite IHls.
-      reflexivity.
-      eassumption.
-      all: simpl in *;
-      repeat break_if;
-        try congruence; simpl in *;
-      try congruence.
- Qed.
+Proof.
+  induction ls; intros.
+  * simpl in *.
+    repeat bool_rewrite.
+    break_if; easy.
+  * simpl.
+    break_if.
+    break_if.
+    erewrite IHls.
+    reflexivity.
+    eassumption.
+    all: simpl in *;
+    repeat break_if;
+      try congruence; simpl in *;
+    try congruence.
+Qed.
 
- Lemma next_value_lt_ub : forall ls j i,
-      (forall i : Z, 0 <= i < j  ->
-                is_digit (Znth i ls) = true) ->
-      0 < j + 1 <= Zlength ls ->
-      bounded (value_until j ls) = true -> 
-      Znth j ls = i ->
-      is_digit i = true ->
-      (value_until (j + 1) ls) = (value_until j ls * 10 + (Z_of_char i)).
- Proof.
-   unfold value_until.
-   intros.
-   rewrite sublist_last_1.
-   subst.
-   eapply value_next_loop.
-   eassumption.
-   eapply bounded_to_OK_loop.
-   admit.
-   eassumption.
-   admit.
-   eassumption.
-   all: nia.
+Lemma next_value_lt_ub : forall ls j i,
+     (forall i : Z, 0 <= i < j  ->
+               is_digit (Znth i ls) = true) ->
+     0 < j + 1 <= Zlength ls ->
+     bounded (value_until j ls) = true -> 
+     Znth j ls = i ->
+     is_digit i = true ->
+     (value_until (j + 1) ls) = (value_until j ls * 10 + (Z_of_char i)).
+Proof.
+  unfold value_until.
+  intros.
+  rewrite sublist_last_1.
+  subst.
+  eapply value_next_loop.
+  eassumption.
+  eapply bounded_to_OK_loop.
+  admit.
+  eassumption.
+  admit.
+  eassumption.
+  all: nia.
 Admitted.
 
 Lemma ub_last_digit_error_range : forall j i ls,
@@ -542,6 +578,7 @@ Lemma ub_last_digit_error_range : forall j i ls,
   bounded (value_until j ls) = true ->
   (value_until j ls > upper_boundary \/
   (value_until j ls = upper_boundary /\
+<<<<<<< HEAD
   last_digit_max_minus < (Byte.signed i - 48))) ->
   (res (Z_of_string_loop ls 0 1)) = ERROR_RANGE.
 Proof.
@@ -605,7 +642,18 @@ Proof.
     nia.
   }
   eassumption.
-Admitted.
+                   
+Lemma lt_ub_not_bounded : forall v d, 
+      0 <= v ->
+      0 <= d <= 9 -> 
+      v > upper_boundary ->
+      bounded (v*10 + d) = false.
+Proof.
+  intros.
+  unfold bounded; cbn in *.
+  rewrite andb_false_iff; do 2 rewrite Z.leb_gt.
+  lia.
+Qed.
 
 Lemma extra_digit_error_range : forall j i ls,
   0 <= j + 1 < Zlength ls ->
