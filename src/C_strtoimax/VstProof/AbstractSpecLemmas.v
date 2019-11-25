@@ -3,7 +3,7 @@ Require Import AbstractSpec.
 Require Import VST.floyd.proofauto.
 Require Import StructTact.StructTactics.
 
- Definition value_until j l := 
+ Notation value_until j l := 
              (value (Z_of_string_loop (sublist 0 j l) 0 1)).
 
 Definition ASN1_INTMAX_MAX := Int64.max_signed.
@@ -168,7 +168,7 @@ Proof.
 Qed.
 
 Lemma lt_ub_to_Z3 :  forall v,
-    0 <= v <= Int64.max_unsigned ->
+    0 <= v <= Int64.max_signed ->
     Int64.eq (Int64.repr v) upper_boundary_int = true ->
     v = upper_boundary.
 Proof.
@@ -217,7 +217,8 @@ Lemma lt_ub_to_Z6 :  forall v i,
                                         (Int.repr (Byte.signed i)) (Int.repr 48)))) = false ->
       (Byte.signed i - 48) <= last_digit_max_minus.
                       
-                
+   Proof.         
+Admitted.    
 
 Lemma eq_ub_not_bounded_minus : forall v d,
     0 <= v ->
@@ -269,12 +270,17 @@ Lemma neg_bounded : forall v,
 Qed.
 
                    
-  Lemma lt_ub_not_bounded : forall v d,
+Lemma lt_ub_not_bounded : forall v d, 
       0 <= v ->
       0 <= d <= 9 -> 
       v > upper_boundary ->
       bounded (v*10 + d) = false.
-  Admitted.          
+Proof.
+  intros.
+  unfold bounded; cbn in *.
+  rewrite andb_false_iff; do 2 rewrite Z.leb_gt.
+  lia.
+Qed.
 
   Lemma eq_ub_bounded_minus : forall v d,
       0 <= v ->
@@ -330,7 +336,7 @@ Qed.
  Admitted.
 
  Lemma ERROR_RANGE_index : forall ls v i j,
-     0 <= j + 1 < Zlength ls ->
+     0 <= j + 1 <= Zlength ls ->
      res (Z_of_string_loop ls v i) = ERROR_RANGE -> 
      bounded (value_until j ls) = true ->
      bounded (value_until (j + 1) ls) = false -> 
@@ -578,7 +584,6 @@ Lemma ub_last_digit_error_range : forall j i ls,
   bounded (value_until j ls) = true ->
   (value_until j ls > upper_boundary \/
   (value_until j ls = upper_boundary /\
-<<<<<<< HEAD
   last_digit_max_minus < (Byte.signed i - 48))) ->
   (res (Z_of_string_loop ls 0 1)) = ERROR_RANGE.
 Proof.
@@ -601,7 +606,6 @@ Proof.
       with (ls := sublist 0 (j + 1) ls) (v := 0) (i := 1)  as [Ok | Er].
     autorewrite with sublist.
     admit.
-    unfold value_until in *.
     inversion Ok.
     eapply OK_bounded_loop in Ok.
     congruence.
@@ -630,7 +634,6 @@ Proof.
       with (ls := sublist 0 (j + 1) ls) (v := 0) (i := 1)  as [Ok | Er].
     autorewrite with sublist.
     admit.
-    unfold value_until in *.
     inversion Ok.
     eapply OK_bounded_loop in Ok.
     congruence.
@@ -642,18 +645,8 @@ Proof.
     nia.
   }
   eassumption.
-                   
-Lemma lt_ub_not_bounded : forall v d, 
-      0 <= v ->
-      0 <= d <= 9 -> 
-      v > upper_boundary ->
-      bounded (v*10 + d) = false.
-Proof.
-  intros.
-  unfold bounded; cbn in *.
-  rewrite andb_false_iff; do 2 rewrite Z.leb_gt.
-  lia.
-Qed.
+Admitted.
+
 
 Lemma extra_digit_error_range : forall j i ls,
   0 <= j + 1 < Zlength ls ->
