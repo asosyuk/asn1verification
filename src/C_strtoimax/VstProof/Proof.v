@@ -233,6 +233,9 @@ Proof.
              all: try (erewrite sublist_1_cons || autorewrite with sublist);
                autorewrite with sublist; (reflexivity || auto with zarith || auto).
            ***
+             assert (is_sign i = true) as SGN by admit.
+             assert (Byte.signed i =? minus_char = true) as MCH by admit.
+             assert (Byte.signed i =? plus_char = false) as PCH by admit.
              Intros j vl.
              assert (0 <= value_until j ls) as NN by (eapply loop_non_neg; nia).
              forward.
@@ -488,7 +491,7 @@ Proof.
        valid_pointer (Vptr end'_b str_ofs);
        valid_pointer (Vptr end'_b end'_ofs);
        data_at sh_str tschar (Vbyte i) (Vptr end'_b str_ofs);
-       data_at sh_str (tarray tschar j) (map Vbyte (sublist 1 (j + 1) ls')) (Vptr end'_b str_ofs');
+       data_at sh_str (tarray tschar j) (map Vbyte (sublist 0 j ls)) (Vptr end'_b str_ofs');
        data_at sh_str tschar (Vbyte i0) (Vptr end'_b (Ptrofs.add str_ofs (Ptrofs.repr (j + 1))));
        data_at sh_str (tarray tschar (Zlength (sublist (j + 1) (Zlength ls) ls))) 
                (map Vbyte (sublist (j + 1) (Zlength ls) ls))
@@ -510,17 +513,16 @@ Proof.
              (* typecheck error: DEBUG THIS *)
              admit.
              entailer.
-             replace (sublist 1 (j + 1) (i :: ls)) with
-                 (sublist 0 j ls).
-             entailer!.
-             replace (i :: ls) with (app [i] ls)
-                                   by reflexivity.
-             erewrite sublist_app2.
-             all: autorewrite with sublist; try nia; auto.
-
-             repeat forward.
+             forward.
+             forward.
+             
+             
+             
              forward_if.
-             3: { (* BREAK: str + j + 1 + 1 >= end *)
+        
+             3: { 
+
+               (* BREAK: str + j + 1 + 1 >= end *)
              forward.
              rewrite_comparison.
              replace (Ptrofs.unsigned
@@ -668,6 +670,20 @@ Proof.
                  apply valid_pointer_weak.
                * erewrite Zlength_sublist.
                  all: try nia. }
+
+             assert (data_at sh_str tschar (Vbyte i) (Vptr end'_b str_ofs) *
+                          data_at sh_str (tarray tschar (Zlength ls)) (map Vbyte ls)
+                                  (Vptr end'_b (Ptrofs.add str_ofs Ptrofs.one)) =
+                          data_at sh_str (tarray tschar (Zlength ls + 1))
+                                  (Vbyte i :: map Vbyte ls)
+                                  (Vptr end'_b str_ofs)) as DATA_AT4.
+                  { erewrite <- split_non_empty_list with (ls := i::ls);
+                      subst; autorewrite with sublist in H1;
+                      autorewrite with sublist;
+                      try reflexivity; try nia. }
+
+                  
+
               forward.
              rewrite_comparison.
              replace  (Ptrofs.unsigned
@@ -722,6 +738,7 @@ Proof.
                 try (rep_omega_setup;
                nia). }
 
+            autorewrite with sublist.
             erewrite  DATA_AT5.
               (* str + j + 1 < end *)
              Intros.
@@ -835,34 +852,37 @@ Proof.
                   assert (res (Z_of_string (i :: ls)) = ERROR_RANGE) as Result.
                   {
                     simpl.
-                    replace (is_sign i) with true.
-                    replace ( Byte.signed i =? minus_char) with true.
-                    replace ( Byte.signed i =? plus_char) with false.
+                    repeat bool_rewrite.
                     break_match. 
                     autorewrite with sublist in H2;
                       try nia.
                     eassumption.
-                    1-2: admit. 
                   }                 
                   assert (index (Z_of_string_loop ls 0 1) = j + 1 + 1) as Index_loop.
                   { eapply ERROR_RANGE_index; try eassumption;
                       try nia.
                     admit. (* fix index lemma *) 
                   }
-
                   assert (index (Z_of_string (i :: ls)) = j + 1 + 1) as Index.
-                  {  admit. }
-                  
+                  {  simpl.
+                    repeat bool_rewrite.
+                    break_match. 
+                    autorewrite with sublist in H2;
+                      try nia.
+                    eassumption. }                 
                   forward.
                   erewrite Result, Index.
                   entailer!.
+                  autorewrite with sublist in DATA_AT1.
                   erewrite sepcon_assoc.
                   erewrite <- DATA_AT5.
                   erewrite sepcon_assoc.
-                  autorewrite with sublist in DATA_AT1.
                   erewrite <- DATA_AT1.
                   erewrite sepcon_assoc.
-                  admit.
+                  erewrite <- DATA_AT2.
+                  erewrite DATA_AT4.
+                  autorewrite with sublist.
+                   entailer!.
                   admit.
                   admit.
                   }
@@ -876,6 +896,7 @@ Proof.
 
              (* vl > ub && d > ld, out of range *)
              { 
+
                lt_ub_to_Z H10.
                eapply lt_ub_to_Z3 in H11.
                lt_ub_to_Z H12.
@@ -895,41 +916,37 @@ Proof.
 
               assert (res (Z_of_string (i :: ls)) = ERROR_RANGE) as Result.
                {  simpl.
-                  replace (is_sign i) with true.
-                  replace ( Byte.signed i =? minus_char) with true.
-                  replace ( Byte.signed i =? plus_char) with false.
-                  break_match. 
-                  autorewrite with sublist in H2;
-                    try nia.
-                  eassumption.
-                  1-2: admit. }  
+                    repeat bool_rewrite.
+                    break_match. 
+                    autorewrite with sublist in H2;
+                      try nia.
+                    eassumption. }  
+
+                 assert (index (Z_of_string_loop ls 0 1) = j + 1 ) as Index_loop.
+                  { eapply ERROR_RANGE_index; try eassumption;
+                      try nia.
+                    admit. (* fix index lemma *) 
+                  }
 
                assert (index (Z_of_string (i :: ls)) = j + 1) as Index.
-               { simpl.
-                 break_match.
-                 - autorewrite with sublist in H2.
-                   nia.
-                 - unfold plus_char, minus_char.
-                   bool_rewrite.
-                   replace (Byte.signed i =? 43) with false.
-                   eapply ERROR_RANGE_index;
-                     try eassumption.
-                   admit.
-                   admit.                   
+               {  simpl.
+                    repeat bool_rewrite.
+                    break_match. 
+                    autorewrite with sublist in H2;
+                      try nia.
+                    eassumption.                  
                }                
                repeat forward.
                rewrite Result.
                entailer!.
                { rewrite Index.             
                  entailer!.
-                 erewrite sepcon_assoc.      
-                  (erewrite <- DATA_AT1 || 
-                   erewrite <- DATA_AT2 ||
-                   erewrite <- DATA_AT3).
+                 autorewrite with sublist in DATA_AT1.
+                 erewrite sepcon_assoc.    
+                 autorewrite with sublist.
+                  (erewrite <- DATA_AT1). 
                    erewrite sepcon_assoc.    
-                  (erewrite <- DATA_AT1 || 
-                   erewrite <- DATA_AT2 ||
-                   erewrite <- DATA_AT3).
+                   erewrite <- DATA_AT2.
                   assert (data_at sh_str tschar (Vbyte i) (Vptr end'_b str_ofs) *
                           data_at sh_str (tarray tschar (Zlength ls)) (map Vbyte ls)
                                   (Vptr end'_b (Ptrofs.add str_ofs Ptrofs.one)) =
@@ -941,8 +958,8 @@ Proof.
                       autorewrite with sublist;
                       try reflexivity; try nia. }
                   erewrite DATA_AT4.
-                  autorewrite with sublist.
-                  entailer!. }
+                 autorewrite with sublist.
+                 entailer!. }
                 all: try  eapply bounded_bool_to_Prop in H6; 
                  try nia; try eassumption.
                  admit. }
@@ -970,29 +987,25 @@ Proof.
 
               assert (res (Z_of_string (i :: ls)) = ERROR_RANGE) as Result.
                {  simpl.
-                  replace (is_sign i) with true.
-                  replace ( Byte.signed i =? minus_char) with true.
-                  replace ( Byte.signed i =? plus_char) with false.
-                  break_match. 
-                  autorewrite with sublist in H2;
-                    try nia.
-                  eassumption.
-                  1-2: admit. }  
+                    repeat bool_rewrite.
+                    break_match. 
+                    autorewrite with sublist in H2;
+                      try nia.
+                    eassumption.  }  
+
+                 assert (index (Z_of_string_loop ls 0 1) = j + 1 ) as Index_loop.
+                  { eapply ERROR_RANGE_index; try eassumption;
+                      try nia.
+                    admit. (* fix index lemma *) 
+                  }
 
                assert (index (Z_of_string (i :: ls)) = j + 1) as Index.
                { simpl.
-                 break_match.
-                 - autorewrite with sublist in H2.
-                   nia.
-                 - unfold plus_char, minus_char.
-                   bool_rewrite.
-                   replace (Byte.signed i =? 43) with false.
-                   symmetry.
-                   symmetry.
-                   eapply ERROR_RANGE_index;
-                     try eassumption.
-                   admit.
-                   admit.                   
+                    repeat bool_rewrite.
+                    break_match. 
+                    autorewrite with sublist in H2;
+                      try nia.
+                    eassumption.                  
                }                
                repeat forward.
                rewrite Result.
@@ -1000,122 +1013,85 @@ Proof.
                { rewrite Index.                
                  entailer!.
                  erewrite sepcon_assoc.      
-                 erewrite <- split_non_empty_list
-                   with (ls :=  (sublist j (Zlength ls) ls)).
-                 entailer.
+                 erewrite <- DATA_AT1.
+                 erewrite sepcon_assoc.    
+                 erewrite <- DATA_AT2. 
+                  assert (data_at sh_str tschar (Vbyte i) (Vptr end'_b str_ofs) *
+                          data_at sh_str (tarray tschar (Zlength ls)) (map Vbyte ls)
+                                  (Vptr end'_b (Ptrofs.add str_ofs Ptrofs.one)) =
+                          data_at sh_str (tarray tschar (Zlength ls + 1))
+                                  (Vbyte i :: map Vbyte ls)
+                                  (Vptr end'_b str_ofs)) as DATA_AT4.
+                  { erewrite <- split_non_empty_list with (ls := i::ls);
+                      autorewrite with sublist in H1;
+                      autorewrite with sublist;
+                      try reflexivity; try nia. }
+                  erewrite DATA_AT4.
                  autorewrite with sublist.
-                 replace (Ptrofs.add str_ofs (Ptrofs.repr (j + 1))) with
-                     (Ptrofs.add (Ptrofs.add str_ofs Ptrofs.one) (Ptrofs.repr j)).
-                 erewrite sepcon_assoc.  
-                 erewrite <- split_data_at_sublist_tschar.
-                 replace (Ptrofs.add str_ofs (Ptrofs.repr (j + 1 + 1)))
-                   with (Ptrofs.add (Ptrofs.add str_ofs Ptrofs.one) (Ptrofs.repr (j + 1))).
-                 erewrite <- split_non_empty_list with (ls := i :: ls).
-                 entailer!.
-                 autorewrite with sublist.
-                 entailer!.
-                 all: 
-                   ptrofs_compute_add_mul;
-                   replace (Ptrofs.unsigned Ptrofs.one)
-                     with 1 by auto with ptrofs;
-                   rep_omega_setup; try (nia || f_equal).
-                 all: try nia.
-                 eassumption.
-                 autorewrite with sublist.
-                 nia. 
-               }
+                 entailer!. }
                all: try  eapply bounded_bool_to_Prop in H6; nia.
              }
              (* i0 non-digit: extra data *)
            { eapply typed_false_to_digit in H9.
-             assert (Znth j ls = i0) as ZN.
-             { replace (i0 :: sublist (j + 1) (Zlength ls) ls)
-                       with (app [i0] (sublist (j + 1) (Zlength ls) ls))
-                            in Sub.
-               erewrite <- sublist_rejoin' 
-                        with (mid := j + 1)
-                             (mid' := j + 1)
-                 in Sub.
-               eapply app_inv_tail in Sub.
-               erewrite  sublist_len_1 in Sub.
-               inversion Sub.
-               all: auto.
-               all: try nia.
-             }
-             repeat forward.
+             forward.
+             forward.
              entailer!.
              rewrite Int64.signed_repr.
              eapply bounded_bool_to_Prop.
              eapply neg_bounded.
-             eapply loop_non_neg; nia.
+             eassumption.
              eassumption.
              eapply bounded_bool_to_Prop;
              eassumption.
-             assert (res (Z_of_string_loop ls 0 1) = EXTRA_DATA) as Result_loop
-                 by admit.              
-             assert (res (Z_of_string (i :: ls)) = EXTRA_DATA) as Result.           
-             { 
-               simpl.
-               break_match.
-               - autorewrite with sublist in H2.
-                 nia.
-               - unfold plus_char, minus_char.
-                 bool_rewrite.
-                 replace (Byte.signed i =? 43) with false.
-                 eassumption.
-                 admit.
-                  }
-                 
-              assert (index (Z_of_string (i :: ls)) = j + 1) as Index.  
-             {  simpl.
-               break_match.
-               - autorewrite with sublist in H2.
-                 nia.
-               - unfold plus_char, minus_char.
-                 bool_rewrite.
-                 replace (Byte.signed i =? 43) with false.
 
-                 admit.
-                 admit.
-                  }
+             assert (res (Z_of_string_loop ls 0 1) = EXTRA_DATA) as Result_loop
+                 by admit.  
+            
+             assert (res (Z_of_string (i :: ls)) = EXTRA_DATA) as Result.           
+             { simpl.
+               repeat bool_rewrite.
+               break_match. 
+               autorewrite with sublist in H2;
+                 try nia.
+               eassumption.  }
+             
+             assert (index (Z_of_string_loop ls 0 1) = j + 1) as Index_loop
+                 by admit.  
+
+              assert (index (Z_of_string (i :: ls)) = j + 1) as Index.  
+             { simpl.
+               repeat bool_rewrite.
+               break_match. 
+               autorewrite with sublist in H2;
+                 try nia.
+               eassumption. }
              assert ((value (Z_of_string (i :: ls)) =
                (-1 * value_until j ls)%Z)) as Value.
              { admit. }
+             (* see above *)
+             forward.
              rewrite Result, Index, Value.
-             
              entailer!.
-             {
-             erewrite sepcon_assoc.      
-             erewrite <- split_non_empty_list
-               with (ls :=  (sublist j (Zlength ls) ls)).
-             entailer.
-             autorewrite with sublist.
-             replace (Ptrofs.add str_ofs (Ptrofs.repr (j + 1))) with
-                 (Ptrofs.add (Ptrofs.add str_ofs Ptrofs.one) (Ptrofs.repr j)).
-               erewrite sepcon_assoc.  
-             erewrite <- split_data_at_sublist_tschar.
-             replace (Ptrofs.add str_ofs (Ptrofs.repr (j + 1 + 1)))
-                     with (Ptrofs.add (Ptrofs.add str_ofs Ptrofs.one) (Ptrofs.repr (j + 1))).
-             erewrite <- split_non_empty_list with (ls := i :: ls).
-             entailer!.
-             autorewrite with sublist.
-             entailer!.            
-              all: 
-                ptrofs_compute_add_mul;
-                replace (Ptrofs.unsigned Ptrofs.one)
-                           with 1 by auto with ptrofs;
-                rep_omega_setup; try (nia || f_equal).
-              all: try nia.
-              eassumption.
-              autorewrite with sublist.
-              nia.
-}  }
-             reflexivity.
-             autorewrite with sublist.
-             ptrofs_compute_add_mul;
-               rep_omega_setup; try nia.
-             autorewrite with sublist; nia.
+             { erewrite sepcon_assoc.      
+               erewrite <- DATA_AT1.
+               erewrite sepcon_assoc.    
+               erewrite <- DATA_AT2.
+               assert (data_at sh_str tschar (Vbyte i) (Vptr end'_b str_ofs) *
+                       data_at sh_str (tarray tschar (Zlength ls)) (map Vbyte ls)
+                               (Vptr end'_b (Ptrofs.add str_ofs Ptrofs.one)) =
+                       data_at sh_str (tarray tschar (Zlength ls + 1))
+                               (Vbyte i :: map Vbyte ls)
+                               (Vptr end'_b str_ofs)) as DATA_AT4.
+               { erewrite <- split_non_empty_list with (ls := i::ls);
+                   autorewrite with sublist in H1;
+                   autorewrite with sublist;
+                   try reflexivity; try nia. }
+               erewrite DATA_AT4.
+                 autorewrite with sublist.
+                 entailer!. }
+               all: try  eapply bounded_bool_to_Prop in H6; nia.
              }
+  }   
         ** admit.
         ** admit.
         * reflexivity.

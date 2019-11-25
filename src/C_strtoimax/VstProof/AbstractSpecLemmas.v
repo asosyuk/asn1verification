@@ -298,6 +298,46 @@ Qed.
   Admitted.
 
 
+Lemma eq_ub_bounded_plus : forall v d, 
+      0 <= v ->
+      0 <= d <= 9 -> 
+      v = upper_boundary ->
+      d <= last_digit_max ->
+      bounded (v*10 + d) = true.
+Proof.
+  intros.
+  unfold bounded; cbn in *.
+  rewrite andb_true_iff; do 2 rewrite Z.leb_le.
+  lia.
+Qed.
+
+Lemma eq_ub_not_bounded_plus : forall v d, 
+    0 <= v ->
+    0 <= d <= 9 -> 
+    v = upper_boundary ->
+    d > last_digit_max ->
+    bounded (v*10 + d) = false.
+Proof.
+  intros.
+  unfold bounded; cbn in *.
+  rewrite andb_false_iff; do 2 rewrite Z.leb_gt.
+  lia.
+Qed.
+
+Lemma loop_non_neg : forall ls v i, 0 <= v -> 0 <= value (Z_of_string_loop ls v i).
+  Proof.
+    induction ls.
+    - intuition.
+    - intros.
+      simpl;
+        repeat break_if;
+      simpl; try congruence;
+         eapply is_digit_to_Z in Heqb.
+      eapply IHls.
+      all: nia.
+Qed.
+          
+
 (* Lemmas about Spec *) 
 
 (* ERROR RANGE *)
@@ -364,8 +404,7 @@ Proof.
       admit.
 Admitted.
 
-
-
+(* OK *)
 Lemma OK_index_loop : forall ls v i,
   res (Z_of_string_loop ls v i) = OK -> index (Z_of_string_loop ls v i) = i + Zlength ls.
 Proof.
@@ -491,45 +530,7 @@ Proof.
     admit.
 Admitted.
       
-Lemma eq_ub_bounded_plus : forall v d, 
-      0 <= v ->
-      0 <= d <= 9 -> 
-      v = upper_boundary ->
-      d <= last_digit_max ->
-      bounded (v*10 + d) = true.
-Proof.
-  intros.
-  unfold bounded; cbn in *.
-  rewrite andb_true_iff; do 2 rewrite Z.leb_le.
-  lia.
-Qed.
-
-Lemma eq_ub_not_bounded_plus : forall v d, 
-    0 <= v ->
-    0 <= d <= 9 -> 
-    v = upper_boundary ->
-    d > last_digit_max ->
-    bounded (v*10 + d) = false.
-Proof.
-  intros.
-  unfold bounded; cbn in *.
-  rewrite andb_false_iff; do 2 rewrite Z.leb_gt.
-  lia.
-Qed.
-
-Lemma loop_non_neg : forall ls v i, 0 <= v -> 0 <= value (Z_of_string_loop ls v i).
-  Proof.
-    induction ls.
-    - intuition.
-    - intros.
-      simpl;
-        repeat break_if;
-      simpl; try congruence;
-         eapply is_digit_to_Z in Heqb.
-      eapply IHls.
-      all: nia.
-Qed.
-                                  
+                        
 Lemma value_next_loop : forall ls v i b,
     is_digit b = true ->
     (res (Z_of_string_loop ls v i)) = OK ->
