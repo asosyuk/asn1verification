@@ -115,4 +115,3 @@ Definition asn_strtoimax_lim_vst_spec : ident * funspec :=
 
 Definition Gprog := ltac:(with_library prog [asn_strtoimax_lim_vst_spec]).
 
-
