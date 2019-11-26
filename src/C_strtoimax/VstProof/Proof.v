@@ -536,13 +536,13 @@ Proof.
                 eapply app_is_digit; try easy.
                 replace ls with (sublist 0 (j + 1) ls).
                 erewrite  next_value_lt_ub.
-                eapply eq_ub_bounded_minus;
-                  try eassumption.
+               (* eapply eq_ub_bounded_minus;
+                  try eassumption. *)
+                admit.
                 eapply is_digit_to_Z in H9.
                                           
                   all: try nia; try
                 eassumption; auto.
-                  admit.
                 replace (j + 1) with (Zlength ls) by nia.
                 autorewrite with sublist; auto.
 
@@ -776,12 +776,12 @@ Proof.
                  eapply bounded_bool_to_Prop in H6.
 
                  assert (bounded (value_until (j + 1) ls) = true) as Bound.             
-                  { erewrite next_value_lt_ub.
-                    eapply eq_ub_bounded_minus with (d := Z_of_char (Znth j ls)); try nia.
-                    eapply is_digit_to_Z; subst; eassumption.
+                  { erewrite next_value_lt_ub with (i := Znth j ls).
+                    admit.
+                    subst; eassumption. 
                     all: unfold value_until, Z_of_char in *;
                       subst; try eassumption; try nia; auto.
-                  admit. }
+                   }
 
                   assert (bounded (value_until ((j + 1) + 1) ls) = false) as BoundF.
              
@@ -877,9 +877,7 @@ Proof.
              (* end of vl = ub && d <= last_digit *)
 
              (* vl > ub && d > ld, out of range *)
-             { 
-
-               lt_ub_to_Z H10.
+             { lt_ub_to_Z H10.
                eapply lt_ub_to_Z3 in H11.
                lt_ub_to_Z H12.
                inversion H6.
@@ -1008,7 +1006,6 @@ Proof.
                  autorewrite with sublist.
                  entailer!. }
                all: try  eapply bounded_bool_to_Prop in H6; try nia.
-               admit.
              }
              (* i0 non-digit: extra data *)
            { eapply typed_false_to_digit in H9.
@@ -1020,61 +1017,122 @@ Proof.
              eapply neg_bounded; eassumption.
              eapply bounded_bool_to_Prop;
              eassumption.
-             clear DATA_AT1 DATA_AT2 DATA_AT3.
-
-             assert (res (Z_of_string_loop (sublist 0 (j + 1) ls) 0 1) = EXTRA_DATA) as Result_loop.
-                 { assert ((sublist 0 (j + 1) ls) = 
-                           app (sublist 0 j ls) [i0]) as SL.
-                   Search sublist cons.
-                   erewrite  sublist_split with (mid := j).
-                   f_equal.
-                   replace (i0 :: sublist (j + 1) (Zlength ls) ls)
-                       with (app [i0] (sublist (j + 1) (Zlength ls) ls))
-                            in Sub.
+             assert ((sublist 0 (j + 1) ls) = 
+                     app (sublist 0 j ls) [i0]) as SL.
+             { erewrite  sublist_split with (mid := j).
+               f_equal.
+               replace (i0 :: sublist (j + 1) (Zlength ls) ls)
+                 with (app [i0] (sublist (j + 1) (Zlength ls) ls))
+                 in Sub.
                erewrite <- sublist_rejoin' 
-                        with (mid := j + 1)
-                             (mid' := j + 1) in Sub.
+                 with (mid := j + 1)
+                      (mid' := j + 1) in Sub.
                eapply app_inv_tail in Sub.
                all: try  eassumption; try nia.
-               reflexivity.
-               rewrite  SL.
-               eapply EXTRA_DATA_next_loop.
-               eapply  bounded_to_OK_loop.
-               autorewrite with sublist.
-               
-               admit.
-               eassumption.
-               intros.
-               autorewrite with sublist in H10.
-               replace (Znth i1 (sublist 0 j ls)) with (Znth i1 ls).
-               autorewrite with sublist in H10.
-               eapply H5; try nia; try eassumption.
-               erewrite Znth_sublist.
-               normalize.
-               all: try nia; try eassumption. }
-            
-             assert (res (Z_of_string (i :: ls)) = EXTRA_DATA) as Result.           
-             { simpl.
-               repeat bool_rewrite.
-               break_match. 
-               autorewrite with sublist in H2;
-                 try nia.
-               eassumption. }
-             
-             assert (index (Z_of_string_loop ls 0 1) = j + 1) as Index_loop
-                 by admit.  
+               reflexivity. }
+
+              assert (res (Z_of_string_loop (sublist 0 (j + 1) ls) 0 1) = EXTRA_DATA)
+                     as Result_loop_j.
+              { rewrite  SL.
+                eapply EXTRA_DATA_next_loop.
+                eapply  bounded_to_OK_loop.
+                autorewrite with sublist.
+                eassumption.
+                intros.
+                autorewrite with sublist in H10.
+                replace (Znth i1 (sublist 0 j ls)) with (Znth i1 ls).
+                autorewrite with sublist in H10.
+                eapply H5; try nia; try eassumption.
+                erewrite Znth_sublist.
+                normalize.
+                all: try nia; try eassumption. }
+
+             assert (index (Z_of_string_loop (sublist 0 (j + 1) ls) 0 1) = j + 1)
+               as Index_loop_j.
+               {
+                 rewrite SL.
+                 replace j with (Zlength (sublist 0 j ls)) at 2
+                                by (autorewrite with sublist; nia).
+                 eapply EXTRA_DATA_index_loop.
+                 eapply  bounded_to_OK_loop;
+                 autorewrite with sublist; try
+                 eassumption.
+                 intros.
+                 autorewrite with sublist in H10.
+                 replace (Znth i1 (sublist 0 j ls)) with (Znth i1 ls).
+                 autorewrite with sublist in H10.
+                 eapply H5; try nia; try eassumption.
+                 erewrite Znth_sublist.
+                 normalize.
+                 all: try nia; try eassumption.
+               }  
+
+             assert (value (Z_of_string_loop (sublist 0 (j + 1) ls) 0 1) 
+                     = (value_until j ls)) as Value_loop_j.
+               {
+                 rewrite SL.
+                 replace j with (Zlength (sublist 0 j ls)) at 2
+                                by (autorewrite with sublist; nia).
+                 autorewrite with sublist.
+                 eapply EXTRA_DATA_value_loop.
+                 eapply  bounded_to_OK_loop;
+                 autorewrite with sublist; try
+                 eassumption.
+                 intros.
+                 autorewrite with sublist in H10.
+                 replace (Znth i1 (sublist 0 j ls)) with (Znth i1 ls).
+                 autorewrite with sublist in H10.
+                 eapply H5; try nia; try eassumption.
+                 erewrite Znth_sublist.
+                 normalize.
+                 all: try nia; try eassumption.
+               }  
+
+              assert (value (Z_of_string_loop ls 0 1) = value_until j ls) as Value_loop.
+              eapply sublist_EXTRA_DATA  with (j := j + 1) (m := j + 1);
+                try eassumption; auto.
+              
+
+             assert (res (Z_of_string_loop ls 0 1) = EXTRA_DATA) as Result_loop.
+              eapply sublist_EXTRA_DATA  with (j := j + 1) (m := j + 1)
+                                              (vl := value_until (j + 1) ls);
+                try eassumption; auto. 
+
+                assert (index (Z_of_string_loop ls 0 1) = j + 1) as Index_loop.
+              eapply sublist_EXTRA_DATA  with (j := j + 1) (m := j + 1)
+                                              (vl := value_until (j + 1) ls);
+                try eassumption; auto.
+
 
               assert (index (Z_of_string (i :: ls)) = j + 1) as Index.  
-             { simpl.
-               repeat bool_rewrite.
-               break_match. 
-               autorewrite with sublist in H2;
-                 try nia.
-               eassumption. }
+              { simpl.
+                repeat bool_rewrite.
+                break_match. 
+                autorewrite with sublist in H2;
+                  try nia.
+                eassumption. }
+
+              
+              assert (res (Z_of_string (i :: ls)) = EXTRA_DATA) as Result.           
+              { simpl.
+                repeat bool_rewrite.
+                break_match. 
+                autorewrite with sublist in H2;
+                  try nia.
+                eassumption. }
+               
              assert ((value (Z_of_string (i :: ls)) =
                (-1 * value_until j ls)%Z)) as Value.
-             { admit. }
-             (* see above *)
+               { simpl.
+                 unfold is_sign, minus_char.
+                 bool_rewrite.
+                 break_match.
+                 autorewrite with sublist in *.
+                 nia.
+                 bool_rewrite.
+                 rewrite Value_loop.
+                 reflexivity.
+               }
              forward.
              rewrite Result, Index, Value.
              entailer!.
