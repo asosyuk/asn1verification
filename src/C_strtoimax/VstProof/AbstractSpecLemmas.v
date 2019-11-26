@@ -12,6 +12,7 @@ Definition last_digit_max_minus := last_digit_max + 1.
 
 (* Lemmas about bounded *)
 Ltac Zbool_to_Prop := try (rewrite Z.leb_le ||
+                           rewrite Z.leb_gt ||
                            rewrite Z.eqb_eq ||
                            rewrite Z.eqb_neq).
 
@@ -400,27 +401,40 @@ Proof.
  eapply IHls; intuition.
 Qed.
 
-Lemma sublist_ERROR_RANGE : forall ls v k j i, 
-    0 <= j <= Zlength ls ->
-    0 <= k < j ->
-    res (Z_of_string_loop (sublist k j ls) v i) = ERROR_RANGE ->
+Lemma Zlength_aux_inc : forall ls i,
+    1 + Zlength_aux i byte ls = Zlength_aux (i + 1) byte ls.
+Proof.
+  induction ls.
+  intros; cbn; lia.
+  cbn.
+  intros.
+  eapply IHls with (i := (Z.succ i)).
+Qed.
+
+Lemma sublist_ERROR_RANGE : forall ls v j i, 
+    0 < j ->
+    res (Z_of_string_loop (sublist 0 j ls) v i) = ERROR_RANGE ->
     res (Z_of_string_loop ls v i) = ERROR_RANGE.
 Proof.
-  induction ls; intros v k j  i.
+  induction ls; intros v j i.
   -  
     unfold sublist; rewrite skipn_nil; rewrite firstn_nil;
       cbn; discriminate.
   - 
-    replace (sublist k j (a :: ls)) with (a :: sublist (k + 1) j ls); cbn.
+    intros J.
+    assert (0 <= j - 1) by lia.
+    replace (sublist 0 j (a :: ls)) with (a :: sublist 0 (j - 1) ls); cbn.
     repeat break_if;
-      simpl; try congruence.
-    intros. 
-    eapply IHls with (j := j) (k := k + 1).
-    admit.
-    admit.
-    eassumption.
-    admit.
-Admitted.
+      cbn; try congruence.
+    apply Z_le_lt_eq_dec in H; destruct H.
+    eapply IHls with (j := j - 1); assumption.
+    rewrite <-e; cbn; discriminate.
+    unfold sublist; cbn.
+    replace (j - 1 - 0) with (j - 1) by lia; replace (j - 0) with (j) by lia.
+    remember (j - 1) as n; assert (Z.succ n = j) by lia; rewrite <-H0.
+    rewrite Z2Nat.inj_succ by assumption.
+    rewrite firstn_cons; reflexivity.
+Qed.
 
 Lemma ERROR_RANGE_index : forall ls v i j,
     0 <= j + 1 <= Zlength ls ->
@@ -535,16 +549,6 @@ Proof.
         nia.
         admit.
 Admitted.
-
-Lemma Zlength_aux_inc : forall ls i,
-    1 + Zlength_aux i byte ls = Zlength_aux (i + 1) byte ls.
-Proof.
-  induction ls.
-  intros; cbn; lia.
-  cbn.
-  intros.
-  eapply IHls with (i := (Z.succ i)).
-Qed.
 
 (* OK *)
 Lemma OK_index_loop : forall ls v i,
