@@ -438,12 +438,38 @@ Proof.
 Qed.
 
 Lemma ERROR_RANGE_index : forall ls v i j,
-    0 <= j + 1 <= Zlength ls ->
+    0 <= j ->
+    j + 1 <= Zlength ls ->
     res (Z_of_string_loop ls v i) = ERROR_RANGE -> 
-    bounded (value_until j ls) = true ->
-    bounded (value_until (j + 1) ls) = false -> 
+    bounded (value (Z_of_string_loop (sublist 0 j ls) v i)) = true ->
+    bounded (value (Z_of_string_loop (sublist 0 (j + 1) ls) v i)) = false -> 
     index (Z_of_string_loop ls v i) = j + i.
-Admitted.
+Proof.
+  induction ls; intros v i j.
+  -
+    cbn; discriminate.
+  -
+    intros J Z; apply Z_le_lt_eq_dec in J; destruct J.
+    replace (sublist 0 j (a :: ls)) with (a :: sublist 0 (j - 1) ls).
+    replace (sublist 0 (j + 1) (a :: ls)) with (a :: sublist 0 j ls).
+    rewrite Zlength_cons in Z; assert (0 <= j - 1) by lia; 
+      assert (j - 1 + 1 <= Zlength ls) by lia.
+    cbn; repeat break_if; cbn; try congruence.
+    intros.
+    replace (j) with (j - 1 + 1) in H3 by lia.
+    pose proof IHls (v * 10 + Z_of_char a) (i + 1) (j - 1) H H0 H1 H2 H3.
+    replace (j - 1 + (i + 1)) with (j + i) in H4 by lia.
+    assumption.
+    1,2: unfold sublist; cbn.
+    replace (j + 1 - 0) with (Z.succ j) by lia; rewrite Z2Nat.inj_succ by lia; 
+      replace (j - 0) with (j) by lia; rewrite firstn_cons; reflexivity.
+    remember (j - 1) as n; replace (n - 0) with (n) by lia; 
+      replace (j - 0) with (j) by lia; assert (j = Z.succ n) by lia; 
+        rewrite H; rewrite Z2Nat.inj_succ by lia; rewrite firstn_cons; 
+          reflexivity.
+    rewrite <-e; cbn; repeat break_if; cbn; try congruence.
+    reflexivity.
+Qed.
  
 (* OK *)
 
