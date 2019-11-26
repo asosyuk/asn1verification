@@ -453,12 +453,11 @@ Qed.
 
 
 Lemma all_digits_OK_or_ERROR_RANGE_loop : forall ls v i,
-    0 <= v ->
     (forall i, 0 <= i < Zlength ls -> is_digit (Znth i ls)  = true) ->
     res (Z_of_string_loop ls v i) = OK \/
     res (Z_of_string_loop ls v i) = ERROR_RANGE.
 Proof.
-  - induction ls; intros v0 i0 V DIG.
+  - induction ls; intros v0 i0  DIG.
     -- autorewrite with sublist in *.
       auto.
     -- 
@@ -471,8 +470,6 @@ Proof.
     admit.
     auto.
     (* from DIG *)
-    admit.
-    intuition.
     admit.
 Admitted.
 
@@ -528,14 +525,14 @@ Qed.
 
 
 Lemma bounded_to_OK_loop : forall ls v i,
-  0 < Zlength ls ->
   bounded (value (Z_of_string_loop ls v i)) = true ->
   (forall i, 0 <= i < Zlength ls -> is_digit (Znth i ls)  = true) ->
   res (Z_of_string_loop ls v i) = OK.
 Proof.
   intros.
   edestruct all_digits_OK_or_ERROR_RANGE_loop with (ls := ls)
-  as [OK | ER];
+                                                   (v := v)
+  as [Ok | ER];
     intuition;
     try eassumption.
   eapply ERROR_RANGE_not_bounded_loop in ER.
@@ -589,7 +586,6 @@ Qed.
 (* EXTRA DATA *)
              
 Lemma value_next_loop : forall ls v i b,
-    is_digit b = true ->
     (res (Z_of_string_loop ls v i)) = OK ->
     is_digit b = true ->
     value (Z_of_string_loop (ls ++ [b]) v i) = 
@@ -599,7 +595,28 @@ Proof.
   * simpl in *.
     repeat bool_rewrite.
     break_if; easy.
-  * simpl.
+  * simpl in *.
+    break_if.
+    break_if.
+    erewrite IHls.
+    reflexivity.
+    eassumption.
+    all: simpl in *;
+    repeat break_if;
+      try congruence; simpl in *;
+    try congruence.
+Qed.
+
+Lemma EXTRA_DATA_next_loop : forall ls v i b,
+    (res (Z_of_string_loop ls v i)) = OK ->
+    is_digit b = false ->
+    res (Z_of_string_loop (ls ++ [b]) v i) = EXTRA_DATA.
+Proof.
+  induction ls; intros.
+  * simpl in *.
+    repeat bool_rewrite.
+    easy.
+  * simpl in *.
     break_if.
     break_if.
     erewrite IHls.
@@ -620,14 +637,11 @@ Lemma next_value_lt_ub : forall ls j i,
      is_digit i = true ->
      (value_until (j + 1) ls) = (value_until j ls * 10 + (Z_of_char i)).
 Proof.
-  unfold value_until.
   intros.
   rewrite sublist_last_1.
   subst.
   eapply value_next_loop.
-  eassumption.
   eapply bounded_to_OK_loop.
-  admit.
   eassumption.
   admit.
   eassumption.
@@ -671,8 +685,6 @@ Proof.
     eapply sublist_ERROR_RANGE in Er.
     rewrite Er.
     reflexivity.                  
-    admit.
-    nia.
   }
   eassumption.
   - 
@@ -699,12 +711,9 @@ Proof.
     eapply sublist_ERROR_RANGE in Er.
     rewrite Er.
     reflexivity.                  
-    admit.
-    nia.
   }
   eassumption.
 Admitted.
-
 
 (* EXTRA DATA *)
 
@@ -724,45 +733,12 @@ Proof.
 
 Admitted. (* FIX *)
 
-Lemma EXTRA_DATA_or_ERROR_RANGE_result :
-  forall ls v k j i, 
-    0 <= j < Zlength ls ->
-    Znth j ls = i -> 
-    is_digit i = false -> 
-    bounded (value_until j ls) = true ->
-    res (Z_of_string_loop ls v k) = EXTRA_DATA.
-  induction ls; intros v k j i N Dig B Bound.
-  - autorewrite with sublist in *.
-    nia.
-  - simpl.
-    repeat break_if.
-    assert (0 <= Zlength ls).
-    eapply Zlength_nonneg.
-    assert (0 < j) as ZZ.
-    destruct (zle 0 (j -1)).
-    nia.
-    assert (j = 0) as Z by nia.
-    rewrite Z in Dig.
-    erewrite Znth_0_cons in Dig.
-    subst.
-    congruence.
-    eapply IHls with (j := j - 1) (i := i).  
-    autorewrite with sublist in *.
-    auto with zarith.
-    rewrite <- Dig.
-    erewrite Znth_pos_cons; auto.
-    eassumption.
-    all: intuition. 
-    admit.
-    simpl
-Qed.
 
 Lemma EXTRA_DATA_or_ERROR_RANGE_result :
   forall ls v k j i, 
     0 <= j < Zlength ls ->
     Znth j ls = i -> 
     is_digit i = false -> 
-    bounded (value_until j ls) = true ->
     res (Z_of_string_loop ls v k) = EXTRA_DATA
     \/ res (Z_of_string_loop ls v k) = ERROR_RANGE.
   induction ls; intros v k j i N Dig Bound.

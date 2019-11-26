@@ -1021,19 +1021,45 @@ Proof.
              eapply bounded_bool_to_Prop;
              eassumption.
              clear DATA_AT1 DATA_AT2 DATA_AT3.
-             assert (res (Z_of_string_loop ls 0 1) = EXTRA_DATA) as Result_loop.
-                 { edestruct EXTRA_DATA_ER_result with (j := j) (ls := ls);
-                     try eassumption; try nia.
-                   
-}
+
+             assert (res (Z_of_string_loop (sublist 0 (j + 1) ls) 0 1) = EXTRA_DATA) as Result_loop.
+                 { assert ((sublist 0 (j + 1) ls) = 
+                           app (sublist 0 j ls) [i0]) as SL.
+                   Search sublist cons.
+                   erewrite  sublist_split with (mid := j).
+                   f_equal.
+                   replace (i0 :: sublist (j + 1) (Zlength ls) ls)
+                       with (app [i0] (sublist (j + 1) (Zlength ls) ls))
+                            in Sub.
+               erewrite <- sublist_rejoin' 
+                        with (mid := j + 1)
+                             (mid' := j + 1) in Sub.
+               eapply app_inv_tail in Sub.
+               all: try  eassumption; try nia.
+               reflexivity.
+               rewrite  SL.
+               eapply EXTRA_DATA_next_loop.
+               eapply  bounded_to_OK_loop.
+               autorewrite with sublist.
+               
+               admit.
+               eassumption.
+               intros.
+               autorewrite with sublist in H10.
+               replace (Znth i1 (sublist 0 j ls)) with (Znth i1 ls).
+               autorewrite with sublist in H10.
+               eapply H5; try nia; try eassumption.
+               erewrite Znth_sublist.
+               normalize.
+               all: try nia; try eassumption. }
             
              assert (res (Z_of_string (i :: ls)) = EXTRA_DATA) as Result.           
              { simpl.
-               repeat bool_rewrit.
+               repeat bool_rewrite.
                break_match. 
                autorewrite with sublist in H2;
                  try nia.
-               eassumption.  }
+               eassumption. }
              
              assert (index (Z_of_string_loop ls 0 1) = j + 1) as Index_loop
                  by admit.  
