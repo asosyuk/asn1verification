@@ -87,3 +87,52 @@ Section AbstractSpec.
       end.
 
 End AbstractSpec.
+
+Section AbstractSpec'.
+
+  (* true plus, false minus bound *)
+  Definition bounded' (b : bool) (n : Z) : bool :=
+    if b 
+    then andb (0 <=? n) (n <=? Int64.max_signed) 
+    else andb (0 <=? n) (n <=? Int64.max_signed + 1).
+
+  Fixpoint Z_of_string_loop' (s : list byte) (v i : Z) (b : bool):= 
+    match s with 
+    | [] => {| res := OK ; 
+              value := v ; 
+              index := i |}
+    | c :: tl => 
+      if is_digit c
+      then let v1 := v * 10 + (Z_of_char c) in 
+           if bounded' b v1
+           then Z_of_string_loop' tl v1 (i + 1) b
+           else {| res := ERROR_RANGE ;
+                   value := v1 ;
+                   index := i ; |}      
+      else {| res := EXTRA_DATA ;
+              value := v ;
+              index := i ; |}              
+    end.
+
+
+  Definition Z_of_string' (s : list byte) : Z_of_string_result := 
+      match s with 
+      |  nil => {| res := ERROR_INVAL ; 
+                  value := 0 ;
+                  index := 0 ; |} 
+      | [ch] => if is_sign ch 
+                then {| res := EXPECT_MORE ;
+                        value := 0 ;
+                        index := 1 ; |} 
+                else Z_of_string_loop' s 0 0 true
+      |  ch :: tl => let result := Z_of_string_loop' tl 0 1 true in
+                    if (Byte.signed ch =? plus_char)
+                    then result
+                    else if (Byte.signed ch =? minus_char)
+                         then {| res := res result ;
+                                 value := -1* value (Z_of_string_loop' tl 0 1 false)  ;
+                                 index := index result ; |}
+                         else Z_of_string_loop' s 0 0 true
+      end.
+
+End AbstractSpec'.
