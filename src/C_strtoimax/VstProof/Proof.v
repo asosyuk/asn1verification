@@ -104,17 +104,19 @@ Proof.
            remember (Int64.unsigned upper_boundary) as ub.
            remember (i :: ls) as ls'.
            forward_loop (
-               EX j : Z, EX vl : Z, 
+               EX j : Z, EX vl : Z,
                  let i' := Ptrofs.add str_ofs (Ptrofs.repr (j + 1)) in
+                 let b := if Ptrofs.unsigned str_ofs + j + 1 >=?
+                             Ptrofs.unsigned end'_ofs then false else true in
                  PROP(0 <= j <= Zlength ls;
                       Ptrofs.unsigned str_ofs + j + 1 < Ptrofs.modulus;
-                      forall i : Z, 0 <= i < j -> is_digit (Znth i ls) = true;
-                        bounded (value_until j ls) = true)
+                      forall (i : Z), 0 <= i < j -> is_digit (Znth i ls) = true;
+                        bounded (value_until j ls b) = true)
                  LOCAL(temp _end (Vptr end_b end_ofs); 
                        temp _intp (Vptr intp_b intp_ofs);
                        temp _str (Vptr end'_b i');
-                       temp _value (Vlong (Int64.repr (value_until j ls))) ;
-                       temp _sign (Vint (Int.repr (-1)));
+                       temp _value (Vlong (Int64.repr (value_until j ls b)));
+                       temp _sign (Vint (Int.repr (if b then 1 else -1)));
                        temp _upper_boundary (Vlong upper_boundary);
                        temp _last_digit_max
                             (Vlong (Int64.add last_digit_max Int64.one)))
@@ -136,46 +138,39 @@ Proof.
                            (Vptr end_b end_ofs) ;
                    data_at sh_intp tlong v (Vptr intp_b intp_ofs)))
                
-           break: ( EX j : Z,
-                   PROP(0 <= j <= Zlength ls;
-                       forall i, 0 <= i < Zlength ls -> 
-                            is_digit (Znth i ls) = true;
-                        bounded (value (Z_of_string_loop ls 0 1)) = true)
-                   LOCAL(
-                     temp _value 
-                          (Vlong (Int64.repr 
-                                    (if Ptrofs.unsigned str_ofs + j + 1 >=? 
-                                        Ptrofs.unsigned end'_ofs  
-                                    then value (Z_of_string_loop ls 0 1)
-                                    else -1 * (value (Z_of_string_loop ls 0 1)))));
-                      temp _sign 
-                          (Vint (Int.repr 
-                                    (if Ptrofs.unsigned str_ofs + j + 1 >=? 
-                                        Ptrofs.unsigned end'_ofs
-                                    then -1
-                                    else 1)));
+           break: (EX j : Z, 
+                    let b := if Ptrofs.unsigned str_ofs + j + 1 >=? 
+                                Ptrofs.unsigned end'_ofs then false else true in
+                    PROP(0 <= j <= Zlength ls;
+                        forall i, 0 <= i < Zlength ls -> 
+                             is_digit (Znth i ls) = true;
+                         bounded (value (Z_of_string_loop ls 0 1 b)) = true)
+                    LOCAL(
+                      temp _value (Vlong (Int64.repr (value (Z_of_string_loop ls 0 1 b))));
+                      temp _sign (Vint (Int.repr (if b then 1 else -1)));
 
-                   temp _end (Vptr end_b end_ofs); 
-                   temp _intp (Vptr intp_b intp_ofs);
-                   temp _str (Vptr end'_b 
-                              (Ptrofs.add str_ofs 
-                                          (Ptrofs.repr (Zlength ls + 1)))))
+                      temp _end (Vptr end_b end_ofs); 
+                      temp _intp (Vptr intp_b intp_ofs);
+                      temp _str (Vptr end'_b 
+                                 (Ptrofs.add str_ofs 
+                                             (Ptrofs.repr (Zlength ls + 1)))))
 
-                   SEP(
-                     
-                    valid_pointer (Vptr end'_b end'_ofs);
-                    valid_pointer (Vptr end'_b str_ofs);
-                    data_at sh_str (tarray tschar (Zlength ls + 1)) 
-                            (map Vbyte (i::ls)) (Vptr end'_b str_ofs); 
-                    data_at sh_end (tptr tschar) (Vptr end'_b end'_ofs) 
-                            (Vptr end_b end_ofs);
-                    data_at sh_intp (tlong) v (Vptr intp_b intp_ofs))).
+                    SEP(
+                      valid_pointer (Vptr end'_b end'_ofs);
+                      valid_pointer (Vptr end'_b str_ofs);
+                      data_at sh_str (tarray tschar (Zlength ls + 1)) 
+                              (map Vbyte (i::ls)) (Vptr end'_b str_ofs); 
+                      data_at sh_end (tptr tschar) (Vptr end'_b end'_ofs) 
+                              (Vptr end_b end_ofs);
+                      data_at sh_intp (tlong) v (Vptr intp_b intp_ofs))).
            (* BREAK IMPLIES THE REST OF THE FUNCTION *)
            3: 
              { Intro j.
                forward.
                forward.
                entailer!.
+               break_if.
+               cbn.
                unfold bounded in *.
                rewrite andb_true_iff in *.
                repeat rewrite Z.leb_le in *.
@@ -202,7 +197,7 @@ Proof.
                eassumption.
                assert (((-1) * value (Z_of_string_loop ls 0 1))%Z = 
                        (value (Z_of_string (i :: ls)))) as V.
-               { simpl.
+               { cbn.
                  unfold is_sign, minus_char.
                  bool_rewrite.
                  break_match.
@@ -233,9 +228,12 @@ Proof.
              all: try (erewrite sublist_1_cons || autorewrite with sublist);
                autorewrite with sublist; (reflexivity || auto with zarith || auto).
            ***
-             assert (is_sign i = true) as SGN by admit.
-             assert (Byte.signed i =? minus_char = true) as MCH by admit.
-             assert (Byte.signed i =? plus_char = false) as PCH by admit.
+             assert (is_sign i = true) as SGN 
+                 by (unfold is_sign, minus_char; bool_rewrite; intuition).
+             assert (Byte.signed i =? minus_char = true) as MCH 
+                 by (unfold is_sign, minus_char; bool_rewrite; intuition).
+             assert (Byte.signed i =? plus_char = false) as PCH 
+                 by (rewrite Z.eqb_eq in Heqb; rewrite Heqb; intuition).
              Intros j vl.
              assert (0 <= value_until j ls) as NN by (eapply loop_non_neg; nia).
              forward.
@@ -535,9 +533,8 @@ Proof.
                  replace (Zlength ls) with (j + 1) by nia.
                 eapply app_is_digit; try easy.
                 replace ls with (sublist 0 (j + 1) ls).
-                erewrite  next_value_lt_ub.
-               (* eapply eq_ub_bounded_minus;
-                  try eassumption. *)
+                (*eapply eq_ub_bounded_minus;
+                  try eassumption.*)
                 admit.
                 eapply is_digit_to_Z in H9.
                                           
@@ -549,9 +546,8 @@ Proof.
                 f_equal.
                 f_equal.
 
-                  replace ls with (sublist 0 (j + 1) ls) at 1.
-                erewrite  next_value_lt_ub.
-                instantiate (1 := (Znth j ls)).
+                replace ls with (sublist 0 (j + 1) ls) at 1.
+                rewrite  next_value_lt_ub with (i := Znth j ls).
                 unfold Z_of_char.
                 nia.
                  all: try eassumption; try nia; auto.
@@ -592,7 +588,9 @@ Proof.
                rewrite Z.geb_leb.
                rewrite Z.leb_gt.
                nia.
-               admit.
+               unfold is_digit, zero_char, nine_char in H9; cbn.
+               rewrite andb_true_iff in H9; do 2 rewrite Z.leb_le in H9.
+               lia.
              }
              } 
              (* compare pointers *)
@@ -770,13 +768,11 @@ Proof.
                  lt_ub_to_Z H10.
                  lt_ub_to_Z H11.
                  lt_ub_to_Z H12.
-                 assert ((Byte.signed (Znth j ls) - 48) <= last_digit_max_minus)
-                     by admit. clear H12.
                  inversion H6.
                  eapply bounded_bool_to_Prop in H6.
 
                  assert (bounded (value_until (j + 1) ls) = true) as Bound.             
-                  { erewrite next_value_lt_ub with (i := Znth j ls).
+                  { rewrite next_value_lt_ub with (i := Znth j ls).
                     admit.
                     subst; eassumption. 
                     all: unfold value_until, Z_of_char in *;
@@ -822,7 +818,8 @@ Proof.
                     all: try nia.
                     all: try erewrite Znth_sublist;
                     try nia; normalize; subst; try eassumption.
-                    eapply OK_bounded_loop in H12.
+                    eapply OK_bounded_loop in H17 
+                      with (ls := sublist 0 (j + 1 + 1) ls).
                     congruence.
                     admit.
                     eapply sublist_ERROR_RANGE in H12;
