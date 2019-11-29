@@ -402,17 +402,47 @@ Qed.
 (* ERROR RANGE *)
 
 Lemma ERROR_RANGE_not_bounded'_loop : forall ls v i b,
+  0 <= v ->
   res (Z_of_string_loop' ls v i b) = ERROR_RANGE ->
   bounded' b (value (Z_of_string_loop' ls v i b)) = false.
 Proof.
   induction ls; intros v i b.
   - discriminate.
-  - cbn.
- repeat break_match;
-      simpl; try congruence. 
- eapply IHls; intuition.
+  - simpl.
+ repeat break_if;
+      simpl; try congruence;
+        intros;
+ try eapply IHls; intuition.
+ eapply is_digit_to_Z in Heqb0.
+ nia.
+ eapply bounded'_false with (v := v).
+ eassumption.
+ eapply is_digit_to_Z in Heqb0.
+ nia.
 Qed.
 
+Lemma ERROR_RANGE_not_bounded_loop_C : forall ls v i b,
+  0 <= v ->
+  res (Z_of_string_loop_C ls v i b) = ERROR_RANGE ->
+  bounded (value (Z_of_string_loop_C ls v i b)) = false.
+Proof.
+  induction ls; intros v i b.
+  - discriminate.
+  - simpl.
+ repeat break_if;
+      simpl; try congruence;
+        intros;
+ try eapply IHls; intuition.
+ eapply is_digit_to_Z in Heqb0.
+ nia.
+ break_match.
+ simpl in *. congruence.
+ break_if. simpl.
+ (* add lemma *)
+ admit.
+ simpl in *; congruence.
+ admit.
+Admitted.
 
 Lemma Zlength_aux_inc : forall ls i,
     1 + Zlength_aux i byte ls = Zlength_aux (i + 1) byte ls.
@@ -449,40 +479,37 @@ Proof.
     rewrite firstn_cons; reflexivity.
 Qed.
 
-Lemma ERROR_RANGE_index : forall ls v i j,
+Lemma sublist_ERROR_RANGE_C : forall ls v j i, 
+    0 < j ->
+    res (Z_of_string_loop_C (sublist 0 j ls) v i false) = ERROR_RANGE ->
+    res (Z_of_string_loop_C ls v i false) = ERROR_RANGE.
+Proof.
+  intros.
+  erewrite <- abstract_spec_C_spec_equiv_false_res in *.
+  eapply sublist_ERROR_RANGE;
+    try eassumption.
+Qed.
+
+Lemma bounded'_to_bounded : forall ls v i, bounded (value (Z_of_string_loop_C ls v i false)) = true 
+             ->  bounded' false (value (Z_of_string_loop' ls v i false)) = true.
+  Proof.
+    intros.
+    erewrite abstract_spec_C_spec_equiv_false_value.
+    unfold bounded', bounded in *.
+Admitted.
+    
+
+Lemma ERROR_RANGE_index_C : forall ls v i j,
     0 <= j ->
     j + 1 <= Zlength ls ->
-    res (Z_of_string_loop' ls v i false) = ERROR_RANGE -> 
-    bounded' false (value (Z_of_string_loop' (sublist 0 j ls) v i false)) = true ->
-    bounded' false (value (Z_of_string_loop' (sublist 0 (j + 1) ls) v i false)) = false -> 
-    index (Z_of_string_loop' ls v i false) = j + i.
+    res (Z_of_string_loop_C ls v i false) = ERROR_RANGE -> 
+    bounded (value (Z_of_string_loop_C (sublist 0 j ls) v i false)) = true ->
+    bounded (value (Z_of_string_loop_C (sublist 0 (j + 1) ls) v i false)) = false -> 
+    index (Z_of_string_loop_C ls v i false) = j + i.
 Proof.
-  induction ls; intros v i j.
-  -
-    cbn; discriminate.
-  -
-    intros J Z; apply Z_le_lt_eq_dec in J; destruct J.
-    replace (sublist 0 j (a :: ls)) with (a :: sublist 0 (j - 1) ls).
-    replace (sublist 0 (j + 1) (a :: ls)) with (a :: sublist 0 j ls).
-    rewrite Zlength_cons in Z; assert (0 <= j - 1) by lia; 
-      assert (j - 1 + 1 <= Zlength ls) by lia.
-    cbn; repeat break_if; cbn; try congruence.
-    intros.
-    replace (j) with (j - 1 + 1) in H3 by lia.
-    pose proof IHls (v * 10 + Z_of_char a) (i + 1) (j - 1) H H0 H1 H2 H3.
-    replace (j - 1 + (i + 1)) with (j + i) in H4 by lia.
-    assumption.
-    1,2: unfold sublist; cbn.
-    replace (j + 1 - 0) with (Z.succ j) by lia; rewrite Z2Nat.inj_succ by lia; 
-      replace (j - 0) with (j) by lia; rewrite firstn_cons; reflexivity.
-    remember (j - 1) as n; replace (n - 0) with (n) by lia; 
-      replace (j - 0) with (j) by lia; assert (j = Z.succ n) by lia; 
-        rewrite H; rewrite Z2Nat.inj_succ by lia; rewrite firstn_cons; 
-          reflexivity.
-    rewrite <-e; cbn; repeat break_if; cbn; try congruence.
-    reflexivity.
-Qed.
- 
+Admitted.
+       
+
 (* OK *)
 
 Lemma all_digits_OK_or_ERROR_RANGE_loop : forall ls v i b,
@@ -506,6 +533,13 @@ Proof.
     admit.
 Admitted.
 
+Lemma all_digits_OK_or_ERROR_RANGE_loop_C : forall ls v i b,
+    (forall i, 0 <= i < Zlength ls -> is_digit (Znth i ls)  = true) ->
+    res (Z_of_string_loop_C ls v i b) = OK \/
+    res (Z_of_string_loop_C ls v i b) = ERROR_RANGE.
+Proof.
+Admitted. (* use the map *)
+
 (* OK *)
 Lemma OK_index_loop : forall ls b v i,
   res (Z_of_string_loop' ls v i b) = OK -> 
@@ -522,6 +556,13 @@ Proof.
     specialize (IHls b (v * 10 + Z_of_char a) (i + 1)).
     intuition.
 Qed.
+
+Lemma OK_index_loop_C : forall ls b v i,
+  res (Z_of_string_loop_C ls v i b) = OK -> 
+  index (Z_of_string_loop_C ls v i b) = i + Zlength ls.
+Proof.
+Admitted.
+(* use map *)
 
 Lemma OK_index : forall ls,
     res (Z_of_string' ls) = OK -> 
@@ -544,7 +585,14 @@ Proof.
 Qed.
 
 
+Lemma OK_index_C : forall ls,
+    res (Z_of_string_C ls) = OK -> 
+    index (Z_of_string_C ls) = Zlength ls.
+Proof.
+Admitted.
+
 Lemma bounded'_to_OK_loop : forall ls v i b,
+   0 <= v ->
   bounded' b (value (Z_of_string_loop' ls v i b)) = true ->
   (forall i, 0 <= i < Zlength ls -> is_digit (Znth i ls)  = true) ->
   res (Z_of_string_loop' ls v i b) = OK.
@@ -557,21 +605,48 @@ Proof.
     try eassumption.
   eapply ERROR_RANGE_not_bounded'_loop in ER.
   congruence.
+  nia.
 Qed.
 
-Lemma OK_bounded'_loop : forall ls b v i,
-    bounded' b v = true ->
-    res (Z_of_string_loop' ls v i b) = OK ->
-    bounded' b (value (Z_of_string_loop' ls v i b)) = true.
+Lemma bounded_to_OK_loop_C : forall ls v i b,
+   0 <= v ->
+  bounded (value (Z_of_string_loop_C ls v i b)) = true ->
+  (forall i, 0 <= i < Zlength ls -> is_digit (Znth i ls)  = true) ->
+  res (Z_of_string_loop_C ls v i b) = OK.
+Proof.
+  intros.
+  edestruct all_digits_OK_or_ERROR_RANGE_loop_C with (ls := ls)
+                                                   (v := v)
+  as [Ok | ER];
+    intuition;
+    try eassumption.
+  eapply ERROR_RANGE_not_bounded_loop_C in ER.
+  congruence.
+  nia.
+Qed.
+
+Lemma OK_bounded_loop : forall ls b v i,
+    bounded v = true ->
+    res (Z_of_string_loop_C ls v i b) = OK ->
+    bounded (value (Z_of_string_loop_C ls v i b)) = true.
 Proof.
   induction ls; intros b v i.
   - simpl; congruence.
-  - cbn.
-    repeat break_match;
+  - intro.
+    simpl.
+    repeat break_if;
       simpl; try congruence.
-    intros. eapply IHls.
+     eapply IHls.
     all: intuition.
-Qed.
+     try (rewrite Z.ltb_lt in *).
+     admit.
+     break_match.
+     simpl.
+     admit.
+     break_if.
+     simpl in *; congruence.
+     simpl in *; congruence.
+Admitted.
  
 Lemma app_char_to_OK_loop : forall ls b i,
     0 < Zlength ls ->
@@ -690,12 +765,13 @@ Proof.
   subst.
   eapply value_next_loop.
   eapply bounded'_to_OK_loop.
+  nia.
   eassumption.
   admit.
   eassumption.
   all: nia.
 Admitted.
-
+(*
 Lemma ub_last_digit_error_range : forall j i ls,
   0 <= j < Zlength ls ->
   Znth j ls = i ->
@@ -829,3 +905,4 @@ Lemma sublist_EXTRA_DATA : forall ls v j i m vl b,
     index (Z_of_string_loop' ls v i b) = m /\
     value (Z_of_string_loop' ls v i b) = vl.
 Admitted.
+*)
