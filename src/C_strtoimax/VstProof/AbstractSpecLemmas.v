@@ -294,18 +294,7 @@ Lemma neg_bounded : forall v,
     try nia.
 Qed.
 
-                   
-Lemma lt_ub_not_bounded : forall v d, 
-      0 <= v ->
-      0 <= d <= 9 -> 
-      v > upper_boundary ->
-      bounded (v*10 + d) = false.
-Proof.
-  intros.
-  unfold bounded; cbn in *.
-  rewrite andb_false_iff; do 2 rewrite Z.leb_gt.
-  lia.
-Qed.
+                  
 
 Lemma eq_ub_bounded_minus : forall v d,
     v < 0 ->
@@ -401,10 +390,89 @@ Proof.
 Qed.
           
 
-Lemma bounded_true_to_false : forall ls v i,
-  bounded (value (Z_of_string_loop ls v i true))  = true ->
-  bounded (value (Z_of_string_loop ls v i false)) = true.
+Lemma value_false_eq_neg_value_true : forall ls v i, 
+    0 <= v ->
+    (* bounded (value (Z_of_string_loop ls v i true)) = true -> *)
+    value (Z_of_string_loop ls (-v) i false) = 
+    - value (Z_of_string_loop ls v i true). 
+
+Proof.
+  induction ls.
+  - intuition.
+  - simpl. intros v i L.
+    repeat break_if;
+      simpl; try congruence;
+        try eapply IHls.
+    replace (- v * 10 - Z_of_char a) with 
+        (-((v * 10 + Z_of_char a)))  by nia.
+    eapply IHls.
+    eapply is_digit_to_Z in Heqb.
+    nia.
+    destruct ls.
+    simpl. nia.
+    simpl.
+    { repeat break_if;
+        simpl.
+      (* contradiction *)
+      admit.
+      (* contradiction *)
+      admit.
+      nia.
+    }
+    eapply neg_bounded in Heqb1.
+    replace (-1 * (v * 10 + Z_of_char a))%Z with
+        ((-v * 10 - Z_of_char a)) in Heqb1 by nia.
+    congruence.
+    eapply is_digit_to_Z in Heqb.
+    nia.
+    nia.
 Admitted.
+
+Lemma value_false_eq_neg_value_true0 : forall ls i, 
+    value (Z_of_string_loop ls 0 i false) = 
+    - value (Z_of_string_loop ls 0 i true). 
+
+Proof.
+  intros. 
+  replace 0 with (-0) by nia.
+  eapply value_false_eq_neg_value_true;
+    try nia; try eassumption.
+Qed.
+
+Lemma bounded_true_to_false : forall ls i,
+    bounded (value (Z_of_string_loop ls 0 i true))  = true ->
+    bounded (value (Z_of_string_loop ls 0 i false)) = true.
+Proof.
+  intros.
+  erewrite value_false_eq_neg_value_true0;
+    try eassumption.
+  eapply neg_bounded.
+  eapply loop_non_neg; nia.
+  eassumption.
+Qed.
+
+Lemma lt_ub_not_bounded_plus : forall v d, 
+      0 <= d <= 9 -> 
+      v > upper_boundary ->
+      bounded (v*10 + d) = false. 
+Proof.
+  intros.
+  unfold bounded; cbn in *.
+  rewrite andb_false_iff; do 2 rewrite Z.leb_gt.
+  lia.
+Qed.
+
+Lemma lt_ub_not_bounded_minus : forall v d, 
+    0 <= d <= 9 -> 
+    v < - upper_boundary ->
+    bounded (v*10 - d) = false.
+Proof.
+  intros.
+  unfold bounded; cbn in *.
+  rewrite andb_false_iff; do 2 rewrite Z.leb_gt.
+  lia.
+Qed.
+
 (* Lemmas about Spec *) 
 
 (* ERROR RANGE *)

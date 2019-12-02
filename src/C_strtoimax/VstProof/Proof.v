@@ -210,7 +210,6 @@ Proof.
                   unfold plus_char.
                   nia.
                 } 
-
                assert (((-1) * value (Z_of_string_loop ls 0 1 true))%Z = 
                        (value (Z_of_string (i :: ls)))) as V2.
                { cbn.
@@ -221,7 +220,13 @@ Proof.
                  nia.
                  replace (Byte.signed i =? plus_char) 
                          with false.
-                 all: admit.
+                 break_if.
+                 erewrite value_false_eq_neg_value_true0.
+                 nia.
+                 eassumption.
+                 erewrite value_false_eq_neg_value_true0.
+                 nia.
+                 admit.
                } 
                  erewrite OK, I.  
                  all: 
@@ -773,23 +778,30 @@ Proof.
                   { rewrite next_value_lt_ub_true with (i := Znth j ls).
                     admit.
                     subst; eassumption. 
-                    all: Z_of_char in *;
+                    all: unfold Z_of_char in *;
                       subst; try eassumption; try nia; auto.
                    }
+                  
+                  assert (bounded (value_until (j + 1) ls false) = true) as Boundf by admit.
 
-                  assert (bounded (value_until ((j + 1) + 1) ls) = false) as BoundF.
+                  assert (bounded (value_until ((j + 1) + 1) ls false) = false) as BoundF.
              
                   { 
-                    erewrite next_value_lt_ub with (i := Znth (j + 1) ls).
+                    erewrite next_value_lt_ub_false with (i := Znth (j + 1) ls).
+
                     eapply lt_ub_not_bounded.
-                    eassumption.
                     eapply is_digit_to_Z;
                     eassumption.
-                    erewrite next_value_lt_ub with (i := Znth j ls).
-                    eapply eq_ub_next; try nia
+
+
+                    erewrite value_false_eq_neg_value_true0.
+                    erewrite next_value_lt_ub_true with (i := Znth j ls).
+                    cut ((value_until j ls true * 10 + Z_of_char (Znth j ls)) 
+                         > AbstractSpecLemmas.upper_boundary).
+                    nia.
+                    eapply eq_ub_next; try nia.
                      eapply is_digit_to_Z.
                     all: try eassumption; try nia.
-                    eapply is_digit_to_Z; eassumption; auto.
                     auto.
                     eapply app_is_digit; try eassumption; try nia;
                       auto.
@@ -797,7 +809,7 @@ Proof.
 
                   assert (j + 1 + 1 <= Zlength ls) as LS_len2 by nia.
 
-                  assert (res (Z_of_string_loop ls 0 1) = ERROR_RANGE) as Result_loop.
+                  assert (res (Z_of_string_loop ls 0 1 false) = ERROR_RANGE) as Result_loop.
                   { 
                     assert ((Zlength (sublist 0 (j + 1 + 1) ls))
                             =  (j + 1 + 1)) as SB
@@ -816,11 +828,11 @@ Proof.
                     all: try nia.
                     all: try erewrite Znth_sublist;
                     try nia; normalize; subst; try eassumption.
-                    eapply OK_bounded_loop in H17 
-                      with (ls := sublist 0 (j + 1 + 1) ls).
+                    eapply OK_bounded_loop
+                      with (ls := sublist 0 (j + 1 + 1) ls)  (b := false) in H16.
                     congruence.
                     admit.
-                    eapply sublist_ERROR_RANGE in H12;
+                    eapply sublist_ERROR_RANGE in H16;
                     subst; try (
                     eassumption || nia).
                   }
@@ -834,7 +846,7 @@ Proof.
                       try nia.
                     eassumption.
                   }                 
-                  assert (index (Z_of_string_loop ls 0 1) = j + 1 + 1) as Index_loop.
+                  assert (index (Z_of_string_loop ls 0 1 false) = j + 1 + 1) as Index_loop.
                   { eapply ERROR_RANGE_index; try eassumption;
                       try nia.
                   }
