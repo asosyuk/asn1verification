@@ -48,7 +48,7 @@ Section AbstractSpec.
   }.
   
 Definition app_char (b : bool) v c := 
-  if b then  v * 10 + (Z_of_char c) else -v * 10 - (Z_of_char c).
+  if b then  v * 10 + (Z_of_char c) else v * 10 - (Z_of_char c).
 
  Fixpoint Z_of_string_loop (s : list byte) (v i : Z) (b : bool) := 
     match s with 

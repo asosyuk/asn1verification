@@ -1,4 +1,4 @@
-Require Import StructTact.StructTactics.
+(*Require Import StructTact.StructTactics.
 Require Import Core.Core Core.Notations Core.IntLemmas Core.PtrLemmas
         Core.IntPtrLemmas Core.Tactics.
 Require Import AST Spec Switch SpecLemmas AbstractSpec.
@@ -1924,3 +1924,4 @@ Qed.
            Mem.loadv Mint64 m' (Vptr intp_b intp_ofs) = Some val -> 
            le'!_value = Some val) *)
    Admitted.
+*)

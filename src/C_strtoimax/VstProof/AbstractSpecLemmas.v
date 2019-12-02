@@ -308,16 +308,31 @@ Proof.
 Qed.
 
 Lemma eq_ub_bounded_minus : forall v d,
-    0 <= v ->
+    v < 0 ->
     0 <= d <= 9 -> 
     v = upper_boundary ->
     d <= last_digit_max_minus ->
-    bounded (-v*10 - d) = true.
+    bounded (v*10 - d) = true.
 Proof.
   intros.
   unfold bounded; cbn in *.
   rewrite andb_true_iff; do 2 rewrite Z.leb_le.
   nia.
+Qed.
+
+Lemma loop_neg : forall ls v i,
+    v <= 0 ->
+    value (Z_of_string_loop ls v i false) <= 0.
+Proof.
+  induction ls.
+  - intuition. 
+  - intros.
+    simpl;
+      repeat break_if;
+      simpl; try congruence;
+        try eapply is_digit_to_Z in Heqb;
+        try eapply IHls.
+    all: try nia.
 Qed.
 
 Lemma eq_ub_next : forall v d,
@@ -385,6 +400,11 @@ Proof.
     all: nia.
 Qed.
           
+
+Lemma bounded_true_to_false : forall ls v i,
+  bounded (value (Z_of_string_loop ls v i true))  = true ->
+  bounded (value (Z_of_string_loop ls v i false)) = true.
+Admitted.
 (* Lemmas about Spec *) 
 
 (* ERROR RANGE *)
@@ -511,7 +531,7 @@ Proof.
       simpl; try congruence.
     replace (i + Z.succ (Zlength ls)) with
         ((i+1) + Zlength ls) by nia.
-    specialize (IHls (-v * 10 - Z_of_char a) (i + 1)).
+    specialize (IHls (v * 10 - Z_of_char a) (i + 1)).
     intuition.
     replace (Zlength_aux 1 byte ls) with (1 + Zlength ls).
     
@@ -625,7 +645,7 @@ Qed.
 
 (* EXTRA DATA *)
              
-Lemma value_next_loop : forall ls v i b false,
+Lemma value_next_loop : forall ls v i b,
     (res (Z_of_string_loop ls v i false)) = OK ->
     is_digit b = true ->
     value (Z_of_string_loop (ls ++ [b]) v i false) = 
@@ -635,9 +655,6 @@ Proof.
   * simpl in *.
     repeat bool_rewrite.
     break_if; try easy.
-    simpl in *.
-    admit.
-    admit.
   * simpl in *.
     break_if.
     break_if.
@@ -648,7 +665,29 @@ Proof.
     repeat break_if;
       try congruence; simpl in *;
     try congruence.
-Admitted.
+Qed.
+
+Lemma value_next_loop_true : forall ls v i b,
+    (res (Z_of_string_loop ls v i true)) = OK ->
+    is_digit b = true ->
+    value (Z_of_string_loop (ls ++ [b]) v i true) = 
+    (value (Z_of_string_loop ls v i true)) * 10 + (Z_of_char b).
+Proof.
+  induction ls; intros.
+  * simpl in *.
+    repeat bool_rewrite.
+    break_if; try easy.
+  * simpl in *.
+    break_if.
+    break_if.
+    erewrite  IHls.
+    reflexivity.
+    eassumption.
+    all: simpl in *;
+    repeat break_if;
+      try congruence; simpl in *;
+    try congruence.
+Qed.
 
 Lemma EXTRA_DATA_next_loop : forall ls v i b,
     (res (Z_of_string_loop ls v i false)) = OK ->
@@ -694,7 +733,27 @@ Proof.
     try congruence.
 Qed.
 
-Lemma next_value_lt_ub : forall ls j i,
+Lemma next_value_lt_ub_true : forall ls j i,
+     (forall i : Z, 0 <= i < j  ->
+               is_digit (Znth i ls) = true) ->
+     0 < j + 1 <= Zlength ls ->
+     bounded (value_until j ls true) = true -> 
+     Znth j ls = i ->
+     is_digit i = true ->
+     (value_until (j + 1) ls true) = (value_until j ls true) * 10 + (Z_of_char i).
+Proof.
+  intros.
+  rewrite sublist_last_1.
+  subst.
+  eapply value_next_loop_true.
+  eapply bounded_to_OK_loop.
+  eassumption.
+  admit.
+  eassumption.
+  all: nia.
+Admitted.
+
+Lemma next_value_lt_ub_false : forall ls j i,
      (forall i : Z, 0 <= i < j  ->
                is_digit (Znth i ls) = true) ->
      0 < j + 1 <= Zlength ls ->
@@ -731,7 +790,7 @@ Proof.
   inversion H3.
   eapply bounded_bool_to_Prop in H3.
   assert (bounded (value_until (j + 1) ls false) = false) as Bound.
-  { erewrite next_value_lt_ub.
+  { erewrite next_value_lt_ub_false.
     admit.
     (* eapply lt_ub_not_bounded.
     eapply loop_non_neg; nia.
@@ -761,7 +820,7 @@ Proof.
     inversion H3.
   eapply bounded_bool_to_Prop in H3.
   assert (bounded (value_until (j + 1) ls false) = false) as Bound.
-  { erewrite next_value_lt_ub.
+  { erewrite next_value_lt_ub_false.
     eapply eq_ub_not_bounded_minus.
     all: admit.
     (* eapply loop_non_neg; nia.

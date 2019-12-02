@@ -106,17 +106,17 @@ Proof.
            forward_loop (
                EX j : Z, EX vl : Z,
                  let i' := Ptrofs.add str_ofs (Ptrofs.repr (j + 1)) in
-                 let b := if Ptrofs.unsigned str_ofs + j + 1 >=?
-                             Ptrofs.unsigned end'_ofs then false else true in
+                (* let b := if Ptrofs.unsigned str_ofs + j + 1 >=?
+                             Ptrofs.unsigned end'_ofs then false else true in *)
                  PROP(0 <= j <= Zlength ls;
                       Ptrofs.unsigned str_ofs + j + 1 < Ptrofs.modulus;
                       forall (i : Z), 0 <= i < j -> is_digit (Znth i ls) = true;
-                        bounded (value_until j ls b) = true)
+                        bounded (value_until j ls true) = true)
                  LOCAL(temp _end (Vptr end_b end_ofs); 
                        temp _intp (Vptr intp_b intp_ofs);
                        temp _str (Vptr end'_b i');
-                       temp _value (Vlong (Int64.repr (value_until j ls b)));
-                       temp _sign (Vint (Int.repr (if b then 1 else -1)));
+                       temp _value (Vlong (Int64.repr (value_until j ls true)));
+                       temp _sign (Vint (Int.repr ((*(if b then 1 else *) -1)));
                        temp _upper_boundary (Vlong upper_boundary);
                        temp _last_digit_max
                             (Vlong (Int64.add last_digit_max Int64.one)))
@@ -140,14 +140,14 @@ Proof.
                
            break: (EX j : Z, 
                     let b := if Ptrofs.unsigned str_ofs + j + 1 >=? 
-                                Ptrofs.unsigned end'_ofs then false else true in
+                                Ptrofs.unsigned end'_ofs then true else false in
                     PROP(0 <= j <= Zlength ls;
                         forall i, 0 <= i < Zlength ls -> 
                              is_digit (Znth i ls) = true;
                          bounded (value (Z_of_string_loop ls 0 1 b)) = true)
                     LOCAL(
                       temp _value (Vlong (Int64.repr (value (Z_of_string_loop ls 0 1 b))));
-                      temp _sign (Vint (Int.repr (if b then 1 else -1)));
+                      temp _sign (Vint (Int.repr (if b then -1 else 1)));
 
                       temp _end (Vptr end_b end_ofs); 
                       temp _intp (Vptr intp_b intp_ofs);
@@ -169,8 +169,6 @@ Proof.
                forward.
                forward.
                entailer!.
-               break_if.
-               cbn.
                unfold bounded in *.
                rewrite andb_true_iff in *.
                repeat rewrite Z.leb_le in *.
@@ -178,7 +176,7 @@ Proof.
                1-2: repeat rewrite Int64.signed_repr;
                repeat rewrite Int.signed_repr;
                rep_omega_setup;
-               assert (0 <= value (Z_of_string_loop ls 0 1)) by 
+               assert (0 <= value (Z_of_string_loop ls 0 1 true)) by 
                (eapply loop_non_neg; nia);
                try nia;
                try rep_omega.
@@ -195,8 +193,26 @@ Proof.
                  as I.
                eapply OK_index.
                eassumption.
-               assert (((-1) * value (Z_of_string_loop ls 0 1))%Z = 
-                       (value (Z_of_string (i :: ls)))) as V.
+                assert ((value (Z_of_string_loop ls 0 1 false))%Z = 
+                (value (Z_of_string (i :: ls)))) as V1.
+                { cbn.
+                  unfold is_sign, minus_char.
+                  bool_rewrite.
+                  break_match.
+                  autorewrite with sublist in *.
+                  nia.
+                  replace (Byte.signed i =? plus_char) 
+                    with false.
+                  reflexivity.
+                  symmetry.
+                  Zbool_to_Prop.
+                  rewrite Z.eqb_eq in *.
+                  unfold plus_char.
+                  nia.
+                } 
+
+               assert (((-1) * value (Z_of_string_loop ls 0 1 true))%Z = 
+                       (value (Z_of_string (i :: ls)))) as V2.
                { cbn.
                  unfold is_sign, minus_char.
                  bool_rewrite.
@@ -205,17 +221,12 @@ Proof.
                  nia.
                  replace (Byte.signed i =? plus_char) 
                          with false.
-                 reflexivity.
-                 symmetry.
-                 Zbool_to_Prop.
-                 rewrite Z.eqb_eq in *.
-                 unfold plus_char.
-                 nia.
-               }
-                 erewrite OK, I, V.  
+                 all: admit.
+               } 
+                 erewrite OK, I.  
                  all: 
                break_if; entailer;
-                    try erewrite V;
+                    try erewrite V1; try erewrite V2;
                    autorewrite with sublist; entailer!. }
            ***
              Exists 0 0.
@@ -235,7 +246,7 @@ Proof.
              assert (Byte.signed i =? plus_char = false) as PCH 
                  by (rewrite Z.eqb_eq in Heqb; rewrite Heqb; intuition).
              Intros j vl.
-             assert (0 <= value_until j ls) as NN by (eapply loop_non_neg; nia).
+             assert (0 <= value_until j ls true) as NN by (eapply loop_non_neg; nia).
              forward.
              forward_if.
            3:
@@ -261,7 +272,6 @@ Proof.
                autorewrite with sublist.
                replace (Z.succ (Zlength ls) - 1)
                            with (Zlength ls) by nia.     
-               unfold value_until in *.
                autorewrite with  sublist in *.
                entailer!.
                erewrite data_at_zero_array_eq.
@@ -423,9 +433,6 @@ Proof.
            { pose proof (bounded_bool_to_Prop _ H6).
              pose proof (is_digit_to_Z i0 H9).
               lt_ub_to_Z  H10; try nia.
-             assert (0 <= value_until j ls < AbstractSpecLemmas.upper_boundary).
-             unfold Z_of_char in *.
-             nia.
              forward.
              entailer!.
              { repeat rewrite Int64.signed_repr.
@@ -437,9 +444,9 @@ Proof.
                  all: try nia. }
              forward.
              (* show that loop invariant holds after normal  loop body execution *)
-             Exists (j + 1) (value_until (j + 1) ls).
+             Exists (j + 1) (value_until (j + 1) ls true).
              entailer!.
-             erewrite next_value_lt_ub with (i := Znth j ls).
+             erewrite next_value_lt_ub_true with (i := Znth j ls).
              repeat split; try nia.
              eapply app_is_digit; try nia; try eassumption.
              apply lt_ub_to_next_bounded_bool.
@@ -458,7 +465,7 @@ Proof.
                  (PROP ( )
      LOCAL (
        temp _value (Vlong (Int64.repr 
-(- value (Z_of_string_loop (sublist 0 j ls) 0 1) * 10 - (Byte.signed i0 - 48))));
+(- value (Z_of_string_loop (sublist 0 j ls) 0 1 true) * 10 - (Byte.signed i0 - 48))));
        temp _sign (Vint (Int.repr 1));
 
        temp _d (Vint (Int.sub (Int.repr (Byte.signed i0)) (Int.repr 48)));
@@ -501,14 +508,9 @@ Proof.
              entailer.
              forward.
              forward.
-             
-             
-             
              forward_if.
-        
              3: { 
-
-               (* BREAK: str + j + 1 + 1 >= end *)
+             (* BREAK: str + j + 1 + 1 >= end *)
              forward.
              rewrite_comparison.
              replace (Ptrofs.unsigned
@@ -533,13 +535,8 @@ Proof.
                  replace (Zlength ls) with (j + 1) by nia.
                 eapply app_is_digit; try easy.
                 replace ls with (sublist 0 (j + 1) ls).
-                (*eapply eq_ub_bounded_minus;
-                  try eassumption.*)
-                admit.
-                eapply is_digit_to_Z in H9.
-                                          
-                  all: try nia; try
-                eassumption; auto.
+                admit. 
+                (* need a lemma relating value of loop true and loop false *)
                 replace (j + 1) with (Zlength ls) by nia.
                 autorewrite with sublist; auto.
 
@@ -547,10 +544,11 @@ Proof.
                 f_equal.
 
                 replace ls with (sublist 0 (j + 1) ls) at 1.
-                rewrite  next_value_lt_ub with (i := Znth j ls).
+                rewrite  next_value_lt_ub_false with (i := Znth j ls).
                 unfold Z_of_char.
-                nia.
+                admit.
                  all: try eassumption; try nia; auto.
+                 admit. (* lemma bounded_true_to_false *)
                   replace (j + 1) with (Zlength ls) by nia.
                 autorewrite with sublist; auto.
               
@@ -758,7 +756,7 @@ Proof.
                  all: try nia.
                }
 
-               assert ( 0 <= value_until (j + 1) ls) as NN1 by (eapply loop_non_neg; nia).
+               assert ( 0 <= value_until (j + 1) ls true) as NN1 by (eapply loop_non_neg; nia).
                forward_if.
 
                 (* ERROR RANGE spec *)
@@ -771,11 +769,11 @@ Proof.
                  inversion H6.
                  eapply bounded_bool_to_Prop in H6.
 
-                 assert (bounded (value_until (j + 1) ls) = true) as Bound.             
-                  { rewrite next_value_lt_ub with (i := Znth j ls).
+                 assert (bounded (value_until (j + 1) ls true) = true) as Bound.             
+                  { rewrite next_value_lt_ub_true with (i := Znth j ls).
                     admit.
                     subst; eassumption. 
-                    all: unfold value_until, Z_of_char in *;
+                    all: Z_of_char in *;
                       subst; try eassumption; try nia; auto.
                    }
 
@@ -884,7 +882,7 @@ Proof.
                  eapply  eq_ub_not_bounded_minus.
                  eapply loop_non_neg; nia.
                  eapply is_digit_to_Z; eassumption.
-                 all: unfold value_until, Z_of_char in *;
+                 all:  , Z_of_char in *;
                    try eassumption; try nia. } 
 
                assert (res (Z_of_string_loop ls 0 1) = ERROR_RANGE) as Result_loop.
@@ -953,7 +951,7 @@ Proof.
                     eapply lt_ub_not_bounded.
                     eapply loop_non_neg; nia.
                     eapply is_digit_to_Z; eassumption.
-                    all: unfold value_until, Z_of_char in *;
+                    all: Z_of_char in *;
                       try eassumption; try nia. } 
 
                assert (res (Z_of_string_loop ls 0 1) = ERROR_RANGE) as Result_loop.
