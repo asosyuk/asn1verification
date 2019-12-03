@@ -1,7 +1,8 @@
-Require Import Clight.INTEGER Core.Notations.
+Require Import Clight.INTEGER. (* Core.Notations. *)
 Require Import Coq.Program.Basics.
-Require Import Core.Core Core.Tactics Core.PtrLemmas Core.Notations.
+ Require Import Core.Core Core.Tactics. (* Core.PtrLemmas. (* Core.Notations. *) *)
 Require Import StructTact.StructTactics.
+Require Import Lists.List.
 Import ListNotations.
 
 Section AbstractSpec.
@@ -21,7 +22,7 @@ Section AbstractSpec.
     (Byte.signed b =? plus_char) || (Byte.signed b =? minus_char).
 
   Definition bounded (n : Z) : bool :=
-    andb (Int64.min_signed <=? n) (n <=? Int64.max_signed).
+    (Int64.min_signed <=? n) && (n <=? Int64.max_signed).
 
   Inductive asn_strtox_result_e :=
   | ERROR_RANGE (* Input outside of supported numeric range *)
@@ -30,53 +31,35 @@ Section AbstractSpec.
   | EXTRA_DATA  (* Conversion succeded, but the string has extra stuff *)
   | OK.         (* Conversion succeded, number ends at (end) *)
 
-  (* C light outputs int *)
-
-  Definition asn_strtox_result_e_to_int (s : asn_strtox_result_e) : int :=
-    match s with
-    | ERROR_RANGE => Int.repr (-3)
-    | ERROR_INVAL => Int.repr (-2)
-    | EXPECT_MORE => Int.repr (-1)
-    | EXTRA_DATA => Int.repr 1
-    | OK => Int.repr 0
-    end.
 
   Record Z_of_string_result :=
-  { res : asn_strtox_result_e ; 
-    value : Z ;
-    index : Z ;
+  { res : asn_strtox_result_e; 
+    value : Z;
+    index : Z;
   }.
   
 Definition app_char (b : bool) v c := 
-  if b then  v * 10 + (Z_of_char c) else v * 10 - (Z_of_char c).
+  if b 
+  then v * 10 + (Z_of_char c) 
+  else v * 10 - (Z_of_char c).
 
  Fixpoint Z_of_string_loop (s : list byte) (v i : Z) (b : bool) := 
     match s with 
-    | [] => {| res := OK ; 
-              value := v ; 
-              index := i |}
+    | [] => {| res := OK; value := v; index := i |}
     | c :: tl => 
       if is_digit c
       then let v1 := app_char b v c in 
            if bounded v1
            then Z_of_string_loop tl v1 (i + 1) b
-           else {| res := ERROR_RANGE ;
-                   value := v1 ;
-                   index := i ; |}      
-      else {| res := EXTRA_DATA ;
-              value := v ;
-              index := i ; |}              
+           else {| res := ERROR_RANGE; value := v1; index := i; |}      
+      else {| res := EXTRA_DATA; value := v; index := i; |}              
     end.
 
   Definition Z_of_string (s : list byte) : Z_of_string_result := 
       match s with 
-      |  nil => {| res := ERROR_INVAL ; 
-                  value := 0 ;
-                  index := 0 ; |} 
+      |  nil => {| res := ERROR_INVAL; value := 0; index := 0; |} 
       | [ch] => if is_sign ch 
-                then {| res := EXPECT_MORE ;
-                        value := 0 ;
-                        index := 1 ; |} 
+                then {| res := EXPECT_MORE; value := 0; index := 1; |} 
                 else Z_of_string_loop s 0 0 true
       |  ch :: tl => if (Byte.signed ch =? plus_char)
                     then  Z_of_string_loop tl 0 1 true
@@ -87,60 +70,61 @@ Definition app_char (b : bool) v c :=
 
 End AbstractSpec.
 
-Definition plus_char_b := Byte.repr plus_char.
-Definition minus_char_b := Byte.repr minus_char.
-
 Section RelationalSpec.
 
- Inductive asn_strtoimax_lim_R : list byte -> Z -> asn_strtox_result_e -> Prop :=
+  Definition plus_char_b := Byte.repr plus_char.
+  Definition minus_char_b := Byte.repr minus_char.
+
+  (* relation between input string, value, index an asn_strtox_result_e message *)
+  Inductive asn_strtoimax_lim_R : list byte -> Z -> Z -> asn_strtox_result_e -> Prop :=
   (* Invalid data encountered *)
   | ERROR_INVAL_R :
-      asn_strtoimax_lim_R nil 0 ERROR_INVAL
+      asn_strtoimax_lim_R nil 0 0 ERROR_INVAL
 
   (* More data expected (e.g. "+") *)
-  | EXPECT_MORE_R ls :
-      ls = [plus_char_b] \/
-      ls = [minus_char_b] ->
-      asn_strtoimax_lim_R ls 0 EXPECT_MORE
+  | EXPECT_MORE_R : forall ls c,
+      ls = [c]  ->
+      is_sign c = true ->
+      asn_strtoimax_lim_R ls 0 1 EXPECT_MORE
 
   (* Input outside of supported numeric range *)                     
-  | ERROR_RANGE_R : forall b ls z c,
-      asn_strtoimax_lim_R ls z OK ->
+  | ERROR_RANGE_R : forall b ls z i c,
+      asn_strtoimax_lim_R ls z i OK ->
       bounded (app_char b z c) = false ->
-      asn_strtoimax_lim_R (app ls [c]) (app_char b z c) ERROR_RANGE
+      asn_strtoimax_lim_R (ls ++ [c]) (app_char b z c) (i + 1) ERROR_RANGE
 
- (* non-digit encountered *)
-  | ASN_STRTOX_EXTRA_DATA_R : forall c ls z,
-      asn_strtoimax_lim_R ls z OK ->
+  (* non-digit encountered *)
+  | ASN_STRTOX_EXTRA_DATA_R : forall c ls z i,
+      asn_strtoimax_lim_R ls z i OK ->
       is_digit c = false -> 
-      asn_strtoimax_lim_R (app ls [c]) z EXTRA_DATA
+      asn_strtoimax_lim_R (ls ++ [c]) z i EXTRA_DATA
 
- (* Conversion succeded *) 
+  (* Conversion succeded *) 
+  | OK_R : forall ls z i,
+      ls <> nil -> 
+      asn_strtoimax_lim_R_loop true ls z i OK ->
+      asn_strtoimax_lim_R ls z i OK
 
-  | OK_R : forall ls z,
-      asn_strtoimax_lim_R_loop true ls z OK ->
-      asn_strtoimax_lim_R ls z OK
-
-  | OK_R_plus : forall ls ls' z,
+  | OK_R_plus : forall ls ls' z i,
       ls = plus_char_b::ls' ->
-      asn_strtoimax_lim_R_loop true ls' z OK ->
-      asn_strtoimax_lim_R ls z OK
+      asn_strtoimax_lim_R_loop true ls' z i OK ->
+      asn_strtoimax_lim_R ls z i OK
 
-  | OK_R_minus : forall ls ls' z,
+  | OK_R_minus : forall ls ls' z i,
       ls = minus_char_b::ls' ->
-      asn_strtoimax_lim_R_loop false ls' z OK ->
-      asn_strtoimax_lim_R ls z OK  
+      asn_strtoimax_lim_R_loop false ls' z i OK ->
+      asn_strtoimax_lim_R ls z i OK  
 
- with asn_strtoimax_lim_R_loop : bool -> list byte -> Z -> asn_strtox_result_e -> Prop :=
-                        
+  with asn_strtoimax_lim_R_loop : bool -> list byte -> Z -> Z -> asn_strtox_result_e -> Prop :=
+    
   | OK_R_0 : forall b,
-      asn_strtoimax_lim_R_loop b nil 0 OK                     
-                                             
-  | OK_R_Succ : forall b ls z c,
-      asn_strtoimax_lim_R_loop b ls z OK ->
+      asn_strtoimax_lim_R_loop b nil 0 0 OK                     
+                               
+  | OK_R_Succ : forall b ls z i c,
+      asn_strtoimax_lim_R_loop b ls z i OK ->
       bounded (app_char b z c) = true ->
-      asn_strtoimax_lim_R_loop b (app ls [c]) (app_char b z c) OK.
-                            
+      asn_strtoimax_lim_R_loop b (ls ++ [c]) (app_char b z c) (i + 1) OK.
+  
 End RelationalSpec.
 
 Section C_likeSpec.
@@ -207,6 +191,17 @@ Definition Z_of_string_C (s : list byte) : Z_of_string_result :=
   end.
 
 End C_likeSpec.
+
+  (* C light outputs int *)
+
+  Definition asn_strtox_result_e_to_int (s : asn_strtox_result_e) : int :=
+    match s with
+    | ERROR_RANGE => Int.repr (-3)
+    | ERROR_INVAL => Int.repr (-2)
+    | EXPECT_MORE => Int.repr (-1)
+    | EXTRA_DATA => Int.repr 1
+    | OK => Int.repr 0
+    end.
 
 
 (* alternative abstract spec, with positive loop *)
@@ -462,7 +457,6 @@ Lemma Clike_corr : forall ls, Z_of_string' ls = Z_of_string_C ls.
         admit.
 Admitted.
 
-Import ListNotations.
 
 
 
