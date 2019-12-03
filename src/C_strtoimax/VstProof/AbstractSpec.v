@@ -87,6 +87,62 @@ Definition app_char (b : bool) v c :=
 
 End AbstractSpec.
 
+Definition plus_char_b := Byte.repr plus_char.
+Definition minus_char_b := Byte.repr minus_char.
+
+Section RelationalSpec.
+
+ Inductive asn_strtoimax_lim_R : list byte -> Z -> asn_strtox_result_e -> Prop :=
+  (* Invalid data encountered *)
+  | ERROR_INVAL_R :
+      asn_strtoimax_lim_R nil 0 ERROR_INVAL
+
+  (* More data expected (e.g. "+") *)
+  | EXPECT_MORE_R ls :
+      ls = [plus_char_b] \/
+      ls = [minus_char_b] ->
+      asn_strtoimax_lim_R ls 0 EXPECT_MORE
+
+  (* Input outside of supported numeric range *)                     
+  | ERROR_RANGE_R : forall b ls z c,
+      asn_strtoimax_lim_R ls z OK ->
+      bounded (app_char b z c) = false ->
+      asn_strtoimax_lim_R (app ls [c]) (app_char b z c) ERROR_RANGE
+
+ (* non-digit encountered *)
+  | ASN_STRTOX_EXTRA_DATA_R : forall c ls z,
+      asn_strtoimax_lim_R ls z OK ->
+      is_digit c = false -> 
+      asn_strtoimax_lim_R (app ls [c]) z EXTRA_DATA
+
+ (* Conversion succeded *) 
+
+  | OK_R : forall ls z,
+      asn_strtoimax_lim_R_loop true ls z OK ->
+      asn_strtoimax_lim_R ls z OK
+
+  | OK_R_plus : forall ls ls' z,
+      ls = plus_char_b::ls' ->
+      asn_strtoimax_lim_R_loop true ls' z OK ->
+      asn_strtoimax_lim_R ls z OK
+
+  | OK_R_minus : forall ls ls' z,
+      ls = minus_char_b::ls' ->
+      asn_strtoimax_lim_R_loop false ls' z OK ->
+      asn_strtoimax_lim_R ls z OK  
+
+ with asn_strtoimax_lim_R_loop : bool -> list byte -> Z -> asn_strtox_result_e -> Prop :=
+                        
+  | OK_R_0 : forall b,
+      asn_strtoimax_lim_R_loop b nil 0 OK                     
+                                             
+  | OK_R_Succ : forall b ls z c,
+      asn_strtoimax_lim_R_loop b ls z OK ->
+      bounded (app_char b z c) = true ->
+      asn_strtoimax_lim_R_loop b (app ls [c]) (app_char b z c) OK.
+                            
+End RelationalSpec.
+
 Section C_likeSpec.
 
 Definition ASN1_INTMAX_MAX := Int64.max_signed.
@@ -151,6 +207,7 @@ Definition Z_of_string_C (s : list byte) : Z_of_string_result :=
   end.
 
 End C_likeSpec.
+
 
 (* alternative abstract spec, with positive loop *)
 Section AbstractSpec'.
@@ -404,5 +461,9 @@ Lemma Clike_corr : forall ls, Z_of_string' ls = Z_of_string_C ls.
         admit.
         admit.
 Admitted.
+
+Import ListNotations.
+
+
 
 
