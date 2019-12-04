@@ -696,19 +696,23 @@ Proof.
                 replace (Zlength ls) with (j + 1) by nia.
                eapply app_is_digit; try easy.
                replace ls with (sublist 0 (j + 1) ls).
-               (*clear - H3 MCH H5 NN H6 Sub H9 H10 H12.
-               rewrite sublist_last_1. 
-               rewrite value_next_loop.
-               admit.
-               apply bounded_to_OK_loop.
-               apply bounded_true_to_false in H6; eassumption.*)
-               admit. 
+               {
+               rewrite next_value_lt_ub_false with (i := Znth j ls).
+               eapply eq_ub_bounded_minus.
+               admit. (* ATTENTION, POSSIBLE BUG IN THEOREM *)
+               apply is_digit_to_Z in H9; assumption.
+               admit. (* ATTENTION, POSSIBLE BUG IN THEOREM *)
+               assumption.
+               assumption.
+               lia.
+               apply bounded_true_to_false in H6; assumption.
+               reflexivity. 
+               assumption. }
                (* need a lemma relating value of loop true and loop false *)
                replace (j + 1) with (Zlength ls) by nia.
                autorewrite with sublist; auto.
 
-               f_equal.
-               f_equal.
+               do 2 f_equal.
 
                replace ls with (sublist 0 (j + 1) ls) at 1.
                rewrite  next_value_lt_ub_false with (i := Znth j ls).
@@ -743,7 +747,6 @@ Proof.
            unfold is_digit in H9; rewrite andb_true_iff in H9; 
              do 2 rewrite Z.leb_le in H9; unfold zero_char, nine_char in H9; 
                cbn; lia.
-           clear - H6 NN.
            1,2: unfold bounded in H6; rewrite andb_true_iff in H6; 
              do 2 rewrite Z.leb_le in H6; cbn in *; lia.
              }
@@ -924,38 +927,28 @@ Proof.
                  eapply bounded_bool_to_Prop in H6.
 
                  assert (bounded (value_until (j + 1) ls true) = true) as Bound.
-                  { rewrite next_value_lt_ub_true with (i := Znth j ls).
-                    admit.
-                    subst; eassumption. 
+                  { 
+                    rewrite next_value_lt_ub_true with (i := Znth j ls).
+                    apply eq_ub_bounded_plus.
+                    all: try assumption.
                     all: unfold Z_of_char in *;
-                      subst; try eassumption; try nia; auto.
+                         subst; try eassumption; try nia; auto.
+                    apply is_digit_to_Z in H9; assumption.
+                    admit. (* FIX eq_ub_bounded_plus *)
                    }
                   
                   assert (bounded (value_until (j + 1) ls false) = true) 
-                   as Boundf by admit.
+                   as Boundf by (apply bounded_true_to_false; assumption).
 
                   assert (bounded (value_until ((j + 1) + 1) ls false) = false) 
                     as BoundF.
              
                   { 
-                    admit.
-
-                    eapply is_digit_to_Z;
-                    eassumption.
-
-
-                    erewrite value_false_eq_neg_value_true0.
-                    erewrite next_value_lt_ub_true with (i := Znth j ls).
-                    cut ((value_until j ls true * 10 + Z_of_char (Znth j ls)) 
-                         > AbstractSpecLemmas.upper_boundary).
-                    nia.
-                    eapply eq_ub_next; try nia.
-                     eapply is_digit_to_Z.
-                    all: try eassumption; try nia.
-                    auto.
-                    eapply app_is_digit; try eassumption; try nia;
-                      auto.
-                    auto. }
+                    erewrite next_value_lt_ub_false with 
+                        (j := j + 1) (i := (Znth (j + 1) ls)).
+                    apply eq_ub_not_bounded_minus.
+                    erewrite next_value_lt_ub_false with (i := (Znth j ls)).
+                    admit. }
 
                   assert (j + 1 + 1 <= Zlength ls) as LS_len2 by nia.
 
