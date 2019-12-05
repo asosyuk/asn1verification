@@ -687,7 +687,7 @@ Lemma app_char_to_OK_loop : forall ls i b,
     res (Z_of_string_loop ls 0 1 b) = OK ->
     res (Z_of_string (i :: ls)) = OK.
 Proof.
-  intros until b. intros N S Ok.
+  intros until b. intros S Ok.
   pose proof (sign_not_digit i S).
   unfold is_sign in S.
   destruct_orb_hyp.

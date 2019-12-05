@@ -47,7 +47,7 @@ Definition asn_strtoimax_lim_vst_spec : ident * funspec :=
           Z.max 0 (Ptrofs.unsigned end'_ofs - Ptrofs.unsigned str_ofs);
 
          (* No pointer overflow occurs *)
-         Ptrofs.unsigned str_ofs + Zlength ls < Ptrofs.modulus        
+         0 <= Ptrofs.unsigned str_ofs + Zlength ls < Ptrofs.modulus        
                 
       )
       (* LOCAL: connects C light prameter identifiers and declared variables *)

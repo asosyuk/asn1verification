@@ -72,7 +72,7 @@ Proof.
                    data_at sh_intp tlong v (Vptr intp_b intp_ofs))).
       forward_if (
           if Byte.signed i =? 45
-          then PROP(1 < Zlength ls)
+          then PROP((*1 < Zlength ls *))
                LOCAL(temp _sign (Vint (Int.repr (-1)));
                      temp _str (Vptr end'_b
                                      (Ptrofs.add str_ofs (Ptrofs.repr 1)));
@@ -83,7 +83,7 @@ Proof.
                      temp _upper_boundary (Vlong upper_boundary))
                sep_precondition
           else if Byte.signed i =? 43
-               then PROP(1 < Zlength ls)
+               then PROP((*1 < Zlength ls *))
                     LOCAL(temp _str (Vptr end'_b 
                                           (Ptrofs.add str_ofs (Ptrofs.repr 1)));
                          temp _end (Vptr end_b end_ofs); 
@@ -151,8 +151,12 @@ Proof.
            auto with ptrofs.
            replace (Ptrofs.unsigned Ptrofs.one) with 1 by auto with ptrofs.
            autorewrite with sublist in *|-.
-           admit.
-        (* Need to add precondition about str_ofs + Zlength contents <= Ptrofs.unsigned_max *)
+           assert (0 <= (Zlength ls)) by eapply Zlength_nonneg.
+           replace (Z.succ (Zlength ls)) with (Zlength ls + 1) in *.
+           assert (0 <= Ptrofs.unsigned str_ofs).
+           eapply Ptrofs.unsigned_range.
+           nia.
+           nia.      
         ** (* str_ofs + 1 < end_ofs *)
           forward.
           rename H2 into IFCON2.
@@ -167,10 +171,11 @@ Proof.
           rewrite E.
           replace (Ptrofs.unsigned str_ofs + 1 <? Ptrofs.unsigned end'_ofs)
             with true.
-          unfold sep_precondition. entailer!.
+          unfold sep_precondition. entailer!.          
           admit.
-          all: admit.
-          
+          symmetry.
+          Zbool_to_Prop.
+          all: admit.          
       * (* if *str = '+' *)
         repeat forward.
         forward_if.
@@ -189,50 +194,45 @@ Proof.
         
         autorewrite with sublist in *|-.
         rewrite Z in LS_len.
-        Search Zlength [].
         apply Zlength_nil_inv.
         assumption.
         rewrite N.
         unfold is_sign, plus_char, minus_char.
-        assert (Byte.eq i (Byte.repr 43) = true) as IS.
-        Search Byte.eq.
-        erewrite Byte.eq_signed.
-        break_if; auto.
-       (* rewrite IS; simpl.
-        replace (true || Byte.eq i (Byte.repr 45))%bool with true.
-        reflexivity.
-        reflexivity.
-        normalize.
-        eapply typed_true_ptr_ge in H1.
+        assert ((Byte.signed i =? 43) = true) as IS.
+        Zbool_to_Prop.
+        nia.
+        bool_rewrite.
+        auto.
+        simpl.
+        eapply typed_true_ptr_ge in H2.
         replace  (Ptrofs.add str_ofs (Ptrofs.mul (Ptrofs.repr 1)
                                                  (Ptrofs.of_ints (Int.repr 1))))
           with  (Ptrofs.add str_ofs (Ptrofs.repr 1)) in * by auto with ptrofs.
-        assert (contents = []) as N.
-        eapply Z.geb_le in H1.
+        assert (ls = []) as N.
+        eapply Z.geb_le in H2.
         replace (Ptrofs.unsigned (Ptrofs.add str_ofs (Ptrofs.repr 1)))
           with (Ptrofs.unsigned str_ofs + 1) in * by admit. (* follows from IFCON *)
         assert (Ptrofs.unsigned end'_ofs - Ptrofs.unsigned str_ofs - 1 = 0) as Z by nia.
         
         autorewrite with sublist in *|-.
-        rewrite Z in LEN2.
+        rewrite Z in LS_len.
         apply Zlength_nil_inv.
         assumption.
         rewrite N.
         unfold is_sign, plus_char, minus_char.
-        assert (Byte.eq i (Byte.repr 43) = true) as IS.
-        erewrite Byte.eq_signed.
-        break_if; auto.
-        rewrite IS; simpl.
+        assert ((Byte.signed i =? 43) = true) as IS.
+        Zbool_to_Prop.
+        nia.
+        bool_rewrite.
         replace (true || Byte.eq i (Byte.repr 45))%bool with true.
         simpl.
         entailer.
         erewrite data_at_singleton_array_eq.
         instantiate (1 :=  (Vbyte i)).
         entailer!.
-        rewrite <- H14.
-        autorewrite with sublist.
         rewrite data_at_zero_array_eq.
         entailer!.
+        admit.
         all: try auto.
         
         forward.
@@ -241,7 +241,9 @@ Proof.
         replace (43 =? 43) with true by reflexivity.
         replace (Ptrofs.unsigned str_ofs + 1 <? Ptrofs.unsigned end'_ofs)
           with true.
-        unfold sep_precondition. entailer!. *)
+        unfold sep_precondition.
+        entailer!.
+        eapply typed_false_ptr_ge in H2.
         all: admit.
       * (* default case *) 
         forward.
