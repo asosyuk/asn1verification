@@ -83,7 +83,8 @@ Definition asn_strtoimax_lim_vst_spec : ident * funspec :=
                                       (Z_of_string ls)))))
       (* Propositions about memory that hold after executing the function *)
       SEP( (* this part didn't change after execution *) 
-           
+           valid_pointer (Vptr end'_b (Ptrofs.add str_ofs (Ptrofs.repr
+                                                          (Zlength ls)))) ;
            valid_pointer (Vptr end'_b end'_ofs) ;
            valid_pointer (Vptr str_b str_ofs) ;
            data_at sh_str (tarray tschar (Zlength ls)) 
