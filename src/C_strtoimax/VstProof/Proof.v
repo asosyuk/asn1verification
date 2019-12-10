@@ -63,7 +63,7 @@ Proof.
               SEP  (
                    valid_pointer (Vptr end'_b end'_ofs);
                    valid_pointer (Vptr str_b str_ofs);
-                   valid_pointer (Vptr end'_b (Ptrofs.add str_ofs (Ptrofs.repr 1)));
+                   valid_pointer (Vptr end'_b (Ptrofs.add str_ofs (Ptrofs.repr (Zlength (i :: ls))))); 
                    data_at sh_str tschar (Vbyte i) (Vptr str_b str_ofs);
                    data_at sh_str (tarray tschar (Zlength ls)) (map Vbyte ls)
                            (Vptr str_b (Ptrofs.add str_ofs Ptrofs.one));
@@ -72,7 +72,7 @@ Proof.
                    data_at sh_intp tlong v (Vptr intp_b intp_ofs))).
       forward_if (
           if Byte.signed i =? 45
-          then PROP((*1 < Zlength ls *))
+          then PROP( 0 < Zlength ls )
                LOCAL(temp _sign (Vint (Int.repr (-1)));
                      temp _str (Vptr end'_b
                                      (Ptrofs.add str_ofs (Ptrofs.repr 1)));
@@ -83,7 +83,7 @@ Proof.
                      temp _upper_boundary (Vlong upper_boundary))
                sep_precondition
           else if Byte.signed i =? 43
-               then PROP((*1 < Zlength ls *))
+               then PROP( 0 < Zlength ls )
                     LOCAL(temp _str (Vptr end'_b 
                                           (Ptrofs.add str_ofs (Ptrofs.repr 1)));
                          temp _end (Vptr end_b end_ofs); 
@@ -109,8 +109,14 @@ Proof.
            destruct peq; [simpl|contradiction].
            apply andp_right.
            apply derives_trans with
-               (Q := weak_valid_pointer (Vptr end'_b (Ptrofs.add str_ofs (Ptrofs.repr 1)))).
-           admit.
+               (Q := valid_pointer (Vptr end'_b (Ptrofs.add str_ofs (Ptrofs.repr 1)))).
+           destruct ls.
+           -- autorewrite with sublist.
+              simpl; entailer!.
+           -- autorewrite with sublist.
+              entailer!.
+           --  apply valid_pointer_weak.
+           --
            entailer!.
            apply derives_trans with (Q := valid_pointer (Vptr end'_b end'_ofs)).
            entailer!.
@@ -144,8 +150,6 @@ Proof.
            erewrite data_at_zero_array_eq.
            erewrite data_at_singleton_array_eq.
            entailer!.
-           (* need valid_pointer str + 1 *)
-           admit.
            all: auto; try econstructor.
            ptrofs_compute_add_mul.
            auto with ptrofs.
@@ -162,40 +166,54 @@ Proof.
           rename H2 into IFCON2.
           subst.
           apply typed_false_ptr_ge in IFCON2.
-          replace (Ptrofs.add str_ofs (Ptrofs.mul (Ptrofs.repr 1) 
-                                                  (Ptrofs.of_ints (Int.repr 1))))
-            with (Ptrofs.add str_ofs Ptrofs.one) in * by auto with ptrofs.
-          rewrite Z.gtb_lt in IFCON2.
-          replace (Ptrofs.unsigned (Ptrofs.add str_ofs Ptrofs.one)) 
-            with (Ptrofs.unsigned str_ofs + 1) in *. (* follows from IFCON *)
+          autorewrite with norm in *.
+          replace (Ptrofs.unsigned
+                         (Ptrofs.add str_ofs (Ptrofs.repr 1)))
+            with (Ptrofs.unsigned str_ofs  + 1) in *
+               by (autorewrite with norm;
+                   ptrofs_compute_add_mul;
+                   rep_omega_setup;
+                   nia).
           rewrite E.
-          replace (Ptrofs.unsigned str_ofs + 1 <? Ptrofs.unsigned end'_ofs)
-            with true.
-          unfold sep_precondition. entailer!.          
-          admit.
-          symmetry.
-          Zbool_to_Prop.
-          all: admit.          
+          unfold sep_precondition. entailer!.   
+          apply Zgt_is_gt_bool in IFCON2.
+          nia.          
       * (* if *str = '+' *)
         repeat forward.
         forward_if.
-        admit.
-        repeat forward.
-        entailer!.
-        normalize.
-        eapply typed_true_ptr_ge in H2.
-        replace  (Ptrofs.add str_ofs (Ptrofs.mul (Ptrofs.repr 1) (Ptrofs.of_ints (Int.repr 1))))
-          with  (Ptrofs.add str_ofs (Ptrofs.repr 1)) in * by auto with ptrofs.
+        unfold test_order_ptrs; simpl.
+           destruct peq; [simpl|contradiction].
+           apply andp_right.
+           apply derives_trans with
+               (Q := valid_pointer (Vptr end'_b (Ptrofs.add str_ofs (Ptrofs.repr 1)))).
+           destruct ls.
+           autorewrite with sublist.
+              simpl; entailer!.
+           autorewrite with sublist.
+              entailer!.
+            apply valid_pointer_weak.
+          
+           entailer!.
+           apply derives_trans with (Q := valid_pointer (Vptr end'_b end'_ofs)).
+           entailer!.
+           apply valid_pointer_weak.
+           subst.
+           rewrite_comparison.
+           autorewrite with norm in H2.
+           replace (Ptrofs.unsigned
+                         (Ptrofs.add str_ofs (Ptrofs.repr 1)))
+            with (Ptrofs.unsigned str_ofs  + 1) in *
+               by (autorewrite with norm;
+                   ptrofs_compute_add_mul;
+                   rep_omega_setup;
+                   nia).
+           apply Z.geb_le in H2.
+        forward.
+        forward.       
         assert (ls = []) as N.
-        eapply Z.geb_le in H2.
-        replace (Ptrofs.unsigned (Ptrofs.add str_ofs (Ptrofs.repr 1)))
-          with (Ptrofs.unsigned str_ofs + 1) in * by admit. (* follows from IFCON *)
-        assert (Ptrofs.unsigned end'_ofs - Ptrofs.unsigned str_ofs - 1 = 0) as Z by nia.
-        
         autorewrite with sublist in *|-.
-        rewrite Z in LS_len.
         apply Zlength_nil_inv.
-        assumption.
+        nia.
         rewrite N.
         unfold is_sign, plus_char, minus_char.
         assert ((Byte.signed i =? 43) = true) as IS.
@@ -204,54 +222,50 @@ Proof.
         bool_rewrite.
         auto.
         simpl.
-        eapply typed_true_ptr_ge in H2.
-        replace  (Ptrofs.add str_ofs (Ptrofs.mul (Ptrofs.repr 1)
-                                                 (Ptrofs.of_ints (Int.repr 1))))
-          with  (Ptrofs.add str_ofs (Ptrofs.repr 1)) in * by auto with ptrofs.
-        assert (ls = []) as N.
-        eapply Z.geb_le in H2.
-        replace (Ptrofs.unsigned (Ptrofs.add str_ofs (Ptrofs.repr 1)))
-          with (Ptrofs.unsigned str_ofs + 1) in * by admit. (* follows from IFCON *)
-        assert (Ptrofs.unsigned end'_ofs - Ptrofs.unsigned str_ofs - 1 = 0) as Z by nia.
-        
-        autorewrite with sublist in *|-.
-        rewrite Z in LS_len.
-        apply Zlength_nil_inv.
-        assumption.
-        rewrite N.
-        unfold is_sign, plus_char, minus_char.
-        assert ((Byte.signed i =? 43) = true) as IS.
-        Zbool_to_Prop.
-        nia.
-        bool_rewrite.
-        replace (true || Byte.eq i (Byte.repr 45))%bool with true.
-        simpl.
-        entailer.
+        entailer!.
         erewrite data_at_singleton_array_eq.
         instantiate (1 :=  (Vbyte i)).
         entailer!.
         rewrite data_at_zero_array_eq.
         entailer!.
-        admit.
         all: try auto.
-        
+        subst.
+        rewrite_comparison.
+          autorewrite with norm in *.
+          replace (Ptrofs.unsigned
+                         (Ptrofs.add str_ofs (Ptrofs.repr 1)))
+            with (Ptrofs.unsigned str_ofs  + 1) in *
+               by (autorewrite with norm;
+                   ptrofs_compute_add_mul;
+                   rep_omega_setup;
+                   nia).
+          apply Zgt_is_gt_bool in H2.
         forward.
         rewrite E.
-        replace (43 =? 45) with false by reflexivity.
-        replace (43 =? 43) with true by reflexivity.
-        replace (Ptrofs.unsigned str_ofs + 1 <? Ptrofs.unsigned end'_ofs)
-          with true.
-        unfold sep_precondition.
-        entailer!.
-        eapply typed_false_ptr_ge in H2.
-        all: admit.
+        subst.
+         unfold sep_precondition.
+         entailer!.
       * (* default case *) 
         forward.
         replace (Byte.signed i =? 45) with false.
         replace (Byte.signed i =? 43) with false.
         unfold sep_precondition. entailer.
-        admit.
-        admit. 
+        assert ((Int.repr (Byte.signed i)) <> (Int.repr 43)).
+        intuition.
+        rewrite H2 in *.
+        intuition.
+         eapply repr_neq_e in H2.
+         symmetry.
+         Zbool_to_Prop.
+         nia.
+         assert ((Int.repr (Byte.signed i)) <> (Int.repr 45)).
+        intuition.
+        rewrite H2 in *.
+        intuition.
+         eapply repr_neq_e in H2.
+         symmetry.
+         Zbool_to_Prop.
+         nia.
       * (* Loop *)
         repeat break_if;
           unfold sep_precondition.
@@ -277,6 +291,8 @@ Proof.
                        temp _last_digit_max
                             (Vlong (Int64.add last_digit_max Int64.one)))
                  SEP(
+                    valid_pointer (Vptr end'_b (Ptrofs.add str_ofs 
+                                                              (Ptrofs.repr (Zlength (i :: ls)))));
                    valid_pointer (Vptr end'_b str_ofs) ;
                    valid_pointer (Vptr end'_b end'_ofs) ;
                    (* str |-> i *)                  
@@ -312,6 +328,8 @@ Proof.
                                              (Ptrofs.repr (Zlength ls + 1)))))
 
                     SEP(
+                       valid_pointer (Vptr end'_b (Ptrofs.add str_ofs 
+                                                              (Ptrofs.repr (Zlength (i :: ls)))));
                       valid_pointer (Vptr end'_b end'_ofs);
                       valid_pointer (Vptr end'_b str_ofs);
                       data_at sh_str (tarray tschar (Zlength ls + 1)) 
@@ -644,6 +662,7 @@ Proof.
        temp _upper_boundary (Vlong upper_boundary);
        temp _last_digit_max (Vlong (Int64.add last_digit_max Int64.one)))
      SEP (
+       valid_pointer (Vptr end'_b (Ptrofs.add str_ofs (Ptrofs.repr (Zlength (i :: ls)))));
        valid_pointer (Vptr end'_b str_ofs);
        valid_pointer (Vptr end'_b end'_ofs);
        data_at sh_str tschar (Vbyte i) (Vptr end'_b str_ofs);
