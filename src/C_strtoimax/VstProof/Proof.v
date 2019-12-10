@@ -947,8 +947,7 @@ Proof.
                  lt_ub_to_Z H12.
                  inversion H6.
                  eapply bounded_bool_to_Prop in H6.
-
-                  assert (bounded (value_until (j + 1) ls false) = true) 
+                 assert (bounded (value_until (j + 1) ls false) = true) 
                    as Boundf.
                   {  rewrite next_value_lt_ub_false with (i := Znth j ls).
                      eapply eq_ub_bounded_minus.
@@ -970,26 +969,24 @@ Proof.
                   { 
                     erewrite next_value_lt_ub_false with 
                         (j := j + 1) (i := (Znth (j + 1) ls)).
-                    
-                    Lemma eq_ub_not_bounded_minus : forall v d,
-                        v <= 0 ->
-                        0 <= d <= 9 -> 
-                        v = - upper_boundary ->
-                        d > last_digit_max_minus ->
-                        bounded (v*10 - d) = false.
-                    Proof.
-                      intros.
-                      unfold bounded; cbn in *.
-                      rewrite andb_false_iff; do 2 rewrite Z.leb_gt.
-                      lia.
-                    Qed.
-
-                    apply eq_ub_not_bounded_minus.
-                    eapply loop_neg; nia.
+                   
+                    apply lt_ub_not_bounded_minus.
                     eapply is_digit_to_Z in H15.
                     nia.
+                    rewrite next_value_lt_ub_false with (i := Znth j ls).
+                    eapply eq_ub_next_minus.
+                    eapply loop_neg; nia.
+                    eapply is_digit_to_Z in H9.
+                    nia.
                      erewrite value_false_eq_neg_value_true0.
-                    all: admit. }
+                     all: try nia;
+                     try eassumption; auto.
+                     eapply bounded_true_to_false in H17.
+                     eassumption.
+                     eapply app_is_digit.
+                     nia.
+                     eassumption.
+                     eassumption. }
 
                   assert (j + 1 + 1 <= Zlength ls) as LS_len2 by nia.
 
@@ -1016,10 +1013,16 @@ Proof.
                       with (ls := sublist 0 (j + 1 + 1) ls)  (b := false) in H16.
                     congruence.
                     admit.
-                    eapply sublist_ERROR_RANGE in H16;
-                    subst; try (
-                    eassumption || nia).
+                    admit. (* Look at H11 *)
+                    admit.
+                    admit.
+                    lia.
+                    assumption.
+                    reflexivity.
+                    assumption.
                   }
+
+                  assert (j + 1 + 1 <= Zlength ls) as LS_len2 by nia.
 
                   assert (res (Z_of_string (i :: ls)) = ERROR_RANGE) as Result.
                   {
@@ -1053,12 +1056,14 @@ Proof.
                   erewrite <- DATA_AT2.
                   erewrite DATA_AT4.
                   autorewrite with sublist.
-                   entailer!.
-                   
-                  admit.
-                  admit.
-                  admit.
-                  }
+                  entailer!.
+                  apply is_digit_to_Z in H9; unfold Z_of_char in H9.
+                  pose proof Byte.signed_range (Znth j ls).
+                  lia.
+                  apply bounded_bool_to_Prop in H6.
+                  lia.
+                  apply bounded_bool_to_Prop in H6.
+                  lia. }
                forward.
                forward.
                entailer!.

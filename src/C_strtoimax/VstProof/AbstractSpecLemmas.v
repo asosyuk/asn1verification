@@ -335,6 +335,18 @@ Proof.
   lia.
 Qed.
       
+
+Lemma eq_ub_next_minus : forall v d,
+    v <= 0 ->
+    0 <= d  -> 
+    v = - upper_boundary ->
+    v*10 - d < -upper_boundary.
+Proof.
+  intros.
+  cbn in *.
+  lia.
+Qed.
+
 Lemma eq_ub_bounded_plus : forall v d, 
       0 <= v ->
       0 <= d <= 9 -> 
