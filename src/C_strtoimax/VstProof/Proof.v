@@ -720,9 +720,10 @@ Proof.
                {
                rewrite next_value_lt_ub_false with (i := Znth j ls).
                eapply eq_ub_bounded_minus.
-               admit. (* ATTENTION, POSSIBLE BUG IN THEOREM *)
+               eapply loop_neg; nia.
                apply is_digit_to_Z in H9; assumption.
-               admit. (* ATTENTION, POSSIBLE BUG IN THEOREM *)
+               erewrite value_false_eq_neg_value_true0.
+               nia.
                assumption.
                assumption.
                lia.
@@ -947,19 +948,21 @@ Proof.
                  inversion H6.
                  eapply bounded_bool_to_Prop in H6.
 
-                 assert (bounded (value_until (j + 1) ls true) = true) as Bound.
-                  { 
-                    rewrite next_value_lt_ub_true with (i := Znth j ls).
-                    apply eq_ub_bounded_plus.
-                    all: try assumption.
-                    all: unfold Z_of_char in *;
-                         subst; try eassumption; try nia; auto.
-                    apply is_digit_to_Z in H9; assumption.
-                    admit. (* FIX eq_ub_bounded_plus *)
-                   }
-                  
                   assert (bounded (value_until (j + 1) ls false) = true) 
-                   as Boundf by (apply bounded_true_to_false; assumption).
+                   as Boundf.
+                  {  rewrite next_value_lt_ub_false with (i := Znth j ls).
+                     eapply eq_ub_bounded_minus.
+                     eapply loop_neg; nia.
+                     apply is_digit_to_Z in H9; assumption.
+                     erewrite value_false_eq_neg_value_true0.
+                     nia.
+                     assumption.
+                     assumption.
+                     lia.
+                     apply bounded_true_to_false in H17; assumption.
+                     reflexivity. 
+                     assumption. }
+                  
 
                   assert (bounded (value_until ((j + 1) + 1) ls false) = false) 
                     as BoundF.
@@ -967,9 +970,26 @@ Proof.
                   { 
                     erewrite next_value_lt_ub_false with 
                         (j := j + 1) (i := (Znth (j + 1) ls)).
+                    
+                    Lemma eq_ub_not_bounded_minus : forall v d,
+                        v <= 0 ->
+                        0 <= d <= 9 -> 
+                        v = - upper_boundary ->
+                        d > last_digit_max_minus ->
+                        bounded (v*10 - d) = false.
+                    Proof.
+                      intros.
+                      unfold bounded; cbn in *.
+                      rewrite andb_false_iff; do 2 rewrite Z.leb_gt.
+                      lia.
+                    Qed.
+
                     apply eq_ub_not_bounded_minus.
-                    erewrite next_value_lt_ub_false with (i := (Znth j ls)).
-                    admit. }
+                    eapply loop_neg; nia.
+                    eapply is_digit_to_Z in H15.
+                    nia.
+                     erewrite value_false_eq_neg_value_true0.
+                    all: admit. }
 
                   assert (j + 1 + 1 <= Zlength ls) as LS_len2 by nia.
 

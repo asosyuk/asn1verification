@@ -245,11 +245,11 @@ Proof.
 Qed.
 
 Lemma eq_ub_not_bounded_minus : forall v d,
-    0 <= v ->
+    v <= 0 ->
     0 <= d <= 9 -> 
-    v = upper_boundary ->
+    v = - upper_boundary ->
     d > last_digit_max_minus ->
-    bounded (v*10 + d) = false.
+    bounded (v*10 - d) = false.
 Proof.
   intros.
   unfold bounded; cbn in *.
@@ -297,17 +297,17 @@ Qed.
                   
 
 Lemma eq_ub_bounded_minus : forall v d,
-    v < 0 ->
-    0 <= d <= 9 -> 
-    v = upper_boundary ->
-    d <= last_digit_max_minus ->
-    bounded (v*10 - d) = true.
-Proof.
-  intros.
-  unfold bounded; cbn in *.
-  rewrite andb_true_iff; do 2 rewrite Z.leb_le.
-  nia.
-Qed.
+                   v <= 0 ->
+                   0 <= d <= 9 -> 
+                   v = -upper_boundary ->
+                   d <= last_digit_max_minus ->
+                   bounded (v*10 - d) = true.
+               Proof.
+                 intros.
+                 unfold bounded; cbn in *.
+                 rewrite andb_true_iff; do 2 rewrite Z.leb_le.
+                 nia.
+               Qed.
 
 Lemma loop_neg : forall ls v i,
     v <= 0 ->
