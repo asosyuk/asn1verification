@@ -24,11 +24,12 @@ Lemma split2_data_at_Tarray_tschar {cs: compspecs} sh n n1 (v: list val) p:
    data_at sh (Tarray tschar n noattr) v p =
     data_at sh (Tarray tschar n1 noattr) (sublist 0 n1 v) p *
     data_at sh (Tarray tschar (n - n1) noattr) (sublist n1 n v) (field_address0 (Tarray tschar n noattr) (ArraySubsc n1::nil) p).
-Proof. intros.
- eapply split2_data_at_Tarray; auto.
- symmetry in H0.
- list_solve.
- rewrite sublist_same; try omega; auto.
+Proof. 
+  intros.
+  eapply split2_data_at_Tarray; auto.
+  rewrite <-H0.
+  reflexivity.
+  rewrite sublist_same; try omega; auto.
 Qed.
 
 
@@ -80,7 +81,7 @@ Proposition split_non_empty_list (cs : compspecs) i ls' ls sh b ofs:
 Proof.
   intros LEN MOD.
   rewrite LEN.
-  rewrite semax_lemmas.cons_app with (x := i).
+  replace (i::ls') with ([i] ++ ls') by reflexivity.
   rewrite map_app. 
   rewrite split2_data_at_Tarray_app with (mid := 1).
   assert (map Vbyte [i] = [Vbyte i]) as T by reflexivity.

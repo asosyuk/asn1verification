@@ -725,11 +725,11 @@ Qed.
 
 (* EXTRA DATA *)
              
-Lemma value_next_loop : forall ls v i b,
+Lemma value_next_loop : forall ls v i b r,
     (res (Z_of_string_loop ls v i r)) = OK ->
     is_digit b = true ->
     value (Z_of_string_loop (ls ++ [b]) v i r) = 
-    app_char (value (Z_of_string_loop ls v i r)) b r.
+    app_char r (value (Z_of_string_loop ls v i r)) b.
 Proof.
   induction ls; intros.
   * simpl in *.
