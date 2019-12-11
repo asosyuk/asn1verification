@@ -962,7 +962,7 @@ Proof.
                   eapply is_digit_to_Z in H16.
                   nia.
                   rewrite next_value_lt_ub_false with (i := Znth j ls).
-                  eapply eq_ub_next_minus.
+                  eapply eq_ub_next_gt_ub_minus.
                   eapply loop_neg; nia.
                   eapply is_digit_to_Z in H9.
                   nia.
