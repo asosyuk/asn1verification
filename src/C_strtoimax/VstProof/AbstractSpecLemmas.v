@@ -726,10 +726,10 @@ Qed.
 (* EXTRA DATA *)
              
 Lemma value_next_loop : forall ls v i b,
-    (res (Z_of_string_loop ls v i false)) = OK ->
+    (res (Z_of_string_loop ls v i r)) = OK ->
     is_digit b = true ->
-    value (Z_of_string_loop (ls ++ [b]) v i false) = 
-    (value (Z_of_string_loop ls v i false)) * 10 - (Z_of_char b).
+    value (Z_of_string_loop (ls ++ [b]) v i r) = 
+    app_char (value (Z_of_string_loop ls v i r)) b r.
 Proof.
   induction ls; intros.
   * simpl in *.
@@ -769,49 +769,6 @@ Proof.
     try congruence.
 Qed.
 
-Lemma EXTRA_DATA_next_loop : forall ls v i b,
-    (res (Z_of_string_loop ls v i false)) = OK ->
-    is_digit b = false ->
-    res (Z_of_string_loop (ls ++ [b]) v i false) = EXTRA_DATA.
-Proof.
- induction ls; intros.
-  * simpl in *.
-    repeat bool_rewrite.
-    simpl in *.
-    auto.
-  * simpl in *.
-    break_if.
-    break_if.
-    erewrite  IHls.
-    reflexivity.
-    eassumption.
-    all: simpl in *;
-    repeat break_if;
-      try congruence; simpl in *;
-    try congruence.
-Qed.
-
-Lemma EXTRA_DATA_index_loop : forall ls v i b,
-    (res (Z_of_string_loop ls v i false)) = OK ->
-    is_digit b = false ->
-    index (Z_of_string_loop (ls ++ [b]) v i false) = Zlength ls + i.
-Proof.
-  induction ls; intros.
-  * simpl in *.
-    repeat bool_rewrite.
-    easy.
-  * simpl in *.
-    break_if.
-    break_if.
-    erewrite IHls.
-    autorewrite with sublist.
-    nia.
-    eassumption.
-    all: simpl in *;
-    repeat break_if;
-      try congruence; simpl in *;
-    try congruence.
-Qed.
 
 Lemma next_value_lt_ub_true : forall ls j i,
      (forall i : Z, 0 <= i < j  ->
@@ -959,11 +916,14 @@ Lemma EXTRA_DATA_or_ERROR_RANGE_result :
     all: intuition. 
 Qed.
 
-Lemma EXTRA_DATA_value_loop : forall ls v i b,
-    (res (Z_of_string_loop ls v i false)) = OK ->
+
+Lemma EXTRA_DATA_loop : forall ls v i b r,
+    res (Z_of_string_loop ls v i r) = OK ->
     is_digit b = false ->
-    value (Z_of_string_loop (app ls [b]) v i false) =  
-    value (Z_of_string_loop ls v i false).
+    Z_of_string_loop (app ls [b]) v i r =  
+    {| res := EXTRA_DATA;
+       value := value (Z_of_string_loop ls v i r);
+       index :=  Zlength ls + i |}.    
 Proof.
   induction ls; intros.
   * simpl in *.
@@ -974,8 +934,10 @@ Proof.
     break_if.
     erewrite IHls.
     autorewrite with sublist.
-    nia.
-    eassumption.
+    replace (Z.succ (Zlength ls) + i) with
+        (Zlength ls + (i + 1)) by nia.
+    reflexivity.
+    all: try eassumption.
     all: simpl in *;
       repeat break_if;
       try congruence; simpl in *;
@@ -983,11 +945,83 @@ Proof.
 Qed.
 
 Lemma sublist_EXTRA_DATA : forall ls v j i m vl b, 
-    res (Z_of_string_loop (sublist 0 j ls) v i b) = EXTRA_DATA ->
-    value (Z_of_string_loop (sublist 0 j ls) v i b) = vl ->
-    index (Z_of_string_loop (sublist 0 j ls) v i b) = m ->
+    Z_of_string_loop (sublist 0 j ls) v i b = 
+    {| res := EXTRA_DATA;
+       index := m;
+       value := vl |} -> Z_of_string_loop ls v i b =
+                                    {| res := EXTRA_DATA;
+                                       index := m;
+                                       value := vl
+                                    |}.
+Admitted.
 
-    res (Z_of_string_loop ls v i b) = EXTRA_DATA /\
-    index (Z_of_string_loop ls v i b) = m /\
-    value (Z_of_string_loop ls v i b) = vl.
+Definition sign_to_bool i :=
+  if Byte.signed i =? minus_char then false else true.
+
+Lemma minus_not_plus : forall i, (Byte.signed i =? minus_char) = true -> 
+                             (Byte.signed i =? plus_char) = false.
+Proof.
+  intro.
+  repeat Zbool_to_Prop.
+  unfold minus_char, plus_char.
+  nia.
+Qed.
+
+Lemma EXTRA_DATA_sign_res : forall i i0 j ls, 
+    is_sign i = true ->
+    0 <= j  < Zlength ls ->
+    Znth j ls = i0 ->
+    (forall i : Z, 0 <= i < j -> is_digit (Znth i ls) = true) -> 
+    bounded (value_until j ls (sign_to_bool i)) = true ->
+    is_digit i0 = false ->
+    Z_of_string (i :: ls) = {| res := EXTRA_DATA;
+                              index := j + 1;
+                              value := value_until j ls (sign_to_bool i)
+                           |}. 
+Proof.
+  intros.
+  assert ((sublist 0 (j + 1) ls) = 
+          app (sublist 0 j ls) [i0]) as SL.
+  { erewrite  sublist_split with (mid := j).
+    f_equal.
+    erewrite sublist_one.
+    f_equal.
+    eassumption.
+    all: try nia. }
+
+ assert (Z_of_string_loop (sublist 0 (j + 1) ls) 0 1 (sign_to_bool i) = 
+         {| res := EXTRA_DATA;
+            index := j + 1;
+            value := value_until j ls (sign_to_bool i)
+         |}).
+
+  { rewrite SL.
+    erewrite EXTRA_DATA_loop.
+    autorewrite with sublist.
+    reflexivity.
+    eapply bounded_to_OK_loop.
+    eassumption.
+    intros.
+    autorewrite with sublist in H5.
+    replace (Znth i1 (sublist 0 j ls)) with (Znth i1 ls).
+    eapply H2; try nia; try eassumption.
+    erewrite Znth_sublist.
+    normalize.
+    all: try nia; try eassumption. 
+  }
+
+  simpl.
+  repeat bool_rewrite.
+  unfold is_sign in *; unfold sign_to_bool in *.
+  destruct_orb_hyp.
+  admit.
+  repeat rewrite H in *.
+  break_match. 
+  autorewrite with sublist in *;
+    try nia.
+  replace (Byte.signed i =? plus_char) with false.
+  eapply sublist_EXTRA_DATA in H5.
+  eassumption.
+  symmetry.
+  eapply minus_not_plus; eassumption.
 Admitted.
