@@ -194,9 +194,21 @@ Definition last_digit_max_minus_int :=
                   (Int64.repr 10)) 
       Int64.one).
 
+Definition last_digit_max_int :=
+      (Int64.mods (Int64.shru (Int64.not (Int64.repr 0)) 
+                              (Int64.repr 1)) 
+                  (Int64.repr 10)).
+
 Lemma last_digit_max_minus_int_repr :
   last_digit_max_minus_int =
   Int64.repr (8).
+Proof.
+  reflexivity.
+Qed.
+
+Lemma last_digit_max_int_repr :
+  last_digit_max_int =
+  Int64.repr (7).
 Proof.
   reflexivity.
 Qed.
@@ -212,6 +224,25 @@ Proof.
   rewrite last_digit_max_minus_int_repr in H0.
   unfold Int64.lt, Int.sub in H0; destruct zlt in H0; [|discriminate].
   replace (Int64.signed (Int64.repr 8)) with 8 in l by reflexivity; 
+    replace (Int.unsigned (Int.repr 48)) with 48 in l by reflexivity.
+  pose proof Byte.signed_range i.
+  rewrite Int.unsigned_repr in l by (cbn in *; lia). 
+  rewrite Int.signed_repr in l by (cbn in *; lia). 
+  rewrite Int64.signed_repr in l by (cbn in *; lia).
+  assumption.
+Qed.
+
+Lemma lt_ub_to_Z8 :  forall i, 
+    0 <= Byte.signed i <= Byte.max_unsigned ->
+    Int64.lt last_digit_max_int 
+             (Int64.repr (Int.signed (Int.sub (Int.repr (Byte.signed i)) 
+                                              (Int.repr 48)))) = true -> 
+    last_digit_max < (Byte.signed i - 48).
+Proof.
+  intros.
+  rewrite last_digit_max_int_repr in H0.
+  unfold Int64.lt, Int.sub in H0; destruct zlt in H0; [|discriminate].
+  replace (Int64.signed (Int64.repr 7)) with 7 in l by reflexivity; 
     replace (Int.unsigned (Int.repr 48)) with 48 in l by reflexivity.
   pose proof Byte.signed_range i.
   rewrite Int.unsigned_repr in l by (cbn in *; lia). 
@@ -249,12 +280,32 @@ Proof.
   cbn in *; lia.
 Qed.
 
+Lemma lt_ub_to_Z7 :  forall i,
+    0 <= Byte.signed i <= Byte.max_signed ->
+    Int64.lt last_digit_max_int
+             (Int64.repr (Int.signed (Int.sub (Int.repr (Byte.signed i)) 
+                                              (Int.repr 48)))) = false -> 
+    (Byte.signed i - 48) <= last_digit_max.
+Proof.         
+  intros.
+  rewrite last_digit_max_int_repr in H0.
+  unfold Int64.lt, Int.sub in H0; destruct zlt in H0; [discriminate|].
+  pose proof Byte.signed_range i.
+  do 2 rewrite Int.unsigned_repr in g by (cbn in *; lia).
+  rewrite Int.signed_repr in g by (cbn in *; lia).
+  replace (Int64.signed (Int64.repr 7)) with 7 in g by reflexivity.
+  rewrite Int64.signed_repr in g by (cbn in *; lia).
+  cbn in *. lia.
+Qed.
+
 Ltac lt_ub_to_Z H := try (eapply lt_ub_to_Z1 in H ||
                           eapply lt_ub_to_Z2 in H ||
                           eapply lt_ub_to_Z3 in H ||
                           eapply lt_ub_to_Z4 in H ||
                           eapply lt_ub_to_Z5 in H ||
-                          eapply lt_ub_to_Z6 in H).
+                          eapply lt_ub_to_Z6 in H ||
+                          eapply lt_ub_to_Z8 in H ||
+                          eapply lt_ub_to_Z7 in H).
 
 Ltac int64_to_Z :=
   match goal with 
@@ -820,37 +871,15 @@ Lemma ub_last_digit_error_range : forall j i ls b,
     is_digit i = true ->
     (forall i0 : Z, 0 <= i0 < j -> is_digit (Znth i0 ls) = true) ->
     bounded (value_until j ls b) = true ->
-    (Z.abs (value_until j ls b)) > upper_boundary \/
-    (Z.abs (value_until j ls b)) = upper_boundary /\
-    last_digit b < (Byte.signed i - 48) ->
+    bounded (value_until (j + 1) ls b) = false ->
     Z_of_string_loop ls 0 1 b = {| res := ERROR_RANGE;
                                    index := j + 1;
                                    value := value_until (j + 1) ls b
                                 |}. 
 Proof.
   intros.
-  inversion H4.
-  - 
-    inversion H3.
-    eapply bounded_bool_to_Prop in H3.
-    assert (bounded (value_until (j + 1) ls b) = false) as Bound.
-    { erewrite next_value_lt_ub with (i := i).
-      destruct b.
-      eapply lt_ub_not_bounded_plus.
-      eapply is_digit_to_Z; eassumption.    
-      all: unfold Z_of_char in *;
-        try eassumption; try nia. 
-      assert (0 <= value_until j ls true) by (eapply loop_non_neg; nia). 
-      nia.
-      eapply lt_ub_not_bounded_minus.
-      eapply is_digit_to_Z; eassumption.    
-      all: unfold Z_of_char in *;
-        try eassumption; try nia.
-
-      assert (value_until j ls false <= 0 ) by (eapply loop_neg; nia). 
-      nia.
-    }
-
+  inversion H3.
+  eapply bounded_bool_to_Prop in H3.
     assert (Z_of_string_loop ls 0 1 b =
   {| res := ERROR_RANGE; 
      value := value_until (j + 1) ls b; 
@@ -880,70 +909,45 @@ Proof.
       rewrite <- Er. auto.
       all: autorewrite with sublist; try reflexivity; try nia;
         try eassumption.
-      rewrite H8.
+      rewrite H7.
       auto.
     }
     eassumption.
-  - 
-    inversion H3. clear H4.
-    eapply bounded_bool_to_Prop in H3.
-    assert (bounded (value_until (j + 1) ls b) = false) as Bound.
-    { erewrite next_value_lt_ub with (i := i).
-      assert (0 <= value_until j ls true) by (eapply loop_non_neg; nia).      
-      destruct b.
-      eapply eq_ub_not_bounded_plus.
-      eassumption.
-      eapply is_digit_to_Z; eassumption.    
-      all: unfold Z_of_char in *;
-        try eassumption; try nia. 
-      break_and.
-      unfold last_digit in *.
-      nia.      
-      assert (value_until j ls false <= 0 ) by (eapply loop_neg; nia). 
-      eapply eq_ub_not_bounded_minus.
-      eassumption.
-      
-      eapply is_digit_to_Z; eassumption.    
-      all: unfold Z_of_char in *;
-        try eassumption; try nia.
-      break_and.
-      unfold last_digit in *.
-      nia.
-    }
+Qed.
 
-    assert (Z_of_string_loop ls 0 1 b =
-  {| res := ERROR_RANGE; 
-     value := value_until (j + 1) ls b; 
-     index := j + 1 |})
- as Result_loop.
-
-    { edestruct all_digits_OK_or_ERROR_RANGE_loop
-        with (ls := sublist 0 (j + 1) ls) (v := 0) (i := 1) (b := b)  as [Ok | Er].
-      autorewrite with sublist.
-      eapply app_is_digit.
-      intros.
-      erewrite Znth_sublist.
-      normalize.
-      all: try nia; try eassumption.
-      erewrite Znth_sublist.
-      normalize.
-      subst.
-      all: try nia; try eassumption.
-      inversion Ok.
-      assert (res (Z_of_string_loop (sublist 0 (j + 1) ls) 0 1 b) = OK) as O.
-      rewrite Ok. auto.
-      eapply OK_bounded_loop  with (b := b) in O.
-      congruence.
-      eapply bounded0.
-      inversion Er. eapply sublist_ERROR_RANGE in Er.
-      erewrite ERROR_RANGE_index in Er.
-      rewrite <- Er. auto.
-      all: autorewrite with sublist; try reflexivity; try nia;
-        try eassumption.
-      rewrite H6.
-      auto.
-    }
-    eassumption.
+Lemma ERROR_RANGE_sign_res : forall i j ls, 
+    is_sign i = true ->
+    0 <= j < Zlength ls ->
+     is_digit (Znth j ls) = true ->
+    (forall i : Z, 0 <= i < j -> is_digit (Znth i ls) = true) -> 
+    bounded (value_until j ls (sign_to_bool i)) = true ->
+    bounded (value_until (j + 1) ls (sign_to_bool i)) = false ->
+    Z_of_string (i :: ls) = {| res := ERROR_RANGE;
+                              index := j + 1;
+                              value := value_until (j + 1) ls (sign_to_bool i)
+                           |}. 
+Proof.
+  intros.
+  simpl.
+  repeat bool_rewrite.
+  unfold is_sign in *; unfold sign_to_bool in *.
+  destruct_orb_hyp.
+  - rewrite H in *.
+    eapply plus_not_minus in H.
+    rewrite H in *.
+    break_match.
+    autorewrite with sublist in *.
+    nia.
+    eapply ub_last_digit_error_range.    
+    all: try nia; try eassumption; auto.
+  - rewrite H in *.
+    eapply minus_not_plus in H.
+    rewrite H in *.
+    break_match.
+    autorewrite with sublist in *.
+    nia.
+    eapply ub_last_digit_error_range.
+    all: try nia; try eassumption; auto.
 Qed.
 
 (* EXTRA DATA *)
