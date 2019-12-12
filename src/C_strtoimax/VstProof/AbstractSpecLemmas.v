@@ -759,7 +759,7 @@ Proof.
   nia.
 Qed.
 
-Lemma app_char_to_OK_loop : forall ls i,
+Lemma OK_sign_res : forall ls i,
     0 < Zlength ls ->
     is_sign i = true ->
     (forall i, 0 <= i < Zlength ls -> is_digit (Znth i ls)  = true) -> 
@@ -1085,64 +1085,3 @@ Proof.
   autorewrite with sublist in *;
     try nia.
 Qed.
-
-(* Lemma EXTRA_DATA_no_sign_res : forall i i0 j ls, 
-    is_sign i = false ->
-    0 <= j  < Zlength ls ->
-    Znth j (i::ls) = i0 ->
-    (forall i' : Z, 0 <= i' < j -> is_digit (Znth i' (i::ls)) = true) -> 
-    bounded (value (Z_of_string_loop (sublist 0 j (i :: ls)) 0 0 true)) = true ->
-    is_digit i0 = false ->
-    Z_of_string (i :: ls) = {| res := EXTRA_DATA;
-                              index := j;
-                              value := 
-                                value (Z_of_string_loop (sublist 0 j (i :: ls)) 0 0 true)
-                           |}. 
-Proof.
-  intros.
-  assert ((sublist 0 (j + 1) (i::ls)) = 
-          app (sublist 0 j (i::ls)) [i0]) as SL.
-  { erewrite  sublist_split with (mid := j).
-    f_equal.
-    erewrite sublist_one.
-    f_equal.
-    eassumption.
-    all: autorewrite with sublist; try nia. }
-
- assert (Z_of_string_loop (sublist 0 (j + 1) (i::ls)) 0 0 true = 
-         {| res := EXTRA_DATA;
-            index := j;
-            value :=  value (Z_of_string_loop (sublist 0 j (i :: ls)) 0 0 true)
-         |}).
-
-  { rewrite SL.
-    erewrite EXTRA_DATA_loop.
-    autorewrite with sublist.
-    reflexivity.
-    eapply bounded_to_OK_loop'.
-    eassumption.
-    intros.
-    autorewrite with sublist in H5.
-    replace  (Znth i1 (sublist 0 j (i :: ls))) with (Znth i1 (i::ls)).
-    eapply H2; try nia; try eassumption.
-    erewrite Znth_sublist.
-    normalize.
-    all: try nia; try eassumption. 
-  }
-  simpl.
-  break_match.
-  - autorewrite with sublist in *; nia.
-  -
-  unfold is_sign in *;
-  destruct_orb_hyp;
-  repeat bool_rewrite.
-  replace (sublist 0 (j + 1) (i :: i1 :: l)) with (i ::  (sublist 0 j (i1 :: l))) in H5.
-  simpl in H5.
-  repeat break_if. 
-  eapply sublist_EXTRA_DATA in H5.
-  eassumption.
-  admit.
-  simpl in *; congruence.
-  rewrite H5.
-  auto.
-Admitted. *)

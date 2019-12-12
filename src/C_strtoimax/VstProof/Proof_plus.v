@@ -340,7 +340,7 @@ Proof.
                forward.
                forward.
                entailer!.
-               all: erewrite app_char_to_OK_loop.
+               all: erewrite OK_sign_res.
                all: unfold sign_to_bool.
                all: try bool_rewrite.
                auto.

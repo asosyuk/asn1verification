@@ -363,7 +363,7 @@ Proof.
                try nia;
                try rep_omega.
                forward.
-               erewrite app_char_to_OK_loop.
+               erewrite OK_sign_res.
                all: unfold sign_to_bool.
                all: try bool_rewrite.
                simpl.
