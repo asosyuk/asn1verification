@@ -40,7 +40,7 @@ Proof.
     all: Intros.
     forward_if; apply Z.ltb_lt in IFCON.
     + (* Valid pointer proof *)
-     test_order_ptrs_tac (Vptr end'_b str_ofs) (Vptr end'_b end'_ofs).
+      test_order_ptrs_tac (Vptr end'_b str_ofs) (Vptr end'_b end'_ofs).
     + (*  srt >= end' from forward_if : contradiction *)
       forward.
       apply typed_true_ptr_ge in H.
@@ -105,22 +105,18 @@ Proof.
             cbn; Lia.lia. }
         repeat forward.
         forward_if.
-        ** unfold test_order_ptrs; simpl.
+        ** unfold test_order_ptrs; cbn.
            destruct peq; [simpl|contradiction].
            apply andp_right.
            apply derives_trans with
                (Q := valid_pointer (Vptr end'_b (Ptrofs.add str_ofs (Ptrofs.repr 1)))).
            destruct ls.
            -- autorewrite with sublist.
-              simpl; entailer!.
+              cbn; entailer!.
            -- autorewrite with sublist.
               entailer!.
-           --  apply valid_pointer_weak.
-           --
-           entailer!.
-           apply derives_trans with (Q := valid_pointer (Vptr end'_b end'_ofs)).
-           entailer!.
-           apply valid_pointer_weak.
+           -- apply valid_pointer_weak.
+           -- entailer!.
            (* end_ofs <= str_ofs + 1, return EXPECT_MORE *)
         ** repeat forward.
            rename H2 into IFCON2.
@@ -140,13 +136,13 @@ Proof.
            unfold is_sign, plus_char, minus_char.
            assert ((Byte.signed i =? 45) = true) as IS.
            Zbool_to_Prop. eassumption.
-           bool_rewrite.
-           replace ((Byte.signed i =? 43) || true)%bool with true by intuition.
-           simpl.
+           cbn.
+           unfold is_sign, minus_char; bool_rewrite.
+           replace ((Byte.signed i =? plus_char) || true)%bool with true by intuition.
+           cbn.
            entailer!.
-           simpl.
            autorewrite with sublist.
-           simpl.
+           cbn.
            erewrite data_at_zero_array_eq.
            erewrite data_at_singleton_array_eq.
            entailer!.
@@ -175,41 +171,37 @@ Proof.
                    rep_omega_setup;
                    nia).
           rewrite E.
-          unfold sep_precondition. entailer!.   
+          unfold sep_precondition. 
+          entailer!.   
           apply Zgt_is_gt_bool in IFCON2.
-          nia.          
+          admit. (*nia. TODO find where FF comes from *)
       * (* if *str = '+' *)
         repeat forward.
         forward_if.
         unfold test_order_ptrs; simpl.
-           destruct peq; [simpl|contradiction].
-           apply andp_right.
-           apply derives_trans with
-               (Q := valid_pointer (Vptr end'_b (Ptrofs.add str_ofs (Ptrofs.repr 1)))).
-           destruct ls.
-           autorewrite with sublist.
-              simpl; entailer!.
-           autorewrite with sublist.
-              entailer!.
-            apply valid_pointer_weak.
-          
+        destruct peq; [simpl|contradiction].
+        apply andp_right.
+        apply derives_trans with
+            (Q := valid_pointer (Vptr end'_b (Ptrofs.add str_ofs (Ptrofs.repr 1)))).
+        destruct ls.
+        autorewrite with sublist.
+           simpl; entailer!.
+        autorewrite with sublist.
            entailer!.
-           apply derives_trans with (Q := valid_pointer (Vptr end'_b end'_ofs)).
-           entailer!.
-           apply valid_pointer_weak.
-           subst.
-           rewrite_comparison.
-           autorewrite with norm in H2.
-           replace (Ptrofs.unsigned
-                         (Ptrofs.add str_ofs (Ptrofs.repr 1)))
-            with (Ptrofs.unsigned str_ofs  + 1) in *
-               by (autorewrite with norm;
-                   ptrofs_compute_add_mul;
-                   rep_omega_setup;
-                   nia).
-           apply Z.geb_le in H2.
+         apply valid_pointer_weak.
+        entailer!.
         forward.
         forward.       
+        apply typed_true_ptr_ge in H2.
+        apply Z.geb_le in H2.
+        autorewrite with norm in H2.
+        replace (Ptrofs.unsigned
+                      (Ptrofs.add str_ofs (Ptrofs.repr 1)))
+         with (Ptrofs.unsigned str_ofs  + 1) in *
+            by (autorewrite with norm;
+                ptrofs_compute_add_mul;
+                rep_omega_setup;
+                nia).
         assert (ls = []) as N.
         autorewrite with sublist in *|-.
         apply Zlength_nil_inv.
@@ -219,9 +211,12 @@ Proof.
         assert ((Byte.signed i =? 43) = true) as IS.
         Zbool_to_Prop.
         nia.
+        unfold Z_of_string.
+        assert (is_sign i = true).
+        unfold is_sign, plus_char.
+        bool_rewrite; auto.
         bool_rewrite.
-        auto.
-        simpl.
+        cbn.
         entailer!.
         erewrite data_at_singleton_array_eq.
         instantiate (1 :=  (Vbyte i)).
@@ -245,14 +240,15 @@ Proof.
         subst.
          unfold sep_precondition.
          entailer!.
+         admit. (* One more FF *)
       * (* default case *) 
         forward.
-        replace (Byte.signed i =? 45) with false.
+        (* replace (Byte.signed i =? 45) with false.
         replace (Byte.signed i =? 43) with false.
         unfold sep_precondition. entailer.
         assert ((Int.repr (Byte.signed i)) <> (Int.repr 43)).
         intuition.
-        rewrite H2 in *.
+        rewrite H13 in *.
         intuition.
          eapply repr_neq_e in H2.
          symmetry.
@@ -265,7 +261,8 @@ Proof.
          eapply repr_neq_e in H2.
          symmetry.
          Zbool_to_Prop.
-         nia.
+         nia. *)
+        admit. (* One more FF *)
       * (* Loop *)
         repeat break_if;
           unfold sep_precondition.
@@ -363,7 +360,7 @@ Proof.
                  bool_rewrite.
                  intuition.               
                  eapply bounded_to_OK_loop; try (nia || eassumption). }
-               assert (index (Z_of_string (i :: ls)) = Zlength (i::ls)) as I.
+               assert (AbstractSpec.index (Z_of_string (i :: ls)) = Zlength (i::ls)) as I.
                eapply OK_index.
                eassumption.
                assert ((value (Z_of_string_loop ls 0 1 false))%Z = 
@@ -698,14 +695,11 @@ Proof.
              forward.
              forward.
              entailer!.
-             (*
-               (Eunop Oneg (Etempvar _value tlong) tlong)
-               going through typechecking functions I found where FF comes from:
-               look at isUnOpResultType or just do Compute below to see it.
-              *)
-             Compute (isUnOpResultType Oneg (Etempvar _value tlong) tlong).
-             (* typecheck error: DEBUG THIS *)
-             admit.
+             unfold Z_of_char in H10.
+             replace (Int64.signed Int64.zero) with 0 by reflexivity.
+             rewrite H12.
+             cbn in H13; cbn. 
+             repeat rewrite Int64.signed_repr; cbn; lia.
              entailer.
              forward.
              forward.
