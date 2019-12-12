@@ -486,12 +486,16 @@ Proof.
 Qed.
 
 
-Lemma sublist_ERROR_RANGE : forall ls v j i b, 
+Lemma sublist_ERROR_RANGE : forall ls v v' j i i' b, 
     0 < j <= Zlength ls ->
-    res (Z_of_string_loop (sublist 0 j ls) v i b) = ERROR_RANGE ->
-    res (Z_of_string_loop ls v i b) = ERROR_RANGE.
+    Z_of_string_loop (sublist 0 j ls) v i b = {| res := ERROR_RANGE;
+                                                  value := v';
+                                                  index := i' |} ->
+   Z_of_string_loop ls v i b = {| res := ERROR_RANGE;
+                                   value := v';
+                                   index := i' |}.
 Proof.
-  induction ls; intros v j i b.
+  induction ls; intros until b.
   -  
     unfold sublist; rewrite skipn_nil; rewrite firstn_nil;
       cbn; discriminate.
@@ -554,14 +558,19 @@ Qed.
 (* OK *)
 Lemma all_digits_OK_or_ERROR_RANGE_loop : forall ls v i b,
     (forall i, 0 <= i < Zlength ls -> is_digit (Znth i ls)  = true) ->
-    res (Z_of_string_loop ls v i b) = OK \/
-    res (Z_of_string_loop  ls v i b) = ERROR_RANGE.
+    Z_of_string_loop ls v i b = {| res := OK;
+                                   value := value (Z_of_string_loop ls v i b);
+                                   index := Zlength ls + i |}
+                               \/
+                               Z_of_string_loop ls v i b = {| res := ERROR_RANGE;
+                                          value := value (Z_of_string_loop ls v i b);
+                                          index := index (Z_of_string_loop ls v i b) |}.
 Proof.
   - induction ls; intros v i b  DIG.
     -- autorewrite with sublist in *.
       auto.
     -- 
-    cbn.
+    simpl.
     assert (is_digit a = true).
     replace a with (Znth 0 (a::ls)).
     eapply DIG.
@@ -569,13 +578,23 @@ Proof.
     assert (0 <= Zlength ls) by (eapply Zlength_nonneg).   
     nia.
     eapply Znth_0_cons.
-    repeat break_if.
-    eapply IHls.
-    (* from DIG *)
-    admit.
+    repeat break_if;
+    replace (Zlength (a :: ls) + i) with (Zlength ls + (i + 1)) 
+      by (autorewrite with sublist; nia); 
+    try eapply IHls.
+    intros.
+   (* destruct (zlt 0 i0). *)
+    pose proof (DIG (i0 + 1)) as D.   
+    erewrite Znth_pos_cons in D.
+    replace (i0 + 1 - 1) with i0 in D by nia.
+    eapply D.
+    autorewrite with sublist.
+    nia.
+    nia.
+    simpl. right.
     auto.
     congruence.
-Admitted.
+Qed.
 
 (* OK *)
 Lemma OK_index_loop : forall ls v i b,
@@ -616,7 +635,9 @@ Qed.
 Lemma bounded_to_OK_loop : forall ls v i b,
   bounded (value (Z_of_string_loop ls v i b)) = true ->
   (forall i, 0 <= i < Zlength ls -> is_digit (Znth i ls)  = true) ->
-  res (Z_of_string_loop ls v i b) = OK.
+  Z_of_string_loop ls v i b =  {| res := OK;
+                                  value := value (Z_of_string_loop ls v i b);
+                                  index := Zlength ls + i |}.
 Proof.
   intros.
   edestruct all_digits_OK_or_ERROR_RANGE_loop with (ls := ls)
@@ -624,7 +645,29 @@ Proof.
   as [Ok | ER];
     intuition;
     try eassumption.
-  eapply ERROR_RANGE_not_bounded_loop in ER.
+  assert (res ( Z_of_string_loop ls v i b) = ERROR_RANGE) as er.
+  rewrite ER. auto.
+  eapply ERROR_RANGE_not_bounded_loop in er.
+  congruence.
+Qed.
+
+Lemma bounded_to_OK_loop' : forall ls v i b,
+  bounded (value (Z_of_string_loop ls v i b)) = true ->
+  (forall i, 0 <= i < Zlength ls -> is_digit (Znth i ls)  = true) ->
+  res(Z_of_string_loop ls v i b) = OK.
+Proof.
+  intros.
+  edestruct all_digits_OK_or_ERROR_RANGE_loop with (ls := ls)
+                                                   (v := v)
+  as [Ok | ER];
+    intuition;
+    try eassumption.
+  assert (res ( Z_of_string_loop ls v i b) = OK) as ok.
+  rewrite Ok. auto.
+  eassumption.
+  assert (res ( Z_of_string_loop ls v i b) = ERROR_RANGE) as er.
+  rewrite ER. auto.
+  eapply ERROR_RANGE_not_bounded_loop in er.
   congruence.
 Qed.
 
@@ -668,14 +711,18 @@ Qed.
 Lemma app_char_to_OK_loop : forall ls i,
     0 < Zlength ls ->
     is_sign i = true ->
-    res (Z_of_string_loop ls 0 1 (sign_to_bool i)) = OK ->
-    res (Z_of_string (i :: ls)) = OK.
+    (forall i, 0 <= i < Zlength ls -> is_digit (Znth i ls)  = true) -> 
+    bounded (value(Z_of_string_loop ls 0 1 (sign_to_bool i))) = true ->
+    Z_of_string (i :: ls) = {| res := OK;
+                              value := value (Z_of_string_loop ls 0 1 (sign_to_bool i));
+                              index := Zlength (i :: ls) |}.
 Proof.
-  intros until i. intros L S Ok.
+  intros until i. intros L S Dig B.
   unfold is_sign in S; unfold sign_to_bool in *.
   destruct_orb_hyp.
   inversion H; eapply plus_not_minus in H.
   rewrite H in *.
+  
   all:
     simpl;
     repeat break_if; autorewrite with sublist in *;
@@ -683,8 +730,22 @@ Proof.
       try eapply sign_not_digit in S;
       intuition; try congruence;
         try eassumption.
-  eapply plus_not_minus in Heqb.
-  congruence.
+  erewrite  bounded_to_OK_loop.
+  autorewrite with sublist.
+  auto.
+  all: autorewrite with sublist in *; try eapply sign_not_digit in S;
+    intuition; try congruence;
+      try eassumption.
+  all : try eapply plus_not_minus in Heqb;
+    try congruence.
+
+  erewrite  bounded_to_OK_loop.
+  autorewrite with sublist.
+  auto.
+  all: autorewrite with sublist in *; try eapply sign_not_digit in S;
+    intuition; try congruence;
+      try eassumption.
+
 Qed.
 
 Lemma is_digit_bounded : forall c,
@@ -700,16 +761,18 @@ Qed.
 
 (* EXTRA DATA *)
              
-Lemma value_next_loop : forall ls v i b r,
-    (res (Z_of_string_loop ls v i r)) = OK ->
+Lemma value_next_loop : forall ls v v' i i' b r,
+    Z_of_string_loop ls v i r = {| res := OK;
+                                  value := v';
+                                  index := i'|} ->
     is_digit b = true ->
     value (Z_of_string_loop (ls ++ [b]) v i r) = 
-    app_char r (value (Z_of_string_loop ls v i r)) b.
+    app_char r v' b.
 Proof.
   induction ls; intros.
   * simpl in *.
     repeat bool_rewrite.
-    break_if; try easy.
+    break_if; simpl in *; inversion H; try easy.
   * simpl in *.
     break_if.
     break_if.
@@ -737,7 +800,6 @@ Proof.
   eapply bounded_to_OK_loop.
   eassumption.
   autorewrite with sublist.
-  Search sublist 0.
   intros.
   erewrite Znth_sublist.
   normalize.
@@ -761,7 +823,10 @@ Lemma ub_last_digit_error_range : forall j i ls b,
     (Z.abs (value_until j ls b)) > upper_boundary \/
     (Z.abs (value_until j ls b)) = upper_boundary /\
     last_digit b < (Byte.signed i - 48) ->
-    (res (Z_of_string_loop ls 0 1 b)) = ERROR_RANGE.
+    Z_of_string_loop ls 0 1 b = {| res := ERROR_RANGE;
+                                   index := j + 1;
+                                   value := value_until (j + 1) ls b
+                                |}. 
 Proof.
   intros.
   inversion H4.
@@ -786,7 +851,11 @@ Proof.
       nia.
     }
 
-    assert (res (Z_of_string_loop ls 0 1 b) = ERROR_RANGE) as Result_loop.
+    assert (Z_of_string_loop ls 0 1 b =
+  {| res := ERROR_RANGE; 
+     value := value_until (j + 1) ls b; 
+     index := j + 1 |})
+ as Result_loop.
 
     { edestruct all_digits_OK_or_ERROR_RANGE_loop
         with (ls := sublist 0 (j + 1) ls) (v := 0) (i := 1) (b := b)  as [Ok | Er].
@@ -801,13 +870,18 @@ Proof.
       subst.
       all: try nia; try eassumption.
       inversion Ok.
-      eapply OK_bounded_loop  with (b := b) in  Ok.
+      assert (res (Z_of_string_loop (sublist 0 (j + 1) ls) 0 1 b) = OK) as O.
+      rewrite Ok. auto.
+      eapply OK_bounded_loop  with (b := b) in O.
       congruence.
       eapply bounded0.
-      eapply sublist_ERROR_RANGE in Er.
-      rewrite Er.
-      reflexivity.
-      nia.
+      inversion Er. eapply sublist_ERROR_RANGE in Er.
+      erewrite ERROR_RANGE_index in Er.
+      rewrite <- Er. auto.
+      all: autorewrite with sublist; try reflexivity; try nia;
+        try eassumption.
+      rewrite H8.
+      auto.
     }
     eassumption.
   - 
@@ -837,7 +911,11 @@ Proof.
       nia.
     }
 
-    assert (res (Z_of_string_loop ls 0 1 b) = ERROR_RANGE) as Result_loop.
+    assert (Z_of_string_loop ls 0 1 b =
+  {| res := ERROR_RANGE; 
+     value := value_until (j + 1) ls b; 
+     index := j + 1 |})
+ as Result_loop.
 
     { edestruct all_digits_OK_or_ERROR_RANGE_loop
         with (ls := sublist 0 (j + 1) ls) (v := 0) (i := 1) (b := b)  as [Ok | Er].
@@ -852,50 +930,23 @@ Proof.
       subst.
       all: try nia; try eassumption.
       inversion Ok.
-      eapply OK_bounded_loop  with (b := b) in  Ok.
+      assert (res (Z_of_string_loop (sublist 0 (j + 1) ls) 0 1 b) = OK) as O.
+      rewrite Ok. auto.
+      eapply OK_bounded_loop  with (b := b) in O.
       congruence.
       eapply bounded0.
-      eapply sublist_ERROR_RANGE in Er.
-      rewrite Er.
-      reflexivity.
-      nia.
+      inversion Er. eapply sublist_ERROR_RANGE in Er.
+      erewrite ERROR_RANGE_index in Er.
+      rewrite <- Er. auto.
+      all: autorewrite with sublist; try reflexivity; try nia;
+        try eassumption.
+      rewrite H6.
+      auto.
     }
     eassumption.
 Qed.
 
 (* EXTRA DATA *)
-
-Lemma EXTRA_DATA_or_ERROR_RANGE_result :
-  forall ls v k j i, 
-    0 <= j < Zlength ls ->
-    Znth j ls = i -> 
-    is_digit i = false -> 
-    res (Z_of_string_loop ls v k false) = EXTRA_DATA
-    \/ res (Z_of_string_loop ls v k false) = ERROR_RANGE.
-  induction ls; intros v k j i N Dig Bound.
-  - autorewrite with sublist in *.
-    nia.
-  - simpl.
-    repeat break_if.
-    assert (0 <= Zlength ls).
-    eapply Zlength_nonneg.
-    assert (0 < j) as ZZ.
-    destruct (zle 0 (j -1)).
-    nia.
-    assert (j = 0) as Z by nia.
-    rewrite Z in Dig.
-    erewrite Znth_0_cons in Dig.
-    subst.
-    congruence.
-    eapply IHls with (j := j - 1) (i := i).  
-    autorewrite with sublist in *.
-    auto with zarith.
-    rewrite <- Dig.
-    erewrite Znth_pos_cons; auto.
-    eassumption.
-    all: intuition. 
-Qed.
-
 
 Lemma EXTRA_DATA_loop : forall ls v i b r,
     res (Z_of_string_loop ls v i r) = OK ->
@@ -994,7 +1045,7 @@ Proof.
     erewrite EXTRA_DATA_loop.
     autorewrite with sublist.
     reflexivity.
-    eapply bounded_to_OK_loop.
+    eapply bounded_to_OK_loop'.
     eassumption.
     intros.
     autorewrite with sublist in H5.
@@ -1030,3 +1081,64 @@ Proof.
   autorewrite with sublist in *;
     try nia.
 Qed.
+
+(* Lemma EXTRA_DATA_no_sign_res : forall i i0 j ls, 
+    is_sign i = false ->
+    0 <= j  < Zlength ls ->
+    Znth j (i::ls) = i0 ->
+    (forall i' : Z, 0 <= i' < j -> is_digit (Znth i' (i::ls)) = true) -> 
+    bounded (value (Z_of_string_loop (sublist 0 j (i :: ls)) 0 0 true)) = true ->
+    is_digit i0 = false ->
+    Z_of_string (i :: ls) = {| res := EXTRA_DATA;
+                              index := j;
+                              value := 
+                                value (Z_of_string_loop (sublist 0 j (i :: ls)) 0 0 true)
+                           |}. 
+Proof.
+  intros.
+  assert ((sublist 0 (j + 1) (i::ls)) = 
+          app (sublist 0 j (i::ls)) [i0]) as SL.
+  { erewrite  sublist_split with (mid := j).
+    f_equal.
+    erewrite sublist_one.
+    f_equal.
+    eassumption.
+    all: autorewrite with sublist; try nia. }
+
+ assert (Z_of_string_loop (sublist 0 (j + 1) (i::ls)) 0 0 true = 
+         {| res := EXTRA_DATA;
+            index := j;
+            value :=  value (Z_of_string_loop (sublist 0 j (i :: ls)) 0 0 true)
+         |}).
+
+  { rewrite SL.
+    erewrite EXTRA_DATA_loop.
+    autorewrite with sublist.
+    reflexivity.
+    eapply bounded_to_OK_loop'.
+    eassumption.
+    intros.
+    autorewrite with sublist in H5.
+    replace  (Znth i1 (sublist 0 j (i :: ls))) with (Znth i1 (i::ls)).
+    eapply H2; try nia; try eassumption.
+    erewrite Znth_sublist.
+    normalize.
+    all: try nia; try eassumption. 
+  }
+  simpl.
+  break_match.
+  - autorewrite with sublist in *; nia.
+  -
+  unfold is_sign in *;
+  destruct_orb_hyp;
+  repeat bool_rewrite.
+  replace (sublist 0 (j + 1) (i :: i1 :: l)) with (i ::  (sublist 0 j (i1 :: l))) in H5.
+  simpl in H5.
+  repeat break_if. 
+  eapply sublist_EXTRA_DATA in H5.
+  eassumption.
+  admit.
+  simpl in *; congruence.
+  rewrite H5.
+  auto.
+Admitted. *)
