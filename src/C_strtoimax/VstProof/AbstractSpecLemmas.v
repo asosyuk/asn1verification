@@ -3,13 +3,29 @@ Require Import AbstractSpec.
 Require Import VST.floyd.proofauto.
 Require Import StructTact.StructTactics.
 
-Notation value_until j l b v i' := (value (Z_of_string_loop (sublist 0 j l) v i' b)).
+Notation value_until j l b v i' :=
+  (value (Z_of_string_loop (sublist 0 j l) v i' b)).
 
+Lemma sublist_cons : forall A i (ls : list A) j,
+    0 <= j < Zlength ls + 1 ->
+    i :: sublist 0 j ls = sublist 0 (j + 1) (i :: ls).
+Proof.
+  intros.
+  erewrite semax_lemmas.cons_app.
+  replace (i :: ls) with (app [i] ls).
+  (erewrite sublist0_app2;
+   autorewrite with sublist in *;
+   auto).
+  assert (0 <= Zlength ls) by (eapply Zlength_nonneg).
+  autorewrite with sublist in *.
+  nia.
+  reflexivity.
+Qed.
 (* Lemmas about bounded *)
 Ltac Zbool_to_Prop := try (rewrite Z.leb_le ||
                            rewrite Z.leb_gt ||
                            rewrite Z.eqb_eq ||
-                           rewrite Z.eqb_neq ).
+                           rewrite Z.eqb_neq).
 
 Lemma is_digit_to_Z : forall c, is_digit c = true -> 0 <= Z_of_char c <= 9.
 Proof.
@@ -21,13 +37,23 @@ Proof.
   nia.
 Qed.
 
+Hint Resolve Z.ltb_spec0 Z.eqb_spec Z.leb_spec0 : bdestruct.
+
+ Ltac bdestruct X :=
+  let H := fresh in let e := fresh "e" in
+   evar (e: Prop);
+   assert (H: reflect e X); subst e;
+    [eauto with bdestruct
+    | destruct H as [H|H];
+       [ | try first [apply Z.nlt_ge in H | apply Znot_le_gt in H]]].
+
 Lemma app_is_digit : forall ls j,
     (forall i : Z, 0 <= i < j -> is_digit (Znth i ls) = true) ->
     is_digit (Znth j ls) = true ->
     forall i0 : Z, 0 <= i0 < j + 1 -> is_digit (Znth i0 ls) = true.
 Proof.
   intros.
-  destruct (zle j i0).
+  bdestruct (j <=? i0).
   - replace i0 with j by nia.
     eassumption.
   - eapply H. nia.
@@ -1007,16 +1033,52 @@ Proof.
     all: try nia; try eassumption; auto.
 Qed.
 
-Lemma ERROR_RANGE_res : forall i j ls, 
-    0 <= j < Zlength ls ->
+Lemma ERROR_RANGE_res : forall ls j, 
+    0 < j < Zlength ls ->
     (forall i : Z, 0 <= i <= j -> is_digit (Znth i ls) = true) -> 
-    bounded (value_until j (i::ls) (sign_to_bool i) 0 0) = true ->
-    bounded (value_until (j + 1) (i::ls) (sign_to_bool i) 0 0) = false ->
-    Z_of_string (i :: ls) = {| res := ERROR_RANGE;
-                              index := j + 1;
-                              value := value_until (j + 1) (i::ls) (sign_to_bool i) 0 0
-                           |}. 
-Admitted.
+    bounded (value_until j ls true 0 0) = true ->
+    bounded (value_until (j + 1) ls true 0 0) = false ->
+    Z_of_string ls = {| res := ERROR_RANGE;
+                              index := j;
+                              value := value_until (j + 1) ls true 0 0
+                           |}.
+Proof.
+  intros.
+  destruct ls.
+  -  autorewrite with sublist in *; nia.
+  - assert (Z_of_string_loop (i::ls) 0 0 true = 
+         {| res := ERROR_RANGE ;
+            index := j ;
+            value := value_until (j + 1) (i::ls) true 0 0
+         |}).
+    {  replace j with (j + 0) at 2 by nia.
+       eapply
+         ub_last_digit_error_range; try nia; auto;
+         try (intros; eapply H0; try nia); try eassumption.
+    }
+    try autorewrite with sublist in *; try nia.
+    generalize H3.
+    assert (i = Znth 0 (i::ls)) as Z by reflexivity.
+    assert (is_digit i = true)
+    by (rewrite Z;
+        eapply H0; nia).
+    assert (is_sign i = false) by (eapply digit_not_sign; eassumption).
+    assert (Byte.signed i =? plus_char = false).
+    unfold is_sign in *; destruct_orb_hyp; eassumption.    
+    assert (Byte.signed i =? minus_char = false)
+           by (unfold is_sign in *; destruct_orb_hyp; eassumption).
+    assert (bounded (0 + Z_of_char i) = true).
+    unfold bounded, Z_of_char.
+    rewrite andb_true_iff in *.
+    repeat Zbool_to_Prop.
+    rep_omega_setup; try nia.
+    simpl.
+    repeat bool_rewrite.
+    break_match.
+    autorewrite with sublist in *.
+    nia.
+    auto.
+Qed.
 
 (* EXTRA DATA *)
 
@@ -1087,7 +1149,7 @@ Qed.
 
 Lemma EXTRA_DATA_sign_res : forall i i0 j ls, 
     is_sign i = true ->
-    0 <= j  < Zlength ls ->
+    0 <= j < Zlength ls ->
     Znth j ls = i0 ->
     (forall i : Z, 0 <= i < j -> is_digit (Znth i ls) = true) -> 
     bounded (value_until j ls (sign_to_bool i) 0 1) = true ->
@@ -1155,19 +1217,18 @@ Proof.
 Qed.
 
 Lemma EXTRA_DATA_res : forall ls j, 
-    0 <= j < Zlength ls ->
+    0 < j < Zlength ls ->
     (forall i : Z, 0 <= i < j -> is_digit (Znth i ls) = true) -> 
     bounded (value_until j ls true 0 0) = true ->
     is_digit (Znth j ls) = false ->
     Z_of_string ls = {| res := EXTRA_DATA;
-                              index := j + 1;
+                              index := j ;
                               value := value_until j ls true 0 0
                            |}. 
 Proof.
-  destruct ls.
-  - intros. autorewrite with sublist in *; nia.
-  - intros.
-    assert ((sublist 0 (j + 1) (i::ls)) = 
+  destruct ls; intros.
+  - autorewrite with sublist in *; nia.
+  - assert ((sublist 0 (j + 1) (i::ls)) = 
             app (sublist 0 j (i::ls)) [ (Znth j (i::ls))]) as SL.
     { erewrite  sublist_split with (mid := j).
       f_equal.
@@ -1185,9 +1246,11 @@ Proof.
   { rewrite SL.
     erewrite EXTRA_DATA_loop.
     autorewrite with sublist.
-    autorewrite with sublist.
-    
-    admit.
+    assert (Zlength (sublist 0 j (i :: ls)) = j).
+    erewrite Zlength_sublist;
+      nia.
+    rewrite H3.
+    auto.
     eapply bounded_to_OK_loop'.
     eassumption.
     intros.
@@ -1202,7 +1265,32 @@ Proof.
      autorewrite with sublist in *.
      nia.
   }
-
+  assert (i = Znth 0 (i::ls)) as Z by reflexivity.
+    assert (is_digit i = true)
+    by (rewrite Z;
+        eapply H0; nia).
+    assert (is_sign i = false) by (eapply digit_not_sign; eassumption).
+    assert (Byte.signed i =? plus_char = false).
+    unfold is_sign in *; destruct_orb_hyp; eassumption.    
+    assert (Byte.signed i =? minus_char = false)
+           by (unfold is_sign in *; destruct_orb_hyp; eassumption).
+    assert (bounded (0 + Z_of_char i) = true).
+    unfold bounded, Z_of_char.
+    rewrite andb_true_iff in *.
+    repeat Zbool_to_Prop.
+    rep_omega_setup; try nia.
+  replace (sublist 0 (j + 1) (i :: ls)) with (i:: sublist 0 j ls) in *.
+  generalize H3.
   simpl.
   repeat bool_rewrite.
-Admitted.
+  break_match;
+  autorewrite with sublist in *.  
+  replace j with 0 in * by nia.
+  congruence.
+  eapply sublist_EXTRA_DATA;
+  autorewrite with sublist in *.
+  nia.
+  eapply sublist_cons.
+  autorewrite with sublist in *.
+  nia.
+Qed.
