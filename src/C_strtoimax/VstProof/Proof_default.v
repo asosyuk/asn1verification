@@ -180,12 +180,17 @@ Proof.
                forward.
                entailer!.
                all: erewrite OK_res.
-               all: unfold sign_to_bool.
                all: try bool_rewrite.
                auto.
                all: try (eassumption || nia || auto).
+               pose (nil_cons).
+               intuition.
+               congruence.
                simpl.
                autorewrite with sublist; entailer!.
+               pose (nil_cons).
+               intuition.
+               congruence.
            }
            ***
              Exists 0 0.
@@ -396,7 +401,7 @@ Proof.
              forward.
              forward_if.
             (* Case:  vl < ub *)
-           { lt_ub_to_Z H10; 
+           { int64_to_Z.
              try nia.
              forward.
              entailer!.
@@ -407,26 +412,7 @@ Proof.
              (* show that loop invariant holds after normal  loop body execution *)
              Exists (j + 1) (value_until_d (j + 1) (i :: ls)).
              entailer!.
-             Lemma next_value_lt_ub : forall ls j i,
-                 (forall i : Z, 0 <= i < j  -> is_digit (Znth i ls) = true) ->
-                 0 < j + 1 <= Zlength ls ->
-                 bounded (value_until_d j ls) = true -> 
-                 Znth j ls = i ->
-                 is_digit i = true ->
-                 (value_until_d (j + 1) ls) = app_char true (value_until_d j ls) i.
-             Proof.
-               intros.
-               rewrite sublist_last_1.
-               subst.
-               eapply value_next_loop.
-               eapply bounded_to_OK_loop.
-               eassumption.
-               autorewrite with sublist.
-               intros.
-               erewrite Znth_sublist.
-               normalize.
-               all: try nia; try eassumption.
-             Qed.
+          
 
              erewrite next_value_lt_ub with (i := Znth j (i :: ls)).
              repeat split; try nia.
@@ -439,9 +425,9 @@ Proof.
              rewrite <- DATA_AT2, <- DATA_AT3.
              entailer!.
            } 
-           lt_ub_to_Z H11.
+           int64_to_Z.
              forward_if.
-             lt_ub_to_Z H12.
+             int64_to_Z.
 
            (* vl == ub *)
            { forward_if.
@@ -482,21 +468,22 @@ Proof.
              forward.
              entailer!.
              {
-               (*unfold bounded in *.
+               unfold bounded in *.
                rewrite andb_true_iff in *.
                repeat rewrite Z.leb_le in *.
-                repeat rewrite Int64.signed_repr;
+               repeat rewrite Int64.signed_repr;
                  repeat rewrite Int.signed_repr;
                  rep_omega_setup;
                  assert (0 <= value (Z_of_string_loop (i :: ls) 0 0 true)) by 
                      (eapply loop_non_neg; nia);
                  try nia;
-                 try rep_omega;
-                cbn in H11;
-                cbn in H12;
-                cbn in H13;
-                 try nia. *) admit.
-               }
+                 try rep_omega; 
+                 cbn in H11;
+                 cbn in H12;
+                 cbn in H13;
+                 try nia. 
+               
+             }
              entailer!.
              easy.
              forward.
@@ -516,19 +503,17 @@ Proof.
                    nia).
              (* post-if implies break condition *)
              { Arguments Z_of_string_loop s : simpl never.
-                 Arguments Z_of_string s : simpl never.
+               Arguments Z_of_string s : simpl never.
                entailer!.
                 repeat split; try easy.
-                replace (Zlength (i :: ls)) with (j + 1) by (autorewrite with sublist; nia).
+                replace (Zlength (i :: ls)) with (j + 1)
+                  by (autorewrite with sublist; nia).
                eapply app_is_digit; try easy.
                replace (i :: ls) with (sublist 0 (j + 1) (i :: ls)).
                {
                rewrite next_value_lt_ub with (i := Znth j (i :: ls)).
                eapply eq_ub_bounded_plus.
                all: try (nia || eassumption || auto). 
-               admit.
-
-
               }
                replace (j + 1) with (Zlength (i :: ls)) by  (autorewrite with sublist; nia).
                autorewrite with sublist; auto.
@@ -603,72 +588,61 @@ Proof.
                  apply valid_pointer_weak.
                }
 
-             assert (data_at sh_str tschar (Vbyte i) (Vptr end'_b str_ofs) *
-                          data_at sh_str (tarray tschar (Zlength (i :: ls))) (map Vbyte (i :: ls))
-                                  (Vptr end'_b (Ptrofs.add str_ofs Ptrofs.one)) =
-                          data_at sh_str (tarray tschar (Zlength (i :: ls) + 1))
-                                  (Vbyte i :: map Vbyte (i :: ls))
-                                  (Vptr end'_b str_ofs)) as DATA_AT4.
-                  { erewrite <- split_non_empty_list with ((i :: ls) := i::(i :: ls));
-                      subst; autorewrite with sublist in H1;
-                      autorewrite with sublist;
-                      try reflexivity; try nia. }
-
-              forward.
+             forward.
              rewrite_comparison.
              replace  (Ptrofs.unsigned
-          (Ptrofs.add (Ptrofs.add str_ofs (Ptrofs.repr (j + 1)))
-             (Ptrofs.mul (Ptrofs.repr 1) (Ptrofs.of_ints (Int.repr 1)))))
-                                         with 
-                                           (Ptrofs.unsigned str_ofs + j + 1 + 1) in *
+                         (Ptrofs.add (Ptrofs.add str_ofs (Ptrofs.repr (j)))
+                                     (Ptrofs.mul (Ptrofs.repr 1) (Ptrofs.of_ints (Int.repr 1)))))
+               with 
+                 (Ptrofs.unsigned str_ofs + j + 1) in *
                by (normalize;ptrofs_compute_add_mul;
-                rep_omega_setup;
-               nia).
+                   rep_omega_setup;
+                   nia).
              assert (0 < Zlength (sublist (j + 1) (Zlength (i :: ls)) (i :: ls))).
 
              { subst.               
-               destruct (Z_lt_le_dec (Ptrofs.unsigned str_ofs + j + 1 + 1) Ptrofs.modulus).                       *
+               destruct (Z_lt_le_dec (Ptrofs.unsigned str_ofs + j + 1) Ptrofs.modulus).                           *
                erewrite Zlength_sublist.
-               all: try nia.
+               all: autorewrite with sublist; try nia.
                *
-                autorewrite with norm in H11.
                 ptrofs_compute_add_mul.
                 all: try (rep_omega_setup;
                nia).
                }
-             edestruct sublist_first with (j := j + 1) ((i :: ls) := (i :: ls)) as [i1 Sub2];
+             edestruct sublist_first with (j := j + 1) (ls := (i :: ls)) as [i1 Sub2];
                try nia.
              econstructor.
              instantiate (1 := 0); cbv; auto.
+             autorewrite with sublist; try nia.
 
-            assert (data_at sh_str (tarray tschar (Zlength (i :: ls) - (j + 1)))
+             assert (data_at sh_str (tarray tschar
+                                            (Zlength (sublist (j + 1)
+                                                              (Zlength (i :: ls)) (i :: ls))))
        (map Vbyte (sublist (j + 1) (Zlength (i :: ls)) (i :: ls)))
-       (Vptr end'_b (Ptrofs.add (Ptrofs.add str_ofs (Ptrofs.repr (j + 1))) Ptrofs.one)) =
+       (Vptr end'_b (Ptrofs.add (Ptrofs.add str_ofs (Ptrofs.repr j)) Ptrofs.one)) =
         data_at sh_str tschar (Vbyte i1)
-       (Vptr end'_b (Ptrofs.add (Ptrofs.add str_ofs (Ptrofs.repr (j + 1))) Ptrofs.one)) *
+       (Vptr end'_b (Ptrofs.add (Ptrofs.add str_ofs (Ptrofs.repr j)) Ptrofs.one)) *
      data_at sh_str (tarray tschar (Zlength (sublist (j + 1 + 1) (Zlength (i :: ls)) (i :: ls))))
        (map Vbyte (sublist (j + 1 + 1) (Zlength (i :: ls)) (i :: ls)))
        (Vptr end'_b
-          (Ptrofs.add (Ptrofs.add (Ptrofs.add str_ofs (Ptrofs.repr (j + 1))) Ptrofs.one)
+          (Ptrofs.add (Ptrofs.add (Ptrofs.add str_ofs (Ptrofs.repr (j))) Ptrofs.one)
              Ptrofs.one))) as DATA_AT5.
             {         
             erewrite Sub2.
              (* reading a char i1 *)
-            replace (Zlength (i :: ls) - (j + 1)) with 
-                (Zlength (i1::(sublist (j + 1 + 1) (Zlength (i :: ls)) (i :: ls)))).
             erewrite split_non_empty_list with
-                 (i := i1) ((i :: ls)' := (sublist (j + 1 + 1) (Zlength (i :: ls)) (i :: ls)))
+                 (i := i1) (ls' := (sublist (j + 1 + 1) (Zlength (i :: ls)) (i :: ls)))
                  (ofs :=  (Ptrofs.add (Ptrofs.add str_ofs 
-                                                  (Ptrofs.repr (j + 1))) Ptrofs.one));
-             auto.
+                                                  (Ptrofs.repr (j))) Ptrofs.one));
+              auto.
             all:      
               autorewrite with sublist;  
               ptrofs_compute_add_mul; 
               replace (Ptrofs.unsigned Ptrofs.one)  with 1 by normalize;
                 try (rep_omega_setup;
-               nia). }
-
-            autorewrite with sublist.
+                     nia).
+            }
+            
             erewrite  DATA_AT5.
               (* str + j + 1 < end *)
              Intros.
@@ -676,7 +650,7 @@ Proof.
              forward_if  
                (temp _t'1 (if 48 <=? Byte.signed i1
                            then Val.of_bool (Byte.signed i1 <=?  57) 
-                           e(i :: ls)e Vfa(i :: ls)e)).
+                           else Vfalse)).
              forward.
              forward.
              entailer!.
@@ -708,95 +682,81 @@ Proof.
                  erewrite  sublist_len_1 in Sub2.
                  inversion Sub2.
                  all: auto.
-                 all: try nia.
+                 all:  autorewrite with sublist; try nia.
                }
-               assert ( 0 <= value_until (j + 1) (i :: ls) true) as NN1 by (eapply loop_non_neg; nia).
+               assert ( 0 <= value_until_d (j + 1) (i :: ls) ) as NN1
+                   by (eapply loop_non_neg; nia).
 
                forward_if.
 
                 (* ERROR RANGE spec *)
-               {rewrite <- ZN1 in *.
-                rewrite <- ZN in *.
-                eapply typed_true_to_digit in H16.
-                assert (forall i0 : Z, 0 <= i0 < j + 1 -> is_digit (Znth i0 (i :: ls)) = true) as D.
-                eapply app_is_digit.
+               { rewrite <- ZN1 in *.
+                 eapply typed_true_to_digit in H15.
+                 assert ( 0 <= Z_of_char (Znth (j + 1) (i :: ls)) <= 9) as Dg by
+                 (eapply is_digit_to_Z in H15; nia).
+                 assert (forall i0 : Z, 0 <= i0 < j + 1 -> is_digit (Znth i0 (i :: ls)) = true) as D.
+                 eapply app_is_digit.
                   all: try nia;
                     try eassumption; auto.
-                assert (bounded (value_until (j + 1) (i :: ls) true) = true) 
+                assert (bounded (value_until_d (j + 1) (i :: ls)) = true) 
                   as Boundf.
                 {  rewrite next_value_lt_ub with (i := Znth j (i :: ls)).
                    eapply eq_ub_bounded_plus.
-                   all: try nia; try
-                                   assumption; auto. }
+                   all: try nia; try assumption; auto. }
                 
-                assert (bounded (value_until ((j + 1) + 1) (i :: ls) true) = fa(i :: ls)e) 
+                assert (bounded (value_until_d ((j + 1) + 1) (i :: ls) ) = false) 
                   as BoundF.
                 
-                { 
-                  erewrite next_value_lt_ub with 
-                      (j := j + 1) (i := (Znth (j + 1) (i :: ls))).
-                  
+                { erewrite next_value_lt_ub with 
+                      (j := j + 1) (i := (Znth (j + 1) (i :: ls))).                  
                   apply lt_ub_not_bounded_plus.
-                   eapply is_digit_to_Z in H16.
                   nia.
                   rewrite next_value_lt_ub with (i := Znth j (i :: ls)).
                   eapply eq_ub_next_gt_ub_plus.
-                  all: try nia;
+                  all: autorewrite with sublist; try nia;
                     try eassumption; auto. }
-
-                  assert (j + 1 + 1 <= Zlength (i :: ls)) as (I :: LS)_len2 by nia.
-
-                 
+                assert (j + 1 + 1 <= Zlength (i :: ls)) as LS_len2
+                    by (autorewrite with sublist; nia).                 
                   forward.
-                  erewrite ERROR_RANGE_sign_res.
-                  replace (Zlength (i :: (i :: ls))) with (Z.succ (Zlength (i :: ls))).
+                  erewrite ERROR_RANGE_res.
                   simpl.
                   entailer!.
-                  autorewrite with sublist in DATA_AT1.
                   erewrite sepcon_assoc.
                   erewrite <- DATA_AT5.
                   erewrite sepcon_assoc.
                   erewrite <- DATA_AT1.
-                  erewrite sepcon_assoc.
                   erewrite <- DATA_AT2.
-                  erewrite DATA_AT4.
-                  autorewrite with sublist.
                   entailer!.
-                  autorewrite with sublist; reflexivity.
-                    all: unfold sign_to_bool; try bool_rewrite;
+                    all: 
                       try nia;
-                    try eassumption; auto.
-               }                               
+                      try eassumption; auto.
+                    intros.
+                    destruct (zeq i0 (j +1)).
+                    subst. eassumption.
+                    eapply D.
+                    nia. }                               
                forward.
                forward.
-
-               erewrite EXTRA_DATA_sign_res with (j := j + 1).
-               unfold sign_to_bool.
-               bool_rewrite.
+               
+               erewrite EXTRA_DATA_res with (j := j + 1).
                simpl.
-                erewrite next_value_lt_ub with (i := (Znth j (i :: ls))).
-               replace (Zlength (i :: (i :: ls))) with (Z.succ (Zlength (i :: ls)))
-                                               by (autorewrite with sublist; nia).
+               erewrite next_value_lt_ub with (i := (Znth j (i :: ls))).
                entailer!.
-               autorewrite with sublist in DATA_AT1.
                erewrite sepcon_assoc.
                erewrite <- DATA_AT5.
                erewrite sepcon_assoc.
                erewrite <- DATA_AT1.
-               erewrite sepcon_assoc.
                erewrite <- DATA_AT2.
-               erewrite DATA_AT4.
-               autorewrite with sublist.
+
                entailer!.
-                all: try (eassumption || nia || auto).
+                all: autorewrite with sublist; try (eassumption || nia || auto).
                eapply app_is_digit.
                 all: try (eassumption || nia || auto).
-                unfold sign_to_bool. bool_rewrite.
                  {  rewrite next_value_lt_ub with (i := Znth j (i :: ls)).
                      eapply eq_ub_bounded_plus.
                      all: try nia; try
                      assumption; auto. }
-                 eapply typed_fa(i :: ls)e_to_digit in H16.
+                 eapply typed_false_to_digit in H15.
                  eassumption.
                  }
              unfold Z_of_char in *.
@@ -805,111 +765,75 @@ Proof.
              (* end of vl = ub && d <= last_digit *)
 
              (* vl > ub && d > ld, out of range *)
-             {  int64_to_Z.
-                assert (bounded (value_until (j + 1) (i :: ls) true) = fa(i :: ls)e) as Bound.
+             { int64_to_Z.
+                assert (bounded (value_until_d (j + 1) (i :: ls)) = false) as Bound.
                { 
                  erewrite next_value_lt_ub.
                  eapply  eq_ub_not_bounded_plus.
                  all:  unfold Z_of_char in *;
                    try eassumption; try nia.
+                 auto.
                } 
-               repeat forward.
-               erewrite ERROR_RANGE_sign_res.
+               forward.
+               forward.
+               erewrite ERROR_RANGE_res.
                simpl.
                entailer!.
-               { autorewrite with sublist in DATA_AT1.
-                 erewrite sepcon_assoc.    
-                 autorewrite with sublist.
-                  (erewrite <- DATA_AT1). 
-                   erewrite sepcon_assoc.    
-                   erewrite <- DATA_AT2.
-                  assert (data_at sh_str tschar (Vbyte i) (Vptr end'_b str_ofs) *
-                          data_at sh_str (tarray tschar (Zlength (i :: ls))) (map Vbyte (i :: ls))
-                                  (Vptr end'_b (Ptrofs.add str_ofs Ptrofs.one)) =
-                          data_at sh_str (tarray tschar (Zlength (i :: ls) + 1))
-                                  (Vbyte i :: map Vbyte (i :: ls))
-                                  (Vptr end'_b str_ofs)) as DATA_AT4.
-                  { erewrite <- split_non_empty_list with ((i :: ls) := i::(i :: ls));
-                      autorewrite with sublist in H1;
-                      autorewrite with sublist;
-                      try reflexivity; try nia. }
-                  erewrite DATA_AT4.
-                 autorewrite with sublist.
-                 entailer!. }
+               erewrite sepcon_assoc.    
+               erewrite <- DATA_AT1. 
+               erewrite <- DATA_AT2.
+               entailer!.
                 all: 
-                 unfold sign_to_bool; try bool_rewrite;
-                 unfold Z_of_char in *; cbn; 
-                 try nia; try eassumption.
-               
+                 unfold Z_of_char in *; autorewrite with sublist; 
+                  try nia; try eassumption.
+                intros.
+                destruct (zeq i0 j).
+                subst. eassumption.
+                eapply H4.
+                nia.
+                rep_omega_setup.
+                nia.
              } (* end of case vl = ub && d > last_digit *)
            } all: try nia.
              (* case vl > ub *) 
              { 
-              lt_ub_to_Z H12.
-              assert (value_until j (i :: ls) true > AbstractSpec.upper_boundary)
+               lt_ub_to_Z H11.
+              assert (value_until_d j (i :: ls) > upper_boundary)
                      by nia.
-              assert (bounded (value_until (j + 1) (i :: ls) true) = fa(i :: ls)e) as Bound.
+              assert (bounded (value_until_d (j + 1) (i :: ls)) = false) as Bound.
               { erewrite next_value_lt_ub.
                 eapply lt_ub_not_bounded_plus.
                 all: unfold Z_of_char in *;
-                  try eassumption; try nia. }                
+                  try eassumption; try nia. auto. }                
                repeat forward.
-              erewrite ERROR_RANGE_sign_res.
+              erewrite ERROR_RANGE_res.
               simpl.
                entailer!.
-               { 
-                erewrite sepcon_assoc.      
-                 erewrite <- DATA_AT1.
-                 erewrite sepcon_assoc.    
-                 erewrite <- DATA_AT2. 
-                  assert (data_at sh_str tschar (Vbyte i) (Vptr end'_b str_ofs) *
-                          data_at sh_str (tarray tschar (Zlength (i :: ls))) (map Vbyte (i :: ls))
-                                  (Vptr end'_b (Ptrofs.add str_ofs Ptrofs.one)) =
-                          data_at sh_str (tarray tschar (Zlength (i :: ls) + 1))
-                                  (Vbyte i :: map Vbyte (i :: ls))
-                                  (Vptr end'_b str_ofs)) as DATA_AT4.
-                  { erewrite <- split_non_empty_list with ((i :: ls) := i::(i :: ls));
-                      autorewrite with sublist in H1;
-                      autorewrite with sublist; 
-                      try reflexivity; try nia. }
-                  erewrite DATA_AT4.
-                 autorewrite with sublist.
-                 entailer!. }
-               all: try unfold sign_to_bool; try bool_rewrite; 
-                 try eassumption; try nia. }                         
-             (* i0 non-digit: extra data *)
-           { eapply typed_fa(i :: ls)e_to_digit in H9.
-             forward.
-             forward.
-             forward.
-             erewrite EXTRA_DATA_sign_res with (j := j).
-                simpl.
-                unfold sign_to_bool.
-                bool_rewrite.
-             entailer!.
-             { erewrite sepcon_assoc.      
+               erewrite sepcon_assoc.      
                erewrite <- DATA_AT1.
-               erewrite sepcon_assoc.    
-               erewrite <- DATA_AT2.
-               assert (data_at sh_str tschar (Vbyte i) (Vptr end'_b str_ofs) *
-                       data_at sh_str (tarray tschar (Zlength (i :: ls))) (map Vbyte (i :: ls))
-                               (Vptr end'_b (Ptrofs.add str_ofs Ptrofs.one)) =
-                       data_at sh_str (tarray tschar (Zlength (i :: ls) + 1))
-                               (Vbyte i :: map Vbyte (i :: ls))
-                               (Vptr end'_b str_ofs)) as DATA_AT4.
-               { erewrite <- split_non_empty_list with ((i :: ls) := i::(i :: ls));
-                   autorewrite with sublist in H1;
-                   autorewrite with sublist;
-                   try reflexivity; try nia. }
-               erewrite DATA_AT4.
-                 autorewrite with sublist.
-                 entailer!. }
-               all: unfold sign_to_bool; try bool_rewrite; try (nia || eassumption); auto.
-             }
+               erewrite <- DATA_AT2. 
+               entailer!. 
+               all: autorewrite with sublist;
+                 try eassumption; try nia.
+               intros.
+               destruct (zeq i0 j).
+               subst. eassumption.
+               eapply H4.
+               nia. }                  
+             (* i0 non-digit: extra data *)
+           { eapply typed_false_to_digit in H8.
+             forward.
+             forward.
+             forward.
+             erewrite EXTRA_DATA_no_sign_res with (j := j).
+                simpl.
+             entailer!.
+             erewrite sepcon_assoc.      
+             erewrite <- DATA_AT1.
+             erewrite <- DATA_AT2.
+             entailer!.
+             all: autorewrite with sublist; try (nia || eassumption); auto. }
   }   
-        
-        ** admit.
-        ** admit.
         * reflexivity.
         * nia.
   - (* str >= end *)

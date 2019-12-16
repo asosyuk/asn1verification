@@ -289,11 +289,11 @@ Proof.
                  PROP(0 <= j <= Zlength ls;
                       Ptrofs.unsigned str_ofs + j + 1 < Ptrofs.modulus;
                       forall (i : Z), 0 <= i < j -> is_digit (Znth i ls) = true;
-                        bounded (value_until j ls true) = true)
+                        bounded (value_until j ls true 0 1) = true)
                  LOCAL(temp _end (Vptr end_b end_ofs); 
                        temp _intp (Vptr intp_b intp_ofs);
                        temp _str (Vptr end'_b i');
-                       temp _value (Vlong (Int64.repr (value_until j ls true)));
+                       temp _value (Vlong (Int64.repr (value_until j ls true 0 1)));
                        temp _sign (Vint (Int.repr ((*(if b then 1 else *) -1)));
                        temp _upper_boundary (Vlong upper_boundary);
                        temp _last_digit_max
@@ -387,12 +387,12 @@ Proof.
                autorewrite with sublist; (reflexivity || auto with zarith || auto).
            ***
              Intros j vl.
-             assert (0 <= value_until j ls true) as NN 
+             assert (0 <= value_until j ls true 0 1) as NN 
                  by (eapply loop_non_neg; nia).
-              assert (bounded (value_until j ls false) = true) as BF
+              assert (bounded (value_until j ls false 0 1) = true) as BF
                       by (eapply bounded_true_to_false;
                  eassumption) .
-               assert (value_until j ls false <= 0) as NNF 
+               assert (value_until j ls false 0 1 <= 0) as NNF 
                  by (eapply loop_neg; nia).
                assert (bounded 0 = true) as B0.
                { unfold bounded.
@@ -400,7 +400,7 @@ Proof.
                  repeat Zbool_to_Prop.
                  cbn.
                  nia. }
-               assert (Int64.min_signed <= value_until j ls true <= Int64.max_signed)
+               assert (Int64.min_signed <= value_until j ls true 0 1 <= Int64.max_signed)
                  as BP by
                (erewrite bounded_bool_to_Prop in H6; eassumption).
              forward.
@@ -608,7 +608,7 @@ autorewrite with  sublist in *.
                  try eassumption; try nia. }
              forward.
              (* show that loop invariant holds after normal  loop body execution *)
-             Exists (j + 1) (value_until (j + 1) ls true).
+             Exists (j + 1) (value_until (j + 1) ls true 0 1).
              entailer!.
              erewrite next_value_lt_ub with (i := Znth j ls).
              repeat split; try nia.
@@ -901,7 +901,7 @@ autorewrite with  sublist in *.
                  all: auto.
                  all: try nia.
                }
-               assert ( 0 <= value_until (j + 1) ls true) as NN1 by (eapply loop_non_neg; nia).
+               assert ( 0 <= value_until (j + 1) ls true 0 1) as NN1 by (eapply loop_non_neg; nia).
 
                forward_if.
 
@@ -909,7 +909,7 @@ autorewrite with  sublist in *.
                {rewrite <- ZN1 in *.
                 rewrite <- ZN in *.
                 eapply typed_true_to_digit in H16.
-                assert (bounded (value_until (j + 1) ls false) = true) 
+                assert (bounded (value_until (j + 1) ls false 0 1) = true) 
                   as Boundf.
                 {  rewrite next_value_lt_ub with (i := Znth j ls).
                    eapply eq_ub_bounded_minus.
@@ -919,7 +919,7 @@ autorewrite with  sublist in *.
                    all: try nia; try
                                    assumption; auto. }
                 
-                assert (bounded (value_until ((j + 1) + 1) ls false) = false) 
+                assert (bounded (value_until ((j + 1) + 1) ls false 0 1) = false) 
                   as BoundF.
                 
                 { 
@@ -1056,7 +1056,7 @@ autorewrite with  sublist in *.
              (* vl > ub && d > ld, out of range *)
              { lt_ub_to_Z H13.
                
-              assert (bounded (value_until (j + 1) ls false) = false) as Bound.
+              assert (bounded (value_until (j + 1) ls false 0 1) = false) as Bound.
                { 
                  erewrite next_value_lt_ub.
                  eapply  eq_ub_not_bounded_minus.
@@ -1103,9 +1103,9 @@ autorewrite with  sublist in *.
              (* case vl > ub *) 
              { 
               lt_ub_to_Z H12.
-              assert (value_until j ls true > AbstractSpec.upper_boundary)
+              assert (value_until j ls true 0 1 > AbstractSpec.upper_boundary)
                      by nia.
-              assert (bounded (value_until (j + 1) ls false) = false) as Bound.
+              assert (bounded (value_until (j + 1) ls false 0 1) = false) as Bound.
               { erewrite next_value_lt_ub.
                 eapply lt_ub_not_bounded_minus.
                 eapply is_digit_to_Z; eassumption.
