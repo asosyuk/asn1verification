@@ -1,6 +1,6 @@
 Require Import Clight.INTEGER. (* Core.Notations. *)
 Require Import Coq.Program.Basics.
- Require Import Core.Core Core.Tactics. (* Core.PtrLemmas. (* Core.Notations. *) *)
+Require Import Core.Core Core.Tactics. (* Core.PtrLemmas. (* Core.Notations. *) *)
 Require Import StructTact.StructTactics.
 Require Import Lists.List.
 Import ListNotations.
@@ -456,8 +456,3 @@ Lemma Clike_corr : forall ls, Z_of_string' ls = Z_of_string_C ls.
         admit.
         admit.
 Admitted.
-
-
-
-
-

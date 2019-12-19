@@ -997,11 +997,13 @@ autorewrite with  sublist in *.
                       try nia.
                     eassumption.
                   }                 
-                  assert (index (Z_of_string_loop ls 0 1 false) = j + 1 + 1) as Index_loop.
+                  assert (AbstractSpec.index (Z_of_string_loop ls 0 1 false) = 
+                          j + 1 + 1) as Index_loop.
                   { eapply ERROR_RANGE_index; try eassumption;
                       try nia.
                   }
-                  assert (index (Z_of_string (i :: ls)) = j + 1 + 1) as Index.
+                  assert (AbstractSpec.index (Z_of_string (i :: ls)) = 
+                          j + 1 + 1) as Index.
                   {  simpl.
                     repeat bool_rewrite.
                     break_match. 
@@ -1022,7 +1024,7 @@ autorewrite with  sublist in *.
                   erewrite DATA_AT4.
                   autorewrite with sublist.
                   entailer!.
-                  autorewrite with sublist; reflexivity.  }                               
+                  autorewrite with sublist; reflexivity.  }
                forward.
                forward.
 

@@ -11,16 +11,14 @@ Lemma sublist_cons : forall A i (ls : list A) j,
     i :: sublist 0 j ls = sublist 0 (j + 1) (i :: ls).
 Proof.
   intros.
-  erewrite semax_lemmas.cons_app.
-  replace (i :: ls) with (app [i] ls).
+  replace (i :: sublist 0 j ls) with ([i] ++ sublist 0 j ls) by reflexivity.
+  replace (i :: ls) with (app [i] ls) by reflexivity.
   (erewrite sublist0_app2;
    autorewrite with sublist in *;
    auto).
-  assert (0 <= Zlength ls) by (eapply Zlength_nonneg).
-  autorewrite with sublist in *.
   nia.
-  reflexivity.
 Qed.
+
 (* Lemmas about bounded *)
 Ltac Zbool_to_Prop := try (rewrite Z.leb_le ||
                            rewrite Z.leb_gt ||
@@ -587,15 +585,13 @@ Proof.
     eapply IHls with (j := j - 1). nia.
     rewrite <-e; simpl. discriminate.
     simpl in IHls. 
-    erewrite semax_lemmas.cons_app.
-    replace (a :: ls) with (app [a] ls).
+    replace (a :: sublist 0 (j - 1) ls) with ([a] ++ sublist 0 (j - 1) ls) 
+      by reflexivity.
+    replace (a :: ls) with (app [a] ls) by reflexivity.
     erewrite sublist0_app2.
     reflexivity.
     autorewrite with sublist in *.
-    assert (0 <= Zlength ls) by (eapply Zlength_nonneg).   
     nia.
-    erewrite <- semax_lemmas.cons_app.
-    auto.
 Qed.
 
 Lemma ERROR_RANGE_index : forall ls v i j b,
@@ -1133,17 +1129,15 @@ Proof.
     eapply IHls with (j := j - 1). nia.
     rewrite <-e; simpl. discriminate.
     simpl in IHls. 
-    erewrite semax_lemmas.cons_app.
-    replace (a :: ls) with (app [a] ls).
+    replace (a :: sublist 0 (j - 1) ls) with ([a] ++ sublist 0 (j - 1) ls) 
+      by reflexivity.
+    replace (a :: ls) with (app [a] ls) by reflexivity.
     erewrite sublist0_app2.
     reflexivity.
     autorewrite with sublist in *.
-    assert (0 <= Zlength ls) by (eapply Zlength_nonneg).   
     nia.
-    erewrite <- semax_lemmas.cons_app.
-    auto.
     assert (j = 0) by nia.
-    subst; simpl.
+    subst; cbn.
     congruence.
 Qed.
 
