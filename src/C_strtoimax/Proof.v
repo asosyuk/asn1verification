@@ -191,9 +191,10 @@ Proof.
                    nia).
           rewrite E.
           unfold sep_precondition. 
-          entailer!.   
+          replace (45 =? 45) with (true) by reflexivity.
+          entailer!.
           apply Zgt_is_gt_bool in IFCON2.
-          admit. (*nia. TODO find where FF comes from *)
+          nia.
       * (* if *str = '+' *)
         repeat forward.
         forward_if.
@@ -258,11 +259,12 @@ Proof.
         rewrite E.
         subst.
          unfold sep_precondition.
+         replace (43 =? 45) with (false) by reflexivity.
+         replace (43 =? 43) with (true) by reflexivity.
          entailer!.
-         admit. (* One more FF *)
       * (* default case *) 
         forward.
-        (* replace (Byte.signed i =? 45) with false.
+        replace (Byte.signed i =? 45) with false.
         replace (Byte.signed i =? 43) with false.
         unfold sep_precondition. entailer!.
         assert ((Int.repr (Byte.signed i)) <> (Int.repr 43)) as K.
@@ -272,16 +274,13 @@ Proof.
         eapply repr_neq_e in K.
         symmetry.
         Zbool_to_Prop.
-        nia.
-         assert ((Int.repr (Byte.signed i)) <> (Int.repr 45)).
+        assumption.
+        assert ((Int.repr (Byte.signed i)) <> (Int.repr 45)).
         intuition.
-        rewrite H2 in *.
-        intuition.
-         eapply repr_neq_e in H2.
-         symmetry.
-         Zbool_to_Prop.
-         nia. *)
-        admit. (* One more FF *)
+        eapply repr_neq_e in H2.
+        symmetry.
+        Zbool_to_Prop.
+        assumption.
       * (* Loop *)
         repeat break_if;
           unfold sep_precondition.
@@ -2739,4 +2738,4 @@ autorewrite with  sublist in *.
       try apply Z.ltb_lt in IFCON.
       rewrite EQB in H; apply typed_false_ptr_ge in H.
       rewrite Z.gtb_lt in H. lia.
-Admitted.
+Qed.
