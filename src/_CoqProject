@@ -1,1 +1,1 @@
--R . ASN1V -Q /home/yarik/work/task2/VST VST -Q /home/yarik/work/task2/VST/compcert compcert
+-R . ASN1V -Q ../../VST VST -Q ../../VST/compcert compcert
