@@ -1,123 +1,93 @@
-Require Import Nat List ZArith Decimal DecimalNat List Lia String.
+Require Import Nat List ZArith Decimal DecimalNat List Lia.
 Import ListNotations.
-Open Scope Z.
-
-Section Tables.
 
 Definition bit := bool.
 
-Inductive ber_input :=
-  | prim_input : nat -> nat -> list bit -> ber_input
-  | const_input : nat -> nat -> list ber_input -> ber_input.
-  
-Check (const_input 16 3 [prim_input 1 1 [true]]).
+Inductive bit_word : nat -> Type  := 
+  | empty : bit_word O
+  | w n : bool -> bit_word n -> bit_word (S n).
 
-Inductive asn_value := OK | ERROR.
+Definition octet := bit_word 8.
+ 
+Inductive asn_value := OK | MORE | ERROR.
 
-(* read until the end of the data, otherwise error *)
-Fixpoint primitive_decode (len : nat) (input : list bit) :=
-  match len, input with
-  | O, _ => OK
-  | S n, [] => ERROR
-  | S n, hd :: tl => primitive_decode n tl
-  end.
+Parameter bit_word_to_nat : forall n, bit_word n -> nat.
 
-Fixpoint decode (input : ber_input) :=
-  match input with
-  | prim_input tag len ls => primitive_decode len ls
-  | const_input tag len ls => match ls with 
-                             | [] => OK
-                             | hd :: tl => decode hd 
-                             end
-  end.
-
-Parameter context : Type.
-
-Definition tag := Z.
-
-Record seq_specifics := {
-                         ctx : context ; 
-                         tag_to_el : tag -> nat  
-                       }.
+Section Tables.
 
 Inductive TYPE_descriptor :=
-  { name : string ;
-    tags : list Z ;
-    elements : list TYPE_member ;
-    decode : list bit -> nat -> asn_value ;
-    seq_specs : list seq_specifics
-  }
-    with TYPE_member :=
-           { mem_tag : Z*Z ; (* tag and flag: implicit *)
-             type : TYPE_descriptor ;
-           }.
+  { id : nat ;
+    primitive : bool ;
+    tags : list nat ;
+    elements : list TYPE_descriptor ;
+    decoder : nat -> list bit -> asn_value ;
+  }.
 
 (* Primitive types *)
 
-                               
-Definition BOOLEAN := {| name := "BOOLEAN";
+(* read until the end of the data, otherwise MORE error *)
+Definition primitive_decode (len : nat) (input : list bit) :=
+  if len <=? length input then OK else MORE.
+ 
+               
+Definition BOOLEAN := {| id := 1;
+                         primitive := true;
                          tags := [1];
                          elements := [];
-                         decode := primitive_decode;
-                         seq_specs := []
+                         decoder := primitive_decode;
                       |}.
 
-Definition INTEGER := {| name := "INTEGER";
+Definition INTEGER := {| id := 2;
+                         primitive := true;
                          tags := [2];
                          elements := [];
-                         decode := primitive_decode;
-                         seq_specs := []
+                         decoder := primitive_decode;
                       |}.
 
-(* Constructed types *)
-  
+Parameter bits_to_nat : list bit -> nat.
 
-Fixpoint seq_decode (input : list bit) (DEF : TYPE_descriptor) (len : nat) : asn_value 
-  :=  match elements DEF with
-      | [] => OK
-      | hd :: tl => (decode (type hd)) input len 
-      end. 
+(* Check if tag is among allowed tags for this structure *)
+Definition check_tag (input : list bit) (DEF : TYPE_descriptor) :=
+  existsb (fun z => z =? (bits_to_nat input)) (tags DEF).
 
 End Tables.
 
-(*
-Set Implicit Arguments.
+Section PRIM_automaton.
 
-Record fsa (S A : Type) := FSA {
-                               initial : S;
-                               next : S -> A -> S -> Prop
-                             }.
+  Set Implicit Arguments.
 
-Inductive fsa_run {S A : Type } (m : fsa S A) : list A -> S -> Prop :=
-| step : forall a s, m.(next) m.(initial) a s -> fsa_run m [a] s
-| trans : forall s1 a s2 l rs, m.(next) s1 a s2 -> fsa_run m l rs -> fsa_run m (a::l) rs.
-
-Section BOOL_automaton.
-
-  Inductive BOOL_state :=
+  Inductive PRIM_state :=
   | INIT
-  | LEN
-  | FALSE (z : Z)
-  | TRUE (z : Z).
+  | TAG
+  | LEN (n : nat) (* store length *)
+  | DEC (l : nat) (v : bit_word l). (* store value *)
   
   Reserved Notation "st1 -[ c ]-> st2" (at level 50).
   
-  Inductive BOOL_next : BOOL_state -> Z -> BOOL_state -> Prop :=
-  | read_tag :
-      INIT -[1]-> LEN
-  | read_length l:
-      LEN -[l]-> FALSE l
-  | read_zero l :
-      l > 0 ->
-      FALSE l -[0]-> FALSE (l-1)
-  | read_nonzero l k :
-      l > 0 ->
-      k > 0 ->
-      FALSE l -[k]-> TRUE (l-1)
-                                  
-  where "st1 -[ c ]-> st2" := (BOOL_next st1 c st2).
+  Inductive PRIM_next : PRIM_state -> forall n, bit_word n -> PRIM_state -> Prop :=
+  | read_tag : forall t : bit_word 8,
+      INIT -[ t ]-> TAG
+  | read_length : forall l : bit_word 8,
+      TAG -[ l ]-> LEN (bit_word_to_nat 8 l)
+  | read_value : forall l (v : bit_word l), LEN l -[ v ]-> DEC v                    
+
+  where "st1 -[ c ]-> st2" := (PRIM_next st1 c st2).
+
+  Parameter bit_concat : forall {n} {m}, bit_word n -> bit_word m -> bit_word (n + m).
+
+  Notation "a ∘ b" := (bit_concat a b) (at level 25).
+
+  Reserved Notation "st1 -[ c ]*-> st2" (at level 50).
+
+  Inductive PRIM_star : PRIM_state -> forall n, bit_word n -> PRIM_state -> Prop :=
+  | base :  forall t : bit_word 8, INIT -[ t ]*-> TAG
+  | step :  forall s1 s2 s3
+              n1 (w1 : bit_word n1) 
+              n2 (w2 : bit_word n2),
+      s1 -[ w1 ]*-> s2 -> s2 -[ w2 ]-> s3 -> s1 -[ w1 ∘ w2 ]*-> s3
+ 
+ where "st1 -[ c ]*-> st2" := (PRIM_star st1 c st2).
     
-  Definition BOOL_fsa := {| initial := INIT ;
-                            next := BOOL_next |}.
-End BOOL_automaton.
-*)
+End PRIM_automaton.
+
+
