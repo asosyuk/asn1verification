@@ -3,42 +3,80 @@ Import ListNotations.
 
 From compcert Require Import Integers.
 
-  Open Scope Z.
+Open Scope Z.
 
-Inductive asn_value := OK | ERROR.
+Inductive asn_value := OK | ERROR | MORE.
 
-Parameter byte_to_nat : byte -> nat.
-
-Section Tables.
+Record asn_res := RES { val : asn_value ;
+                        rest : list Z }.
 
 Inductive TYPE_descriptor :=
-  { tags : list Z ;
-    elements : list TYPE_descriptor ;
-  }.
+  DEF { tags : list Z ;
+        elements : list TYPE_descriptor 
+      }.
 
-(* Primitive types *)
+Section PrimitiveDecoders.
 
-(* read until the end of the data *)
-Definition primitive_decoder (input : list Z) := true.
- 
-Open Scope Z.
-               
-Definition BOOLEAN := {| tags := [1];
-                         elements := [] |}.
+(* Read data until the end *)
+Definition primitive_decoder (len : Z) (ls : list Z) :=
+    if len <=? Zlength ls
+    then RES OK (skipn (Z.to_nat len) ls)
+    else RES MORE ls.  
+  
+Definition BOOLEAN := DEF [1] [].
+Definition INTEGER := DEF [2] [].
 
-Definition INTEGER := {| tags := [2];
-                         elements := [] |}.
+End PrimitiveDecoders.
 
-End Tables.
+Section SequenceDecoder.
+
+  (* Check if tag is among the list of tags *)
+  Definition check_tag t ts := if existsb (fun l => l =? t) ts
+                               then true
+                               else false.
+     
+  Fixpoint seq_decoder (X : TYPE_descriptor) (ls : list Z)  :=
+    match ls with
+    | [] => RES OK ls
+    | [t] => RES MORE ls       
+    | t :: l :: bs =>          
+      if check_tag t (tags X)
+        then
+          match elements X with 
+          | [] => primitive_decoder l bs 
+          | XS => (fix elem_seq_decoder XS bs :=
+                        match XS with
+                        | [] => RES OK bs
+                        | X :: XS =>
+                          match seq_decoder X bs with
+                            | RES OK r => elem_seq_decoder XS r 
+                            | r => r
+                          end
+                        end) XS bs
+          end
+        else RES ERROR (l::bs)
+    end.
+
+  Definition n1 := DEF [2] [].
+  Definition n2 := DEF [2] [].
+  Definition b1 := DEF [1] [].  
+  Definition Sb := DEF [30] [b1].
+  Definition Snb := DEF [30] [n1; n2; Sb].
+
+  (* for now ignore seq length *)
+  Compute (seq_decoder n1 [3;2;1;1;1]).
+  Compute (seq_decoder Sb [30;1;2;1;1;2]).
+  Compute (seq_decoder Snb [30;6;2;1;1;2;2;1;3;30;5;1;1;1]).
+
+End SequenceDecoder.
+
 
 Section PRIM_automaton.
 
   Set Implicit Arguments.
 
-  Record fsa (S A : Type) := FSA {
-                                 initial : S;
-                                 next : S -> A -> S -> Prop
-                               }.
+  Record fsa (S A : Type) := FSA { initial : S;
+                                   next : S -> A -> S -> Prop }.
 
   Inductive fsa_run {S A : Type } (m : fsa S A) : list A -> S -> Prop :=
   | step : forall a s, next m (initial m) a s -> fsa_run m [a] s
@@ -48,7 +86,7 @@ Section PRIM_automaton.
   | INIT (X : TYPE_descriptor)
   | TAG
   | DEC  (l : Z) (v : list Z)
-  | RES (r : bool).
+  | OUT (r : asn_value).
   
   Reserved Notation "st1 -[ c ]-> st2" (at level 50).
   
@@ -57,17 +95,15 @@ Section PRIM_automaton.
       In t (tags X) ->
       INIT X -[ t ]-> TAG 
   | read_prim_length l : 
-      (* primitive X = true -> *)
       TAG  -[ l ]-> DEC l []
   | read_value l vl v : 
       1 < l ->
       DEC l vl -[ v ]-> DEC (l-1) (v::vl) 
   | call_prim_decoder vl v: 
-      DEC 1 vl -[ v ]-> RES (primitive_decoder (v::vl))   
+      DEC 1 vl -[ v ]-> OUT OK   
   | read_constr_length l X Y n: 
       (n < length (elements X))%nat ->
       nth n%nat (elements X) X = Y ->
-      (* primitive X = false -> *)
       TAG -[ l ]-> INIT Y 
 
   where "st1 -[ c ]-> st2" := (PRIM_next st1 c st2).
@@ -79,42 +115,5 @@ Section PRIM_automaton.
      
 End PRIM_automaton.
 
-Section ExampleTYPE.
 
-  Definition n1 := {| tags := [2]; elements := [] |}.
-  Definition n2 := {| tags := [2]; elements := [] |}.
-  Definition b1 := {| tags := [1]; elements := [] |}.  
-  Definition Sb := {| tags := [30]; elements := [b1] |}.                     
-  Definition Snb := {| tags := [30]; elements := [n1; n2; Sb] |}.
-
-  Definition check_tag t ts := if existsb (fun l => l =? t) ts
-                                then true
-                                else false.
-  
-
-  Fixpoint seq_decoder (X : TYPE_descriptor) (ls : list Z) :=
-    match ls with
-    | [] => true 
-    | b :: bs =>          
-      if check_tag b (tags X)
-        then
-          match elements X with
-          | [] => primitive_decoder bs 
-          | es =>
-            if forallb (fun x => x)
-                       ((fix list_seq_decoder XS :=
-                           match XS with
-                           | [] => []
-                           | X :: XS => (seq_decoder X bs) :: list_seq_decoder XS
-                           end) es)
-            then true
-            else false
-          end
-        else false
-    end.
-          
-  Compute (seq_decoder Sb [30;1]).
-  Compute (seq_decoder Snb [30;2;30;1]).
-
-  (* problem with 1st primitive then constructed: need to output rest of the list *)
   
