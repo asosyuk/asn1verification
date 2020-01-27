@@ -1,18 +1,49 @@
-\documentclass[12pt,usenames,dvipsnames]{paper}
 
-\title{}
-\subtitle{}
-% \date{\today}
-\date{\date{}}
+\documentclass{article}
+
+\usepackage[usenames,dvipsnames]{xcolor}
 
 
-% \titlegraphic{\hfill\includegraphics[height=1.5cm]{logo.pdf}}
+\usepackage{listings}
+\usepackage{multicol}
+
+
+\lstset{
+    frame=tb, % draw a frame at the top and bottom of the code block
+    tabsize=4, % tab space width
+    showstringspaces=false, % don't mark spaces in strings
+    numbers=left, % display line numbers on the left
+    commentstyle=\color{green}, % comment color
+    keywordstyle=\color{blue}, % keyword color
+    stringstyle=\color{red}, % string color
+    identifierstyle=\color{grey},
+}
+
+
+\definecolor{diffstart}{named}{gray}
+\definecolor{diffincl}{named}{OliveGreen}
+\definecolor{diffrem}{named}{red}
+
+\lstdefinelanguage{diff}{
+    morecomment=[f][\color{diffstart}]{@@},
+    morecomment=[f][\color{diffincl}]{+},
+    morecomment=[f][\color{diffrem}]{-},
+  }
+
+\input{listings-coq}
 
 \begin{document}
 
+\title{Verifying existing ASN.1 compiler}
+
+\author{Nika Pona, Vadim Zaliva \\
+        Digamma.ai}
+
 \maketitle
 
-\section{Outline}
+\begin{abstract}
+
+\end{abstract}
 
 \begin{enumerate}
 
@@ -40,6 +71,150 @@
 
 \end{enumerate}
 
+\section{Veryfing a function from \texttt{asn1c} compiler}
+
+  At \url{Digamma.ai} we are working on formal verification of existing {\bf imperative} programs using Coq. We took a function \texttt{asn\_strtoimax\_lim} from \texttt{asn1c} compiler to test several approaches on a simple real-life example. The function is relatively simple, but at the same time uses many features of C that make verifying imperative programs challenging. XER decoding functions for INTEGER, OBJECT-IDENTIFIER and RELATIVE-OID types critically depend on this function. XER decoding is pretty straightforward\footnote{INTEGERs are encoded in text as their decimal representation, OBJECT IDENTIFIERs are encoded as decimal numbers in the order of the object identifier's components.}, however, we found that it is compromised by three bugs in this function.
+    Informal specification from the comments: 
+  \begin{quote}
+
+ { \it Parse the number in the given string until the given *end position,
+ returning the position after the last parsed character back using the
+ same (*end) pointer.
+ WARNING: This behavior is different from the standard strtol/strtoimax(3). }
+\end{quote}
+  
+  {\fontsize{8}{4}\selectfont  \lstinputlisting[language=C]{asn_strtoimax_lim_old.c}}
+  \skip
+  
+\paragraph{Negative range bug}
+
+When we go beyond allowed \textit{int} range, a wrong result is given for some inputs\footnote{Assume we are working on a 8-bit system and maximal signed int \texttt{MAX\_INT} is 127}:
+
+\skip
+\begin{tabular}{|l|l|}
+ \hline
+input & \texttt{-128} \\
+intmax & \texttt{\ 127}\\
+upper boundary& \texttt{\ 12} \\
+last digit max& \texttt{\ 7}\\
+return & \color{green}\texttt{\ ASN\_STRTOX\_ERROR\_RANGE}\\
+\hline 
+input & \texttt{-1281} \\
+intmax & \texttt{\ 127}\\
+upper boundary& \texttt{\ 12} \\
+last digit max& \texttt{\ 7}\\
+return & \color{red}\texttt{\ -127, ASN\_STRTOX\_OK}\\
+\hline
+    \end{tabular}
+
+ \skip
+ 
+This happens whenever the input string represents a number smaller than \texttt{MIN\_INT}, due to the fact that absolute value of \texttt{MIN\_INT} is greater than \texttt{MAX\_INT}, thus negative number cannot be treated as $\mathrm{value}\times\mathrm{sign}$ when $\mathrm{value}$ is represented as \textit{int}. The bug  was filed and promptly fixed by developers:
+
+   
+  
+  {\fontsize{8}{4}\selectfont \lstinputlisting[language=diff]{bug1fix.diff}}
+
+  
+  \paragraph{Memory store bug}
+  We uncovered a curious bug in the \emph{fixed} version. Note that we store \texttt{str} before reading from \texttt{str}: \newpage
+  
+     \begin{lstlisting}[language=C]
+  if(str < *end) {
+    *end = str;
+    if(*str >= 0x30 && *str <= 0x39){
+      return ASN_STRTOX_ERROR_RANGE;
+    } else {
+      *intp = sign * value;
+      return ASN_STRTOX_EXTRA_DATA;
+    }
+  }
+  \end{lstlisting}
+  
+     We can construct an example where we get wrong results by overwriting data in \texttt{str}. Let minimal signed int \texttt{MIN\_INT} = $-4775808$ and \texttt{*str} = {\color{red}2d 34 37 37 35 38 30 31 31 31} (stands for ``-477580111''). 
+
+\begin{multicols}{2}
+  
+    {\bf Scenario 1}:
+
+    Assume that \texttt{*end = str + 9} and
+
+    \texttt{end} $\geq$ $\texttt{str + 9}$.
+
+    {\color{red}2d 34 37 37 35 38 30 {\color{blue}$\overbrace{31}^{\texttt{str + 7}}$} 31 31
+
+      $\ldots$ $\overbrace{\texttt{X}}^{\texttt{end}}$}
+
+    Then at \texttt{str + 7} we store
+
+    \texttt{*end = (str + 7)}
+
+     Let \texttt{str + 7 = 21 21 21 26} 
+
+     {\color{red}2d 34 37 37 35 38 30 31 {\color{blue} $\overbrace{31}^{\texttt{str + 8}}$} 31
+
+       $\ldots$ $\overbrace{\texttt{21 21 21 26}}^{\texttt{end}}$}
+     
+     
+     And since at \texttt{str + 8} we read `1'
+     
+
+     
+     The output is  {\color{green}\texttt{ASN\_ERROR\_RANGE}}
+     \columnbreak
+     
+    {\bf Scenario 2}:
+
+    Assume that \texttt{*end = str + 9} and
+
+    \texttt{end = str + 7}:
+    
+    {\color{red}2d 34 37 37 35 38 {\color{blue} $\overbrace{30 \; 31 \; 31 \; 31}^{\texttt{end}}$}}
+    
+
+    Then at \texttt{str + 7} we store
+
+    \texttt{*end = str + 7}
+
+     Let \texttt{str + 7 = 21 21 21 26} 
+
+   
+    {\color{red}2d 34 37 37 35 38 30 {\color{blue}$\overbrace{21 \; 21 \; 21 \; 26}^{\texttt{end}}$}}
+
+    (stands for $``-477580!!!\&''$)
+
+    And since at \texttt{str + 8} we read `!' 
+
+    The output is {\color{red}\texttt{ASN\_EXTRA\_DATA}}
+    \end{multicols}
+    
+
+Hence, when the value of the \texttt{end} pointer is treated as a part of the input data, there is a bug where the resulting error value could be incorrect. On the other hand, it is hard to think of a legitimate use-case where the pointer would be a part the input data. Under such interpretation, there is an implicit pre-condition in the specification, mandating that:
+
+{\small
+\texttt{(*end < end) || (end + sizeof(const char *) <= str)}}
+
+
+\paragraph{Specification ``bug''}
+After addressing the two bugs we discovered we were able to successfully verify that the function finally corresponds to the specification we wrote for. However, it was noticed the following behavior:
+
+For input \texttt{``a''} it stores value 0 and returns {\color{green}\texttt{ASN\_STRTOX\_EXTRA\_DATA}} (same behaviour as on input \texttt{``0a''}), which could be unintended by authors. \\
+
+This code was part of the library for 15 years. The library is covered by extensive unit and randomized tests. It is used in production by multiple users. Yet, the vulnerabilities are there and pose potential problems.
+
+\section{Our approach}
+
+\paragraph{Machine arithmetic} The first bug is related to data type ranges and modulo integer arithmetic. These sort of problems are fairly common and require careful coding to be avoided. Formal verification enforces a strict mathematical model of all computer arithmetic and invariably exposes all such bugs. We use CompCert's \texttt{Integer} library that provides theory of 8-, 16-, 32- and 64-bit integers and 32- and 64-bit pointers. It has some basic lemmas, however, doing proofs by hand is quite tedious, however automation can be easily achieved here for programs that allow no overflow, since then one can use tactics for solving comparisons on Z (if overflow is allowed, it is an NP-complete problem and human input may be needed). VST provides tactics for automating such proofs. Here we can hope to achieve almost complete automation.
+
+\paragraph{Memory safety} The second problem was related to \textit{pointer aliasing}. These problems are not immediately obvious because C language does not allow us to enforce any memory aliasing restrictions (unlike, say Rust). In formal verification, there is a rigorous model to analyze such kind of problems called \textit{separation logic}. VST provides some automation related to this, however, it is not sufficient, but one can build custom libraries and if restricted to specific domain separation logic proofs can be fully automated.
+
+    \paragraph{Specification} The third issue shows us that your formal verification is only as good as your specification. In this domain we not only have a typical problem of how to validate specification, but also: what kind of specifications make proofs simpler. VST allows to completely separate functional spec from memory spec. However, we noticed that using a C-like spec significantly reduces proof effort and pushes it to the functional level. 
+\end{enumerate}
+
+\subsection{Operational semantics proof}
+
+\subsection{VST proof} 
+
 \section{Intro}
   ASN.1 intro and simple example 
 
@@ -60,13 +235,7 @@ It is also noted that Galois did some work on ASN.1 verification in the past (ci
 \section{Our approach}
   Our technology and approach will provide an entirely new level of software and protocol verification employing recently-emergent provable full-functional correctness methods.
 Systems and methods to date either (a) automatically tested but not formally verified (b) use verification approach which rely on automatic extraction from executable specifications (for example involving network stack synthesis [31], optimizing compilers [3], cryptographic libraries [6], and encoder/decoders [32]), or (c) apply a form of formal verification which only proves partial correctness properties (partial verification of NAT stack only proving parts of DPDK are specification compliant [33], partial verification of Linux kernel TCP implementation with 55\% line coverage and 92\% protocol coverage [34]). Consequently, (a) and (c) do not provide sufficient correctness guarantees, while (c) is often impractical due to poor performance and compatibility limitations. In contrast, we pursue a far deeper and comprehensive verification approach to performance and portability and seek to prove actual industrial-level C-code implementation.
-  \subsection{Veryfing a function of asn1c: strtoimax}
-\begin{itemize}
-    \item Example of strtoimax of asn1c
-  \item Operational semantics proof (CompCert, C semantics)
-  \item VST proof 
-  \item Lessons learned
-  \end{itemize}
+  
 \subsection{Future work}
   Formalize the X.509 part of the ASN.1 standard.  
    
