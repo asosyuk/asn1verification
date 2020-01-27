@@ -58,6 +58,7 @@
   \item Extraction to C, partial correctness (Everparse, Galois)
    \item Verifying existing C code vs extraction
   \end{itemize}
+  \item asn1c compiler in a nutshell
   \item Example of strtoimax of asn1c
 \begin{itemize}
 \item Bugs discovered
@@ -241,19 +242,55 @@ This code was part of the library for 15 years. The library is covered by extens
 \section{Our approach}
 
 
-\paragraph{Machine arithmetic} The first bug is related to data type ranges and modulo integer arithmetic. These sort of problems are fairly common and require careful coding to be avoided. Formal verification enforces a strict mathematical model of all computer arithmetic and invariably exposes all such bugs. We use CompCert's \texttt{Integer} library that provides theory of 8-, 16-, 32- and 64-bit integers and 32- and 64-bit pointers. It has some basic lemmas, however, doing proofs by hand is quite tedious, however automation can be achieved here for programs that allow no overflow, since then one can use \texttt{Micromega}\footnote{\url{https://coq.inria.fr/refman/addendum/micromega.html#micromega-tactics-for-solving-arithmetic-goals-over-ordered-rings}} tactics for automatically solving comparisons on Z (if overflow is allowed, it is an NP-complete problem and human input may be needed: decidability of difference constraints for modular arithmetic (and hence machine integer arithmetic) is NP-complete, by simple reduction from 3-coloring\cite{PointerConstraintsNP}, whereas the same task for full Z is linear in number of variables and constraints).  
+\subsection{Machine arithmetic}
+
+The first bug is related to data type ranges and modulo integer arithmetic. These sort of problems are fairly common and require careful coding to be avoided. Formal verification enforces a strict mathematical model of all computer arithmetic and invariably exposes all such bugs. We use CompCert's \texttt{Integer} library that provides theory of 8-, 16-, 32- and 64-bit integers and 32- and 64-bit pointers. It has some basic lemmas, however, doing proofs by hand is quite tedious, however automation can be achieved here for programs that allow no overflow, since then one can use \texttt{Micromega}\footnote{\url{https://coq.inria.fr/refman/addendum/micromega.html#micromega-tactics-for-solving-arithmetic-goals-over-ordered-rings}} tactics for automatically solving comparisons on Z (if overflow is allowed, it is an NP-complete problem and human input may be needed: decidability of difference constraints for modular arithmetic (and hence machine integer arithmetic) is NP-complete, by simple reduction from 3-coloring\cite{PointerConstraintsNP}, whereas the same task for full Z is linear in number of variables and constraints).  
 
 
-\paragraph{Memory safety} The second problem was related to \textit{pointer aliasing}. These problems are not immediately obvious because C language does not allow us to enforce any memory aliasing restrictions (unlike, say Rust). In formal verification, there is a rigorous model to analyze such kind of problems called \textit{separation logic}. VST provides some automation related to this, however, it is not sufficient, but one can build custom libraries and if restricted to specific domain separation logic proofs can be fully automated. VST supports (undecidable) expressive dependently typed higher-order logic. The built-in tactics can solve simple goals, but much manual proof effort is required to transform the goals. The VST-floyd is based on databases of hints and separation logic lemmmas and tries to apply them in a smart way. We conjecture that the full force of separation logic is unnecessary in most cases and we could restrict ourselves to tractable fragments of separation logic, for which decision procedures has been already implemented within SMT solvers. The latter can be integrated into Coq proofs using SMTCoq\footnote{\url{https://smtcoq.github.io/}}.
+\subsection{Separation Logic}
 
-\paragraph{Specification} The third issue shows us that your formal verification is only as good as your specification. In this domain we not only have a typical problem of how to validate specification, but also: what kind of specifications make proofs simpler. VST allows to completely separate functional spec from memory spec. However, we noticed that using a C-like spec significantly reduces proof effort and pushes it to the functional level. We experimented with two approaches. In Op. semantics proof we used a Coq abstraction of C function and used it as an intermediate specification in the proof. In VST proof we used functional spec written independently from the Coq and used it in the proof of C function correctness directly. This required many lemmas to connect functional spec to C code and complicated the loop invariant. It seems more effective to separate functional aspect of the proof from C-proof to allow for more automation in the proof related to C and then prove the C-like function correctness as a typical functional correctness proof.
+The second problem was related to \textit{pointer aliasing}. These problems are not immediately obvious because C language does not allow us to enforce any memory aliasing restrictions (unlike, say Rust). In formal verification, there is a rigorous model to analyze such kind of problems called \textit{separation logic}. VST provides some automation related to this, however, it is not sufficient, but one can build custom libraries and if restricted to specific domain separation logic proofs can be fully automated. VST supports (undecidable) expressive dependently typed higher-order logic. The built-in tactics can solve simple goals, but much manual proof effort is required to transform the goals. The VST-floyd is based on databases of hints and separation logic lemmmas and tries to apply them in a smart way. We conjecture that the full force of separation logic is unnecessary in most cases and we could restrict ourselves to tractable fragments of separation logic, for which decision procedures has been already implemented within SMT solvers. The latter can be integrated into Coq proofs using SMTCoq\footnote{\url{https://smtcoq.github.io/}}.
 
+\subsection{Specification}
 
-   
+The third issue shows us that your formal verification is only as good as your specification. In this domain we not only have a typical problem of how to validate specification, but also: what kind of specifications make proofs simpler. VST allows to completely separate functional spec from memory spec. However, we noticed that using a C-like spec significantly reduces proof effort and pushes it to the functional level. We experimented with two approaches. In operational semantics proof we used a Coq abstraction of C function and used it as an intermediate specification in the proof. In VST proof we used functional spec written independently from the Coq and used it in the proof of C function correctness directly. This required many lemmas to connect functional spec to C code and complicated the loop invariant. It seems more effective to separate functional aspect of the proof from C-proof to allow for more automation in the proof related to C and then prove the C-like function correctness as a typical functional correctness proof. Moreover, this way we can extract a functional parser and test it.
 
+A nice thing about \texttt{asn1c} compiler is its modular structure, so we can proceed with verification in a modular way and exploit this structure in the proof. For each constructed type its parser will correspond to calling its elements' parsers in a certain order. Hence, we can represent parsers as certain finite state machines that use information provided by the ASN.1 schema to parse the binary input. Alternatively, parsers could be represented using parser combinators mentioned earlier. Decoder functions produced by \texttt{asn1c} compiler use as input a representation of ASN.1 schema, which in Coq we can formalize as a tree.
 
+ \begin{lstlisting}[language=Coq]
+Inductive TYPE_descriptor :=
+  DEF { tags : list Z ;
+        elements : list TYPE_descriptor 
+      }.
+ \end{lstlisting}
 
+Then a sequence decoder for example will traverse the tree and apply primitive decoders, we can represent it as function that uses nested recursion (as it is implemented in the asn1c code)
+ 
+ \begin{lstlisting}[language=Coq]
+ Fixpoint seq_decoder (X : TYPE_descriptor) (ls : list byte)  :=
+    match ls with
+    | [] =>  OK ls
+    | [t] => MORE ls       
+    | t :: l :: bs =>          
+      if check_tag t (tags X)
+        then
+          match elements X with 
+          | [] => primitive_decoder l bs 
+          | XS => (fix elem_seq_decoder XS bs :=
+                        match XS with
+                        | [] => OK bs
+                        | X :: XS =>
+                          match seq_decoder X bs with
+                            | OK r => elem_seq_decoder XS r 
+                            | r => r
+                          end
+                        end) XS bs
+          end
+        else ERROR (l::bs)
+        end.
+ \end{lstlisting}
 
+ or as a FSM (example) or as sequence combinator (example) constructed from the given \texttt{TYPE\_descriptor}. 
 
 \bibliography{paper}
   \bibliographystyle{apalike}
