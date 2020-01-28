@@ -71,7 +71,21 @@
 \end{abstract}
 
 \section{Intro}
- ASN.1 intro and simple example 
+ ASN.1(Abstract Syntax Notation One) is a standard interface description language for defining data structures that can be serialized and deserialized in a cross-platform way, both human-readable and machine-readable. It includes wide variety of basic data types and has many options for extensibility, as well as built-in support for constraints on values and size. It is used in a very diverse applications such as parcel tracking, power distribution and even biomedicine. It's important to note that ASN.1 is a data type declaration notation that does not define how to manipulate a varibale of such type.
+
+ This is a simple example of ASN.1 module defining the messages(data structures) of dummy Foo Protocol:
+ \begin{lstlisting}[language=C]
+  FooProtocol DEFINITIONS ::= BEGIN
+    FooQuestion ::= SEQUENCE {
+      someNumber INTEGER,
+      question IA5String
+    }
+    
+    FooAnswer ::= SEQUENCE {
+      someOtherNumber INTEGER,
+      answer BOOLEAN
+    }
+  \end{lstlisting}
 
  The Computer Vulnerabilities and Exposures (CVE) database [7a] lists critical ASN.1-related bugs found each year in the existing systems, and there have already been noteworthy exposures [8] that although not as dire to security as first feared [9] clearly spell out a first awareness of the vast risk and exposure. We analyzed the last 4 years of ASN.1-related issues reported in Computer Vulnerabilities and Exposures (CVE) database [7b]. Among vulnerabilities studied were CVEs for various software and hardware products and vendors, including Apple, axTLS, Botan, Bounty Castle, librcrypto++, libtasn, LibTomCrypt, Linux Kernel, MatrixSSL, Mozilla NSS (Firefox), Objective Systems, OpenSSL, PolarSSL, RSA BSAFE, Samba, Samsung, Snapdragon, strongSwan, and Wireshark. It was found that 39 out of 52 problems analyzed were related to memory safety, 6 related to stack and heap bounds checking, and 3 related to issues caused by applications accepting not well-formed ASN.1 input. Having proved just six formal properties would have prevented 49 out of 52 vulnerabilities, that is, more than 90\% of reported vulnerabilities.
 
