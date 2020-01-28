@@ -1,12 +1,35 @@
+\PassOptionsToPackage{table,xcdraw}{xcolor}
 
-\documentclass{article}
+%% For double-blind review submission, w/o CCS and ACM Reference (max submission space)
+\documentclass[acmsmall,nonacm]{acmart} 
+\pagestyle{plain} % removes running headers
 
-\usepackage[usenames,dvipsnames]{xcolor}
+\bibliographystyle{ACM-Reference-Format}
+%\citestyle{acmauthoryear}   %% For author/year citations
 
-
+\usepackage{url}
+\usepackage{amsmath}
+\usepackage{amsfonts}
+\usepackage{amssymb}
 \usepackage{listings}
-\usepackage{multicol}
+\usepackage{color}
+\usepackage{graphicx}
 
+\input{listings-coq.tex}
+\usepackage{booktabs} 
+\usepackage{subcaption}
+
+\newcommand{\N}{\mathbb{N}}
+
+\usepackage{amsmath}
+\usepackage{amssymb}
+\usepackage{latexsym}
+\usepackage{relsize}
+\usepackage{xcolor}
+\usepackage{color}
+\usepackage{mathtools}
+
+%\usepackage{multicol}
 
 \lstset{
     frame=tb, % draw a frame at the top and bottom of the code block
@@ -16,13 +39,8 @@
     commentstyle=\color{green}, % comment color
     keywordstyle=\color{blue}, % keyword color
     stringstyle=\color{red}, % string color
-    identifierstyle=\color{grey},
+%    identifierstyle=\color{grey},
 }
-
-
-\definecolor{diffstart}{named}{gray}
-\definecolor{diffincl}{named}{OliveGreen}
-\definecolor{diffrem}{named}{red}
 
 \lstdefinelanguage{diff}{
     morecomment=[f][\color{diffstart}]{@@},
@@ -30,14 +48,21 @@
     morecomment=[f][\color{diffrem}]{-},
   }
 
-\input{listings-coq}
-
 \begin{document}
 
 \title{Verifying existing ASN.1 compiler}
 
-\author{Nika Pona, Vadim Zaliva \\
-        Digamma.ai}
+\author{Nika Pona}
+\affiliation{
+  \institution{Digamma.ai}
+}
+\email{npona@digamma.ai}
+\author{Vadim Zaliva}
+\affiliation{
+  \institution{Carnegie Mellon University}
+  \department{ECE}
+}
+\email{vzaliva@cmu.edu}
 
 \maketitle
 
@@ -119,14 +144,14 @@ It is also noted that Galois did some work on ASN.1 verification in the past (ci
  WARNING: This behavior is different from the standard strtol/strtoimax(3). }
 \end{quote}
   
-  {\fontsize{8}{4}\selectfont  \lstinputlisting[language=C]{asn_strtoimax_lim_old.c}}
-  \skip
+%  {\fontsize{8}{4}\selectfont  \lstinputlisting[language=C]{asn_strtoimax_lim_old.c}}
+%  \skip
   
 \paragraph{Negative range bug}
 
 When we go beyond allowed \textit{int} range, a wrong result is given for some inputs\footnote{Assume we are working on a 8-bit system and maximal signed int \texttt{MAX\_INT} is 127}:
 
-\skip
+%\skip
 \begin{tabular}{|l|l|}
  \hline
 input & \texttt{-128} \\
@@ -143,18 +168,20 @@ return & \color{red}\texttt{\ -127, ASN\_STRTOX\_OK}\\
 \hline
     \end{tabular}
 
- \skip
+ %\skip
  
 This happens whenever the input string represents a number smaller than \texttt{MIN\_INT}, due to the fact that absolute value of \texttt{MIN\_INT} is greater than \texttt{MAX\_INT}, thus negative number cannot be treated as $\mathrm{value}\times\mathrm{sign}$ when $\mathrm{value}$ is represented as \textit{int}. The bug  was filed and promptly fixed by developers:
 
    
   
-  {\fontsize{8}{4}\selectfont \lstinputlisting[language=diff]{bug1fix.diff}}
+  %{\fontsize{8}{4}\selectfont \lstinputlisting[language=diff]{bug1fix.diff}}
 
   
   \paragraph{Memory store bug}
-  We uncovered a curious bug in the \emph{fixed} version. Note that we store \texttt{str} before reading from \texttt{str}: 
-     \begin{lstlisting}[language=C]
+  We uncovered a curious bug in the \emph{fixed} version. Note that we
+  store \texttt{str} before reading from \texttt{str}:
+
+\begin{lstlisting}[language=C]
   if(str < *end) {
     *end = str;
     if(*str >= 0x30 && *str <= 0x39){
@@ -164,66 +191,66 @@ This happens whenever the input string represents a number smaller than \texttt{
       return ASN_STRTOX_EXTRA_DATA;
     }
   }
-  \end{lstlisting}
+\end{lstlisting}
   
      We can construct an example where we get wrong results by overwriting data in \texttt{str}. Let minimal signed int \texttt{MIN\_INT} = $-4775808$ and \texttt{*str} = {\color{red}2d 34 37 37 35 38 30 31 31 31} (stands for ``-477580111'').
      \newpage
 
-\begin{multicols}{2}
+% \begin{multicols}{2}
   
-    {\bf Scenario 1}:
+%     {\bf Scenario 1}:
 
-    Assume that \texttt{*end = str + 9} and
+%     Assume that \texttt{*end = str + 9} and
 
-    \texttt{end} $\geq$ $\texttt{str + 9}$.
+%     \texttt{end} $\geq$ $\texttt{str + 9}$.
 
-    {\color{red}2d 34 37 37 35 38 30 {\color{blue}$\overbrace{31}^{\texttt{str + 7}}$} 31 31
+%     {\color{red}2d 34 37 37 35 38 30 {\color{blue}$\overbrace{31}^{\texttt{str + 7}}$} 31 31
 
-      $\ldots$ $\overbrace{\texttt{X}}^{\texttt{end}}$}
+%       $\ldots$ $\overbrace{\texttt{X}}^{\texttt{end}}$}
 
-    Then at \texttt{str + 7} we store
+%     Then at \texttt{str + 7} we store
 
-    \texttt{*end = (str + 7)}
+%     \texttt{*end = (str + 7)}
 
-     Let \texttt{str + 7 = 21 21 21 26} 
+%      Let \texttt{str + 7 = 21 21 21 26} 
 
-     {\color{red}2d 34 37 37 35 38 30 31 {\color{blue} $\overbrace{31}^{\texttt{str + 8}}$} 31
+%      {\color{red}2d 34 37 37 35 38 30 31 {\color{blue} $\overbrace{31}^{\texttt{str + 8}}$} 31
 
-       $\ldots$ $\overbrace{\texttt{21 21 21 26}}^{\texttt{end}}$}
+%        $\ldots$ $\overbrace{\texttt{21 21 21 26}}^{\texttt{end}}$}
      
      
-     And since at \texttt{str + 8} we read `1'
+%      And since at \texttt{str + 8} we read `1'
      
 
      
-     The output is  {\color{green}\texttt{ASN\_ERROR\_RANGE}}
+%      The output is  {\color{green}\texttt{ASN\_ERROR\_RANGE}}
      
-     \columnbreak
+%      \columnbreak
      
-    {\bf Scenario 2}:
+%     {\bf Scenario 2}:
 
-    Assume that \texttt{*end = str + 9} and
+%     Assume that \texttt{*end = str + 9} and
 
-    \texttt{end = str + 7}:
+%     \texttt{end = str + 7}:
     
-    {\color{red}2d 34 37 37 35 38 {\color{blue} $\overbrace{30 \; 31 \; 31 \; 31}^{\texttt{end}}$}}
+%     {\color{red}2d 34 37 37 35 38 {\color{blue} $\overbrace{30 \; 31 \; 31 \; 31}^{\texttt{end}}$}}
     
 
-    Then at \texttt{str + 7} we store
+%     Then at \texttt{str + 7} we store
 
-    \texttt{*end = str + 7}
+%     \texttt{*end = str + 7}
 
-     Let \texttt{str + 7 = 21 21 21 26} 
+%      Let \texttt{str + 7 = 21 21 21 26} 
 
    
-    {\color{red}2d 34 37 37 35 38 30 {\color{blue}$\overbrace{21 \; 21 \; 21 \; 26}^{\texttt{end}}$}}
+%     {\color{red}2d 34 37 37 35 38 30 {\color{blue}$\overbrace{21 \; 21 \; 21 \; 26}^{\texttt{end}}$}}
 
-    (stands for $``-477580!!!\&''$)
+%     (stands for $``-477580!!!\&''$)
 
-    And since at \texttt{str + 8} we read `!' 
+%     And since at \texttt{str + 8} we read `!' 
 
-    The output is {\color{red}\texttt{ASN\_EXTRA\_DATA}}
-    \end{multicols}
+%     The output is {\color{red}\texttt{ASN\_EXTRA\_DATA}}
+%     \end{multicols}
     
 
 Hence, when the value of the \texttt{end} pointer is treated as a part of the input data, there is a bug where the resulting error value could be incorrect. On the other hand, it is hard to think of a legitimate use-case where the pointer would be a part the input data. Under such interpretation, there is an implicit pre-condition in the specification, mandating that:
@@ -244,7 +271,22 @@ This code was part of the library for 15 years. The library is covered by extens
 
 \subsection{Machine arithmetic}
 
-The first bug is related to data type ranges and modulo integer arithmetic. These sort of problems are fairly common and require careful coding to be avoided. Formal verification enforces a strict mathematical model of all computer arithmetic and invariably exposes all such bugs. We use CompCert's \texttt{Integer} library that provides theory of 8-, 16-, 32- and 64-bit integers and 32- and 64-bit pointers. It has some basic lemmas, however, doing proofs by hand is quite tedious, however automation can be achieved here for programs that allow no overflow, since then one can use \texttt{Micromega}\footnote{\url{https://coq.inria.fr/refman/addendum/micromega.html#micromega-tactics-for-solving-arithmetic-goals-over-ordered-rings}} tactics for automatically solving comparisons on Z (if overflow is allowed, it is an NP-complete problem and human input may be needed: decidability of difference constraints for modular arithmetic (and hence machine integer arithmetic) is NP-complete, by simple reduction from 3-coloring\cite{PointerConstraintsNP}, whereas the same task for full Z is linear in number of variables and constraints).  
+The first bug is related to data type ranges and modulo integer
+arithmetic. These sort of problems are fairly common and require
+careful coding to be avoided. Formal verification enforces a strict
+mathematical model of all computer arithmetic and invariably exposes
+all such bugs. We use CompCert's \texttt{Integer} library that
+provides theory of 8-, 16-, 32- and 64-bit integers and 32- and 64-bit
+pointers. It has some basic lemmas, however, doing proofs by hand is
+quite tedious, however automation can be achieved here for programs
+that allow no overflow, since then one can use
+\texttt{Micromega}
+tactics for automatically solving comparisons on Z (if overflow is
+allowed, it is an NP-complete problem and human input may be needed:
+decidability of difference constraints for modular arithmetic (and
+hence machine integer arithmetic) is NP-complete, by simple reduction
+from 3-coloring\cite{PointerConstraintsNP}, whereas the same task for
+full Z is linear in number of variables and constraints).
 
 
 \subsection{Separation Logic}

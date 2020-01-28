@@ -1,46 +1,58 @@
 This is BibTeX, Version 0.99d (TeX Live 2017/Debian)
 Capacity: max_strings=100000, hash_size=100000, hash_prime=85009
 The top-level auxiliary file: outline.aux
-The style file: apalike.bst
+The style file: ACM-Reference-Format.bst
+Illegal, another \bibstyle command---line 34 of file outline.aux
+ : \bibstyle
+ :          {apalike}
+I'm skipping whatever remains of this command
+Reallocated singl_function (elt_size=4) to 100 items from 50.
+Reallocated wiz_functions (elt_size=4) to 6000 items from 3000.
 Database file #1: paper.bib
+Reallocated singl_function (elt_size=4) to 100 items from 50.
+Reallocated glb_str_ptr (elt_size=4) to 20 items from 10.
+Reallocated global_strs (elt_size=20001) to 20 items from 10.
+Reallocated glb_str_end (elt_size=4) to 20 items from 10.
+Reallocated singl_function (elt_size=4) to 100 items from 50.
 You've used 1 entry,
-            1935 wiz_defined-function locations,
-            481 strings with 3973 characters,
-and the built_in function-call counts, 634 in all, are:
-= -- 68
-> -- 23
-< -- 1
-+ -- 8
-- -- 8
-* -- 38
-:= -- 94
-add.period$ -- 4
+            5719 wiz_defined-function locations,
+            1302 strings with 14793 characters,
+and the built_in function-call counts, 1470 in all, are:
+= -- 149
+> -- 52
+< -- 0
++ -- 17
+- -- 16
+* -- 102
+:= -- 146
+add.period$ -- 5
 call.type$ -- 1
-change.case$ -- 9
+change.case$ -- 8
 chr.to.int$ -- 1
 cite$ -- 1
-duplicate$ -- 37
-empty$ -- 40
-format.name$ -- 9
-if$ -- 144
-int.to.chr$ -- 1
-int.to.str$ -- 0
-missing$ -- 1
-newline$ -- 8
-num.names$ -- 3
-pop$ -- 10
+duplicate$ -- 134
+empty$ -- 84
+format.name$ -- 20
+if$ -- 325
+int.to.chr$ -- 2
+int.to.str$ -- 1
+missing$ -- 5
+newline$ -- 51
+num.names$ -- 8
+pop$ -- 45
 preamble$ -- 1
-purify$ -- 9
+purify$ -- 17
 quote$ -- 0
-skip$ -- 37
+skip$ -- 62
 stack$ -- 0
-substring$ -- 30
-swap$ -- 20
-text.length$ -- 1
+substring$ -- 94
+swap$ -- 26
+text.length$ -- 0
 text.prefix$ -- 0
 top$ -- 0
-type$ -- 6
+type$ -- 30
 warning$ -- 0
-while$ -- 3
+while$ -- 5
 width$ -- 0
-write$ -- 18
+write$ -- 62
+(There was 1 error message)
