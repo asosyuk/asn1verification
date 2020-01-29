@@ -28,6 +28,7 @@
 \usepackage{xcolor}
 \usepackage{color}
 \usepackage{mathtools}
+\usepackage{enumitem}
 
 %\usepackage{multicol}
 
@@ -67,7 +68,7 @@
 \email{vzaliva@cmu.edu}
 
 \begin{abstract}
-
+TODO
 \end{abstract}
 
 \maketitle
@@ -172,6 +173,111 @@ far deeper and comprehensive verification approach to performance and
 portability and seek to prove actual industrial-level C-code
 implementation.
 
+As shown in Figure~\ref{fig:components} the project begins with ITU-T
+standard document in the form of human-readable text. We will manually
+convert it into formal specification (H.SPEC). This is high-level
+specification (in Coq) which describes the correspondence between data
+types (such as integers) and packet octets data layout. This
+specification is one of the outputs of this project and has a value of
+its own.
+
+\begin{figure}[h!]
+  \centering
+  \includegraphics[width=10cm]{VerificationArchitectureDiagram.png}
+  \caption{TODO:title}
+  \label{fig:components}
+\end{figure}
+
+Next level of refinement is Executable Specification (E.SPEC). Also
+written in Coq it describes ``encoder'' and ``decoder'' for each type
+as a pair of pure functions. We will prove that the Executable
+specification encodes and decodes bytes in conformance to High-Level
+specification.
+
+``High-Level Properties'' like termination, computation complexity and
+memory safely could be proven based on executable specification. They
+are shown as ``High Level'' box on the left. The executable spec
+contains enough information to \textit{extract} a fully functional
+encoder program in languages supported by Coq extraction mechanism
+(e.g. OCaml) \cite{TODO:26}. Such a possibility is shown with the box
+on the left of Figure~\ref{fig:components} although we do not plan to
+pursue it yet. This is approach others often take and it has some
+drawbacks. However, it should be noted that all the work we will do up
+to and including Executable Spec is compatible with this approach and
+if needed we can revisit it. For example, in case if we need to
+generate ASN.1 stack for special platforms where OCaml code opens some
+additional opportunities for parallelization, optimization or
+integration. One example of such platforms could be MirageOS
+\cite{TODO:27} which is the OCaml-based unikernel.
+
+The box at the left marked \textit{QuickChick} represents another
+possibility we might not pursue immediately. It is using randomized
+property-based automated testing based on on an executable
+specification to further verify its correctness. This work could be
+done using QuickChick \cite{TODO:28} in Coq. It is also could be used
+to generate a test-suite for extracted code.
+
+At the bottom of Figure 1 is a box labeled ``C'' which represents the
+existing C code of ANS1C compiler. Using an automated conversion
+provided by the clightgen tool within the CompCert C compiler
+\cite{TODO:3} we will convert this to an Abstract Syntax Tree (AST)
+\cite{TODO:29} .(labeled ``C.AST'' in Figure 1) rendered in a subset
+of C-language called Clight \cite{TODO:30}. More specifically,
+CompCert converts C ``concrete syntax'' to ``abstract'' Clight
+syntax. The resulting Clight program is just a reification of the
+original C program in Coq, retaining the overall structure and
+preserving the semantics; Clight is further assigned formal semantics
+by CompCert that can be used to further ``reason about'' (interrogate
+and analyze) programs within Coq.
+
+Finally, as the most critical (and laborious) step of the project, we
+will prove that semantics of the semantics of AST of Clight
+translation for each given function corresponds to executable
+specification. This will guarantee that the C program behaves exactly
+as the executable spec.
+
+The formal certification of correctness will comprise the following
+three elements.
+
+\begin{enumerate}[label=(\alph*)]
+
+\item Formal specification of ASN.1 subset, which can be examined.
+
+\item Proofs of semantic equivalence between the C code and the
+  specification (in Coq Proof Assistant \cite{TODO:14}). From such
+  proofs, Coq can generate a ``certificate'' which is a program in a
+  formal language based on the Calculus of Inductive Constructions
+  (``CIC'') \cite{TODO:35}. The ``certificate'' allows 3rd party
+  validation of proofs which have been developed in Coq. The Calculus
+  of Inductive Constructions (``CIC'') is a small and mathematically
+  well-defined formal language that serves as the underlying formal
+  system of Coq. The generated certificate is automatically validated
+  by the relatively small Coq kernel. Although a fraudulent
+  certificate could hypothetically be created, it will not pass
+  validation when submitted to the Coq kernel. The resulting outcome
+  limits the trust need to trusting the small CIC formal language and
+  the small Coq kernel.
+
+\item Proofs of additional high-level properties such as memory safety
+  and termination.
+
+\end{enumerate}
+  
+
+Element (b) ensures a bug-free standard-compliant implementation, and
+element (c) provides further guarantee that it could not be exploited
+in penetration or denial of service attacks.
+
+Additionally, our (modified) version of ASN1C could be compiled with
+the certified CompCert compiler \cite{TODO:3} to extend correctness
+guarantees through all levels down to machine code. These project
+results and product offerings will provide state-of-the-art high
+assurance suitable for mission-critical systems. Further, since formal
+verification will be layered atop of a widely used ASN.1 stack, it
+could be immediately offered to current users. This will open new
+markets by making it attractive to new users who require higher
+assurance levels than current non-verified implementations provide.
+
 \section{Preliminary work}
 
 \subsection{Verifying floating-point numbers encoding}
@@ -249,24 +355,40 @@ behavior: For input \texttt{``a''} it stores value 0 and returns {\color{green}\
 
   
 \subsubsection{Direct operational semantics proof}
-First we formulated functional correctness and proved it using big-step operational semantics of C light, defined in Compcert. In this proof we used a Coq abstraction of C function \texttt{asn\_strtoimax\_lim : addr -> addr -> addr -> option asn\_strtoimax\_lim\_result} as as an intermediate specification in the proof. 
 
-\begin{lstlisting}[language=Coq]
-(* Return type *)
-Record asn_strtoimax_lim_result :=
- { return_type : asn_strtox_result ;
-   value : option int64 ;
-   end_pointer : option addr ;
-   memory : option mem 
-   }.
+First we formulated functional correctness and proved it using
+big-step operational semantics of \textit{C light}, defined in
+\textit{Compcert}. In this proof we used the following pure-function
+re-implementation in Coq: \texttt{asn\_strtoimax\_lim : addr $\rightarrow$
+  addr $\rightarrow$ addr $\rightarrow$ option
+  asn\_strtoimax\_lim\_result} as an intermediate specification.
 
-\end{lstlisting}
-
-This function took addresses as inputs and operated on memory using \texttt{load} and \texttt{store} operations from CompCert's memory model, while calculating the resulting machine integer value. The proof went by induction on the distance between input pointers and the main difficulty apart trying to prove a faulty program (that's when we discovered two bugs) was operational semantics control flow minuities and machine arithmetic proofs. However, only a couple of lemmas about the spec were needed. However, since functional and memory specification were intertangled it was more difficult to read the spec and make sure it was correct. 
+This function took addresses as inputs and operated on memory using
+\texttt{load} and \texttt{store} operations from \textit{CompCert's}
+memory model, while calculating the resulting machine integer
+value. The proof went by induction on the distance between input
+pointers and the main difficulty apart trying to prove a faulty
+program (that's when we discovered two bugs) was operational semantics
+control flow minuities and machine arithmetic proofs. However, only a
+couple of lemmas about the spec were needed. However, since functional
+and memory specification were intertangled it was more difficult to
+read the spec and make sure it was correct.
 
 \subsubsection{Proof using VST}
 
-Verified Software Toolchain provided solutions to problems we encountered while doing direct opertational semantics proof: it has good automation of control flow, some automation for machine arithmetic and clearly separates functional and memory-related parts of the specification. It also provides a uniform way of stating functional correctness and memory safety. Proofs here are done in Hoare and separation logics, which are proven to be sound with respect to operational semantics. VST has tactics that can solve simple entailments in these logics, however, they were not powerful enough to significantly reduce the proof effort. In fact, with respect to memory specifications, direct operational semantics proof was shorter and more straightforward.
+The \textit{Verified Software Toolchain}\cite{TODO:VST} offered a
+solutions to problems we encountered while doing direct opertational
+semantics proof: it has good automation of control flow, some
+automation for machine arithmetic, and clearly separates functional
+and memory-related parts of the specification. It also provides a
+uniform way of stating functional correctness and memory
+safety. Proofs here are done in \textit{Hoare} and \textit{separation}
+logic, which are proven to be sound with respect to operational
+semantics. VST has tactics that can solve simple entailments in these
+logics, however, they were not powerful enough to significantly reduce
+the proof effort. In fact, with respect to memory specifications,
+direct operational semantics proof was shorter and more
+straightforward.
 
 \paragraph{Specification layers} First we have a high-level specification of this function in declarative, relational style. Each constructor corresponds to a return message (state) and stores value the number of iterations of the function (used to store the result).
 
@@ -391,39 +513,10 @@ And the postcondition:
                          (end_b, end_ofs)).
 \end{lstlisting}
 
-Given experiments on this example we delineate a strategy for proving \texttt{asn1c} correctness.
-\section{Project plan}
-[This is the stuff from the proposal, verbatim]
+Given experiments on this example we delineate a strategy for proving
+\texttt{asn1c} correctness.
 
-Figure 1:
-
- \includegraphics[width=10cm]{VerificationArchitectureDiagram.png}
-
-The project begins with ITU-T standard document in the form of human-readable text.
-We manually convert it into formal specification (H.SPEC). This is high-level specification (in Coq) which describes the correspondence between data types (such as integers) and packet octets data layout. This specification is one of the outputs of this project and has a value of its own.
-
-
-Next level of detail is Executable Specification (E.SPEC). Also written in Coq it describes ``encoder'' and ``decoder'' for each type as a pair of pure functions. We will prove that the Executable specification encodes and decodes bytes in conformance to High-Level specification.
-
-``High-Level Properties'' like termination, computation complexity and memory safely could be proven based on executable specification. They are shown as ``High Level”  box on the left. The executable spec contains enough information to ``extract” a fully functional encoder program in languages supported by Coq extraction mechanism (e.g. OCaml) [26]. Such a possibility is shown with the box on the left of Figure 1 although we do not plan to pursue it yet. This is approach others often take and it has some drawbacks. However, it should be noted that all the work we will do up to and including Executable Spec is compatible with this approach and if needed we can revisit it. For example, in case if we need to generate ASN.1 stack for special platforms where OCaml code opens some additional opportunities for parallelization, optimization or integration. One example of such platforms could be MirageOS [27]  which is the OCaml-based unikernel.
-
-The box at the left marked QuickChick represents another possibility we might not pursue immediately. It is using randomized property-based automated testing based on on an executable specification to further verify its correctness. This work could be done using  QuickChick [28] in Coq. It is also could be used to generate a test-suite for extracted code.
-
-At the bottom of Figure 1 is a box labeled ``C'' which represents the existing C code of ANS1C compiler. Using an automated conversion provided by the clightgen tool within the CompCert C compiler [3] we will convert this to an Abstract Syntax Tree (AST) [29] .(labeled ``C.AST'' in Figure 1) rendered in a subset of C-language called Clight [30]. More specifically, CompCert converts C ``concrete syntax'' to ``abstract'' Clight syntax. The resulting Clight program is just a reification of the original C program in Coq, retaining the overall structure and preserving the semantics; Clight is further assigned formal semantics by CompCert that can be used to further ``reason about'' (interrogate and analyze) programs within  Coq.
-
-Finally, as the most critical (and laborious) step of the project, we will prove that semantics of the semantics of AST of Clight translation for each given function corresponds to executable specification. This will guarantee that the C program behaves exactly as the executable spec.
-
-The formal certification of correctness will comprise the following three elements.
-
-a) Formal specification of ASN.1 subset, which can be examined. 
-
-b) Proofs of semantic equivalence between the C code and the specification (in Coq Proof Assistant [14]). From such proofs, Coq can generate a ``certificate''  which is a program in a formal language based on the Calculus of Inductive Constructions (``CIC'') [35]. The ``certificate'' allows 3rd party validation of proofs which have been developed in Coq. The Calculus of Inductive Constructions (``CIC'') is a small and mathematically well-defined formal language that serves as the underlying formal system of Coq. The generated certificate is automatically validated by the relatively small Coq kernel. Although a fraudulent certificate could hypothetically be created, it will not pass validation when submitted to the Coq kernel. The resulting outcome limits the trust need to trusting the small CIC formal language and the small Coq kernel. 
-
-c) Proofs of additional high-level properties such as memory safety and termination. 
-
-Element (b) ensures a bug-free standard-compliant implementation, and element (c) provides further guarantee that it could not be exploited in penetration or denial of service attacks.
-
-Additionally, our (modified) version of ASN1C could be compiled with the certified CompCert compiler [3] to extend correctness guarantees through all levels down to machine code. These project results and product offerings will provide state-of-the-art high assurance suitable for mission-critical systems. Further, since formal verification will be layered atop of a widely used ASN.1 stack, it could be immediately offered to current users. This will open new markets by making it attractive to new users who require higher assurance levels than current non-verified implementations provide.
+\section{Project Status}
 
 \subsection{Current work on executable specification}
 
