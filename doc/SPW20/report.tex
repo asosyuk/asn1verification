@@ -32,14 +32,15 @@
 %\usepackage{multicol}
 
 \lstset{
-    frame=tb, % draw a frame at the top and bottom of the code block
-    tabsize=4, % tab space width
-    showstringspaces=false, % don't mark spaces in strings
-    numbers=left, % display line numbers on the left
-    commentstyle=\color{green}, % comment color
-    keywordstyle=\color{blue}, % keyword color
-    stringstyle=\color{red}, % string color
-%    identifierstyle=\color{grey},
+  basicstyle=\ttfamily\small,
+  frame=tb, % draw a frame at the top and bottom of the code block
+  tabsize=4, % tab space width
+  showstringspaces=false, % don't mark spaces in strings
+  numbers=left, % display line numbers on the left
+  commentstyle=\color{green}, % comment color
+  keywordstyle=\color{blue}, % keyword color
+  stringstyle=\color{red}, % string color
+  % identifierstyle=\color{grey},
 }
 
 \lstdefinelanguage{diff}{
@@ -50,7 +51,8 @@
 
 \begin{document}
 
-\title{Verifying existing ASN.1 compiler}
+\title{Formally-Verified ASN.1 Protocol C-language Stack}
+\subtitle{Work-in-Progress Report}
 
 \author{Nika Pona}
 \affiliation{
@@ -70,12 +72,32 @@
 
 \maketitle
 
-\section{Intro}
- ASN.1(Abstract Syntax Notation One) is a standard interface description language for defining data structures that can be serialized and deserialized in a cross-platform way, both human-readable and machine-readable. It includes wide variety of basic data types and has many options for extensibility, as well as built-in support for constraints on values and size. It is used in a very diverse applications such as parcel tracking, power distribution and even biomedicine. It's important to note that ASN.1 is a data type declaration notation that does not define how to manipulate a varibale of such type.
+\tableofcontents
 
- This is a simple example of ASN.1 module defining the messages(data structures) of dummy Foo Protocol:
- \begin{lstlisting}[language=C]
-  FooProtocol DEFINITIONS ::= BEGIN
+\section{Introduction}
+
+\subsection{Background}
+
+The pervasively deployed and widely adopted ASN.1 (``Abstract Syntax
+Notation One'') \cite{TODO} joint standard of the International
+Telecommunication Union (ITU-T) and the International Organization for
+Standardization (ISO/IEC) provides an essential interface description
+language for defining data structures for serialized and deserialized
+cross-platform data exchange, broadly used in telecommunications,
+computer networking, the Internet, and cryptography. ASN.1 is
+vitally-relied upon by core aspects of the Internet infrastructure and
+Internet applications such as telephony, enterprise computing,
+utilities, finance, military, security, digitally-controlled
+infrastructure, transportation, medical systems, and commercial cloud
+computing.
+
+A simple example of ASN.1 module defining the messages (data
+structures) of dummy \textit{Foo} Protocol is shown in
+Listing~\ref{lst:asnex}.
+
+\begin{lstlisting}[language=C,label=lst:asnex,
+  caption={ASN.1 example}]  
+    FooProtocol DEFINITIONS ::= BEGIN
     FooQuestion ::= SEQUENCE {
       someNumber INTEGER,
       question IA5String
@@ -85,171 +107,148 @@
       someOtherNumber INTEGER,
       answer BOOLEAN
     }
-  \end{lstlisting}
+\end{lstlisting}
 
- The Computer Vulnerabilities and Exposures (CVE) database [7a] lists critical ASN.1-related bugs found each year in the existing systems, and there have already been noteworthy exposures [8] that although not as dire to security as first feared [9] clearly spell out a first awareness of the vast risk and exposure. We analyzed the last 4 years of ASN.1-related issues reported in Computer Vulnerabilities and Exposures (CVE) database [7b]. Among vulnerabilities studied were CVEs for various software and hardware products and vendors, including Apple, axTLS, Botan, Bounty Castle, librcrypto++, libtasn, LibTomCrypt, Linux Kernel, MatrixSSL, Mozilla NSS (Firefox), Objective Systems, OpenSSL, PolarSSL, RSA BSAFE, Samba, Samsung, Snapdragon, strongSwan, and Wireshark. It was found that 39 out of 52 problems analyzed were related to memory safety, 6 related to stack and heap bounds checking, and 3 related to issues caused by applications accepting not well-formed ASN.1 input. Having proved just six formal properties would have prevented 49 out of 52 vulnerabilities, that is, more than 90\% of reported vulnerabilities.
+A typical ASN.1 stack comprises of a \textit{compiler} which parses
+ASN.1 syntax definitions as shown in the Listing~\ref{lst:asnex} and
+produces either a source code of a specialized protocol encoder and
+decoder for this data or a runtime data for a parametric protocol
+encoder and decoder.
 
- \section{Other approaches to verification of parsers}
+However, the ASN.1 standard \cite{TODO} is large and complex:
+currently, it comprises twelve sub-standards spanning 862 pages
+supplemented by additional pages of corrigenda\cite{TODO}. This opens
+a door for many potential software bugs and malicious exploits.
+  
+\subsection{Motivation}
 
-  Functional parsers (Narcissus)
+Proliferating embedded and user computing devices are implementing
+vast numbers of essential functions and applications, all of which
+exchange data using ASN.1. The resulting interconnected communicating
+systems are becoming riskier, less stable, less reliable, and
+potentially dangerous. Disruption of the ASN.1 based communications
+could threaten the functioning of the critical infrastructure our
+society relies upon.
 
-  Extraction to C (Everparse, Galois)
 
-  Project Everest [19] is our most direct thematic competition, and some of the high-level Project Everest documentation makes passing mention to ASN.1. The Project Everest stewards adopted a different approach based on F* [4], and the Project Everest ASN.1 work  appears at best still in far distant plans.
-
-It is also noted that Galois did some work on ASN.1 verification in the past (circa 2012) [11]. It appears that Galois abandoned [12] the goal of full ASN.1 verification that we pursue in our project with our more pragmatic approach; Galois is now only exploring a limited subset ASN.1 verification adequate for the “vehicle-to-vehicle” (V2V) market [13], but that particular subset has limited broader applicability and the Galois effort appears encumbered by aspects of an unsuccessful  approach. It is noted that although our goal is eventually to verify all ASN.1, we decided to start with a different (X.509-related) subset of ASN.1; this subset is reasonably small, but X.509 is so widely used that our initial verified implementation of our chosen subset will have a large volume and wide range of immediate commercial applications.
+The Computer Vulnerabilities and Exposures (CVE) database
+\cite{TODO:7a} lists critical ASN.1-related bugs found each year in
+the existing systems, and there have already been noteworthy exposures
+\cite{TODO:8} that although not as dire to security as first feared
+\cite{TODO:9} clearly spell out a first awareness of the vast risk and
+exposure. We analyzed the last 4 years of ASN.1-related issues
+reported in Computer Vulnerabilities and Exposures (CVE) database
+\cite{TODO:7b}. Among vulnerabilities studied were CVEs for various
+software and hardware products and vendors, including \textit{Apple},
+\textit{axTLS}, \textit{Botan}, \textit{Bounty Castle},
+\textit{librcrypto++}, \textit{libtasn}, \textit{LibTomCrypt},
+\textit{Linux Kernel}, \textit{MatrixSSL}, \textit{Mozilla NSS
+  (Firefox)}, \textit{Objective Systems}, \textit{OpenSSL},
+\textit{PolarSSL}, \textit{RSA BSAFE}, \textit{Samba},
+\textit{Samsung}, \textit{Snapdragon}, \textit{strongSwan}, and
+\textit{Wireshark}. It was found that 39 out of 52 problems analyzed
+were related to memory safety, 6 related to stack and heap bounds
+checking, and 3 related to issues caused by applications accepting not
+well-formed ASN.1 input. Having proved just six formal properties
+would have prevented 49 out of 52 vulnerabilities, that is, more than
+90\% of reported vulnerabilities.
 
 \subsection{Our approach}
-  Our technology and approach will provide an entirely new level of software and protocol verification employing recently-emergent provable full-functional correctness methods.
-  Systems and methods to date either (a) automatically tested but not formally verified (b) use verification approach which rely on automatic extraction from executable specifications (for example involving network stack synthesis [31], optimizing compilers [3], cryptographic libraries [6], and encoder/decoders [32]), or (c) apply a form of formal verification which only proves partial correctness properties (partial verification of NAT stack only proving parts of DPDK are specification compliant [33], partial verification of Linux kernel TCP implementation with 55\% line coverage and 92\% protocol coverage [34]). Consequently, (a) and (c) do not provide sufficient correctness guarantees, while (c) is often impractical due to poor performance and compatibility limitations. In contrast, we pursue a far deeper and comprehensive verification approach to performance and portability and seek to prove actual industrial-level C-code implementation.
 
+Systems and methods to date either (a) automatically tested but not
+formally verified (b) use verification approach which rely on
+automatic extraction from executable specifications (for example
+involving network stack synthesis \cite{TODO:31}, optimizing compilers
+\cite{TODO:3}, cryptographic libraries \cite{TODO:6}, and
+encoder/decoders \cite{TODO:32}), or (c) apply a form of formal
+verification which only proves partial correctness properties (partial
+verification of NAT stack only proving parts of DPDK are specification
+compliant \cite{TODO:33}, partial verification of Linux kernel TCP
+implementation with 55\% line coverage and 92\% protocol coverage
+\cite{TODO:34}). Consequently, (a) and (c) do not provide sufficient
+correctness guarantees, while (c) is often impractical due to poor
+performance and compatibility limitations. In contrast, we pursue a
+far deeper and comprehensive verification approach to performance and
+portability and seek to prove actual industrial-level C-code
+implementation.
 
+\section{Preliminary work}
 
-\section{Veryfing a function from \texttt{asn1c} compiler}
+\subsection{Verifying floating-point numbers encoding}
 
-[Here we describe the work we did on strtoimax: op semantics proof (short), vst proof and bugs. Need: CompCert, C light, VST.]
+% TODO: summarize @zoick paper, cite it and link to github repository
 
-  At \url{Digamma.ai} we are working on formal verification of existing {\bf imperative} programs using Coq. We took a function \texttt{asn\_strtoimax\_lim} from \texttt{asn1c} compiler to test several approaches on a simple real-life example. The function is relatively simple, but at the same time uses many features of C that make verifying imperative programs challenging. XER decoding functions for INTEGER, OBJECT-IDENTIFIER and RELATIVE-OID types (and hence all constructed types that use these primitive types) critically depend on this function. XER decoding is pretty straightforward: INTEGERs are encoded in text as their decimal representation, OBJECT IDENTIFIERs are encoded as decimal numbers in the order of the object identifier's components. However, we found that it is compromised by three bugs in this function.
-  
-    Informal specification from the comments: 
-  \begin{quote}
+\subsection{Verifying simple function}
 
+To estimate an effort required to formally verify C code and to
+experiment with various verification strategies we decided to try to
+verify a small real function from existing ASN.1 compiler. We chose
+function \texttt{asn\_strtoimax\_lim} from \texttt{asn1c} compiler.
+The function is relatively simple, but at the same time uses many
+features of C that make verifying imperative programs
+challenging. \emph{XER} decoding functions for \emph{INTEGER},
+\emph{OBJECT-IDENTIFIER} and \emph{RELATIVE-OID} types (and hence all
+constructed types that use these primitive types) critically depend on
+this function.
+
+The only specification provided was the following comment in the
+source code. Additional specification details have to be inferred from
+the source code and usage examples.
+
+\begin{quote}
  { \it Parse the number in the given string until the given *end position,
  returning the position after the last parsed character back using the
  same (*end) pointer.
  WARNING: This behavior is different from the standard strtol/strtoimax(3). }
 \end{quote}
 
+Full source code of the function is included in the Appendix~\ref{sec:stritomax}.
 
+\subsubsection{Bugs}
 
-\subsection{Bugs}
-
-  
-%  {\fontsize{8}{4}\selectfont  \lstinputlisting[language=C]{asn_strtoimax_lim_old.c}}
-%  \skip
+Despite that fact that this function lineage could be traced back 15
+years, and it being a part of mature, well-tested ASN.1 compiler used
+many production systems during our formal verification exercise we
+found three bugs in current implementation. These bugs were never
+reported before and passed all human code reviews, unit, and fuzzying
+tests. The following bugs were reported to product developers,
+acknowledged and promptly fixed:
   
 \paragraph{Negative range bug}
 
-When we go beyond allowed \textit{int} range, a wrong result is given for some inputs\footnote{Assume we are working on a 8-bit system and maximal signed int \texttt{MAX\_INT} is 127}:
+When we go beyond allowed \textit{int} range, a wrong result is given
+for some inputs. For example, assuming we are working on a 8-bit
+system and the maximum signed integer value is 127, parsing the input
+string \texttt{``-1281''} produces the as a result
+\emph{ASN\_STRTOX\_OK} with the value -127 instead of expected
+\emph{ASN\_STRTOX\_ERROR\_RANGE}. This happens whenever the input
+string represents a number smaller than \texttt{MIN\_INT}, due to the
+fact that absolute value of \texttt{MIN\_INT} is greater than
+\texttt{MAX\_INT}, thus negative number cannot be treated as
+$\mathrm{value}\times\mathrm{sign}$ when $\mathrm{value}$ is
+represented as \textit{int}. The bug was filed and promptly fixed by
+developers:
 
-%\skip
-\begin{tabular}{|l|l|}
- \hline
-input & \texttt{-128} \\
-intmax & \texttt{\ 127}\\
-upper boundary& \texttt{\ 12} \\
-last digit max& \texttt{\ 7}\\
-return & \color{green}\texttt{\ ASN\_STRTOX\_ERROR\_RANGE}\\
-\hline 
-input & \texttt{-1281} \\
-intmax & \texttt{\ 127}\\
-upper boundary& \texttt{\ 12} \\
-last digit max& \texttt{\ 7}\\
-return & \color{red}\texttt{\ -127, ASN\_STRTOX\_OK}\\
-\hline
-    \end{tabular}
+\paragraph{Memory store bug}
 
- %\skip
- 
-This happens whenever the input string represents a number smaller than \texttt{MIN\_INT}, due to the fact that absolute value of \texttt{MIN\_INT} is greater than \texttt{MAX\_INT}, thus negative number cannot be treated as $\mathrm{value}\times\mathrm{sign}$ when $\mathrm{value}$ is represented as \textit{int}. The bug  was filed and promptly fixed by developers:
+Another bug we discovered was related to potentially overlapping
+memory areas pointed by argument pointers. Under some circumstances
+the value of the \texttt{end} pointer parameter is treated as a part
+of the input data and the resulting error value could be
+incorrect. This bug could never occur if the function is always called
+with non-overlapping pointer arguments. However this could be viewed
+as an implicit pre-condition which should be part of the function's
+specification.
 
-   
-  
-  %{\fontsize{8}{4}\selectfont \lstinputlisting[language=diff]{bug1fix.diff}}
+\paragraph{Specification Ambiguity}
 
-  
-  \paragraph{Memory store bug}
-  We uncovered a curious bug in the \emph{fixed} version. Note that we
-  store \texttt{str} before reading from \texttt{str}:
-
-\begin{lstlisting}[language=C]
-  if(str < *end) {
-    *end = str;
-    if(*str >= 0x30 && *str <= 0x39){
-      return ASN_STRTOX_ERROR_RANGE;
-    } else {
-      *intp = sign * value;
-      return ASN_STRTOX_EXTRA_DATA;
-    }
-  }
-\end{lstlisting}
-  
-     We can construct an example where we get wrong results by overwriting data in \texttt{str}.
-     %Let minimal signed int \texttt{MIN\_INT} = $-4775808$ and \texttt{*str} = {\color{red}2d 34 37 37 35 38 30 31 31 31} (stands for ``-477580111'').
-    % \newpage
-
-% \begin{multicols}{2}
-  
-%     {\bf Scenario 1}:
-
-%     Assume that \texttt{*end = str + 9} and
-
-%     \texttt{end} $\geq$ $\texttt{str + 9}$.
-
-%     {\color{red}2d 34 37 37 35 38 30 {\color{blue}$\overbrace{31}^{\texttt{str + 7}}$} 31 31
-
-%       $\ldots$ $\overbrace{\texttt{X}}^{\texttt{end}}$}
-
-%     Then at \texttt{str + 7} we store
-
-%     \texttt{*end = (str + 7)}
-
-%      Let \texttt{str + 7 = 21 21 21 26} 
-
-%      {\color{red}2d 34 37 37 35 38 30 31 {\color{blue} $\overbrace{31}^{\texttt{str + 8}}$} 31
-
-%        $\ldots$ $\overbrace{\texttt{21 21 21 26}}^{\texttt{end}}$}
-     
-     
-%      And since at \texttt{str + 8} we read `1'
-     
-
-     
-%      The output is  {\color{green}\texttt{ASN\_ERROR\_RANGE}}
-     
-%      \columnbreak
-     
-%     {\bf Scenario 2}:
-
-%     Assume that \texttt{*end = str + 9} and
-
-%     \texttt{end = str + 7}:
-    
-%     {\color{red}2d 34 37 37 35 38 {\color{blue} $\overbrace{30 \; 31 \; 31 \; 31}^{\texttt{end}}$}}
-    
-
-%     Then at \texttt{str + 7} we store
-
-%     \texttt{*end = str + 7}
-
-%      Let \texttt{str + 7 = 21 21 21 26} 
-
-   
-%     {\color{red}2d 34 37 37 35 38 30 {\color{blue}$\overbrace{21 \; 21 \; 21 \; 26}^{\texttt{end}}$}}
-
-%     (stands for $``-477580!!!\&''$)
-
-%     And since at \texttt{str + 8} we read `!' 
-
-%     The output is {\color{red}\texttt{ASN\_EXTRA\_DATA}}
-%     \end{multicols}
-    
-
-Hence, when the value of the \texttt{end} pointer is treated as a part of the input data, there is a bug where the resulting error value could be incorrect. On the other hand, it is hard to think of a legitimate use-case where the pointer would be a part the input data. Under such interpretation, there is an implicit pre-condition in the specification, mandating that:
-
-{\small
-\texttt{(*end < end) || (end + sizeof(const char *) <= str)}}
-
-
-\paragraph{Specification ``bug''}
-After addressing the two bugs we discovered we were able to successfully verify that the function finally corresponds to the specification we wrote for. However, it was noticed the following behavior:
-
-For input \texttt{``a''} it stores value 0 and returns {\color{green}\texttt{ASN\_STRTOX\_EXTRA\_DATA}} (same behaviour as on input \texttt{``0a''}), which could be unintended by authors. \\
-
-This code was part of the library for 15 years. The library is covered by extensive unit and randomized tests. It is used in production by multiple users. Yet, the vulnerabilities are there and pose potential problems.
+After addressing the two bugs we discovered we were able to
+successfully verify that the function finally corresponds to the
+specification we wrote for. However, it was noticed the following
+behavior: For input \texttt{``a''} it stores value 0 and returns {\color{green}\texttt{ASN\_STRTOX\_EXTRA\_DATA}} (same behaviour as on input \texttt{``0a''}), which could be unintended by authors. \\
 
   
-\subsection{Direct operational semantics proof}
+\subsubsection{Direct operational semantics proof}
 First we formulated functional correctness and proved it using big-step operational semantics of C light, defined in Compcert. In this proof we used a Coq abstraction of C function \texttt{asn\_strtoimax\_lim : addr -> addr -> addr -> option asn\_strtoimax\_lim\_result} as as an intermediate specification in the proof. 
 
 \begin{lstlisting}[language=Coq]
@@ -265,7 +264,7 @@ Record asn_strtoimax_lim_result :=
 
 This function took addresses as inputs and operated on memory using \texttt{load} and \texttt{store} operations from CompCert's memory model, while calculating the resulting machine integer value. The proof went by induction on the distance between input pointers and the main difficulty apart trying to prove a faulty program (that's when we discovered two bugs) was operational semantics control flow minuities and machine arithmetic proofs. However, only a couple of lemmas about the spec were needed. However, since functional and memory specification were intertangled it was more difficult to read the spec and make sure it was correct. 
 
-\subsection{Proof using VST}
+\subsubsection{Proof using VST}
 
 Verified Software Toolchain provided solutions to problems we encountered while doing direct opertational semantics proof: it has good automation of control flow, some automation for machine arithmetic and clearly separates functional and memory-related parts of the specification. It also provides a uniform way of stating functional correctness and memory safety. Proofs here are done in Hoare and separation logics, which are proven to be sound with respect to operational semantics. VST has tactics that can solve simple entailments in these logics, however, they were not powerful enough to significantly reduce the proof effort. In fact, with respect to memory specifications, direct operational semantics proof was shorter and more straightforward.
 
@@ -493,9 +492,26 @@ full Z is linear in number of variables and constraints).
 
 The second problem was related to \textit{pointer aliasing}. These problems are not immediately obvious because C language does not allow us to enforce any memory aliasing restrictions (unlike, say Rust). In formal verification, there is a rigorous model to analyze such kind of problems called \textit{separation logic}. VST provides some automation related to this, however, it is not sufficient, but one can build custom libraries and if restricted to specific domain separation logic proofs can be fully automated. VST supports (undecidable) expressive dependently typed higher-order logic. The built-in tactics can solve simple goals, but much manual proof effort is required to transform the goals. The VST-floyd is based on databases of hints and separation logic lemmmas and tries to apply them in a smart way. We conjecture that the full force of separation logic is unnecessary in most cases and we could restrict ourselves to tractable fragments of separation logic, for which decision procedures has been already implemented within SMT solvers. The latter can be integrated into Coq proofs using SMTCoq\footnote{\url{https://smtcoq.github.io/}}.
 
- 
+
+\section{Related Work}
+
+  Functional parsers (Narcissus)
+
+  Extraction to C (Everparse, Galois)
+
+  Project Everest [19] is our most direct thematic competition, and some of the high-level Project Everest documentation makes passing mention to ASN.1. The Project Everest stewards adopted a different approach based on F* [4], and the Project Everest ASN.1 work  appears at best still in far distant plans.
+
+It is also noted that Galois did some work on ASN.1 verification in the past (circa 2012) [11]. It appears that Galois abandoned [12] the goal of full ASN.1 verification that we pursue in our project with our more pragmatic approach; Galois is now only exploring a limited subset ASN.1 verification adequate for the “vehicle-to-vehicle” (V2V) market [13], but that particular subset has limited broader applicability and the Galois effort appears encumbered by aspects of an unsuccessful  approach. It is noted that although our goal is eventually to verify all ASN.1, we decided to start with a different (X.509-related) subset of ASN.1; this subset is reasonably small, but X.509 is so widely used that our initial verified implementation of our chosen subset will have a large volume and wide range of immediate commercial applications.
+
+
+\appendix
+\clearpage
+\section{\emph{asn\_strtoimax\_lim} source}
+\label{sec:stritomax}
+
+{\fontsize{8}{4}\selectfont  \lstinputlisting[language=C]{asn_strtoimax_lim_old.c}}
+
 
 \bibliography{report}
-
 
 \end{document}
