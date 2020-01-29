@@ -281,7 +281,28 @@ assurance levels than current non-verified implementations provide.
 
 \subsection{Verifying floating-point numbers encoding}
 
-% TODO: summarize @zoick paper, cite it and link to github repository
+As a ``first-order'' estimate of the difficluties associated with
+verifying ASN.1-related programs, we made an attempt at writing a
+formal specification of an encoder-decoder pair for a small, but
+particularly error-prone subset of the standard - floating-point numbers \cite{TODO:#?<asn1fpcoq>}.
+Our first approach was relatively straight-forward: define types
+representing ASN.1-encoded data in Coq, provide functions for converting
+between representations and prove that they operate correctly.
+
+As was clear from the start, this technique had major disadvantages.
+First of all, our definitions, being written in pure Coq, had only one
+connection to the real world - through automatic code extraction.
+This immediately comes with a set of problems:
+
+% TODO: make me a list please
+* Writing a new implementation in Coq does not produce any improvement in pre-existing widely-used implementations
+* Automatic code extraction does not provide sufficient correctness guarantees
+* Extracted code generally runs much slower than its counterparts implemented in other languages
+* Extracted code might not be compatible with or viable in some real-world use-case scenarios
+% /TODO
+
+However, this basic attempt allowed us to home in on what approaches
+to verfication were viable and improve our effort estimates for the future. % and train one intern
 
 \subsection{Verifying simple function}
 
