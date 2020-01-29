@@ -639,6 +639,15 @@ type's tags and decoder/encoder types\footnote{For the sake of
   simplicity, let's consider only one constructed type SEQUENCE and
   only decode function.}.
 
+
+%TODO: Nika, this is a very strange type (TYPE_Descriptor}. It has
+%just one consturctor parametrized by record. Why use Inductive here
+%at all? Why not Record?
+% It looks like we are not very clear on how this will look in the
+% final implementation and to avoid posnting some unfinished code
+% maybe better avoid including code here at all, and use English
+% description of the approach.
+
  \begin{lstlisting}[language=Coq]
 Inductive decoder_type := BOOLEAN | INTEGER | SEQUENCE | ...
 
@@ -654,7 +663,14 @@ Inductive TYPE_descriptor :=
  a recursive function that readily translates into a nested recursive
  function in Coq (decoders for other constructed types have similar
  structure).
- 
+
+ %TODO: Nika, this function looks ugly. It can probably be rewritten
+ %to be 1/2 shorter using monadic notation. Inline `fix` is also
+ % not the best coding practice. I would use mutually recursive
+ % definition instead.
+ % Again, as above, it looks
+ % like very early-stage unfinished code. It is better not to include
+ % it at all.
  \begin{lstlisting}[language=Coq]
  Fixpoint decoder (X : TYPE_descriptor) (ls : list byte)  :=
     match ls with
@@ -694,59 +710,17 @@ Inductive TYPE_descriptor :=
 
  The \texttt{decoder} function above could be also thought of in terms
  of sequence parser combinator known from monadic parser combinators
- tradition\cite{TODO}. Assume you have given decoders for primitive
+ approach\cite{TODO}. Assume you have given decoders for primitive
  functions. Then you can add an operator \texttt{;; : decoder
    asn\_value-> decoder asn\_value -> asn\_value} that takes two
  decoders and applies them sequentially \texttt{p1;;p2}; similar for
  list of parsers. Then the compiler can be seen as producing the
  concrete combination of parsers given \texttt{TYPE\_descriptor}.
 
- \section{Future work}
+ \section{Next Steps}
 
- %TODO: See Section 5.3 here https://docs.google.com/document/d/1j0vt9rlKZPy_jQY9srPUVB1c8ylZm4DnNyYMXYls6UM/edit
-
-\subsection{Machine arithmetic}
-
-% TODO: Nika, what bug. We are talking about future work here in general
-
-The first bug is related to data type ranges and modulo integer
-arithmetic. These sort of problems are fairly common and require
-careful coding to be avoided. Formal verification enforces a strict
-mathematical model of all computer arithmetic and invariably exposes
-all such bugs. We use CompCert's \texttt{Integer} library that
-provides theory of 8-, 16-, 32- and 64-bit integers and 32- and 64-bit
-pointers. It has some basic lemmas, however, doing proofs by hand is
-quite tedious, however automation can be achieved here for programs
-that allow no overflow, since then one can use
-\texttt{Micromega}
-tactics for automatically solving comparisons on Z (if overflow is
-allowed, it is an NP-complete problem and human input may be needed:
-decidability of difference constraints for modular arithmetic (and
-hence machine integer arithmetic) is NP-complete, by simple reduction
-from 3-coloring\cite{PointerConstraintsNP}, whereas the same task for
-full Z is linear in number of variables and constraints).
-
-
-\subsection{Separation Logic}
-
-% TODO: Nika, what problem?!
-The second problem was related to \textit{pointer aliasing}. These
-problems are not immediately obvious because C language does not allow
-us to enforce any memory aliasing restrictions (unlike, say Rust). In
-formal verification, there is a rigorous model to analyze such kind of
-problems called \textit{separation logic}. VST provides some
-automation related to this, however, it is not sufficient, but one can
-build custom libraries and if restricted to specific domain separation
-logic proofs can be fully automated. VST supports (undecidable)
-expressive dependently typed higher-order logic. The built-in tactics
-can solve simple goals, but much manual proof effort is required to
-transform the goals. The VST-floyd is based on databases of hints and
-separation logic lemmmas and tries to apply them in a smart way. We
-conjecture that the full force of separation logic is unnecessary in
-most cases and we could restrict ourselves to tractable fragments of
-separation logic, for which decision procedures has been already
-implemented within SMT solvers. The latter can be integrated into Coq
-proofs using SMTCoq\footnote{\url{https://smtcoq.github.io/}}.
+ % TODO: I think this section should just an elaboration of project plan
+ % Please replicate Section 5.3 from here https://docs.google.com/document/d/1j0vt9rlKZPy_jQY9srPUVB1c8ylZm4DnNyYMXYls6UM/edit
 
 
 \section{Related Work}
@@ -794,7 +768,7 @@ volume and wide range of immediate commercial applications.
 \section{\emph{asn\_strtoimax\_lim} source}
 \label{sec:stritomax}
 
-{\fontsize{8}{4}\selectfont  \lstinputlisting[language=C]{asn_strtoimax_lim_old.c}}
+\lstinputlisting[language=C,basicstyle=\ttfamily\tiny]{asn_strtoimax_lim_old.c}
 
 
 \bibliography{report}
