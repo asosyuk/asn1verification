@@ -20,7 +20,8 @@
 \usepackage{subcaption}
 
 \newcommand{\N}{\mathbb{N}}
-
+\newcommand{\asnc}{\texttt{asn1c}}
+ 
 \usepackage{amsmath}
 \usepackage{amssymb}
 \usepackage{latexsym}
@@ -281,10 +282,10 @@ assurance levels than current non-verified implementations provide.
 
 \subsection{Verifying floating-point numbers encoding}
 
-As a ``first-order'' estimate of the difficluties associated with
-verifying ASN.1-related programs, we made an attempt at writing a
+As a first estimate of the difficluties associated with
+verifying ASN.1-related programs, we wrote
 formal specification of an encoder-decoder pair for a small, but
-particularly error-prone subset of the standard - floating-point numbers \cite{TODO:#?<asn1fpcoq>}.
+particularly error-prone subset of the standard - floating-point numbers \cite{TODO}.
 Our first approach was relatively straight-forward: define types
 representing ASN.1-encoded data in Coq, provide functions for converting
 between representations and prove that they operate correctly.
@@ -294,12 +295,12 @@ First of all, our definitions, being written in pure Coq, had only one
 connection to the real world - through automatic code extraction.
 This immediately comes with a set of problems:
 
-% TODO: make me a list please
-* Writing a new implementation in Coq does not produce any improvement in pre-existing widely-used implementations
-* Automatic code extraction does not provide sufficient correctness guarantees
-* Extracted code generally runs much slower than its counterparts implemented in other languages
-* Extracted code might not be compatible with or viable in some real-world use-case scenarios
-% /TODO
+\begin{itemize}
+\item Writing a new implementation in Coq does not produce any improvement in pre-existing widely-used implementations
+\item Automatic code extraction does not provide sufficient correctness guarantees
+\item Extracted code generally runs much slower than its counterparts implemented in other languages
+\item Extracted code might not be compatible with or viable in some real-world use-case scenarios
+\end{itemize}
 
 However, this basic attempt allowed us to home in on what approaches
 to verfication were viable and improve our effort estimates for the future. % and train one intern
@@ -540,7 +541,14 @@ Given experiments on this example we delineate a strategy for proving
 
 \subsection{Current work on executable specification}
 
-A nice thing about \texttt{asn1c} compiler is its modular structure, so we can proceed with verification in a modular way and exploit this structure in the proof. For each constructed type its parser will correspond to calling its elements' parsers in a certain order. Hence, we can represent parsers as certain finite state machines that use information provided by the ASN.1 schema to parse the binary input. Alternatively, parsers could be represented using parser combinators mentioned earlier. Decoder functions produced by \texttt{asn1c} compiler use as input a representation of ASN.1 schema, which in Coq we can formalize as a tree.
+A nice thing about \texttt{asn1c} compiler is its modular structure, so we can proceed with verification in a modular way and exploit this structure in the proof. 
+
+\paragraph{\asnc structure} From a high-level view \asnc compiler contains implementations of primitive types decoders (such as INTEGER, BOOLEAN, FLOAR  From a given ASN.1 schema \asnc compiler produces an internal representation of th
+
+
+
+
+For each constructed type its parser will correspond to calling its elements' parsers in a certain order. Hence, we can represent parsers as certain finite state machines that use information provided by the ASN.1 schema to parse the binary input. Alternatively, parsers could be represented using parser combinators mentioned earlier. Decoder functions produced by \texttt{asn1c} compiler use as input a representation of ASN.1 schema, which in Coq we can formalize as a tree.
 
  \begin{lstlisting}[language=Coq]
 Inductive TYPE_descriptor :=
