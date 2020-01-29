@@ -537,6 +537,77 @@ And the postcondition:
 Given experiments on this example we delineate a strategy for proving
 \texttt{asn1c} correctness.
 
+\section{Project Scope}
+
+The International Telecommunications Union X.509 standard
+\cite{TODO:16} defines the format of public key certificates used in
+many cryptography, Internet protocols (including TLS/SSL, the basis
+for the HTTPS protocol for secure browsing the web), certificate
+revocation lists, certification path validation, electronic
+signatures, and many other essential applications. X.509 is based on
+ASN.1, using an important central particular subset (Distinguished
+Encoding Rules, ``DER'') of ASN.1 \cite{TODO:37}.
+
+To limit the scope of the initial stage of the project to while
+exercising and showcasing all involved with the complete ASN.1
+standard, we decided to focus the detailed verification this part
+which could be then immediately used to implement verified X.509
+stacks for use in production applications.
+ 
+The X.509 focus provides a setting to answer essentially all questions
+that must be answered to determine the technical feasibility of the
+proposed concept of full ASN.1 stack verification. These questions
+include the following points.
+
+\begin{enumerate}
+\item How ASN1C source code needs to be refactored to make it suitable for verification? In particular:
+  \begin{enumerate}
+  \item What features of general C-language that are not supported by CompCert's C language semantics need to be avoided?
+  \item Are there any code organization changes which will aid structuring proofs (for example to make it easier to relate each function to a corresponding lemma).
+  \item Are there any simplifications which could be done to ASN1C code by removing rarely used or obscure features that will make it easier to verify?
+  \item Since ASN1C codebase dates back almost a decade, are there are any low-level manual optimizations that could be eliminated as combination of modern compilers and hardware handles them as well?
+  \end{enumerate}
+  Of these, we plan to make the necessary simplifications of ASN1C
+  code required for the scope of the Phase I subset. This work will
+  also inform us as to the type and scope of changes needed for the
+  rest of the codebase to complete full ASN1C verification in later
+  stages.
+\item What high-level properties can be proven which will translate into additional code safety guarantees?
+\item What safety guarantees will be ensured by our verification?
+\item How should formalization of ASN.1 standard in Coq look - i.e. what is the balance between clarity and readability (so humans can examine it and satisfy themselves that it indeed corresponds to the standard) and comprehensiveness (so meaningful set of properties could be proven based on it)?
+\item How many of the proving steps could be automated and how these automations speed up proof process? Can these be used to estimate effort required to prove the remainder of the ASN.1 stack?
+\item How many of the proving methodologies and tools developed during
+  Phase I could be re-used to prove other similar software and
+  protocols, particularly those that can be products? Examples include
+  the following.
+  \begin{enumerate}
+    \item Network protocol C-language implementations.
+    \item Arbitrary C-language programs.
+    \item Network protocols implementations in other languages.
+    \item Arbitrary programs on other languages.
+    \end{enumerate}
+  \item Are Executable Specifications of encoders/decoders completely sufficient to “extract” a working skeleton of ASN.1 stack in OCaml? How much of additional “glue” code needed to be written to transform the result into working product? How do code size and the performance of such extracted stack compares to the original C-language implementation from ASN1C?  
+\end{enumerate}
+
+To address these questions determining the technical feasibility of
+our proposed concept, the following key objectives of the project have
+been defined and structured as follows.
+
+\begin{enumerate}
+\item Formalize the X.509 part of the ASN.1 standard.     
+\item Refactor ASN1C code to make it suitable for verification.
+\item Establish correctness of encoders/decoders for primitive types.
+\item Establish correctness of encoders/decoders for constructed types.
+\item Prove high-level properties.
+\item Experiment with OCaml code extraction from Executable Specifications.
+\item Establish metrics and evaluate code bases to estimate the effort required to prove the remainder of ASN.1 stack.
+\item Produce the final ASN1C code and associated documentation in the form of commercial product that could be sold.
+\end{enumerate}
+
+We plan to use the technical results to immediately implement verified
+X.509 stacks for use in production applications with Digamma.ai
+customers.
+ 
 \section{Project Status}
 
 Now we are working on executable specification of the \texttt{asn1c} compiler, the intermediate level between the high-level specification and the C code. There are many ways of approaching this, but what we have to keep in mind is the future proof effort, both with respect to the code and the high-level specification. Thus our executable specification should correspond to the actual implementation, at the same time being abstract enough.
@@ -619,17 +690,49 @@ The second problem was related to \textit{pointer aliasing}. These problems are 
 \section{Related Work}
 
 
-The project EverParse is the closest to what we do. However, they don't verify existing compiler but build their own. They define their own input language which accepts C-like type definitions, from which specs, implementations of parsers and proofs of correctness are generated automatically. This is possible because the produced parsers are combintions of existing parsers that are proved correct. They follow the tradition of parser combinators\footnote{Starting with primitive parser combinators fail, return[x] (output x), \texttt{read\_byte}, and monadic composition of two parsers and\_then. Further one can define combinators for parsing of pairs (*), mapping of function on parser results (synth), filter of parser results etc.}. For each combinator there are two implementations: functional and C-like. C-like implementation is written in subset of F* that models imperative language, called Low*. Functions written in Low* operate on blocks and offsets and use machine integer formalization. They rely on automatic extraction from Low* to C using the tool Kremlin. 
+The project EverParse is the closest to what we do. However, they
+don't verify existing compiler but build their own. They define their
+own input language which accepts C-like type definitions, from which
+specs, implementations of parsers and proofs of correctness are
+generated automatically. This is possible because the produced parsers
+are combintions of existing parsers that are proved correct. They
+follow the tradition of parser combinators\footnote{Starting with
+  primitive parser combinators fail, return[x] (output x),
+  \texttt{read\_byte}, and monadic composition of two parsers
+  and\_then. Further one can define combinators for parsing of pairs
+  (*), mapping of function on parser results (synth), filter of parser
+  results etc.}. For each combinator there are two implementations:
+functional and C-like. C-like implementation is written in subset of
+F* that models imperative language, called Low*. Functions written in
+Low* operate on blocks and offsets and use machine integer
+formalization. They rely on automatic extraction from Low* to C using
+the tool Kremlin.
 
-Narcissus also constructs correct binary parsers from a
-verified library of combinators written in Coq. It generates functional
-parsers. Building on Narcissus there is a verified compiler in Coq for parsers
-and formatters described using Protocol Buffers. 
+Narcissus also constructs correct binary parsers from a verified
+library of combinators written in Coq. It generates functional
+parsers. Building on Narcissus there is a verified compiler in Coq for
+parsers and formatters described using Protocol Buffers.
 
  
-  Project Everest [19] is our most direct thematic competition, and some of the high-level Project Everest documentation makes passing mention to ASN.1. The Project Everest stewards adopted a different approach based on F* [4], and the Project Everest ASN.1 work  appears at best still in far distant plans.
+Project Everest \cite{TODO:19} is our most direct thematic competition, and some
+of the high-level Project Everest documentation makes passing mention
+to ASN.1. The Project Everest stewards adopted a different approach
+based on F* \cite{TODO:4}, and the Project Everest ASN.1 work appears at best
+still in far distant plans.
 
-It is also noted that Galois did some work on ASN.1 verification in the past (circa 2012) [11]. It appears that Galois abandoned [12] the goal of full ASN.1 verification that we pursue in our project with our more pragmatic approach; Galois is now only exploring a limited subset ASN.1 verification adequate for the “vehicle-to-vehicle” (V2V) market [13], but that particular subset has limited broader applicability and the Galois effort appears encumbered by aspects of an unsuccessful  approach. It is noted that although our goal is eventually to verify all ASN.1, we decided to start with a different (X.509-related) subset of ASN.1; this subset is reasonably small, but X.509 is so widely used that our initial verified implementation of our chosen subset will have a large volume and wide range of immediate commercial applications.
+It is also noted that Galois did some work on ASN.1 verification in
+the past (circa 2012) \cite{TODO:11}. It appears that Galois abandoned \cite{TODO:12} the
+goal of full ASN.1 verification that we pursue in our project with our
+more pragmatic approach; Galois is now only exploring a limited subset
+ASN.1 verification adequate for the “vehicle-to-vehicle” (V2V) market
+\cite{TODO:13}, but that particular subset has limited broader applicability and
+the Galois effort appears encumbered by aspects of an unsuccessful
+approach. It is noted that although our goal is eventually to verify
+all ASN.1, we decided to start with a different (X.509-related) subset
+of ASN.1; this subset is reasonably small, but X.509 is so widely used
+that our initial verified implementation of our chosen subset will
+have a large volume and wide range of immediate commercial
+applications.
 
 
 \appendix
