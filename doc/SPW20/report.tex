@@ -372,8 +372,9 @@ specification.
 After addressing the two bugs we discovered we were able to
 successfully verify that the function finally corresponds to the
 specification we wrote for. However, it was noticed the following
-behavior: For input \texttt{``a''} it stores value 0 and returns {\color{green}\texttt{ASN\_STRTOX\_EXTRA\_DATA}} (same behaviour as on input \texttt{``0a''}), which could be unintended by authors. \\
-
+behavior: For input \texttt{``a''} it stores value 0 and returns
+{\color{green}\texttt{ASN\_STRTOX\_EXTRA\_DATA}} (same behaviour as on
+input \texttt{``0a''}), which could be unintended by authors.
   
 \subsubsection{Direct operational semantics proof}
 
@@ -586,7 +587,7 @@ include the following points.
     \item Network protocols implementations in other languages.
     \item Arbitrary programs on other languages.
     \end{enumerate}
-  \item Are Executable Specifications of encoders/decoders completely sufficient to “extract” a working skeleton of ASN.1 stack in OCaml? How much of additional “glue” code needed to be written to transform the result into working product? How do code size and the performance of such extracted stack compares to the original C-language implementation from ASN1C?  
+  \item Are Executable Specifications of encoders/decoders completely sufficient to “extract” a working skeleton of ASN.1 stack in OCaml? How much of additional ``glue'' code needed to be written to transform the result into working product? How do code size and the performance of such extracted stack compares to the original C-language implementation from ASN1C?  
 \end{enumerate}
 
 To address these questions determining the technical feasibility of
@@ -610,11 +611,33 @@ customers.
  
 \section{Project Status}
 
-Now we are working on executable specification of the \texttt{asn1c} compiler, the intermediate level between the high-level specification and the C code. There are many ways of approaching this, but what we have to keep in mind is the future proof effort, both with respect to the code and the high-level specification. Thus our executable specification should correspond to the actual implementation, at the same time being abstract enough.
+Now we are working on executable specification of the \texttt{asn1c}
+compiler, the intermediate level between the high-level specification
+and the C code. There are many ways of approaching this, but what we
+have to keep in mind is the future proof effort, both with respect to
+the code and the high-level specification. Thus our executable
+specification should correspond to the actual implementation, at the
+same time being abstract enough.
 
- \texttt{asn1c} compiler has modular structure, so we can proceed with verification in a modular way and exploit this structure in the proofs. From a high-level view, \texttt{asn1c} compiler consists of the library of primitive types decoders (such as INTEGER, BOOLEAN, FLOATING POINT etc). Each of these can be verified with respect to its ASN.1 specification. Our work on floating point number is an example of this. On top of this, we need to specify and prove memory safety for each primitive decoding/encoding pair.
+\texttt{asn1c} compiler has modular structure, so we can proceed with
+verification in a modular way and exploit this structure in the
+proofs. From a high-level view, \texttt{asn1c} compiler consists of
+the library of primitive types decoders (such as INTEGER, BOOLEAN,
+FLOATING POINT etc). Each of these can be verified with respect to its
+ASN.1 specification. Our work on floating point number is an example
+of this. On top of this, we need to specify and prove memory safety
+for each primitive decoding/encoding pair.
 
- Further, \texttt{asn1c} compiler contains functions that decode/encode constructed types (such as SEQUENCE, CHOICE, SET etc). Then from a given ASN.1 type \texttt{asn1c} compiler produces an internal representation of the type, which basically specifies which existing decoders/encoders to apply and in which order, as well as the output/input C structures for the functions. In Coq we can formalize these internal representations as trees with nodes labelled by the type's tags and decoder/encoder types\footnote{For the sake of simplicity, let's consider only one constructed type SEQUENCE and only decode function.}.
+Further, \texttt{asn1c} compiler contains functions that decode/encode
+constructed types (such as SEQUENCE, CHOICE, SET etc). Then from a
+given ASN.1 type \texttt{asn1c} compiler produces an internal
+representation of the type, which basically specifies which existing
+decoders/encoders to apply and in which order, as well as the
+output/input C structures for the functions. In Coq we can formalize
+these internal representations as trees with nodes labelled by the
+type's tags and decoder/encoder types\footnote{For the sake of
+  simplicity, let's consider only one constructed type SEQUENCE and
+  only decode function.}.
 
  \begin{lstlisting}[language=Coq]
 Inductive decoder_type := BOOLEAN | INTEGER | SEQUENCE | ...
@@ -626,7 +649,11 @@ Inductive TYPE_descriptor :=
       }.
  \end{lstlisting}
 
-Then a constructed type decoder will traverse the tree and apply respective primitive decoders. In \texttt{asn1c} it is implemented as a recursive function that readily translates into a nested recursive function in Coq (decoders for other constructed types have similar structure).
+ Then a constructed type decoder will traverse the tree and apply
+ respective primitive decoders. In \texttt{asn1c} it is implemented as
+ a recursive function that readily translates into a nested recursive
+ function in Coq (decoders for other constructed types have similar
+ structure).
  
  \begin{lstlisting}[language=Coq]
  Fixpoint decoder (X : TYPE_descriptor) (ls : list byte)  :=
@@ -654,15 +681,33 @@ Then a constructed type decoder will traverse the tree and apply respective prim
         end.
  \end{lstlisting}
 
-Given a particular ASN.1 type definition that translates into a \texttt{TYPE\_descriptor} the \texttt{decoder} function for that particular type corresponds to a transition system with states were primitive decoders are called. Hence one of the ways we could formalize the compiler is as a function that creates a transition system (alike finite state machine) from a given ASN.1 type definition or \texttt{TYPE\_descriptor} tree. Since run of the recursive \texttt{decoder} function corresponds to the transition system, we could use this model in the proof of implementation correctness.
+ Given a particular ASN.1 type definition that translates into a
+ \texttt{TYPE\_descriptor} the \texttt{decoder} function for that
+ particular type corresponds to a transition system with states were
+ primitive decoders are called. Hence one of the ways we could
+ formalize the compiler is as a function that creates a transition
+ system (alike finite state machine) from a given ASN.1 type
+ definition or \texttt{TYPE\_descriptor} tree. Since run of the
+ recursive \texttt{decoder} function corresponds to the transition
+ system, we could use this model in the proof of implementation
+ correctness.
 
-The \texttt{decoder} function above could be also thought of in terms of sequence parser combinator known from monadic parser combinators tradition\cite{TODO}. Assume you have given decoders for primitive functions. Then you can add an operator \texttt{;; : decoder asn\_value-> decoder asn\_value -> asn\_value} that takes two decoders and applies them sequentially \texttt{p1;;p2}; similar for list of parsers. Then the compiler can be seen as producing the concrete combination of parsers given \texttt{TYPE\_descriptor}.   
+ The \texttt{decoder} function above could be also thought of in terms
+ of sequence parser combinator known from monadic parser combinators
+ tradition\cite{TODO}. Assume you have given decoders for primitive
+ functions. Then you can add an operator \texttt{;; : decoder
+   asn\_value-> decoder asn\_value -> asn\_value} that takes two
+ decoders and applies them sequentially \texttt{p1;;p2}; similar for
+ list of parsers. Then the compiler can be seen as producing the
+ concrete combination of parsers given \texttt{TYPE\_descriptor}.
 
+ \section{Future work}
 
-\section{Future work: automation}
-
+ %TODO: See Section 5.3 here https://docs.google.com/document/d/1j0vt9rlKZPy_jQY9srPUVB1c8ylZm4DnNyYMXYls6UM/edit
 
 \subsection{Machine arithmetic}
+
+% TODO: Nika, what bug. We are talking about future work here in general
 
 The first bug is related to data type ranges and modulo integer
 arithmetic. These sort of problems are fairly common and require
@@ -684,11 +729,27 @@ full Z is linear in number of variables and constraints).
 
 \subsection{Separation Logic}
 
-The second problem was related to \textit{pointer aliasing}. These problems are not immediately obvious because C language does not allow us to enforce any memory aliasing restrictions (unlike, say Rust). In formal verification, there is a rigorous model to analyze such kind of problems called \textit{separation logic}. VST provides some automation related to this, however, it is not sufficient, but one can build custom libraries and if restricted to specific domain separation logic proofs can be fully automated. VST supports (undecidable) expressive dependently typed higher-order logic. The built-in tactics can solve simple goals, but much manual proof effort is required to transform the goals. The VST-floyd is based on databases of hints and separation logic lemmmas and tries to apply them in a smart way. We conjecture that the full force of separation logic is unnecessary in most cases and we could restrict ourselves to tractable fragments of separation logic, for which decision procedures has been already implemented within SMT solvers. The latter can be integrated into Coq proofs using SMTCoq\footnote{\url{https://smtcoq.github.io/}}.
+% TODO: Nika, what problem?!
+The second problem was related to \textit{pointer aliasing}. These
+problems are not immediately obvious because C language does not allow
+us to enforce any memory aliasing restrictions (unlike, say Rust). In
+formal verification, there is a rigorous model to analyze such kind of
+problems called \textit{separation logic}. VST provides some
+automation related to this, however, it is not sufficient, but one can
+build custom libraries and if restricted to specific domain separation
+logic proofs can be fully automated. VST supports (undecidable)
+expressive dependently typed higher-order logic. The built-in tactics
+can solve simple goals, but much manual proof effort is required to
+transform the goals. The VST-floyd is based on databases of hints and
+separation logic lemmmas and tries to apply them in a smart way. We
+conjecture that the full force of separation logic is unnecessary in
+most cases and we could restrict ourselves to tractable fragments of
+separation logic, for which decision procedures has been already
+implemented within SMT solvers. The latter can be integrated into Coq
+proofs using SMTCoq\footnote{\url{https://smtcoq.github.io/}}.
 
 
 \section{Related Work}
-
 
 The project EverParse is the closest to what we do. However, they
 don't verify existing compiler but build their own. They define their
@@ -712,27 +773,20 @@ Narcissus also constructs correct binary parsers from a verified
 library of combinators written in Coq. It generates functional
 parsers. Building on Narcissus there is a verified compiler in Coq for
 parsers and formatters described using Protocol Buffers.
-
  
-Project Everest \cite{TODO:19} is our most direct thematic competition, and some
-of the high-level Project Everest documentation makes passing mention
-to ASN.1. The Project Everest stewards adopted a different approach
-based on F* \cite{TODO:4}, and the Project Everest ASN.1 work appears at best
-still in far distant plans.
-
 It is also noted that Galois did some work on ASN.1 verification in
-the past (circa 2012) \cite{TODO:11}. It appears that Galois abandoned \cite{TODO:12} the
-goal of full ASN.1 verification that we pursue in our project with our
-more pragmatic approach; Galois is now only exploring a limited subset
-ASN.1 verification adequate for the “vehicle-to-vehicle” (V2V) market
-\cite{TODO:13}, but that particular subset has limited broader applicability and
-the Galois effort appears encumbered by aspects of an unsuccessful
-approach. It is noted that although our goal is eventually to verify
-all ASN.1, we decided to start with a different (X.509-related) subset
-of ASN.1; this subset is reasonably small, but X.509 is so widely used
-that our initial verified implementation of our chosen subset will
-have a large volume and wide range of immediate commercial
-applications.
+the past (circa 2012) \cite{TODO:11}. It appears that Galois abandoned
+\cite{TODO:12} the goal of full ASN.1 verification that we pursue in
+our project with our more pragmatic approach; Galois is now only
+exploring a limited subset ASN.1 verification adequate for the
+``vehicle-to-vehicle'' (V2V) market \cite{TODO:13}, but that
+particular subset has limited broader applicability and the Galois
+effort appears encumbered by aspects of an unsuccessful approach. It
+is noted that although our goal is eventually to verify all ASN.1, we
+decided to start with a different (X.509-related) subset of ASN.1;
+this subset is reasonably small, but X.509 is so widely used that our
+initial verified implementation of our chosen subset will have a large
+volume and wide range of immediate commercial applications.
 
 
 \appendix
