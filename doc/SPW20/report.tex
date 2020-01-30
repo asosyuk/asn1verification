@@ -684,14 +684,14 @@ Inductive TYPE_descriptor :=
  \section{Next Steps}
 The following key tasks have been planned:
  
-\subsection{Task 1: Formalization of X.509-Relevant Parts of ASN.1 Specification}
+\paragraph{Task 1: Formalization of X.509-Relevant Parts of ASN.1 Specification}
 The first step of the project is a formalization of relevant parts of ASN.1 standard. Our proof engineers will review standard text and will express relevant parts as formal high-level specification in Coq. We will focus on a handful of primitive ASN.1 types (like INTEGER) and a few constructed types (like SEQUENCE).
 
 Because this step is manual and the only part of the project which is not mechanically verified great care should be taken in performing it. The results should be precise, unambiguous, easily traceable to the original standard's text. It should be easy to read and understand by humans. It will be openly published and interested parties will be able to examine it in order to convince themselves that our formalization is indeed describing the intended meaning of the ASN.1 standard text.
 
 In addition to the human-readable high-level specification described above, we will produce the next level of detail: an executable functional specification of ASN.1 encoders and decoders for all relevant types. We will prove that the Executable Specification encodes and decodes bytes in conformance to High-Level specification.
 
-\subsection{Task 2: Refactoring of the ``ANS1C'' C Code Implementation of ASN.1}
+\paragraph{Task 2: Refactoring of the ``ANS1C'' C Code Implementation of ASN.1}
 
 As a first, essential step we will need to ensure that the ASN1C code can be compiled by CompCert compiler. This involves removing any use of C language features not supported by CompCert.
 
@@ -699,13 +699,13 @@ Further, the original ASN1C implementation implements a ``streaming'' decoders, 
 
 Additionally, the code will undergo a refactoring to make the parts we are proving more clearly delimited and better organized for formal verification. For example we might choose to eliminate some low-level code optimizations which are difficult to prove and are essentially no longer needed as the combination of modern compilers and hardware removes the potential value of these older optimizations.
 
-\subsection{Task 3: Primitive Types Verification}
+\paragraph{Task 3: Primitive Types Verification}
 Verifying correctness of encoders/decoders for atomic types (such as number, int, boolean, string, time, void/null, etc.) is classically straightforward, but laborious. For each type there is a pair of C functions: encoder and decoder. We will prove that their C implementation matches the executable specification we defined earlier.
 
-\subsection{Task 4: Constructed Types Verification}
+\paragraph{Task 4: Constructed Types Verification}
 For constructed types like Choice, Sequence, and Set we will also have encoders and decoders. In this case, they will rely on already proven encoders/decoders for primitive types. Establishing correctness for constructed types will be performed by a similar way as for atomic types: we will need to prove that constructed type encoding/decoding C routines correspond to our executable spec. 
 
-\subsection{Task 5: Proof of High-Level Properties} 
+\paragraph{Task 5: Proof of High-Level Properties} 
 The proofs of high-level properties for all encoders/decoders will be done in a priority order. To establish a meaningful priority we turn to the historical analysis of the bugs in the Computer Vulnerabilities and Exposures (CVE) database [7b]. The four most frequently violated high-level properties are:
 \begin{itemize}
 
@@ -728,10 +728,10 @@ Historical analysis of the bugs in the Computer Vulnerabilities and Exposures (C
 
 Accordingly, if there is time we will attempt to include work on proofs of these four lower-priority high-level properties. High-Level Properties like termination, computation complexity and memory safely could be proven based on executable specification. 
 
-\subsection{Task 6: Code Extraction from Execution Specification}
+\paragraph{Task 6: Code Extraction from Execution Specification}
 In addition to verifying C code against the executable spec, we will additionally derive an independent OCaml implementation from the same spec leveraging an OCaml code extraction from the refined Executable Specifications produced in Task 1 and subsequently validated and proven in Tasks 2-5. 
 
-\subsection{Task 7: Final Code, Associated Documentation, Estimates of Additional Work items}
+\paragraph{Task 7: Final Code, Associated Documentation, Estimates of Additional Work items}
 In this task we will prepare the code and associated documentation. Additionally, we plan to publish our High-Level Spec as formalization of a part of ASN.1 standard under a permissive license at Github with an accompanying academic paper and invite the community to use, comment, and extend it. 
 We also will provide informed estimates of an additional work items we were not able to address. 
 
