@@ -113,9 +113,9 @@ used by every browser to access HTTPS web sites. The is an abridged
 version as the original ASN.1 definition for the X.509 standard takes
 about 1000 lines of ASN.1 and is not practical to include into this
 report. Using ASN.1 language one can define data structures that use
-ASN.1 {\it primitive types}, such as INTEGER, BOOLEAN, OBJECT
-IDENTIFIER etc, and {\it constructed types}, such as SEQUENCE (OF),
-SET (OF), CHOICE (OF).
+ASN.1 {\it primitive types}, such as \emph{INTEGER}, \emph{BOOLEAN}, \emph{OBJECT
+IDENTIFIER} etc, and {\it constructed types}, such as \emph{SEQUENCE (OF)},
+\emph{SET (OF)}, \emph{CHOICE (OF)}.
 
 \begin{lstlisting}[language=ASN1,label=lst:asnex,
   caption={ASN.1 example of X.509 certificates, adapted for brevity}]
@@ -239,21 +239,19 @@ as a pair of pure functions. We will prove that the Executable
 specification encodes and decodes bytes are in conformance to High-Level
 specification.
 
-``High-Level Properties'' like termination, computation complexity and
-memory safely could be proven based on executable specification. They
-are shown as ``High Level'' box on the left in the Figure 1. The executable spec
-contains enough information to \textit{extract} a fully functional
-encoder program in languages supported by Coq extraction mechanism
-(e.g. OCaml and Haskell) \cite{Extraction}. Such a possibility is shown with the box
+High-Level Properties like termination, computation complexity and
+memory safety could be proven based on executable specification. They
+are shown as ``High Level'' box on the left in the
+Figure~\ref{fig:components}. The executable spec contains enough
+information to \textit{extract} a fully functional encoder program in
+languages supported by Coq extraction mechanism (e.g. OCaml and
+Haskell) \cite{Extraction}. Such a possibility is shown with the box
 on the right in Figure~\ref{fig:components} although we do not plan to
-pursue it yet. This approach others often take and it has some
-drawbacks. However, it should be noted that all the work we will do up
-to and including Executable Spec is compatible with this approach and
-if needed we can revisit it. For example, in case if we need to
-generate ASN.1 stack for special platforms where OCaml code opens some
-additional opportunities for parallelization, optimization or
-integration. One example of such platforms could be MirageOS
-\cite{MirageOS} which is an OCaml-based unikernel.
+pursue it yet. However it could be explored in fututre, for example,
+in case if we need to generate ASN.1 stack for special platforms where
+OCaml code opens some additional opportunities for parallelization,
+optimization or integration. One example of such platforms could be
+MirageOS \cite{MirageOS} which is an OCaml-based unikernel.
 
 The box at the left marked \textit{QuickChick} represents another
 possibility we might not pursue immediately. It is using randomized
@@ -263,7 +261,7 @@ done using QuickChick \cite{QuickChick} in Coq. It is also could be used
 to generate a test-suite for extracted code.
 
 At the bottom of Figure 1 is a box labeled ``C'' which represents the
-existing C code of ASN1C compiler. Using an automated conversion
+existing C code of \emph{ASN1C} compiler. Using an automated conversion
 provided by the \texttt{clightgen} tool within the CompCert C compiler
 \cite{CompCert} we will convert this to an Abstract Syntax Tree (AST)
 \cite{AST} (labeled ``C.AST'' in Figure 1) rendered in a subset
@@ -313,7 +311,7 @@ Element (b) ensures a bug-free standard-compliant implementation, and
 element (c) provides further guarantee that it could not be exploited
 in penetration or denial of service attacks.
 
-Additionally, our (modified) version of ASN1C could be compiled with
+Additionally, our (modified) version of \emph{ASN1C} could be compiled with
 the certified CompCert compiler \cite{CompCert} to extend correctness
 guarantees through all levels down to machine code. This will provide state-of-the-art high
 assurance suitable for mission-critical systems. Further, since formal
@@ -563,7 +561,7 @@ And the postcondition will record the changes in memory. Then we prove that, giv
 \end{lstlisting}
 
 Given experiments on this example we delineated a strategy for proving
-ASN1C correctness.
+\emph{ASN1C} correctness.
 
 \section{Project Scope}
 
@@ -588,17 +586,17 @@ proposed concept of full ASN.1 stack verification. These questions
 include the following points.
 
 \begin{enumerate}
-\item How ASN1C source code needs to be refactored to make it suitable for verification? In particular:
+\item How \emph{ASN1C} source code needs to be refactored to make it suitable for verification? In particular:
   \begin{enumerate}
   \item What features of general C-language that are not supported by CompCert's C language semantics need to be avoided?
   \item Are there any code organization changes which will aid structuring proofs (for example to make it easier to relate each function to a corresponding lemma).
-  \item Are there any simplifications which could be done to ASN1C code by removing rarely used or obscure features that will make it easier to verify?
-  \item Since ASN1C codebase dates back almost a decade, are there are any low-level manual optimizations that could be eliminated as combination of modern compilers and hardware handles them as well?
+  \item Are there any simplifications which could be done to \emph{ASN1C} code by removing rarely used or obscure features that will make it easier to verify?
+  \item Since \emph{ASN1C} codebase dates back almost a decade, are there are any low-level manual optimizations that could be eliminated as combination of modern compilers and hardware handles them as well?
   \end{enumerate}
-  Of these, we plan to make the necessary simplifications of ASN1C
+  Of these, we plan to make the necessary simplifications of \emph{ASN1C}
   code required for the scope of the Phase I subset. This work will
   also inform us as to the type and scope of changes needed for the
-  rest of the codebase to complete full ASN1C verification in later
+  rest of the codebase to complete full \emph{ASN1C} verification in later
   stages.
 \item What high-level properties can be proven which will translate into additional code safety guarantees?
 \item What safety guarantees will be ensured by our verification?
@@ -614,7 +612,7 @@ include the following points.
     \item Network protocols implementations in other languages.
     \item Arbitrary programs on other languages.
     \end{enumerate}
-  \item Are Executable Specifications of encoders/decoders completely sufficient to ``extract'' a working skeleton of ASN.1 stack in OCaml? How much of additional ``glue'' code needed to be written to transform the result into working product? How do code size and the performance of such extracted stack compares to the original C-language implementation from ASN1C?  
+  \item Are Executable Specifications of encoders/decoders completely sufficient to ``extract'' a working skeleton of ASN.1 stack in OCaml? How much of additional ``glue'' code needed to be written to transform the result into working product? How do code size and the performance of such extracted stack compares to the original C-language implementation from \emph{ASN1C}?  
 \end{enumerate}
 
 To address these questions determining the technical feasibility of
@@ -623,13 +621,13 @@ been defined and structured as follows.
 
 \begin{enumerate}
 \item Formalize the X.509 part of the ASN.1 standard.     
-\item Refactor ASN1C code to make it suitable for verification.
+\item Refactor \emph{ASN1C} code to make it suitable for verification.
 \item Establish correctness of encoders/decoders for primitive types.
 \item Establish correctness of encoders/decoders for constructed types.
 \item Prove high-level properties.
 \item Experiment with OCaml code extraction from Executable Specifications.
 \item Establish metrics and evaluate code bases to estimate the effort required to prove the remainder of ASN.1 stack.
-\item Produce the final ASN1C code and associated documentation in the form of commercial product that could be sold.
+\item Produce the final \emph{ASN1C} code and associated documentation in the form of commercial product that could be sold.
 \end{enumerate}
 
 We plan to use the technical results to immediately implement verified
@@ -638,7 +636,7 @@ customers.
  
 \section{Project Status}
 
-Now we are working on executable specification of the ASN1C
+Now we are working on executable specification of the \emph{ASN1C}
 compiler, the intermediate level between the high-level specification
 and the C code. There are many ways of approaching this, but what we
 have to keep in mind is the future proof effort, both with respect to
@@ -646,18 +644,18 @@ the C code and the high-level specification. Thus our executable
 specification should correspond to the actual implementation, at the
 same time being abstract enough.
 
-The ASN1C compiler has modular structure, so we can proceed with
+The \emph{ASN1C} compiler has modular structure, so we can proceed with
 verification in a modular way and exploit this structure in the
-proofs. From a high-level view, ASN1C compiler consists of
-the library of primitive types decoders (such as INTEGER, BOOLEAN,
-FLOATING POINT etc). Each of these can be verified with respect to its
+proofs. From a high-level view, \emph{ASN1C} compiler consists of
+the library of primitive types decoders (such as \emph{INTEGER}, \emph{BOOLEAN},
+\emph{FLOATING POINT} etc). Each of these can be verified with respect to its
 ASN.1 specification. Our work on floating point number is an example
 of this. On top of this, we need to specify and prove memory safety
 for each primitive decoding/encoding pair.
 
 Further, it contains functions that decode/encode
-constructed types (such as SEQUENCE, CHOICE, SET etc). Then from a
-given ASN.1 type ASN1C compiler produces an internal
+constructed types (such as \emph{SEQUENCE}, \emph{CHOICE}, \emph{SET} etc). Then from a
+given ASN.1 type \emph{ASN1C} compiler produces an internal
 representation of the type, which basically specifies which existing
 decoders/encoders to apply and in which order, as well as the
 output/input C structures for the functions. In Coq
@@ -675,7 +673,7 @@ Inductive TYPE_descriptor :=
  \end{lstlisting}
 
  Then a constructed type decoder will have type \texttt{decoder : TYPE\_descriptor $\rightarrow$ list byte $\rightarrow$ asn\_value}  and traverse the tree and apply
- respective primitive decoders. In ASN1C it is implemented as
+ respective primitive decoders. In \emph{ASN1C} it is implemented as
  a recursive function that readily translates into a nested or mutually recursive
  function in Coq (decoders for other constructed types have similar
  structure).
@@ -704,7 +702,7 @@ Inductive TYPE_descriptor :=
 The following key tasks have been planned:
  
 \paragraph{Task 1: Formalization of X.509-Relevant Parts of ASN.1 Specification}
-The first step of the project is a formalization of relevant parts of ASN.1 standard. Our proof engineers will review standard text and will express relevant parts as formal high-level specification in Coq. We will focus on a handful of primitive ASN.1 types (like INTEGER) and a few constructed types (like SEQUENCE).
+The first step of the project is a formalization of relevant parts of ASN.1 standard. Our proof engineers will review standard text and will express relevant parts as formal high-level specification in Coq. We will focus on a handful of primitive ASN.1 types (like \emph{INTEGER}) and a few constructed types (like \emph{SEQUENCE}).
 
 Because this step is manual and the only part of the project which is not mechanically verified great care should be taken in performing it. The results should be precise, unambiguous, easily traceable to the original standard's text. It should be easy to read and understand by humans. It will be openly published and interested parties will be able to examine it in order to convince themselves that our formalization is indeed describing the intended meaning of the ASN.1 standard text.
 
@@ -712,9 +710,9 @@ In addition to the human-readable high-level specification described above, we w
 
 \paragraph{Task 2: Refactoring of the ``ANS1C'' C Code Implementation of ASN.1}
 
-As a first, essential step we will need to ensure that the ASN1C code can be compiled by CompCert compiler. This involves removing any use of C language features not supported by CompCert.
+As a first, essential step we will need to ensure that the \emph{ASN1C} code can be compiled by CompCert compiler. This involves removing any use of C language features not supported by CompCert.
 
-Further, the original ASN1C implementation implements a ``streaming'' decoders, a state of the art technique which can decode packets in segments as they are being received. Use of a streaming decoder adds a significant level of complexity and has turned out to be not very useful in practice. Accordingly, we plan to simplify some of the implementations to remove this feature. This will make these decoders much easier to prove.
+Further, the original \emph{ASN1C} implementation implements a ``streaming'' decoders, a state of the art technique which can decode packets in segments as they are being received. Use of a streaming decoder adds a significant level of complexity and has turned out to be not very useful in practice. Accordingly, we plan to simplify some of the implementations to remove this feature. This will make these decoders much easier to prove.
 
 Additionally, the code will undergo a refactoring to make the parts we are proving more clearly delimited and better organized for formal verification. For example we might choose to eliminate some low-level code optimizations which are difficult to prove and are essentially no longer needed as the combination of modern compilers and hardware removes the potential value of these older optimizations.
 
