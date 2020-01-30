@@ -31,6 +31,8 @@
 \usepackage{mathtools}
 \usepackage{enumitem}
 
+\usepackage{asn1}
+
 %\usepackage{multicol}
 
 \lstset{
@@ -96,22 +98,26 @@ The pervasively deployed and widely adopted ASN.1 (``Abstract Syntax
 Notation One'') \cite{ASN1Intro} joint standard of the International
 Telecommunication Union (ITU-T) and the International Organization for
 Standardization (ISO/IEC) provides an essential interface description
-language for defining data structures for serialized and deserialized
-cross-platform data exchange, broadly used in telecommunications,
-computer networking, the Internet, and cryptography. ASN.1 is
-vitally relied upon by core aspects of the Internet infrastructure and
-Internet applications such as telephony, enterprise computing,
-utilities, finance, military, security, digitally-controlled
-infrastructure, transportation, medical systems, and commercial cloud
-computing.
+language for defining data structures for serialization and
+de-serialization in cross-platform data exchange, broadly used in
+telecommunications, computer networking, the Internet, and
+cryptography. ASN.1 is vitally relied upon by core aspects of the
+Internet infrastructure and Internet applications such as telephony,
+enterprise computing, utilities, finance, military, security,
+digitally-controlled infrastructure, transportation, medical systems,
+and commercial cloud computing.
 
-An example ASN.1 module that describes an X.509-like public key certificate
-is shown in Listing~\ref{lst:asnex}.
-Such certificates are used by every browser to access HTTPS web sites.
-The original ASN.1 definition for the X.509 standard takes about 1000 lines
-of ASN.1 and is not practical to include into this report. Using ASN.1 language one can define data structures that use ASN.1 {\it primitive types}, such as INTEGER, BOOLEAN, OBJECT IDENTIFIER etc, and {\it constructed types}, such as SEQUENCE (OF), SET (OF), CHOICE (OF).
+An example ASN.1 module that describes an X.509-like public key
+certificate is shown in Listing~\ref{lst:asnex}. Such certificates are
+used by every browser to access HTTPS web sites. The is an abridged
+version as the original ASN.1 definition for the X.509 standard takes
+about 1000 lines of ASN.1 and is not practical to include into this
+report. Using ASN.1 language one can define data structures that use
+ASN.1 {\it primitive types}, such as INTEGER, BOOLEAN, OBJECT
+IDENTIFIER etc, and {\it constructed types}, such as SEQUENCE (OF),
+SET (OF), CHOICE (OF).
 
-\begin{lstlisting}[language=C,label=lst:asnex,
+\begin{lstlisting}[language=ASN1,label=lst:asnex,
   caption={ASN.1 example of X.509 certificates, adapted for brevity}]
 X509 DEFINITIONS ::= BEGIN
 
