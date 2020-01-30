@@ -644,7 +644,7 @@ include the following points.
   \item What features of general C-language that are not supported by CompCert's C language semantics need to be avoided?
   \item Are there any code organization changes which will aid structuring proofs (for example to make it easier to relate each function to a corresponding lemma).
   \item Are there any simplifications which could be done to \emph{ASN1C} code by removing rarely used or obscure features that will make it easier to verify?
-  \item Since \emph{ASN1C} codebase dates back almost a decade, are there are any low-level manual optimizations that could be eliminated as combination of modern compilers and hardware handles them as well?
+  \item Since \emph{ASN1C} codebase dates back more than a decade, are there are any low-level manual optimizations that could be eliminated as combination of modern compilers and hardware handles them as well?
   \end{enumerate}
   Of these, we plan to make the necessary simplifications of \emph{ASN1C}
   code required for the scope of the Phase I subset. This work will
@@ -673,7 +673,7 @@ our proposed concept, the following key objectives of the project have
 been defined and structured as follows.
 
 \begin{enumerate}
-\item Formalize the X.509 part of the ASN.1 standard.     
+\item Formalize a part of the ASN.1 standard, sufficient to represent X.509.
 \item Refactor \emph{ASN1C} code to make it suitable for verification.
 \item Establish correctness of encoders/decoders for primitive types.
 \item Establish correctness of encoders/decoders for constructed types.
@@ -746,19 +746,19 @@ Inductive TYPE_descriptor :=
  of sequence parser combinator known from monadic parser combinators
  approach\cite{MPC}. Assume you have given decoders for primitive
  functions. Then you can add an operator \texttt{seq : decoder
-   asn\_value -> decoder asn\_value -> asn\_value} that takes two
+   asn\_value $\rightarrow$ decoder asn\_value $\rightarrow$ asn\_value} that takes two
  decoders and applies them sequentially \texttt{seq p1 p2}; similar for a
  list of parsers. Then the compiler can be seen as producing the
  concrete combination of parsers given \texttt{TYPE\_descriptor}.
 
- \section{Next Steps}
+ \section{Project Plan}
 The following key tasks have been planned:
  
 \paragraph{Task 1: Formalization of X.509-Relevant Parts of ASN.1 Specification}
 The first step of the project is a formalization of relevant parts of ASN.1 standard. Our proof engineers will review standard text and will express relevant parts as formal high-level specification in Coq. We will focus on a handful of primitive ASN.1 types (like \emph{INTEGER}) and a few constructed types (like \emph{SEQUENCE}).
 
 Because this step is manual and the only part of the project which is not mechanically verified great care should be taken in performing it. The results should be precise, unambiguous, easily traceable to the original standard's text. It should be easy to read and understand by humans. It will be openly published and interested parties will be able to examine it in order to convince themselves that our formalization is indeed describing the intended meaning of the ASN.1 standard text.
-
+s
 In addition to the human-readable high-level specification described above, we will produce the next level of detail: an executable functional specification of ASN.1 encoders and decoders for all relevant types. We will prove that the Executable Specification encodes and decodes bytes in conformance to High-Level specification.
 
 \paragraph{Task 2: Refactoring of the ``ANS1C'' C Code Implementation of ASN.1}
@@ -807,23 +807,24 @@ We also will provide informed estimates of an additional work items we were not 
 
 \section{Related Work}
 
-A F* project EverParse is the closest to what we do \cite{RamananandroDFS19}. However, they
-don't verify existing compiler but build their own. They define their
-own input language which accepts C-like type definitions, from which
-specifications, their implementations and proofs of correctness are
-generated automatically. This is possible because the produced parsers
-are combintions of existing parsers that are proved correct in F*. They
+Microsoft's project EverParse \cite{RamananandroDFS19} is the closest
+to what we do. However, they don't verify existing protocol stack but
+build their own. They define their own input language which accepts
+C-like type definitions, from which specifications, their
+implementations and proofs of correctness are generated
+automatically. This is possible because the produced parsers are
+combintions of existing parsers that are proved correct in F*. They
 follow the tradition of parser combinators\footnote{Starting with
-  primitive parser combinators  \texttt{fail},  \texttt{return[x]} (output  \texttt{x}),
-  \texttt{read\_byte}, and monadic composition of two parsers
-   \texttt{and\_then}, one can define combinators for parsing of pairs
-  (*), mapping of function on parser results (\texttt{synth}),  \texttt{filter} of parser
-  results etc.}. For each combinator there are two implementations:
-functional and C-like. C-like implementation is written in subset of
-F* that models imperative language, called Low*. Functions written in
-Low* operate on memory addresses and use machine integer
-formalization. They rely on automatic extraction from Low* to C using
-the tool Kremlin.
+  primitive parser combinators \texttt{fail}, \texttt{return[x]}
+  (output \texttt{x}), \texttt{read\_byte}, and monadic composition of
+  two parsers \texttt{and\_then}, one can define combinators for
+  parsing of pairs (*), mapping of function on parser results
+  (\texttt{synth}), \texttt{filter} of parser results etc.}. For each
+combinator there are two implementations: functional and
+C-like. C-like implementation is written in subset of F* that models
+imperative language, called Low*. Functions written in Low* operate on
+memory addresses and use machine integer formalization. They rely on
+automatic extraction from Low* to C using the tool Kremlin.
 
 The project Narcissus \cite{Narcissus} also constructs correct binary parsers from a verified
 library of combinators written in Coq, but it generates only functional
