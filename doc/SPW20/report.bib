@@ -106,30 +106,31 @@
   note = {[Online; accessed 30-January-2020]. Also see https://www.itu.int/en/ITU-T/asn1/Pages/introduction.aspx}
 }
 
-@misc{CVE, 
-  title={Common Vulnerabilities and Exposures (CVE)},
-  url={http://cve.mitre.org/},
-  journal={CVE},
-  note={Accessed 30-January-200]}
-}
-
 @misc{OpenSSLMemoryCorruption,
   author={Richard Chirgwin},
-  title={Guilt by ASN: Compiler's bad memory bug could sting mobes, cell towers
-  Telco, embedded systems may inherit remote vulns},
-  note={posted at https://www.theregister.co.uk/2016/07/19/$asn_objective_systems_asn_compiler_memory_bug$/}
+  title={Guilt by ASN: Compiler's bad memory bug could sting mobes, cell towers Telco, embedded systems may inherit remote vulns},
+  year={2016},
+  url={https://www.theregister.co.uk/2016/07/19/asn\_objective\_systems\_asn\_compiler\_memory_bug/}
 }
 
 @misc{ASN1Flaw,
-  title={ASN.1 FLAW THREATENS MOBILE NETWORKS},
-  note={pindrop posted at https://www.pindrop.com/blog/asn-1-flaw-threatens-mobile-networks/}
+  title={ASN.1 Flaw Threatens Mobile Networks},
+  year={2019},
+  url={https://www.pindrop.com/blog/asn-1-flaw-threatens-mobile-networks/}
 }
 
-@misc{CVEaddon,
-  note={Regarding CVE, an associated tabular document https://docs.google.com/spreadsheets/d/1UH5fFKcaUBYTeBBDzI2DdfshHsMr7H4Dvm9Wn0znJnk/edit\#gid=0
-  analyzes the ASN.1-related bugs in CVE database since 2015 by mapping each onto a set of potential properties a formal verification would be able
-  to verify (listed in “Task 5” of Section 5.3).}
-}
+@ARTICLE{CVE,
+author={R. A. {Martin}},
+journal={Computer},
+title={Managing vulnerabilities in networked systems},
+year={2001},
+volume={34},
+number={11},
+pages={32-38},
+keywords={security;Internet;networked systems;cyber security;security problems;software packages;Common Vulnerabilities and Exposures initiative;software product vulnerabilities;common naming practice;security tools;open source software package providers;Intelligent networks;Computer hacking;Protection;Information security;Open source software;Cryptography;Data security;Computer errors;Software packages;Web server},
+doi={10.1109/2.963441},
+ISSN={1558-0814},
+month={Nov},}
 
 @misc{VNSSforSel4,
   author={Kestrel Technology, LLC},
@@ -151,7 +152,7 @@
   doi = {10.1145/1538788.1538814},
   journal = {Commun. ACM},
   month = jul,
-  pages = {107–115},
+  pages = {107-115},
   numpages = {9}
 }
 
@@ -208,7 +209,7 @@
   title={Extraction of programs in OCaml and Haskell},
   url={https://coq.inria.fr/refman/addendum/extraction.html},
   journal={Extraction of programs in OCaml and Haskell - Coq 8.11.0 documentation},
-  author={Jean-Christophe Filliâtre and Pierre Letouzey},
+  author={Jean-Christophe Filli\^{a}tre and Pierre Letouzey},
   note={[Accessed 30-January-2020]}
 }
 
@@ -255,16 +256,17 @@
 }
 
 @book{CIC,
-  title={Interactive theorem proving and program development: Coq’Art: the calculus of inductive constructions},
+  title={Interactive theorem proving and program development: Coq'Art: the calculus of inductive constructions},
   author={Bertot, Yves and Cast{\'e}ran, Pierre},
   year={2013},
   publisher={Springer Science \& Business Media}
 }
 
-@misc{VST,
-  title={Verifiable C},
+@book{VST,
+  title={Program logics for certified compilers},
   author={Appel, Andrew W},
-  year={2016}
+  year={2014},
+  publisher={Cambridge University Press}
 }
 
 @misc{X509,
@@ -345,20 +347,3 @@
   bibsource = {dblp computer science bibliography, https://dblp.org}
 }
 
-@article{Narcissus,
-author = {Delaware, Benjamin and Suriyakarn, Sorawit and Pit-Claudel, Cl\'{e}ment and Ye, Qianchuan and Chlipala, Adam},
-title = {Narcissus: Correct-by-Construction Derivation of Decoders and Encoders from Binary Formats},
-year = {2019},
-issue_date = {July 2019},
-publisher = {Association for Computing Machinery},
-address = {New York, NY, USA},
-volume = {3},
-number = {ICFP},
-url = {https://doi.org/10.1145/3341686},
-doi = {10.1145/3341686},
-journal = {Proc. ACM Program. Lang.},
-month = jul,
-articleno = {Article 82},
-numpages = {29},
-keywords = {Parser Combinators, Deductive Synthesis, Program Synthesis, Serialization and Deserialization}
-}

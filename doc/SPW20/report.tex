@@ -176,27 +176,29 @@ could threaten the functioning of the critical infrastructure our
 society relies upon.
 
 
-The Computer Vulnerabilities and Exposures (CVE) database
-\cite{CVE} lists critical ASN.1-related bugs found each year in
-the existing systems, and there have already been noteworthy exposures
-\cite{OpenSSLMemoryCorruption} that although not as dire to security as first feared
-\cite{ASN1Flaw} clearly spell out a first awareness of the vast risk and
-exposure. We analyzed the last 4 years of ASN.1-related issues
-reported in Computer Vulnerabilities and Exposures (CVE) database
-\cite{CVEaddon}. Among vulnerabilities studied were CVEs for various
-software and hardware products and vendors, including \textit{Apple},
-\textit{axTLS}, \textit{Botan}, \textit{Bounty Castle},
-\textit{librcrypto++}, \textit{libtasn}, \textit{LibTomCrypt},
-\textit{Linux Kernel}, \textit{MatrixSSL}, \textit{Mozilla NSS
-  (Firefox)}, \textit{Objective Systems}, \textit{OpenSSL},
-\textit{PolarSSL}, \textit{RSA BSAFE}, \textit{Samba},
-\textit{Samsung}, \textit{Snapdragon}, \textit{strongSwan}, and
-\textit{Wireshark}. It was found that 39 out of 52 problems analyzed
-were related to memory safety, 6 related to stack and heap bounds
-checking, and 3 related to issues caused by applications accepting not
-well-formed ASN.1 input. Having proved just six formal properties
-would have prevented 49 out of 52 vulnerabilities, that is, more than
-90\% of reported vulnerabilities\footnote{See Appendix B for more details}.
+The Computer Vulnerabilities and Exposures (CVE) database \cite{CVE}
+lists critical ASN.1-related bugs found each year in the existing
+systems, and there have already been noteworthy exposures
+\cite{OpenSSLMemoryCorruption} that although not as dire to security
+as first feared \cite{ASN1Flaw} clearly spell out a first awareness of
+the vast risk and exposure. We analyzed the last 4 years of
+ASN.1-related issues reported in Computer Vulnerabilities and
+Exposures (CVE) database. %TODO: mention Appendix with the table
+Among vulnerabilities studied
+were CVEs for various software and hardware products and vendors,
+including \textit{Apple}, \textit{axTLS}, \textit{Botan},
+\textit{Bounty Castle}, \textit{librcrypto++}, \textit{libtasn},
+\textit{LibTomCrypt}, \textit{Linux Kernel}, \textit{MatrixSSL},
+\textit{Mozilla NSS (Firefox)}, \textit{Objective Systems},
+\textit{OpenSSL}, \textit{PolarSSL}, \textit{RSA BSAFE},
+\textit{Samba}, \textit{Samsung}, \textit{Snapdragon},
+\textit{strongSwan}, and \textit{Wireshark}. It was found that 39 out
+of 52 problems analyzed were related to memory safety, 6 related to
+stack and heap bounds checking, and 3 related to issues caused by
+applications accepting not well-formed ASN.1 input. Having proved just
+six formal properties would have prevented 49 out of 52
+vulnerabilities, that is, more than 90\% of reported
+vulnerabilities\footnote{See Appendix B for more details}.
 
 \subsection{Our approach}
 \label{sec:approach}
