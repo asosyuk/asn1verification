@@ -10,7 +10,8 @@ Inductive asn_value := OK | ERROR | MORE.
 Record asn_res := RES { val : asn_value ;
                         rest : list Z }.
 
-Inductive TYPE_descriptor :=
+
+Record TYPE_descriptor :=
   DEF { tags : list Z ;
         elements : list TYPE_descriptor 
       }.
