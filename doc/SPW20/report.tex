@@ -86,28 +86,52 @@ Standardization (ISO/IEC) provides an essential interface description
 language for defining data structures for serialized and deserialized
 cross-platform data exchange, broadly used in telecommunications,
 computer networking, the Internet, and cryptography. ASN.1 is
-vitally-relied upon by core aspects of the Internet infrastructure and
+vitally relied upon by core aspects of the Internet infrastructure and
 Internet applications such as telephony, enterprise computing,
 utilities, finance, military, security, digitally-controlled
 infrastructure, transportation, medical systems, and commercial cloud
 computing.
 
-A simple example of ASN.1 module defining the messages (data
-structures) of dummy \textit{Foo} Protocol is shown in
-Listing~\ref{lst:asnex}.
+An example ASN.1 module that describes an X.509-like public key certificate
+is shown in Listing~\ref{lst:asnex}.
+Such certificates are used by every browser to access HTTPS web sites.
+The original ASN.1 definition for the X.509 standard takes about 1000 lines
+of ASN.1 and is not practical to include into this report.
 
 \begin{lstlisting}[language=C,label=lst:asnex,
-  caption={ASN.1 example}]  
-    FooProtocol DEFINITIONS ::= BEGIN
-    FooQuestion ::= SEQUENCE {
-      someNumber INTEGER,
-      question IA5String
-    }
-    
-    FooAnswer ::= SEQUENCE {
-      someOtherNumber INTEGER,
-      answer BOOLEAN
-    }
+  caption={ASN.1 example of X.509 certificates, adapted for brevity}]
+X509 DEFINITIONS ::= BEGIN
+
+  Certificate  ::=  SEQUENCE  {
+    tbsCertificate       TBSCertificate,
+    signatureAlgorithm   AlgorithmIdentifier,
+    signature            BIT STRING
+  }
+
+  TBSCertificate  ::=  SEQUENCE  {
+     version         [0]  INTEGER,
+     serialNumber         INTEGER,
+     signature            AlgorithmIdentifier,
+     issuer               Name,
+     subject              Name,
+     subjectPublicKeyInfo SubjectPublicKeyInfo,
+  }
+
+  SubjectPubicKeyInfo ::= SEQUENCE {
+    algorithm           AlgorithmIdentifier,
+    subjectPublicKey    BIT STRING
+  }
+
+  AlgorithmIdentifier ::= SEQUENCE {
+    algorithm           OBJECT IDENTIFIER
+  }
+
+  Name ::= SEQUENCE OF SET OF SEQUENCE {
+    type                OBJECT IDENTIFIER,
+    value               ANY DEFINED BY type
+  }
+
+END
 \end{lstlisting}
 
 A typical ASN.1 stack comprises of a \textit{compiler} which parses
