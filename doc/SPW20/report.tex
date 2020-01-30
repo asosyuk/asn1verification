@@ -68,7 +68,7 @@
 \email{vzaliva@cmu.edu}
 
 \begin{abstract}
-TODO
+In this talk we will describe our approach and progress in verification of an exsiting mature open-source ASN.1 compiler \texttt{asn1c} using the Coq proof assistant. 
 \end{abstract}
 
 \maketitle
@@ -96,7 +96,7 @@ An example ASN.1 module that describes an X.509-like public key certificate
 is shown in Listing~\ref{lst:asnex}.
 Such certificates are used by every browser to access HTTPS web sites.
 The original ASN.1 definition for the X.509 standard takes about 1000 lines
-of ASN.1 and is not practical to include into this report.
+of ASN.1 and is not practical to include into this report. Using ASN.1 language one can define data structures that use ASN.1 {\it primitive types}, such as INTEGER, BOOLEAN, OBJECT IDENTIFIER etc, and {\it constructed types}, such as SEQUENCE (OF), SET (OF), CHOICE (OF).
 
 \begin{lstlisting}[language=C,label=lst:asnex,
   caption={ASN.1 example of X.509 certificates, adapted for brevity}]
@@ -133,6 +133,7 @@ X509 DEFINITIONS ::= BEGIN
 
 END
 \end{lstlisting}
+
 
 A typical ASN.1 stack comprises of a \textit{compiler} which parses
 ASN.1 syntax definitions as shown in the Listing~\ref{lst:asnex} and
@@ -176,12 +177,23 @@ were related to memory safety, 6 related to stack and heap bounds
 checking, and 3 related to issues caused by applications accepting not
 well-formed ASN.1 input. Having proved just six formal properties
 would have prevented 49 out of 52 vulnerabilities, that is, more than
-90\% of reported vulnerabilities.
+90\% of reported vulnerabilities\footnote{See Appendix B for more details}: 
+
+\begin{enumerate}
+\item Absence of Read Memory Access Violations (reading from memory locations outside of a permitted range).
+\item Absence of Write Memory Access Violations (writing to memory locations outside of a permitted range).
+\item Absence of Memory leaks (allocating memory which is never later freed or accounted for)
+\item The ``Roundtrip Property'' (for each type, the decoder is indeed the exact inverse of the corresponding encoder).
+\item Bounds on stack size
+\item Bounds on heap size
+
+\end{enumerate}
+
 
 \subsection{Our approach}
 
-Systems and methods to date either (a) automatically tested but not
-formally verified (b) use verification approach which rely on
+Systems and methods to date either (a) are automatically tested but not
+formally verified (b) use verification approaches which rely on
 automatic extraction from executable specifications (for example
 involving network stack synthesis \cite{VNSSforSel4}, optimizing compilers
 \cite{CompCert}, cryptographic libraries \cite{HACL}, and
@@ -191,7 +203,7 @@ verification of NAT stack only proving parts of DPDK are specification
 compliant \cite{NAT}, partial verification of Linux kernel TCP
 implementation with 55\% line coverage and 92\% protocol coverage
 \cite{NSDI}). Consequently, (a) and (c) do not provide sufficient
-correctness guarantees, while (c) is often impractical due to poor
+correctness guarantees, while (b) is often impractical due to poor
 performance and compatibility limitations. In contrast, we pursue a
 far deeper and comprehensive verification approach to performance and
 portability and seek to prove actual industrial-level C-code
@@ -208,31 +220,31 @@ its own.
 \begin{figure}[h!]
   \centering
   \includegraphics[width=10cm]{VerificationArchitectureDiagram.eps}
-  \caption{TODO:title}
+  \caption{Verification Architecture}
   \label{fig:components}
 \end{figure}
 
 Next level of refinement is Executable Specification (E.SPEC). Also
 written in Coq it describes ``encoder'' and ``decoder'' for each type
 as a pair of pure functions. We will prove that the Executable
-specification encodes and decodes bytes in conformance to High-Level
+specification encodes and decodes bytes are in conformance to High-Level
 specification.
 
 ``High-Level Properties'' like termination, computation complexity and
 memory safely could be proven based on executable specification. They
-are shown as ``High Level'' box on the left. The executable spec
+are shown as ``High Level'' box on the left in the Figure 1. The executable spec
 contains enough information to \textit{extract} a fully functional
 encoder program in languages supported by Coq extraction mechanism
-(e.g. OCaml) \cite{Extraction}. Such a possibility is shown with the box
-on the left of Figure~\ref{fig:components} although we do not plan to
-pursue it yet. This is approach others often take and it has some
+(e.g. OCaml and Haskell) \cite{Extraction}. Such a possibility is shown with the box
+on the right in Figure~\ref{fig:components} although we do not plan to
+pursue it yet. This approach others often take and it has some
 drawbacks. However, it should be noted that all the work we will do up
 to and including Executable Spec is compatible with this approach and
 if needed we can revisit it. For example, in case if we need to
 generate ASN.1 stack for special platforms where OCaml code opens some
 additional opportunities for parallelization, optimization or
 integration. One example of such platforms could be MirageOS
-\cite{MirageOS} which is the OCaml-based unikernel.
+\cite{MirageOS} which is an OCaml-based unikernel.
 
 The box at the left marked \textit{QuickChick} represents another
 possibility we might not pursue immediately. It is using randomized
@@ -242,11 +254,11 @@ done using QuickChick \cite{QuickChick} in Coq. It is also could be used
 to generate a test-suite for extracted code.
 
 At the bottom of Figure 1 is a box labeled ``C'' which represents the
-existing C code of ANS1C compiler. Using an automated conversion
-provided by the clightgen tool within the CompCert C compiler
+existing C code of ASN1C compiler. Using an automated conversion
+provided by the \texttt{clightgen} tool within the CompCert C compiler
 \cite{CompCert} we will convert this to an Abstract Syntax Tree (AST)
-\cite{AST} .(labeled ``C.AST'' in Figure 1) rendered in a subset
-of C-language called Clight \cite{Mechanized}. More specifically,
+\cite{AST} (labeled ``C.AST'' in Figure 1) rendered in a subset
+of C-language called Clight \cite{Mechanized} that is recognized by Coq. More specifically,
 CompCert converts C ``concrete syntax'' to ``abstract'' Clight
 syntax. The resulting Clight program is just a reification of the
 original C program in Coq, retaining the overall structure and
@@ -255,17 +267,17 @@ by CompCert that can be used to further ``reason about'' (interrogate
 and analyze) programs within Coq.
 
 Finally, as the most critical (and laborious) step of the project, we
-will prove that semantics of the semantics of AST of Clight
+will prove that semantics of Clight
 translation for each given function corresponds to executable
-specification. This will guarantee that the C program behaves exactly
+specification (E.SPEC). This will guarantee that the C program behaves exactly
 as the executable spec.
 
-The formal certification of correctness will comprise the following
-three elements.
+Hence, the formal certification of correctness will comprise the following
+three elements:
 
 \begin{enumerate}[label=(\alph*)]
 
-\item Formal specification of ASN.1 subset, which can be examined.
+\item Formal specification of X.509 ASN.1 subset, which can be examined.
 
 \item Proofs of semantic equivalence between the C code and the
   specification (in Coq Proof Assistant \cite{Coq}). From such
@@ -294,12 +306,10 @@ in penetration or denial of service attacks.
 
 Additionally, our (modified) version of ASN1C could be compiled with
 the certified CompCert compiler \cite{CompCert} to extend correctness
-guarantees through all levels down to machine code. These project
-results and product offerings will provide state-of-the-art high
+guarantees through all levels down to machine code. This will provide state-of-the-art high
 assurance suitable for mission-critical systems. Further, since formal
 verification will be layered atop of a widely used ASN.1 stack, it
-could be immediately offered to current users. This will open new
-markets by making it attractive to new users who require higher
+could be immediately offered to current users. This will make it attractive to new users who require higher
 assurance levels than current non-verified implementations provide.
 
 \section{Preliminary work}
@@ -309,12 +319,12 @@ assurance levels than current non-verified implementations provide.
 As a first estimate of the difficluties associated with
 verifying ASN.1-related programs, we wrote
 formal specification of an encoder-decoder pair for a small, but
-particularly error-prone subset of the standard - floating-point numbers \cite{ASN1Intro}.
-Our first approach was relatively straight-forward: define types
+particularly error-prone subset of the standard - floating-point numbers. The development is available on github \cite{ASN1Intro}.
+Our first approach was relatively straightforward: define types
 representing ASN.1-encoded data in Coq, provide functions for converting
-between representations and prove that they operate correctly.
+between representations and prove that they operate correctly. In particular, we proved the roundtrip property for the defined encoders/decoders.
 
-As was clear from the start, this technique had major disadvantages.
+Although providing guarantees of correctness, this technique had major disadvantages.
 First of all, our definitions, being written in pure Coq, had only one
 connection to the real world - through automatic code extraction.
 This immediately comes with a set of problems:
@@ -326,15 +336,15 @@ This immediately comes with a set of problems:
 \item Extracted code might not be compatible with or viable in some real-world use-case scenarios
 \end{itemize}
 
-However, this basic attempt allowed us to home in on what approaches
-to verfication were viable and improve our effort estimates for the future. % and train one intern
+However, this attempt allowed us to home in on what approaches
+to verfication were viable and improve our effort estimates. Moreover, we tested specification and proving techniques which will be useful for us in the future.
 
-\subsection{Verifying simple function}
+\subsection{Verifying simple  \texttt{asn1c} function}
 
 To estimate an effort required to formally verify C code and to
 experiment with various verification strategies we decided to try to
-verify a small real function from existing ASN.1 compiler. We chose
-function \texttt{asn\_strtoimax\_lim} from \texttt{asn1c} compiler.
+verify a small function from an existing ASN.1 compiler. We chose
+function \texttt{asn\_strtoimax\_lim(const char *str, const char **end, intmax\_t *intp)} from \texttt{asn1c} compiler.
 The function is relatively simple, but at the same time uses many
 features of C that make verifying imperative programs
 challenging. \emph{XER} decoding functions for \emph{INTEGER},
@@ -358,9 +368,9 @@ Full source code of the function is included in the Appendix~\ref{sec:stritomax}
 \subsubsection{Bugs}
 
 Despite that fact that this function lineage could be traced back 15
-years, and it being a part of mature, well-tested ASN.1 compiler used
+years, and it being a part of mature, well-tested ASN.1 compiler used in
 many production systems during our formal verification exercise we
-found three bugs in current implementation. These bugs were never
+found three bugs in the current implementation. These bugs were never
 reported before and passed all human code reviews, unit, and fuzzying
 tests. The following bugs were reported to product developers,
 acknowledged and promptly fixed:
@@ -370,15 +380,15 @@ acknowledged and promptly fixed:
 When we go beyond allowed \textit{int} range, a wrong result is given
 for some inputs. For example, assuming we are working on a 8-bit
 system and the maximum signed integer value is 127, parsing the input
-string \texttt{``-1281''} produces the as a result
-\emph{ASN\_STRTOX\_OK} with the value -127 instead of expected
-\emph{ASN\_STRTOX\_ERROR\_RANGE}. This happens whenever the input
+string \texttt{``-1281''} produces the result
+\emph{ASN\_STRTOX\_OK} (meaning the conversion was succesfull) with the value -127 instead of expected
+\emph{ASN\_STRTOX\_ERROR\_RANGE} (meaning the number to be converted is out of integer range). This happens whenever the input
 string represents a number smaller than \texttt{MIN\_INT}, due to the
 fact that absolute value of \texttt{MIN\_INT} is greater than
 \texttt{MAX\_INT}, thus negative number cannot be treated as
 $\mathrm{value}\times\mathrm{sign}$ when $\mathrm{value}$ is
 represented as \textit{int}. The bug was filed and promptly fixed by
-developers:
+developers.
 
 \paragraph{Memory store bug}
 
@@ -396,15 +406,15 @@ specification.
 After addressing the two bugs we discovered we were able to
 successfully verify that the function finally corresponds to the
 specification we wrote for. However, it was noticed the following
-behavior: For input \texttt{``a''} it stores value 0 and returns
+behavior: For input \texttt{``a''} it stores value 0 (same behaviour as on input \texttt{``0''}) and returns
 {\color{green}\texttt{ASN\_STRTOX\_EXTRA\_DATA}} (same behaviour as on
-input \texttt{``0a''}), which could be unintended by authors.
+input \texttt{``0a''}), which was probably unintended by authors.
   
 \subsubsection{Direct operational semantics proof}
 
 First we formulated functional correctness and proved it using
 big-step operational semantics of \textit{C light}, defined in
-\textit{Compcert}. In this proof we used the following pure-function
+\textit{Compcert}. In this proof we used pure-function
 re-implementation in Coq: \texttt{asn\_strtoimax\_lim : addr $\rightarrow$
   addr $\rightarrow$ addr $\rightarrow$ option
   asn\_strtoimax\_lim\_result} as an intermediate specification.
@@ -416,27 +426,27 @@ value. The proof went by induction on the distance between input
 pointers and the main difficulty apart trying to prove a faulty
 program (that's when we discovered two bugs) was operational semantics
 control flow minuities and machine arithmetic proofs. However, only a
-couple of lemmas about the spec were needed. However, since functional
+couple of lemmas about the specification were needed and proofs of different cases were very repetitive. Since functional
 and memory specification were intertangled it was more difficult to
-read the spec and make sure it was correct.
+read the specification and make sure it was correct, hence we missed the specification ``bug'' mentioned above. 
 
 \subsubsection{Proof using VST}
 
-The \textit{Verified Software Toolchain}\cite{VST} offered a
+The \textit{Verified Software Toolchain}\cite{VST} offered
 solutions to problems we encountered while doing direct opertational
 semantics proof: it has good automation of control flow, some
 automation for machine arithmetic, and clearly separates functional
 and memory-related parts of the specification. It also provides a
 uniform way of stating functional correctness and memory
-safety. Proofs here are done in \textit{Hoare} and \textit{separation}
-logic, which are proven to be sound with respect to operational
-semantics. VST has tactics that can solve simple entailments in these
+safety, so reduces the chances of having the wrong specification. Proofs here are done using \textit{Hoare} and \textit{separation}
+logic implemented in Coq, which are proven to be sound with respect to operational
+semantics of CompCert. Similarly as before, we rely on C light syntax and semantics. VST has tactics that can solve simple entailments in these
 logics, however, they were not powerful enough to significantly reduce
-the proof effort. In fact, with respect to memory specifications,
+the overall proof effort. In fact, with respect to memory safety specifications,
 direct operational semantics proof was shorter and more
-straightforward.
+straightforward. However, this problem can be solved by improving the existing tactics and fine-tuning the specification style, so in the end we find this approach more vible for a large project.
 
-\paragraph{Specification layers} First we have a high-level specification of this function in declarative, relational style. Each constructor corresponds to a return message (state) and stores value the number of iterations of the function (used to store the result).
+\paragraph{Specification layers} On this simple example we tested our architecture from Section 1.3. First we have a high-level specification of this function in declarative, relational style. Each constructor corresponds to a return message (state) and stores value and the number of iterations of the function (used to store the result in memory). Such specification can be easily examined and refined.
 
  \begin{lstlisting}[language=Coq]
 
@@ -458,19 +468,19 @@ straightforward.
    ...    
   \end{lstlisting}
 
-Next level is executable specification \texttt{Z\_of\_string} that is equivalent to the relational one, but which we can extract to Coq and that we use in the proof. We experimented with two approaches. In VST proof we used functional spec and used it in the proof of C function correctness directly.
+Next level is executable specification \texttt{Z\_of\_string} which we prove equivalent to the relational specification, but which we can extract to Coq and which is easier to use in the proof. Here we experimented with two approaches. The function below can serve as a functional specification for \texttt{asn\_strtoimax\_lim} and is not that different from the relational spec.
 
  \begin{lstlisting}[language=Coq]
-Fixpoint Z_of_string_loop (s : list byte) (v i : Z) (b : bool) := 
+Fixpoint Z_of_string_loop (s : list byte) (val index : Z) (b : bool) := 
     match s with 
-    | [] => {| res := OK; value := v; index := i |}
+    | [] => {| OK; val; index |}
     | c :: tl => 
       if is_digit c
-      then let v1 := app_char b v c in 
-           if bounded v1
-           then Z_of_string_loop tl v1 (i + 1) b
-           else {| res := ERROR_RANGE; value := v1; index := i; |}      
-      else {| res := EXTRA_DATA; value := v; index := i; |}              
+      then let val' := app_char b val c in 
+           if bounded val'
+           then Z_of_string_loop tl val' (index + 1) b
+           else {| ERROR_RANGE; val'; index; |}      
+      else {| EXTRA_DATA; val; index; |}              
     end.
 
 Definition app_char (b : bool) v c := 
@@ -478,88 +488,73 @@ Definition app_char (b : bool) v c :=
        else v * 10 - (Z_of_char c).
  \end{lstlisting}
 
-This required many lemmas to connect functional spec to C code and complicated the loop invariant. Given our experience with operational semantics proof, it seems more effective to separate functional aspect of the proof from C-proof to allow for more automation in the proof related to C and then prove the C-like function correctness as a typical functional correctness proof, which was simpler to do than prove lemmas.
+Since \texttt{Z\_of\_string} has different structure from \texttt{asn\_strtoimax\_lim}, the proof required many lemmas to connect functional spec to the C code and complicated the loop invariant. We found that it is more effective to separate the functional aspect of the proof from C-proof as much as possible to allow for more automation in the proof of C function correctness. Thus we defined another intermediate spec \texttt{Z\_of\_string\_C}, which is basically functional re-implementation of the C function, alike the one we used in operational semantics proof, but without mentioning memory and operation on abstract \texttt{Z} type and not machine integers. Then we prove that texttt{Z\_of\_string\_C} is equivalent to texttt{Z\_of\_string}, which is a simple functional correctness proof that allows to eliminate the need for additional lemmas in the C proof that connect the abstrct spec and the C code structure.
 
  \begin{lstlisting}[language=Coq]
  
-Fixpoint Z_of_string_loop_C (s : list byte) (v i : Z) (b : bool) := 
+Fixpoint Z_of_string_loop_C (s : list byte) (val index : Z) (b : bool) := 
     match s with 
-    | [] => {| res := OK ; value := v ; index := i |}
+    | [] => {| OK; val; index |}
     | c :: tl => 
       if is_digit c
       then let d := (Z_of_char c) in 
-           let v1 := v*10 + d in
+           let val' := val*10 + d in
            if v <? upper_boundary 
-           then Z_of_string_loop_C tl v1 (i + 1) b
+           then Z_of_string_loop_C tl val' (index + 1) b
            else if (v =? upper_boundary)&&(d <=? (last_digit_max b))
                 then match tl with
-                     | [] => {| res := OK ; 
-                               value := v1 ; 
-                               index := (i + 1) |}
-                     | c :: tl => if is_digit c
-                                 then {| res := ERROR_RANGE ;
-                                         value := app_char b v1 c;
-                                         index := (i + 1) ; |}
-                                 else {| res := EXTRA_DATA;
-                                         value := v1;
-                                         index := (i + 1) ; |}
+                     | [] => {| OK; val'; (index + 1) |}
+                     | c :: tl => 
+                       if is_digit c
+                       then {| ERROR_RANGE; app_char b val' c; (index + 1) |}
+                       else {| EXTRA_DATA; val'; (index + 1) |}
                      end
-                else {| res := ERROR_RANGE ; value := v1 ; index := i ; |}      
-      else {| res := EXTRA_DATA ; value := v ; index := i ; |}              
+                else {| ERROR_RANGE; val'; index |}      
+      else {| EXTRA_DATA ; val; index |}              
     end.
     
  \end{lstlisting}
 
-Then we can state VST specification using either high-level specification or one of executable specs. For instance the memory precondition for the function will now has the following form. [TODO: EXPLAIN VST SPEC LANGUAGE]
+Then we can have VST specification that uses either the high-level specification or one of executable specs, but also provides a way to state memory specification using special memory predicates (\texttt{data\_at t ls p} (meaning that at the address \texttt{p} there is content \texttt{ls} of type \texttt{t}) and separation conjuction (meaning that the contents pointed to by different addresses do not overlap). Moreover, since we compare \texttt{str} and \texttt{*end}) we have to ensure that they point within the same object, that is, that they are valid pointers according to C standard. For instance the memory precondition for the function will now has the following form:
 \begin{lstlisting}[language=Coq]
-SEP ((* str and end' are comparable, i.e. point within the same object *)
-           valid_pointer (end'_b, str_ofs + (Zlength ls)) ;
-           valid_pointer (end'_b, end'_ofs) ;
-           valid_pointer (str_b, str_ofs) ;
-           (* str points to ls with readable permission *)
-           data_at (tarray tschar (Zlength ls)) 
-                   (map Vbyte ls) (str_b, str_ofs) ; 
-           (* end points to end' *)
-           data_at (tptr tschar) (end'_b, end'_ofs) 
-                   (end_b, end_ofs);
-           (* intp points to some value v  *)
-           data_at (tlong) v (intp_b, intp_ofs))
-           \end{lstlisting}
+SEP ((* str and end' are valid pointers *)
+      valid_pointer (str + (Zlength ls)) ;
+      valid_pointer *end ;
+      valid_pointer str ;
+      (* str points to contents ls of type char array  *)
+      data_at (tarray tschar (Zlength ls)) ls str ; 
+      (* end points to end' *)
+      data_at (tptr tschar) *end end;
+      (* intp points to some value v  *)
+      data_at (tlong) v intp)
+     \end{lstlisting}
 
 And the postcondition:
            
 \begin{lstlisting}[language=Coq]
- SEP((* this part didn't change after execution *)
-           valid_pointer (end'_b, str_ofs + (Zlength ls)) ;
-           valid_pointer (end'_b, end'_ofs) ;
-           valid_pointer (str_b, str_ofs) ;
-           data_at (tarray tschar (Zlength ls)) 
-                   (map Vbyte ls) (str_b, str_ofs) ; 
-           let r := res (Z_of_string ls) in
-            (* in 3 cases intp stays unchanged,
-              otherwise store the end value of Z_of_string *)
-            match r with 
-              | ERROR_RANGE 
-              | ERROR_INVAL 
-              | EXPECT_MORE => 
-                data_at (tlong) v (intp_b, intp_ofs)
-              | _ => data_at (tlong) (value (Z_of_string ls))
-                         (intp_b, intp_ofs) 
-            end ;
-           (* if str >= end, end doesn't change, 
-              otherwise store the address of the last char read 
-              (before going out of range, reading extra data 
-              or successfully terminating) *)
-            let i := index (Z_of_string ls) in
-            if str_ofs <?  end'_ofs
-            then data_at (tptr tschar) 
-                         (str_b, str_ofs + i) 
-                         (end_b, end_ofs)
-            else data_at (tptr tschar) (end'_b, end'_ofs) 
-                         (end_b, end_ofs)).
+ SEP((* the fist four lines of the precondition didn't change after execution *)
+      ... 
+      let r := result (Z_of_string ls) in
+       (* in 3 cases intp stays unchanged,
+         otherwise store the end value of Z_of_string *)
+       match r with 
+         | ERROR_RANGE 
+         | ERROR_INVAL 
+         | EXPECT_MORE => 
+           data_at (tlong) v intp
+         | _ => data_at (tlong) (value (Z_of_string ls)) intp 
+       end ;
+      (* if str >= end, end doesn't change, 
+         otherwise store the address of the last char read 
+         (before going out of range, reading extra data 
+         or success) *)
+       let i := index (Z_of_string ls) in
+       if str <? *end
+       then data_at (tptr tschar) (str + i) *end
+       else data_at (tptr tschar) *end end).
 \end{lstlisting}
 
-Given experiments on this example we delineate a strategy for proving
+Given experiments on this example we delineated a strategy for proving
 \texttt{asn1c} correctness.
 
 \section{Project Scope}
