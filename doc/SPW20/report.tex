@@ -309,7 +309,7 @@ assurance levels than current non-verified implementations provide.
 As a first estimate of the difficluties associated with
 verifying ASN.1-related programs, we wrote
 formal specification of an encoder-decoder pair for a small, but
-particularly error-prone subset of the standard - floating-point numbers \cite{ASN1Intro}.
+particularly error-prone subset of the standard - floating-point numbers \cite{asn1fpcoq}.
 Our first approach was relatively straight-forward: define types
 representing ASN.1-encoded data in Coq, provide functions for converting
 between representations and prove that they operate correctly.
@@ -565,13 +565,13 @@ Given experiments on this example we delineate a strategy for proving
 \section{Project Scope}
 
 The International Telecommunications Union X.509 standard
-\cite{TODO:16} defines the format of public key certificates used in
+\cite{X509} defines the format of public key certificates used in
 many cryptography, Internet protocols (including TLS/SSL, the basis
 for the HTTPS protocol for secure browsing the web), certificate
 revocation lists, certification path validation, electronic
 signatures, and many other essential applications. X.509 is based on
 ASN.1, using an important central particular subset (Distinguished
-Encoding Rules, ``DER'') of ASN.1 \cite{TODO:37}.
+Encoding Rules, ``DER'') of ASN.1 \cite{BERandDER}.
 
 To limit the scope of the initial stage of the project to while
 exercising and showcasing all involved with the complete ASN.1
@@ -734,7 +734,7 @@ Inductive TYPE_descriptor :=
 
  The \texttt{decoder} function above could be also thought of in terms
  of sequence parser combinator known from monadic parser combinators
- approach\cite{TODO}. Assume you have given decoders for primitive
+ approach\cite{MPC}. Assume you have given decoders for primitive
  functions. Then you can add an operator \texttt{;; : decoder
    asn\_value-> decoder asn\_value -> asn\_value} that takes two
  decoders and applies them sequentially \texttt{p1;;p2}; similar for
@@ -773,11 +773,11 @@ parsers. Building on Narcissus there is a verified compiler in Coq for
 parsers and formatters described using Protocol Buffers.
  
 It is also noted that Galois did some work on ASN.1 verification in
-the past (circa 2012) \cite{TODO:11}. It appears that Galois abandoned
-\cite{TODO:12} the goal of full ASN.1 verification that we pursue in
+the past (circa 2012) \cite{ASN1FormalSem}. It appears that Galois abandoned
+\cite{ASN1EncDec} the goal of full ASN.1 verification that we pursue in
 our project with our more pragmatic approach; Galois is now only
 exploring a limited subset ASN.1 verification adequate for the
-``vehicle-to-vehicle'' (V2V) market \cite{TODO:13}, but that
+``vehicle-to-vehicle'' (V2V) market \cite{V2V}, but that
 particular subset has limited broader applicability and the Galois
 effort appears encumbered by aspects of an unsuccessful approach. It
 is noted that although our goal is eventually to verify all ASN.1, we

@@ -99,14 +99,18 @@
 }
 
 @misc{ASN1Intro,
-  title={Introduction to ASN.1},
-  author={International Telecommunication Union (ITU)},
-  note={posted at https://www.itu.int/en/ITU-T/asn1/Pages/introduction.aspx, also see https://en.wikipedia.org/wiki/Abstract\_Syntax\_Notation\_One}
+  author = {Wikipedia contributors},
+  title = {Abstract Syntax Notation One --- Wikipedia, The Free Encyclopedia},
+  year = {2019},
+  url = {https://en.wikipedia.org/w/index.php?title=Abstract_Syntax_Notation_One&oldid=925669270},
+  note = {[Online; accessed 30-January-2020]. Also see https://www.itu.int/en/ITU-T/asn1/Pages/introduction.aspx}
 }
 
-@misc{CVE,
-  title={Computer Vulnerabilities and Exposures (CVE) database},
-  note={posted at https://cve.mitre.org/}
+@misc{CVE, 
+  title={Common Vulnerabilities and Exposures (CVE)},
+  url={http://cve.mitre.org/},
+  journal={CVE},
+  note={Accessed 30-January-200]}
 }
 
 @misc{OpenSSLMemoryCorruption,
@@ -133,10 +137,22 @@
   note={DOD Phase I SBIR proposal, available at https://www.sbir.gov/sbirsearch/detail/1467573}
 }
 
-@misc{CompCert,
-  title={The CompCert C Compiler},
-  note={The CompCert C Compiler posted at http://compcert.inria.fr/compcert-C.html. Also see the Wikipedia page “CompCert” posted at
-  https://en.wikipedia.org/wiki/CompCert }
+@article{CompCert,
+  author = {Leroy, Xavier},
+  title = {Formal Verification of a Realistic Compiler},
+  year = {2009},
+  issue_date = {July 2009},
+  publisher = {Association for Computing Machinery},
+  address = {New York, NY, USA},
+  volume = {52},
+  number = {7},
+  issn = {0001-0782},
+  url = {https://doi.org/10.1145/1538788.1538814},
+  doi = {10.1145/1538788.1538814},
+  journal = {Commun. ACM},
+  month = jul,
+  pages = {107–115},
+  numpages = {9}
 }
 
 @inproceedings{HACL,
@@ -154,10 +170,21 @@
 }
 
 @article{Narcissus,
-  title={Narcissus: Deriving Correct-By-Construction Decoders and Encoders from Binary Formats},
-  author={Delaware, Benjamin and Suriyakarn, Sorawit and Ye, Qianchuan and Chlipala, Adam and others},
-  journal={arXiv preprint arXiv:1803.04870},
-  year={2018}
+  author = {Delaware, Benjamin and Suriyakarn, Sorawit and Pit-Claudel, Cl\'{e}ment and Ye, Qianchuan and Chlipala, Adam},
+  title = {Narcissus: Correct-by-Construction Derivation of Decoders and Encoders from Binary Formats},
+  year = {2019},
+  issue_date = {July 2019},
+  publisher = {Association for Computing Machinery},
+  address = {New York, NY, USA},
+  volume = {3},
+  number = {ICFP},
+  url = {https://doi.org/10.1145/3341686},
+  doi = {10.1145/3341686},
+  journal = {Proc. ACM Program. Lang.},
+  month = jul,
+  articleno = {Article 82},
+  numpages = {29},
+  keywords = {Parser Combinators, Deductive Synthesis, Program Synthesis, Serialization and Deserialization}
 }
 
 @inproceedings{NAT,
@@ -177,25 +204,35 @@
   year={2004}
 }
 
-@misc{Extraction,
-  title={Extraction of Programs in OCaml and Haskell},
-  note={available at  https://coq.inria.fr/refman/addendum/extraction.html},
-  author={Jean-Christophe Filliâtre and Pierre Letouzey}
+@misc{Extraction, 
+  title={Extraction of programs in OCaml and Haskell},
+  url={https://coq.inria.fr/refman/addendum/extraction.html},
+  journal={Extraction of programs in OCaml and Haskell - Coq 8.11.0 documentation},
+  author={Jean-Christophe Filliâtre and Pierre Letouzey},
+  note={[Accessed 30-January-2020]}
 }
 
-@misc{MirageOS,
-  title={A programming framework for building type-safe, modular systems},
-  note={available at \url{https://mirage.io/}}
+@inproceedings{MirageOS,
+  title={Mirageos unikernel with network acceleration for iot cloud environments},
+  author={Imada, Takayuki},
+  booktitle={Proceedings of the 2018 2nd International Conference on Cloud and Big Data Computing},
+  pages={1--5},
+  year={2018}
 }
 
-@misc{QuickChick,
-  title={Randomized Property-Based Testing Plugin for Coq},
-  note={hosted by Github at  \url{https://github.com/QuickChick/QuickChick}. Also see “QuickChick: Property-Based Testing for Coq” available at \url{http://citeseerx.ist.psu.edu/viewdoc/download?doi=10.1.1.718.1395\&rep=rep1\&type=pdf}}
+@inproceedings{QuickChick,
+  title={QuickChick: Property-based testing for Coq},
+  author={D{\'e}n{\`e}s, Maxime and Hritcu, Catalin and Lampropoulos, Leonidas and Paraskevopoulou, Zoe and Pierce, Benjamin C},
+  booktitle={The Coq Workshop},
+  year={2014}
 }
 
 @misc{AST,
-  title={Abstract Syntax Tree},
-  note={available at \url{https://en.wikipedia.org/wiki/Abstract\_syntax\_tree}}
+  author = {Wikipedia contributors},
+  title = {Abstract syntax tree --- Wikipedia, The Free Encyclopedia},
+  year = {2020},
+  url = {https://en.wikipedia.org/w/index.php?title=Abstract_syntax_tree&oldid=936878248},
+  note = {[Online; accessed 30-January-2020]}
 }
 
 @article{Mechanized,
@@ -209,17 +246,78 @@
   publisher={Springer}
 }
 
-@misc{Coq,
-  title={The Coq Proof Assistant},
-  note={posted at \url{https://coq.inria.fr/}. Also see “Home: What is Coq” posted at \url{https://coq.inria.fr/about-coq}, and see the Wikipedia page “Coq” posted as \url{https://en.wikipedia.org/wiki/Coq}.}
+@manual{Coq,
+  author = {{Coq} {Development} {Team}, The},
+  title  = {The {Coq} Proof Assistant Reference Manual, version 8.10.1},
+  month  = Oct,
+  year   = {2017},
+  url    = {http://coq.inria.fr}
 }
 
-@misc{CIC,
-  title={Calculus of Inductive Constructions},
-  note={Coq Documentation, available at \url{https://coq.inria.fr/refman/language/cic.html}}
+@book{CIC,
+  title={Interactive theorem proving and program development: Coq’Art: the calculus of inductive constructions},
+  author={Bertot, Yves and Cast{\'e}ran, Pierre},
+  year={2013},
+  publisher={Springer Science \& Business Media}
 }
 
 @misc{VST,
-  title={Verified Software Toolchain},
-  note={VST documentation available at \url{https://vst.cs.princeton.edu/}}
+  title={Verifiable C},
+  author={Appel, Andrew W},
+  year={2016}
+}
+
+@misc{X509,
+  author = {Wikipedia contributors},
+  title = {X.509 --- Wikipedia, The Free Encyclopedia},
+  year = {2020},
+  howpublished = {\url{https://en.wikipedia.org/w/index.php?title=X.509&oldid=936494663}},
+  note = {[Online; accessed 30-January-2020]}
+}
+
+@article{BERandDER,
+  title={A Layman's Guide to a Subset of ASN. 1, BER, and DER},
+  author={Kaliski Jr, Burton S and Redwood City, CA},
+  year={1993},
+  publisher={RSA Laboratories, November}
+}
+
+@article{MPC,
+  title={Monadic parser combinators},
+  author={Hutton, Graham and Meijer, Erik},
+  year={1996},
+  publisher={School of Computer Science and IT}
+}
+
+@inproceedings{ASN1FormalSem,
+  title={A Formal Semantics for ASN.1},
+  author={Paul Steckler},
+  booktitle={2019 High Confidence Software and Systems Conference, Annapolis, Maryland},
+  year={2019},
+  url={https://cps-vo.org/node/2313}
+}
+
+@inproceedings{ASN1EncDec,
+  title={Challenges and Possibilities for Safe and Secure ASN.1 Encoders and Decoders},
+  author={Mark Tullsen},
+  booktitle={Fifth Workshop on Language-Theoretic Security (LangSec) Conference},
+  year={2018},
+  url={http://spw18.langsec.org/slides/Tullsen-Safe-ASN1.pdf}
+}
+
+@inproceedings{V2V,
+  title={Formal verification of a vehicle-to-vehicle (V2V) messaging system},
+  author={Tullsen, Mark and Pike, Lee and Collins, Nathan and Tomb, Aaron},
+  booktitle={International Conference on Computer Aided Verification},
+  pages={413--429},
+  year={2018},
+  organization={Springer}
+}
+
+@misc{asn1fpcoq,
+  author       = {Ilia Zaichuk},
+  title        = {Formal verification of floating-point number conversion between ASN.1 BER and IEEE 754 binary encodings},
+  booktitle    = {POPL 2019 Student Research Competition},
+  year         = {2019},
+  url          = {https://github.com/digamma-ai/asn1fpcoq/blob/master/doc/paper/paper.pdf}
 }
