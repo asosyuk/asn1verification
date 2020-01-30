@@ -655,7 +655,7 @@ Inductive TYPE_descriptor :=
       }.
  \end{lstlisting}
 
- Then a constructed type decoder will have type \texttt{decoder : TYPE\_descriptor -> list byte -> asn\_value}  and traverse the tree and apply
+ Then a constructed type decoder will have type \texttt{decoder : TYPE\_descriptor $\rightarrow$ list byte $\rightarrow$ asn\_value}  and traverse the tree and apply
  respective primitive decoders. In ASN1C it is implemented as
  a recursive function that readily translates into a nested or mutually recursive
  function in Coq (decoders for other constructed types have similar
