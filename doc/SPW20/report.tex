@@ -107,15 +107,15 @@ enterprise computing, utilities, finance, military, security,
 digitally-controlled infrastructure, transportation, medical systems,
 and commercial cloud computing.
 
-An example ASN.1 module that describes an X.509-like public key
-certificate is shown in Listing~\ref{lst:asnex}. Such certificates are
-used by every browser to access HTTPS web sites. The is an abridged
-version as the original ASN.1 definition for the X.509 standard takes
-about 1000 lines of ASN.1 and is not practical to include into this
-report. Using ASN.1 language one can define data structures that use
+Using ASN.1 language one can define data structures that use
 ASN.1 {\it primitive types}, such as \emph{INTEGER}, \emph{BOOLEAN}, \emph{OBJECT
 IDENTIFIER} etc, and {\it constructed types}, such as \emph{SEQUENCE (OF)},
-\emph{SET (OF)}, \emph{CHOICE (OF)}.
+\emph{SET (OF)}, \emph{CHOICE (OF)}. An example ASN.1 module that describes an X.509-like public key
+certificate is shown in Listing~\ref{lst:asnex}. Such certificates are
+used by every browser to access HTTPS web sites. The unabridged
+version of the original ASN.1 definition for the X.509 standard takes
+about 1000 lines of ASN.1 and is not practical to include into this
+report. 
 
 \begin{lstlisting}[language=ASN1,label=lst:asnex,
   caption={ASN.1 example of X.509 certificates, adapted for brevity}]
@@ -160,9 +160,9 @@ produces either a source code of a specialized protocol encoder and
 decoder for this data or a runtime data for a parametric protocol
 encoder and decoder.
 
-However, the ASN.1 standard \cite{ASN1Intro} is large and complex:
+However, the ASN.1 standard is large and complex:
 currently, it comprises twelve sub-standards spanning 862 pages
-supplemented by additional pages of corrigenda\cite{ASN1Intro}. This opens
+supplemented by additional pages of corrigenda. This opens
 a door for many potential software bugs and malicious exploits.
   
 \subsection{Motivation}
@@ -198,7 +198,7 @@ stack and heap bounds checking, and 3 related to issues caused by
 applications accepting not well-formed ASN.1 input. Having proved just
 six formal properties would have prevented 49 out of 52
 vulnerabilities, that is, more than 90\% of reported
-vulnerabilities\footnote{See Appendix B for more details}.
+vulnerabilities\footnote{See Appendix B for more details.}.
 
 \subsection{Our approach}
 \label{sec:approach}
@@ -264,21 +264,20 @@ to generate a test-suite for extracted code.
 At the bottom of Figure 1 is a box labeled ``C'' which represents the
 existing C code of \emph{ASN1C} compiler. Using an automated conversion
 provided by the \texttt{clightgen} tool within the CompCert C compiler
-\cite{CompCert} we will convert this to an Abstract Syntax Tree (AST)
-\cite{AST} (labeled ``C.AST'' in Figure 1) rendered in a subset
-of C-language called Clight \cite{Mechanized} that is recognized by Coq. More specifically,
+\cite{CompCert} we will convert this to Abstract Syntax Trees (AST)
+\cite{AST} (labeled ``C.AST'' in Figure 1) rendered from a subset
+of C-language called Clight \cite{Mechanized} and that is recognized by Coq. More specifically,
 CompCert converts C ``concrete syntax'' to ``abstract'' Clight
 syntax. The resulting Clight program is just a reification of the
-original C program in Coq, retaining the overall structure and
-preserving the semantics; Clight is further assigned formal semantics
+original C program in Coq, retaining its overall structure; Clight is further assigned formal semantics
 by CompCert that can be used to further ``reason about'' (interrogate
-and analyze) programs within Coq.
+and analyze) the behviour of programs within Coq.
 
 Finally, as the most critical (and laborious) step of the project, we
 will prove that semantics of Clight
-translation for each given function corresponds to executable
+translation for each given function corresponds to its executable
 specification (E.SPEC). This will guarantee that the C program behaves exactly
-as the executable spec.
+as the executable and high-level spec.
 
 Hence, the formal certification of correctness will comprise the following
 three elements:
@@ -308,7 +307,7 @@ three elements:
 \end{enumerate}
   
 
-Element (b) ensures a bug-free standard-compliant implementation, and
+Elements (a) and (b) ensure a bug-free standard-compliant implementation, and
 element (c) provides further guarantee that it could not be exploited
 in penetration or denial of service attacks.
 
@@ -337,7 +336,7 @@ available on github \cite{asn1fpcoq}.  Our first approach was
 relatively straightforward: define types representing ASN.1-encoded
 data in Coq, provide functions for converting between representations
 and prove that they operate correctly. In particular, we proved the
-roundtrip property for the defined encoders/decoders.
+roundtrip property for the defined encoders/decoders (i.e. the decoder is the inverse of the encoder).
 
 Although providing guarantees of correctness, this technique had major disadvantages.
 First of all, our definitions, being written in pure Coq, had only one
@@ -500,10 +499,10 @@ memory). Such specification can be easily examined and refined.
   \texttt{Z\_of\_string} which we prove to be equivalent to the
   relational specification. However it could be extracted to Coq and
   is easier to use in future proofs of semantic equivalence with C
-  code. Here, we experimented with two approaches. The function below
-  can serve as a functional specification for
+  code. Here, we experimented with two approaches. The function 
+   \texttt{Z\_of\_string} can serve as a functional specification for
   \texttt{asn\_strtoimax\_lim} and is not that different from the
-  relational spec.
+  relational spec. \newpage
 
  \begin{lstlisting}[language=Coq]
 Fixpoint Z_of_string_loop (s : list byte) (val index : Z) (b : bool) := 
@@ -527,7 +526,7 @@ Definition app_char (b : bool) v c :=
  \texttt{asn\_strtoimax\_lim}, the proof required many lemmas to
  connect functional spec to the C code and complicated the loop
  invariant. We found that it is more effective to separate the
- functional aspect of the proof from C-proof as much as possible to
+ functional aspect of the proof from the C-proof as much as possible to
  allow for more automation in the proof of C function
  correctness. Thus we defined another intermediate spec
  \texttt{Z\_of\_string\_C}, which is basically functional
