@@ -6,7 +6,7 @@
 
 \bibliographystyle{ACM-Reference-Format}
 %\citestyle{acmauthoryear}   %% For author/year citations
-
+\usepackage{longtable}
 \usepackage{url}
 \usepackage{amsmath}
 \usepackage{amsfonts}
@@ -74,15 +74,14 @@
   We describe our approach and progress in verification of an existing
   mature open-source ASN.1 compiler \emph{ASN1C} using the Coq proof
   assistant. Once completed, our project will provide state-of-the-art
-  high assurance suitable for mission-critical systems. Further, since
-  formal verification will be layered atop of a mature existing ASN.1
+  high assurance which is suitable for mission-critical systems. Furthermore, since
+  formal verification will be layered atop a mature existing ASN.1
   stack, it will combine the benefits of high-performance portable
-  stack implementation with formal correctness
-  guarantees. Additionally, as an essential and necessary step in our
-  approach, the project will provide a formalization of a key part of
+  stack implementation with formal correctness guarantees. As an essential and necessary step in our
+  approach, the project will also provide a formalization of a key part of
   the ASN.1 standard. Such formal specification could subsequently be
-  used by others to reason about ASN.1 properties, validate other
-  implementations, and other applications.
+  used by others to analyze ASN.1 properties and validate other
+  implementations.
 
 \end{abstract}
 
@@ -94,31 +93,31 @@
 
 \subsection{Background}
 
-The pervasively deployed and widely adopted ASN.1 (``Abstract Syntax
-Notation One'') \cite{ASN1Intro} joint standard of the International
+The pervasively deployed and widely adopted ASN.1 (Abstract Syntax
+Notation One) \cite{ASN1Intro} joint standard of the International
 Telecommunication Union (ITU-T) and the International Organization for
 Standardization (ISO/IEC) provides an essential interface description
 language for defining data structures for serialization and
 de-serialization in cross-platform data exchange, broadly used in
 telecommunications, computer networking, the Internet, and
 cryptography. ASN.1 is vitally relied upon by core aspects of the
-Internet infrastructure and Internet applications such as telephony,
+Internet infrastructure and Internet applications, such as telephony,
 enterprise computing, utilities, finance, military, security,
 digitally-controlled infrastructure, transportation, medical systems,
 and commercial cloud computing.
 
-Using ASN.1 language one can define data structures that use
+Using ASN.1 language, one can define data structures that use
 ASN.1 {\it primitive types}, such as \emph{INTEGER}, \emph{BOOLEAN}, \emph{OBJECT
-IDENTIFIER} etc, and {\it constructed types}, such as \emph{SEQUENCE (OF)},
-\emph{SET (OF)}, \emph{CHOICE (OF)}. An example ASN.1 module that describes an X.509-like public key
+IDENTIFIER}, and {\it constructed types}, such as \emph{SEQUENCE (OF)},
+\emph{SET (OF)}, and \emph{CHOICE (OF)}. An example ASN.1 module that describes an X.509-like public key
 certificate is shown in Listing~\ref{lst:asnex}. Such certificates are
 used by every browser to access HTTPS web sites. The unabridged
 version of the original ASN.1 definition for the X.509 standard takes
-about 1000 lines of ASN.1 and is not practical to include into this
+about 1,000 lines of ASN.1 and is impractical to include in this
 report. 
 
 \begin{lstlisting}[language=ASN1,label=lst:asnex,
-  caption={ASN.1 example of X.509 certificates, adapted for brevity}]
+  caption={ASN.1 example of X.509 certificates, revised for brevity}]
 X509 DEFINITIONS ::= BEGIN
 
   Certificate  ::=  SEQUENCE  {
@@ -154,62 +153,57 @@ END
 \end{lstlisting}
 
 
-A typical ASN.1 stack comprises of a \textit{compiler} which parses
-ASN.1 syntax definitions as shown in the Listing~\ref{lst:asnex} and
-produces either a source code of a specialized protocol encoder and
-decoder for this data or a runtime data for a parametric protocol
-encoder and decoder.
+A typical ASN.1 stack consists of a \textit{compiler} which parses
+ASN.1 syntax definitions, as shown in the Listing~\ref{lst:asnex}, and
+produces either a source code of a specialized protocol encoder/decoder for this data or a run-time data for a parametric protocol
+encoder/decoder.
 
 However, the ASN.1 standard is large and complex:
-currently, it comprises twelve sub-standards spanning 862 pages
+it currently comprises twelve sub-standards spanning 862 pages
 supplemented by additional pages of corrigenda. This opens
 a door for many potential software bugs and malicious exploits.
   
 \subsection{Motivation}
 
-Proliferating embedded and user computing devices are implementing
-vast numbers of essential functions and applications, all of which
-exchange data using ASN.1. The resulting interconnected communicating
-systems are becoming riskier, less stable, less reliable, and
-potentially dangerous. Disruption of the ASN.1 based communications
-could threaten the functioning of the critical infrastructure our
+These days, embedded and user computing devices  implement increasingly vast numbers of essential functions and applications, all of which
+exchange data using ASN.1. As a result, the interconnected communicating
+systems are becoming less stable and less reliable, posing greater risks and
+potential dangers. Disruption of the ASN.1 based communications
+could threaten the functioning of the entire critical infrastructure our
 society relies upon.
 
 
 The Computer Vulnerabilities and Exposures (CVE) database \cite{CVE}
-lists critical ASN.1-related bugs found each year in the existing
-systems, and there have already been noteworthy exposures
-\cite{OpenSSLMemoryCorruption} that although not as dire to security
-as first feared \cite{ASN1Flaw} clearly spell out a first awareness of
-the vast risk and exposure. We analyzed the last 4 years of
-ASN.1-related issues reported in Computer Vulnerabilities and
-Exposures (CVE) database. %TODO: mention Appendix with the table
-Among vulnerabilities studied
-were CVEs for various software and hardware products and vendors,
+lists critical ASN.1-related bugs that are found each year in the existing
+systems. Noteworthy exposures have already been discovered 
+\cite{OpenSSLMemoryCorruption} that, although not as dire to security
+as first feared \cite{ASN1Flaw}, clearly illuminate this vast risk and exposure. We analyzed the last four years of
+ASN.1-related issues reported in the CVE database. %TODO: mention Appendix with the table
+Among the vulnerabilities studied
+are CVEs for various software and hardware products and vendors,
 including \textit{Apple}, \textit{axTLS}, \textit{Botan},
 \textit{Bounty Castle}, \textit{librcrypto++}, \textit{libtasn},
 \textit{LibTomCrypt}, \textit{Linux Kernel}, \textit{MatrixSSL},
 \textit{Mozilla NSS (Firefox)}, \textit{Objective Systems},
 \textit{OpenSSL}, \textit{PolarSSL}, \textit{RSA BSAFE},
 \textit{Samba}, \textit{Samsung}, \textit{Snapdragon},
-\textit{strongSwan}, and \textit{Wireshark}. It was found that 39 out
-of 52 problems analyzed were related to memory safety, 6 related to
-stack and heap bounds checking, and 3 related to issues caused by
-applications accepting not well-formed ASN.1 input. Having proved just
-six formal properties would have prevented 49 out of 52
-vulnerabilities, that is, more than 90\% of reported
+\textit{strongSwan}, and \textit{Wireshark}. Out of 52 problems analyzed, 39 are related to memory safety, 6 related to
+stack and heap bounds checking, and 3 are related to issues caused by
+applications accepting poorly formed ASN.1 input. Proving just
+six formal properties can prevent 49 out of 52
+vulnerabilities, which is more than 90\% of reported
 vulnerabilities\footnote{See Appendix B for more details.}.
 
 \subsection{Our approach}
 \label{sec:approach}
-Systems and methods to date either (a) are automatically tested but not
-formally verified (b) use verification approaches which rely on
+To date, systems and methods are either (a) automatically tested but not
+formally verified, (b) use verification approaches which rely on
 automatic extraction from executable specifications (for example
 involving network stack synthesis \cite{VNSSforSel4}, optimizing compilers
 \cite{CompCert}, cryptographic libraries \cite{HACL}, and
 encoder/decoders \cite{Narcissus}), or (c) apply a form of formal
 verification which only proves partial correctness properties (partial
-verification of NAT stack only proving parts of DPDK are specification
+verification of NAT stack proving that only parts of DPDK are specification
 compliant \cite{NAT}, partial verification of Linux kernel TCP
 implementation with 55\% line coverage and 92\% protocol coverage
 \cite{NSDI}). Consequently, (a) and (c) do not provide sufficient
@@ -219,7 +213,7 @@ far deeper and comprehensive verification approach to performance and
 portability and seek to prove actual industrial-level C-code
 implementation.
 
-As shown in Figure~\ref{fig:components} the project begins with ITU-T
+As shown in Figure~\ref{fig:components}, the project begins with ITU-T
 standard document in the form of human-readable text. We will manually
 convert it into formal specification (H.SPEC). This is high-level
 specification (in Coq) which describes the correspondence between data
@@ -234,39 +228,37 @@ its own.
   \label{fig:components}
 \end{figure}
 
-Next level of refinement is Executable Specification (E.SPEC). Also
-written in Coq it describes ``encoder'' and ``decoder'' for each type
-as a pair of pure functions. We will prove that the Executable
-specification encodes and decodes bytes are in conformance to High-Level
+The next level of refinement is executable specification (E.spec). Also
+written in Coq, it declares ``encoder'' and ``decoder'' for each type
+as a pair of pure functions. We will prove that the E.spec encodes and decodes bytes in conformance with high-level
 specification.
 
-High-Level Properties like termination, computation complexity and
+High-level properties like termination, computation complexity, and
 memory safety could be proven based on executable specification. They
-are shown as ``High Level'' box on the left in the
-Figure~\ref{fig:components}. The executable spec contains enough
+are shown in the ``High Level Properties'' box on the left in Figure~\ref{fig:components}. The E.spec contains enough
 information to \textit{extract} a fully functional encoder program in
-languages supported by Coq extraction mechanism (e.g. OCaml and
-Haskell) \cite{Extraction}. Such a possibility is shown with the box
-on the right in Figure~\ref{fig:components} although we do not plan to
-pursue it yet. However it could be explored in fututre, for example,
-in case if we need to generate ASN.1 stack for special platforms where
+languages supported by the Coq extraction mechanism (e.g. OCaml and
+Haskell) \cite{Extraction}. Such a possibility is shown in the box
+on the right in Figure~\ref{fig:components}, although we do not plan to
+pursue it yet. However it could be explored in the future, for example,
+in case we need to generate an ASN.1 stack for special platforms where
 OCaml code opens some additional opportunities for parallelization,
-optimization or integration. One example of such platforms could be
-MirageOS \cite{MirageOS} which is an OCaml-based unikernel.
+optimization, or integration. One example of such platforms could be
+MirageOS \cite{MirageOS}, which is an OCaml-based unikernel.
 
-The box at the left marked \textit{QuickChick} represents another
-possibility we might not pursue immediately. It is using randomized
+The box at the left, marked \textit{QuickChick}, represents another
+possibility we might not pursue immediately. It uses randomized
 property-based automated testing based on an executable
 specification to further verify its correctness. This work could be
-done using QuickChick \cite{QuickChick} in Coq. It is also could be used
+done using QuickChick \cite{QuickChick} in Coq. It could also be used
 to generate a test-suite for extracted code.
 
 At the bottom of Figure 1 is a box labeled ``C'' which represents the
-existing C code of \emph{ASN1C} compiler. Using an automated conversion
+existing C code of the \emph{ASN1C} compiler. Using an automated conversion
 provided by the \texttt{clightgen} tool within the CompCert C compiler
-\cite{CompCert} we will convert this to Abstract Syntax Trees (AST)
+\cite{CompCert}, we convert this to Abstract Syntax Trees (AST)
 \cite{AST} (labeled ``C.AST'' in Figure 1) rendered from a subset
-of C-language called Clight \cite{Mechanized} and that is recognized by Coq. More specifically,
+of C-language, called Clight \cite{Mechanized}, which is recognized by Coq. More specifically,
 CompCert converts C ``concrete syntax'' to ``abstract'' Clight
 syntax. The resulting Clight program is just a reification of the
 original C program in Coq, retaining its overall structure; Clight is further assigned formal semantics
@@ -274,31 +266,30 @@ by CompCert that can be used to further ``reason about'' (interrogate
 and analyze) the behviour of programs within Coq.
 
 Finally, as the most critical (and laborious) step of the project, we
-will prove that semantics of Clight
-translation for each given function corresponds to its executable
-specification (E.SPEC). This will guarantee that the C program behaves exactly
-as the executable and high-level spec.
+prove that semantics of Clight
+translation for each given function correspond to its executable
+specification (E.spec). This guarantees that the C program behaves exactly
+like the executable and high-level specification.
 
-Hence, the formal certification of correctness will comprise the following
+Hence, the formal certification of correctness will include the following
 three elements:
 
 \begin{enumerate}[label=(\alph*)]
 
-\item Formal specification of X.509 ASN.1 subset, which can be examined.
+\item Formal specification of the X.509 ASN.1 subset, which can be examined.
 
 \item Proofs of semantic equivalence between the C code and the
   specification (in Coq Proof Assistant \cite{Coq}). From such
-  proofs, Coq can generate a ``certificate'' which is a program in a
+  proofs, Coq can generate a ``certificate,'' which is a program in a
   formal language based on the Calculus of Inductive Constructions
-  (``CIC'') \cite{CIC}. The ``certificate'' allows 3rd party
-  validation of proofs which have been developed in Coq. The Calculus
-  of Inductive Constructions (``CIC'') is a small and mathematically
+  (``CIC'') \cite{CIC}. The certificate allows 3rd party
+  validation of proofs which have been developed in Coq. The CIC is a small and mathematically
   well-defined formal language that serves as the underlying formal
   system of Coq. The generated certificate is automatically validated
   by the relatively small Coq kernel. Although a fraudulent
-  certificate could hypothetically be created, it will not pass
+  certificate could hypothetically be created, it would not pass
   validation when submitted to the Coq kernel. The resulting outcome
-  limits the trust need to trusting the small CIC formal language and
+  limits the trust need to rely on the small CIC formal language and
   the small Coq kernel.
 
 \item Proofs of additional high-level properties such as memory safety
@@ -316,12 +307,12 @@ the certified CompCert compiler \cite{CompCert} to extend correctness
 guarantees through all levels down to machine code. This will provide state-of-the-art high
 assurance suitable for mission-critical systems. Further, since formal
 verification will be layered atop of a widely used ASN.1 stack, it
-could be immediately offered to current users. This will make it attractive to new users who require higher
+could be offered to current users immediately. This makes it attractive to new users who require higher
 assurance levels than current non-verified implementations provide.
 
 \section{Preliminary work}
 
-Before commiting ourslves to this project we performed some initial
+Before committing ourselves to this project, we performed some initial
 exploratory work to try different validation approaches, evaluate
 tools and libraries, and estimate effort required. Briefly summarized
 below are the results of some experimental work we performed.
@@ -330,105 +321,102 @@ below are the results of some experimental work we performed.
 
 As a first estimate of the difficluties associated with verifying
 ASN.1-related programs, we wrote formal specification of an
-encoder-decoder pair for a small, but particularly error-prone subset
+encoder-decoder pair for a small but particularly error-prone subset
 of the standard - \textit{floating-point numbers}. The development is
-available on github \cite{asn1fpcoq}.  Our first approach was
+available on github \cite{asn1fpcoq}. Our first approach was
 relatively straightforward: define types representing ASN.1-encoded
-data in Coq, provide functions for converting between representations
+data in Coq, provide functions for converting between representations,
 and prove that they operate correctly. In particular, we proved the
 roundtrip property for the defined encoders/decoders (i.e. the decoder is the inverse of the encoder).
 
-Although providing guarantees of correctness, this technique had major disadvantages.
-First of all, our definitions, being written in pure Coq, had only one
+Although providing guarantees of correctness, this technique has major disadvantages.
+First of all, our definitions, being written in pure Coq, have only one
 connection to the real world - through automatic code extraction.
-This immediately comes with a set of problems:
+This immediately creates a set of problems:
 
 \begin{itemize}
-\item Writing a new implementation in Coq does not produce any improvement in pre-existing widely-used implementations
-\item Automatic code extraction does not provide sufficient correctness guarantees
-\item Extracted code generally runs much slower than its counterparts implemented in other languages
-\item Extracted code might not be compatible with or viable in some real-world use-case scenarios
+\item Automatic code extraction does not provide sufficient correctness guarantees.
+\item Extracted code generally runs much slower than its counterparts implemented in other languages.
+\item Extracted code might not be compatible with other code or viable in some real-world use-case scenarios.
 \end{itemize}
 
-However, this attempt allowed us to home in on what approaches
-to verfication were viable and improve our effort estimates. Moreover, we tested specification and proving techniques which will be useful for us in the future.
+However, this exploration allowed us to home in on what approaches
+to verfication are viable and improve our effort estimates. Moreover, we tested specification and proving techniques which will be useful for future experimentation.
 
-\subsection{Verifying simple  \texttt{asn1c} function}
+\subsection{Verifying simple  \texttt{ASN1C} function}
 
-To estimate an effort required to formally verify C code and to
-experiment with various verification strategies we decided to try to
+To estimate the effort required to formally verify C code and to
+experiment with various verification strategies, we decided to try to
 verify a small function from an existing ASN.1 compiler. We chose
 function \texttt{asn\_strtoimax\_lim(const char *str, const char
-  **end, intmax\_t *intp)} from \texttt{ASN1C} compiler.  \emph{XER}
-decoding functions for \emph{INTEGER}, \emph{OBJECT-IDENTIFIER} and
+  **end, intmax\_t *intp)} from the \texttt{ASN1C} compiler. \emph{XER}
+decoding functions for \emph{INTEGER}, \emph{OBJECT-IDENTIFIER}, and
 \emph{RELATIVE-OID} types (and hence all constructed types that use
 these primitive types) critically depend on this function. The
-function is relatively simple, but at the same time uses many features
+function is relatively simple but at the same time, it uses many features
 of C that make verifying imperative programs challenging.
 
-The only specification provided was the following comment in the
-source code. Additional specification details have to be inferred from
+The only specification was the following comment in the
+source code. Additional specification details must be inferred from
 the source code and usage examples.
 
 \begin{quote}
  { \it Parse the number in the given string until the given *end position,
- returning the position after the last parsed character back using the
+ returning the position after the last parsed character using the
  same (*end) pointer.
  WARNING: This behavior is different from the standard strtol/strtoimax(3). }
 \end{quote}
 
-Full source code of the function is included in the Appendix~\ref{sec:stritomax}.
+Full source code of the function is included in Appendix~\ref{sec:stritomax}.
 
 \subsubsection{Problems discovered}
 
 Despite that fact that this function lineage could be traced back 15
-years, and it being a part of mature, well-tested ASN.1 compiler used
-in many production systems during our formal verification exercise we
-found three bugs or problems in the current implementation. These were
-never reported before and passed all human code reviews, unit, and
+years and that it is part of mature, well-tested ASN.1 compiler presently used
+in many production systems, we
+found three bugs or problems in the current implementation. These had
+never been reported before and had passed all human code reviews, unit, and
 fuzzying tests.
   
 \paragraph{Negative range bug}
 
-When we go beyond allowed \textit{int} range, a wrong result is given
-for some inputs. For example, assuming we are working on a 8-bit
-system and the maximum signed integer value is 127, parsing the input
-string \texttt{``-1281''} produces the result
-\emph{ASN\_STRTOX\_OK} (meaning the conversion was succesfull) with the value -127 instead of expected
-\emph{ASN\_STRTOX\_ERROR\_RANGE} (meaning the number to be converted is out of integer range). This happens whenever the input
+When we go beyond the allowed \textit{integer} range, an incorrect result is given
+for some inputs. For example, assuming we are working on an 8-bit
+system and the maximum signed integer (\texttt{MAX\_INT}) value is 127, parsing the input
+string \texttt{``-1281''} is successful and returns the value -127 instead of the expected error range error message. This happens whenever the input
 string represents a number smaller than \texttt{MIN\_INT}, due to the
-fact that absolute value of \texttt{MIN\_INT} is greater than
-\texttt{MAX\_INT}, thus negative number cannot be treated as
-$\mathrm{value}\times\mathrm{sign}$ when $\mathrm{value}$ is
-represented as \textit{int}. The bug was reported and promptly fixed by
+fact that its absolute value is greater than
+\texttt{MAX\_INT}, thus the negative number cannot be treated as a
+$\mathrm{value}\times\mathrm{sign}$ when the $\mathrm{value}$ is
+represented as \textit{integer}. This bug was reported and promptly fixed by
 developers.
 
 \paragraph{Problem with pointer aliasing}
 
 Another bug we discovered was related to potentially overlapping
-memory areas pointed by argument pointers. Under some circumstances
+memory areas pointed by argument pointers. Under some circumstances,
 the value of the \texttt{end} pointer parameter is treated as a part
-of the input data and the resulting error value could be
-incorrect. This bug could never occur if the function is always called
-with non-overlapping pointer arguments. However this could be viewed
+of the input data, and the resulting error value could be
+incorrect. This bug would never occur if the function is always called
+with non-overlapping pointer arguments. However this may be viewed
 as an implicit pre-condition which should be part of the function's
 specification.
 
 \paragraph{Specification ambiguity}
 
-After addressing the two bugs we discovered we were able to
+After addressing the two bugs we discovered, we were able to
 successfully verify that the function finally corresponds to the
-specification we wrote for it. However, it was noticed the following
-behavior: For input \texttt{``a''} it records value $0$ (same behaviour
-as on input \texttt{``0''}) and returns
-\texttt{ASN\_STRTOX\_EXTRA\_DATA} (same behaviour as on input
-\texttt{``0a''}), which was probably unintended by authors.
+specification we wrote for it. However, the following
+behavior was noticed; for input \texttt{``a,''} it records the value $0$ (the same behaviour
+as for input \texttt{``0''}) and returns the
+\texttt{EXTRA\_DATA} error message (the same behaviour as for input
+\texttt{``0a''}), which was probably unintended.
   
 \subsubsection{Direct operational semantics proof}
 
 First we formulated functional correctness and proved it using
 big-step operational semantics of \textit{C light}, defined in
-\textit{Compcert}. In this proof we used pure-function
+\textit{Compcert}. In this proof, we used pure-function
 re-implementation in Coq as an intermediate specification:
 
 \begin{lstlisting}[language=Coq]
@@ -439,39 +427,39 @@ This function took addresses as inputs and operated on memory using
 \texttt{load} and \texttt{store} operations from \textit{CompCert's}
 memory model, while calculating the resulting machine integer
 value. The proof went by induction on the distance between input
-pointers and the main difficulty apart trying to prove a faulty
+pointers and the main difficulty apart from trying to prove a faulty
 program (that's when we discovered two bugs) was operational semantics
-control flow minuities and machine arithmetic proofs. However, only a
-couple of lemmas about the specification were needed and proofs of
+control flow minutiae and machine arithmetic proofs. However, only a
+couple of lemmas about the specification were needed, and proofs of
 different cases were very repetitive. Since functional and memory
-specification were intertangled it was more difficult to read the
-specification and make sure it was correct, hence we missed the
+specification were intertangled, it was more difficult to read the
+specification and make sure it was correct. Hence, we missed the
 specification ``bug'' mentioned above.
 
 \subsubsection{Proof using VST}
 
-The \textit{Verified Software Toolchain} \cite{VST} offered solutions
-to problems we encountered while doing direct opertational semantics
-proof: it has good automation of control flow, some automation for
-machine arithmetic, and clearly separates functional and
+The \textit{Verified Software Toolchain} \cite{VST} offers solutions
+to problems we encountered while doing direct operational semantics
+proof; it has good automation of control flow, some automation for
+machine arithmetic, and clear separation of functional and
 memory-related parts of the specification. It also provides a uniform
-way of stating functional correctness and memory safety, so reduces
+way of stating functional correctness and memory safety, which reduces
 the chances of having the wrong specification. Proofs here are done
 using \textit{Hoare} and \textit{separation} logic implemented in Coq,
 which are proven to be sound with respect to operational semantics of
 CompCert. Similarly as before, we rely on C light syntax and
 semantics. VST has tactics that can solve simple entailments in these
-logics, however, they were not powerful enough to significantly reduce
+logics. However, they are not powerful enough to significantly reduce
 the overall proof effort. In fact, with respect to memory safety
-specifications, direct operational semantics proof was shorter and
+specifications, direct operational semantics proof are shorter and
 more straightforward. However, this problem can be solved by improving
 the existing tactics and fine-tuning the specification style, so in
 the end we find this approach more viable for a large project.
 
-On this simple example we tested our architecture from
-Section~\ref{sec:approach}. First, we wrote a high-level specification
+In this simple example, we test our architecture from
+Section~\ref{sec:approach}. First, we write a high-level specification
 of this function in declarative, relational style. Each constructor
-corresponds to a return message (state) and stores value and the
+corresponds to a return message (state) and stores a value and the
 number of iterations of the function (used to store the result in
 memory). Such specification can be easily examined and refined.
 
@@ -495,14 +483,14 @@ memory). Such specification can be easily examined and refined.
    ...    
   \end{lstlisting}
 
-  The next level was the \textit{executable specification}
-  \texttt{Z\_of\_string} which we prove to be equivalent to the
-  relational specification. However it could be extracted to Coq and
+  The next level is the \textit{executable specification}
+  \texttt{Z\_of\_string}, which we prove to be equivalent to the
+  relational specification. However, it could be extracted to Coq and
   is easier to use in future proofs of semantic equivalence with C
-  code. Here, we experimented with two approaches. The function 
+  code. Here, we experiment with two approaches. The function 
    \texttt{Z\_of\_string} can serve as a functional specification for
-  \texttt{asn\_strtoimax\_lim} and is not that different from the
-  relational spec. \newpage
+  \texttt{asn\_strtoimax\_lim} and differs little from the
+  relational specification. \newpage
 
  \begin{lstlisting}[language=Coq]
 Fixpoint Z_of_string_loop (s : list byte) (val index : Z) (b : bool) := 
@@ -522,21 +510,20 @@ Definition app_char (b : bool) v c :=
        else v * 10 - (Z_of_char c).
  \end{lstlisting}
 
- Since \texttt{Z\_of\_string} has different structure from
- \texttt{asn\_strtoimax\_lim}, the proof required many lemmas to
- connect functional spec to the C code and complicated the loop
- invariant. We found that it is more effective to separate the
+ Since \texttt{Z\_of\_string} has a different structure from
+ \texttt{asn\_strtoimax\_lim}, the proof requires many lemmas to
+ connect functional specification to the C code and complicate the loop
+ invariant. It is more effective to separate the
  functional aspect of the proof from the C-proof as much as possible to
  allow for more automation in the proof of C function
- correctness. Thus we defined another intermediate spec
+ correctness. Thus, we define another intermediate specification
  \texttt{Z\_of\_string\_C}, which is basically functional
- re-implementation of the C function, alike the one we used in
- operational semantics proof, but without mentioning memory and
- operation on abstract \texttt{Z} type and not machine integers. Then
+ re-implementation of the C function, like the one used in the
+ operational semantics proof but without mention of memory or machine integers. Then,
  we prove that \texttt{Z\_of\_string\_C} is equivalent to
  \texttt{Z\_of\_string}, which is a simple functional correctness
- proof that allows to eliminate the need for additional lemmas in the
- C proof that connect the abstrct spec and the C code structure.
+ proof that allows eliminating the need for additional lemmas in the
+ C proof that connect the abstract specification with the C code structure.
 
  \begin{lstlisting}[language=Coq]
  
@@ -563,18 +550,17 @@ Fixpoint Z_of_string_loop_C (s : list byte) (val index : Z) (b : bool) :=
     
  \end{lstlisting}
 
- Then we wrote VST specification that uses either the high-level
- specification or one of executable specs, but also provides a way to
+ We then wrote VST specification that uses either the high-level
+ or one of executable specifications but also provides a way to
  state memory specification for the function using special memory
  predicates. For instance, the predicate \texttt{(data\_at t ls p)}
  states that at the address \texttt{p} there is content \texttt{ls} of
- type \texttt{t}. We can combine them using separation conjuction
- (\texttt{;}): each conjuct holds on a separate sub-heap of the
- memory. Moreover, since in the body of the function we compare
- pointers between \texttt{str} and \texttt{*end} we have to ensure
+ type \texttt{t}. We can combine them using a separation conjunction
+ (\texttt{;}). Each conjunct is true of a separate sub-heap of the
+ memory. Since we compare pointers between \texttt{str} and \texttt{*end} in the body of the function, we also have to ensure
  that they are valid pointers according to the C standard and are
- comparable (i.e. point within the same object). For instance the
- memory precondition for the function will now has the following form:
+ comparable (i.e. point within the same object). For instance, the
+ memory precondition for the function will now have the following form:
 \begin{lstlisting}[language=Coq]
 PRE ((* str and *end are valid pointers *)
       valid_pointer *end ;
@@ -587,9 +573,9 @@ PRE ((* str and *end are valid pointers *)
       data_at long v intp)
      \end{lstlisting}
 
-     And the postcondition will record the changes in memory. Then we
-     prove that, given the precondition, after the execution of
-     \texttt{asn\_strtoimax\_lim} the postcondition will hold.
+     Moreover, the post-condition will record the changes in memory. We then
+     prove that, given the precondition and after the execution of
+     \texttt{asn\_strtoimax\_lim}, the post-condition will hold.
            
 \begin{lstlisting}[language=Coq]
  POST((* the fist four lines of the precondition didn't change after execution *)
@@ -614,105 +600,75 @@ PRE ((* str and *end are valid pointers *)
        else data_at (ptr char) *end end).
 \end{lstlisting}
 
-Given experiments on this example we delineated a strategy for proving
-\emph{ASN1C} correctness.
+Given experiments on this example, we delineate our strategy for proving
+\emph{ASN1C} correctness as described in Section 1.
 
 \section{Project Scope}
 
 The International Telecommunications Union X.509 standard
 \cite{X509} defines the format of public key certificates used in
-many cryptography, Internet protocols (including TLS/SSL, the basis
-for the HTTPS protocol for secure browsing the web), certificate
+many cryptographic Internet protocols (including TLS/SSL, the basis
+for HTTPS protocol for secure browsing the web), certificate
 revocation lists, certification path validation, electronic
 signatures, and many other essential applications. X.509 is based on
-ASN.1, using an important central particular subset (Distinguished
+ASN.1, using an important subset (Distinguished
 Encoding Rules, ``DER'') of ASN.1 \cite{BERandDER}.
 
-To limit the scope of the initial stage of the project to while
-exercising and showcasing all involved with the complete ASN.1
-standard, we decided to focus the detailed verification on this part
-which could be then immediately used to implement verified X.509
+To limit the scope of the initial stage of the project while
+exercising and showcasing all features of the complete ASN.1
+standard, we focus the detailed verification on the DER part,
+which can immediately be used to implement verified X.509
 stacks for use in production applications.
  
 The X.509 focus provides a setting to answer essentially all questions
-that must be answered to determine the technical feasibility of the
+to determine the technical feasibility of the
 proposed concept of full ASN.1 stack verification. These questions
-include the following points.
+include the following points:
 
 \begin{enumerate}
-\item How \emph{ASN1C} source code needs to be refactored to make it suitable for verification? In particular:
+\item How \emph{ASN1C} source code needs to be refactored to make it suitable for verification. In particular:
   \begin{enumerate}
-  \item What features of general C-language that are not supported by CompCert's C language semantics need to be avoided?
-  \item Are there any code organization changes which will aid structuring proofs (for example to make it easier to relate each function to a corresponding lemma).
+  \item Which features of general C-language unsupported by CompCert's C language semantics need to be avoided?
+  \item Are there any code organization changes which will aid structuring proofs (for example to make it easier to relate each function to a corresponding lemma)?
   \item Are there any simplifications which could be done to \emph{ASN1C} code by removing rarely used or obscure features that will make it easier to verify?
-  \item Since \emph{ASN1C} codebase dates back more than a decade, are there are any low-level manual optimizations that could be eliminated as combination of modern compilers and hardware handles them as well?
+  \item Since the \emph{ASN1C} codebase dates back more than a decade, are there are any low-level manual optimizations that could be eliminated by a combination of modern compilers and hardware that can handle them as well?
   \end{enumerate}
-  Of these, we plan to make the necessary simplifications of \emph{ASN1C}
-  code required for the scope of the Phase I subset. This work will
-  also inform us as to the type and scope of changes needed for the
-  rest of the codebase to complete full \emph{ASN1C} verification in later
-  stages.
 \item What high-level properties can be proven which will translate into additional code safety guarantees?
-\item What safety guarantees will be ensured by our verification?
-\item How should formalization of ASN.1 standard in Coq look - i.e. what is the balance between clarity and readability (so humans can examine it and satisfy themselves that it indeed corresponds to the standard) and comprehensiveness (so meaningful set of properties could be proven based on it)?
-\item How many of the proving steps could be automated and how these automations speed up proof process? Can these be used to estimate effort required to prove the remainder of the ASN.1 stack?
-\item How many of the proving methodologies and tools developed during
-  Phase I could be re-used to prove other similar software and
-  protocols, particularly those that can be products? Examples include
-  the following.
-  \begin{enumerate}
-    \item Network protocol C-language implementations.
-    \item Arbitrary C-language programs.
-    \item Network protocols implementations in other languages.
-    \item Arbitrary programs on other languages.
-    \end{enumerate}
-  \item Are Executable Specifications of encoders/decoders completely sufficient to ``extract'' a working skeleton of ASN.1 stack in OCaml? How much of additional ``glue'' code needed to be written to transform the result into working product? How do code size and the performance of such extracted stack compares to the original C-language implementation from \emph{ASN1C}?  
+\item How should formalization of ASN.1 standard in Coq be written? - i.e. How to balance clarity, readability, and comprehensiveness?
+\item How many of the proving steps could be automated and how can these automations speed up the proof process? Can they be used to estimate the effort required to prove the remainder of the ASN.1 stack?
+\item How many of the proving methodologies and tools developed during the first phase could be re-used to prove similar software and other
+  protocols?
+  \item Are executable specifications of encoders/decoders completely sufficient to ``extract'' a working skeleton of the ASN.1 stack in OCaml? How much of additional ``glue'' code needs to be written to transform the result into a working product? How do code size and the performance of such extracted stack compare to the original C-language implementation from \emph{ASN1C}?  
 \end{enumerate}
 
 To address these questions determining the technical feasibility of
-our proposed concept, the following key objectives of the project have
-been defined and structured as follows.
-
-\begin{enumerate}
-\item Formalize a part of the ASN.1 standard, sufficient to represent X.509.
-\item Refactor \emph{ASN1C} code to make it suitable for verification.
-\item Establish correctness of encoders/decoders for primitive types.
-\item Establish correctness of encoders/decoders for constructed types.
-\item Prove high-level properties.
-\item Experiment with OCaml code extraction from Executable Specifications.
-\item Establish metrics and evaluate code bases to estimate the effort required to prove the remainder of ASN.1 stack.
-\item Produce the final \emph{ASN1C} code and associated documentation in the form of commercial product that could be sold.
-\end{enumerate}
-
-We plan to use the technical results to immediately implement verified
-X.509 stacks for use in production applications with Digamma.ai
-customers.
+our proposed concept, we defined key tasks and objectives described in Section 5.
  
 \section{Project Status}
 
-Now we are working on executable specification of the \emph{ASN1C}
+Now, we are working on executable specification of the \emph{ASN1C}
 compiler, the intermediate level between the high-level specification
 and the C code. There are many ways of approaching this, but what we
 have to keep in mind is the future proof effort, both with respect to
-the C code and the high-level specification. Thus our executable
-specification should correspond to the actual implementation, at the
-same time being abstract enough.
+the C code and the high-level specification. Thus, our executable
+specification should correspond to the actual implementation, while remaining
+sufficiently abstract.
 
-The \emph{ASN1C} compiler has modular structure, so we can proceed with
+The \emph{ASN1C} compiler has a modular structure, so we can proceed with
 verification in a modular way and exploit this structure in the
-proofs. From a high-level view, \emph{ASN1C} compiler consists of
-the library of primitive types decoders (such as \emph{INTEGER}, \emph{BOOLEAN},
-\emph{FLOATING POINT} etc). Each of these can be verified with respect to its
-ASN.1 specification. Our work on floating point number is an example
-of this. On top of this, we need to specify and prove memory safety
+proofs. From a high-level view, the \emph{ASN1C} compiler consists of
+the library of primitive type decoders (such as \emph{INTEGER}, \emph{BOOLEAN},
+\emph{FLOATING POINT}, etc.). Each of these can be verified with respect to its
+ASN.1 specification. Our work on floating point numbers is an example
+of this. Additionally, we need to specify and prove memory safety
 for each primitive decoding/encoding pair.
 
-Further, it contains functions that decode/encode
-constructed types (such as \emph{SEQUENCE}, \emph{CHOICE}, \emph{SET} etc). Then from a
-given ASN.1 type \emph{ASN1C} compiler produces an internal
-representation of the type, which basically specifies which existing
+Furthermore, the compiler contains functions that decode/encode
+constructed types (such as \emph{SEQUENCE}, \emph{CHOICE}, \emph{SET}, etc.). Then, from a
+given ASN.1 type, the \emph{ASN1C} compiler produces an internal
+representation of that type, that basically specifies which existing
 decoders/encoders to apply and in which order, as well as the
-output/input C structures for the functions. In Coq
+output/input C structures for the functions. In Coq,
 these internal representations correspond to trees with nodes labelled by the
 type's tags and decoder/encoder types.
 
@@ -720,101 +676,94 @@ type's tags and decoder/encoder types.
 Inductive decoder_type := BOOLEAN | INTEGER | SEQUENCE | ...
 
 Inductive TYPE_descriptor :=
-  DEF { tags : list Z ;
+  DEF { tags : list Z;
         decoder : decoder_type;
         elements : list TYPE_descriptor 
       }.
  \end{lstlisting}
 
- Then a constructed type decoder will have type \texttt{decoder : TYPE\_descriptor $\rightarrow$ list byte $\rightarrow$ asn\_value}  and traverse the tree and apply
- respective primitive decoders. In \emph{ASN1C} it is implemented as
+ Then, a constructed type decoder has type \texttt{decoder : TYPE\_descriptor $\rightarrow$ list byte $\rightarrow$ asn\_value}, traverses the tree and applies the respective primitive decoders. In \emph{ASN1C}, it is implemented as
  a recursive function that readily translates into a nested or mutually recursive
  function in Coq (decoders for other constructed types have similar
- structure).
+ structures).
 
  Given a particular ASN.1 type definition that translates into a
- \texttt{TYPE\_descriptor} the \texttt{decoder} function for that
- particular type corresponds to a transition system with states were
- primitive decoders are called. Hence one of the ways we could
+ \texttt{TYPE\_descriptor}, the \texttt{decoder} function for that
+ particular type corresponds to a transition system with states where
+ primitive decoders are called. Hence, one of the ways we could
  formalize the compiler is as a function that creates a transition
- system (alike finite state machine) from a given ASN.1 type
- definition or \texttt{TYPE\_descriptor} tree. Since run of the
+ system from a given ASN.1 type definition or \texttt{TYPE\_descriptor} tree (like a finite state machine). Since the run of the
  recursive \texttt{decoder} function corresponds to the transition
  system, we could use this model in the proof of implementation
  correctness.
 
- The \texttt{decoder} function above could be also thought of in terms
- of sequence parser combinator known from monadic parser combinators
- approach\cite{MPC}. Assume you have given decoders for primitive
- functions. Then you can add an operator \texttt{seq : decoder
+ The \texttt{decoder} function above could also be viewed in terms
+ of a sequence parser combinator, known from the monadic parser combinators
+ approach \cite{MPC}. Assume there are given decoders for primitive
+ functions. Then, it is possible to add an operator \texttt{seq : decoder
    asn\_value $\rightarrow$ decoder asn\_value $\rightarrow$ asn\_value} that takes two
- decoders and applies them sequentially \texttt{seq p1 p2}; similar for a
+ decoders and applies them sequentially \texttt{seq p1 p2}, similar to a
  list of parsers. Then the compiler can be seen as producing the
- concrete combination of parsers given \texttt{TYPE\_descriptor}.
+ concrete combination of parsers given the \texttt{TYPE\_descriptor}.
 
  \section{Project Plan}
-The following key tasks have been planned:
+The following key tasks are planned:
  
 \paragraph{Task 1: Formalization of X.509-Relevant Parts of ASN.1 Specification}
-The first step of the project is a formalization of relevant parts of ASN.1 standard. Our proof engineers will review standard text and will express relevant parts as formal high-level specification in Coq. We will focus on a handful of primitive ASN.1 types (like \emph{INTEGER}) and a few constructed types (like \emph{SEQUENCE}).
+The first step of the project is to formalize the relevant parts of the ASN.1 standard. Our proof engineers will review standard text and express relevant parts as formal high-level specification in Coq. We will focus on a handful of primitive ASN.1 types and a few constructed types.
 
-Because this step is manual and the only part of the project which is not mechanically verified great care should be taken in performing it. The results should be precise, unambiguous, easily traceable to the original standard's text. It should be easy to read and understand by humans. It will be openly published and interested parties will be able to examine it in order to convince themselves that our formalization is indeed describing the intended meaning of the ASN.1 standard text.
-s
-In addition to the human-readable high-level specification described above, we will produce the next level of detail: an executable functional specification of ASN.1 encoders and decoders for all relevant types. We will prove that the Executable Specification encodes and decodes bytes in conformance to High-Level specification.
+Because it is manual and the only part of the project which is not mechanically verified, great care should be taken in performing this step. The results should be precise, unambiguous, and easily traceable to the original standard's text. They should be easy to read and comprehensible by humans. It will be openly published, and interested parties will be able to examine it to convince themselves that our formalization indeed describes the intended meaning of the ASN.1 standard text.
 
-\paragraph{Task 2: Refactoring of the ``ANS1C'' C Code Implementation of ASN.1}
+In addition to the human-readable high-level specification described above, we will produce the next level of detail: an executable functional specification of ASN.1 encoders/decoders for all relevant types. We will prove that the executable specification encodes and decodes bytes in conformance with high-level specification.
 
-As a first, essential step we will need to ensure that the \emph{ASN1C} code can be compiled by CompCert compiler. This involves removing any use of C language features not supported by CompCert.
+\paragraph{Task 2: Refactoring of the ASN1C C Code Implementation of ASN.1}
 
-Further, the original \emph{ASN1C} implementation implements a ``streaming'' decoders, a state of the art technique which can decode packets in segments as they are being received. Use of a streaming decoder adds a significant level of complexity and has turned out to be not very useful in practice. Accordingly, we plan to simplify some of the implementations to remove this feature. This will make these decoders much easier to prove.
+As a first, essential step we need to ensure that the \emph{ASN1C} code can be compiled by a CompCert compiler. This involves removing any use of C language features unsupported by CompCert.
 
-Additionally, the code will undergo a refactoring to make the parts we are proving more clearly delimited and better organized for formal verification. For example we might choose to eliminate some low-level code optimizations which are difficult to prove and are essentially no longer needed as the combination of modern compilers and hardware removes the potential value of these older optimizations.
+Furthermore, the original \emph{ASN1C} implementation implements a ``streaming'' decoder, a state-of-the-art technique which can decode packets in segments as they are being received. Use of a streaming decoder adds a significant level of complexity and has turned out to be less useful in practice. Accordingly, we plan to simplify some of the implementations to remove this feature. This will make such decoders much easier to prove.
 
-\paragraph{Task 3: Primitive Types Verification}
-Verifying correctness of encoders/decoders for atomic types (such as number, int, boolean, string, time, void/null, etc.) is classically straightforward, but laborious. For each type there is a pair of C functions: encoder and decoder. We will prove that their C implementation matches the executable specification we defined earlier.
+Additionally, the code will undergo a refactoring to make the parts we are proving more clearly delimited and better organized for formal verification. For example, we might choose to eliminate some low-level code optimizations which are difficult to prove and are essentially no longer needed, since the combination of modern compilers and hardware removes the potential value of these older optimizations.
 
-\paragraph{Task 4: Constructed Types Verification}
-For constructed types like Choice, Sequence, and Set we will also have encoders and decoders. In this case, they will rely on already proven encoders/decoders for primitive types. Establishing correctness for constructed types will be performed by a similar way as for atomic types: we will need to prove that constructed type encoding/decoding C routines correspond to our executable spec. 
+\paragraph{Task 3: Primitive and Constructed Type Verification}
+Verifying correctness of encoders/decoders for atomic types (such as number, int, boolean, string, time, void/null, etc.) is classically straightforward but laborious. Constructed types rely on already proven encoders/decoders for primitive types. 
+For each type, there is a pair of C functions: encoder and decoder. We will prove that their C implementation matches the executable specification that we defined earlier.
 
-\paragraph{Task 5: Proof of High-Level Properties} 
-The proofs of high-level properties for all encoders/decoders will be done in a priority order. To establish a meaningful priority we turn to the historical analysis of the bugs in the Computer Vulnerabilities and Exposures (CVE) database [7b]. The four most frequently violated high-level properties are:
+\paragraph{Task 4: Proof of High-Level Properties} 
+The proofs of high-level properties for all encoders/decoders will be done in priority order. To establish a meaningful priority, we turn to the historical analysis of the bugs in the Computer Vulnerabilities and Exposures (CVE) database. The four most frequently violated high-level properties are:
 \begin{itemize}
 
-\item Absence of Read Memory Access Violations (reading from memory locations outside of a permitted range).
-\item Absence of Write Memory Access Violations (writing to memory locations outside of a permitted range).
-\item Absence of Memory leaks (allocating memory which is never later freed or accounted for)
-\item The ``Roundtrip Property'' (for each type, the decoder is indeed the exact inverse of the corresponding encoder).
+\item Absence of read memory access violations (reading from memory locations outside of a permitted range).
+\item Absence of write memory access violations (writing to memory locations outside of a permitted range).
+\item Absence of memory leaks (allocating memory which is never freed or accounted for).
+\item The ``roundtrip property'' (for each type, the decoder is the inverse of the corresponding encoder).
 \end{itemize}
 
-In careful analysis of 52 reported ASN1 bugs [7a-7b], and more specifically as to the 49 bugs that are addressable within the scope of ASN.1 code, empirically suggesting a better than 85\% correctness coverage is attained by addressing  these four properties.
+By addressing these four properties, 84\% ASN1 bugs can be eliminated.
 
-Regarding the value of proving these four remaining lower-priority high-level properties:
+Even more coverage can be attained by proving the four remaining lower-priority high-level properties:
 \begin{itemize}
 \item Bounds on stack size
 \item Bounds on heap size
 \item Bounds on computation complexity
 \item Guaranteed Termination
 \end{itemize}
-Historical analysis of the bugs in the Computer Vulnerabilities and Exposures (CVE) database reveals that proving the next most frequent of those listed just above would have prevented more than 90\% of vulnerabilities [7b]. 
+Historical analysis of the bugs in the CVE database reveals that proving the next most frequent properties (listed above) would have prevented more than 90\% of the vulnerabilities. 
 
-Accordingly, if there is time we will attempt to include work on proofs of these four lower-priority high-level properties. High-Level Properties like termination, computation complexity and memory safely could be proven based on executable specification. 
+Accordingly, time permitting, we will attempt to include work on proofs of these four lower-priority high-level properties. High-Level Properties like termination, computation complexity, and memory safety could be proven based on executable specification. 
 
-\paragraph{Task 6: Code Extraction from Execution Specification}
-In addition to verifying C code against the executable spec, we will additionally derive an independent OCaml implementation from the same spec leveraging an OCaml code extraction from the refined Executable Specifications produced in Task 1 and subsequently validated and proven in Tasks 2-5. 
+\paragraph{Task 5: Code Extraction from Execution Specification}
+In addition to verifying C code against the executable specification, we will derive an additionally independent OCaml implementation from the same specification leveraging an OCaml code extraction from the refined executable specifications produced in Task 1 and subsequently validated and proven in Tasks 2-5. 
 
-\paragraph{Task 7: Final Code, Associated Documentation, Estimates of Additional Work items}
-In this task we will prepare the code and associated documentation. Additionally, we plan to publish our High-Level Spec as formalization of a part of ASN.1 standard under a permissive license at Github with an accompanying academic paper and invite the community to use, comment, and extend it. 
-We also will provide informed estimates of an additional work items we were not able to address. 
+\paragraph{Task 6: Final Code, Associated Documentation, Estimates of Additional Work Items}
+In this task, we will prepare the code and associated documentation. Additionally, we plan to publish our high-level specification as a formalization of a part of an ASN.1 standard under a permissive license at Github with an accompanying academic paper, and we will invite the community to use, comment upon, and extend it. 
+We will also provide informed estimates of any additional work items which remain unaddressed. 
 
 \section{Related Work}
 
-Microsoft's project EverParse \cite{RamananandroDFS19} is the closest
-to what we do. However, they don't verify existing protocol stack but
+Microsoft's EverParse project \cite{RamananandroDFS19} is the closest
+to what we do. However, they don't verify the existing protocol stack but
 build their own. They define their own input language which accepts
-C-like type definitions, from which specifications, their
-implementations and proofs of correctness are generated
-automatically. This is possible because the produced parsers are
-combintions of existing parsers that are proved correct in F*. They
+C-like type definitions, which automatically generate specifications, their implementations, and proofs of correctness. This is possible because the produced decoders are combinations of existing parsers that are proved correct in F*. They
 follow the tradition of parser combinators\footnote{Starting with
   primitive parser combinators \texttt{fail}, \texttt{return[x]}
   (output \texttt{x}), \texttt{read\_byte}, and monadic composition of
@@ -822,36 +771,103 @@ follow the tradition of parser combinators\footnote{Starting with
   parsing of pairs (*), mapping of function on parser results
   (\texttt{synth}), \texttt{filter} of parser results etc.}. For each
 combinator there are two implementations: functional and
-C-like. C-like implementation is written in subset of F* that models
+C-like. C-like implementation is written in a subset of F* that models
 imperative language, called Low*. Functions written in Low* operate on
 memory addresses and use machine integer formalization. They rely on
 automatic extraction from Low* to C using the tool Kremlin.
 
 The project Narcissus \cite{Narcissus} also constructs correct binary parsers from a verified
 library of combinators written in Coq, but it generates only functional
-parsers and has the same disadvatages as our preliminary work on floating-point parsing. Building on Narcissus there is a verified compiler in Coq for
-parsers and formatters described using Protocol Buffers.
+parsers and has the same disadvatages as our preliminary work on floating-point parsing. Built on Narcissus, there is a verified compiler in Coq for
+parsers and formatters specified by Protocol Buffers.
  
-Galois did some work on ASN.1 verification in
-the past (circa 2012) \cite{ASN1FormalSem}. It appears that Galois abandoned
-\cite{ASN1EncDec} the goal of full ASN.1 verification that we pursue in
+Galois, inc. did some work on ASN.1 verification in
+the past (circa 2012) \cite{ASN1FormalSem}. It appears that they abandoned
+ the goal of full ASN.1 verification \cite{ASN1EncDec} that we pursue in
 our project with our more pragmatic approach; Galois is now only
 exploring a limited subset ASN.1 verification adequate for the
 ``vehicle-to-vehicle'' (V2V) market \cite{V2V}, but that
-particular subset has limited broader applicability and the Galois
-effort appears encumbered by aspects of an unsuccessful approach. It
-is noted that although our goal is eventually to verify all ASN.1, we
-decided to start with a different (X.509-related) subset of ASN.1;
-this subset is reasonably small, but X.509 is so widely used that our
-initial verified implementation of our chosen subset will have a large
-volume and wide range of immediate commercial applications.
+particular subset has limited applicability, and their
+effort appears encumbered by aspects of their unsuccessful approach. Although our goal is to eventually verify all of ASN.1, we
+start with a chosen (X.509-related) subset of ASN.1; it is reasonably small, but X.509 is so widely used that its verified implementation will have a wide range of immediate applications.
 
 \appendix
 \clearpage
 \section{\emph{asn\_strtoimax\_lim} source}
 \label{sec:stritomax}
 
-\lstinputlisting[language=C,basicstyle=\ttfamily\tiny]{asn_strtoimax_lim_old.c}
+\lstinputlisting[language=C,basicstyle=\ttfamily\scriptsize ]{asn_strtoimax_lim_old.c}
+
+\newpage
+
+\section{ASN.1 Vulnerabilities Analysis}
+
+\bigskip
+
+\scriptsize
+
+\begin{longtable}{ l l l p{15em} }
+ 
+  {\bf CVE } &  {\bf Product  } &  {\bf Property violated  }  &  {\bf Description  } \\
+
+  \hline
+
+2015-7061    & Apple *OS     & Memory safety (write) & remote attackers to execute arbitrary code or cause a denial of service (memory corruption) via a crafted certificate \\  
+2015-7060    & Apple *OS     & Memory safety (write) & denial of service (memory corruption) via a crafted certificate \\  
+2015-7059    & Apple *OS     & Memory safety (write) & denial of service (memory corruption) via a crafted certificate \\  
+2018-16253   & axTLS         & Parsing only well-formed input & X.509 metadata verification \\ 
+2018-16149   & axTLS         & Memory safety (read) & blindly trusts the declared lengths in the ASN.1 structure \\ 
+2017-1000416 & axTLS         &  & coding error in the ASN.1 parser \\ 
+2016-9132    & Botan         & Memory safety (write) & decoding BER data an integer overflow; memory corruption \\ 
+2015-5726    & Botan         & Memory safety (read) & remote attackers to cause a denial of service (application crash) \\ 
+2016-1000342 & Bouncy Castle & Parsing only well-formed input & introduction of 'invisible' data into a signed structure \\ 
+2016-1000338 & Bouncy Castle & Parsing only well-formed input & introduction of 'invisible' data into a signed structure \\ 
+2017-11496   & Gemalto ACC   & Memory safety (write) & remote attackers to execute arbitrary code \\ 
+2016-9939    & libcrypto++   & Bounds on heap size & If there is not enough content octets in the ASN.1 object, then the function will fail and the memory block will be zeroed even if its unused. There is a noticeable delay during the wipe for a large allocation \\ 
+2015-2806    & libtasn1      & Memory safety (write) & remote attackers to have unspecified impact via unknown vectors \\
+2016-6129    & LibTomCrypt   & Memory safety (read) & does not validate that the message length is equal to the ASN.1 encoded data length \\
+2019-9162    & Linux Kernel  & Memory safety (read/write) & out-of-bounds read and write operations possible \\
+2016-2053    & Linux Kernel  & Parsing only well-formed input & Skipping non-optional fields after optional \\ 
+2016-0758    & Linux Kernel  & Memory safety (read) & local users to gain privileges via crafted ASN.1 data \\ 
+2019-13470   & MatrixSSL     & Memory safety (read) & out-of-bounds read \\ 
+2016-6891    & MatrixSSL     & Memory safety (read) & (out-of-bounds read) via a crafted ASN.1 Bit Field primitive \\ 
+2016-1950    & Mozilla NSS   & Memory safety (write) & remote attackers to execute arbitrary code via crafted ASN.1 data in an X.509 certificate \\ 
+2015-7182    & Mozilla NSS   & Memory safety (write) & denial of service (application crash) or possibly execute arbitrary code \\ 
+2015-7181    & Mozilla NSS   & Memory safety (write) & improperly restricts access to an unspecified data structure, which allows remote attackers to cause a denial of service (application crash) or possibly execute arbitrary code \\ 
+2016-5080    & Objective Systems ASN1C & Memory safety (write) & execute arbitrary code or cause a denial of service \\ 
+2018-0739    & OpenSSL       & Bounds on stack size & exceed the stack given malicious input with excessive recursion \\ 
+2016-7053    & OpenSSL       & Memory safety (read) & crash with a NULL pointer dereference \\ 
+2016-2842    & OpenSSL       & Memory safety (write) & remote attackers to cause a denial of service (out-of-bounds write or memory consumption) \\ 
+2016-2176    & OpenSSL       & Memory safety (read) & remote attackers to obtain sensitive information from process stack memory or cause a denial of service (buffer over-read) \\ 
+2016-2109    & OpenSSL       & Bounds on heap size & denial of service (memory consumption) \\ 
+2016-2108    & OpenSSL       & Memory safety (write) & (buffer underflow and memory corruption) \\ 
+2016-0799    & OpenSSL       & Memory safety (read/write) & remote attackers to cause a denial of service (overflow and out-of-bounds read) \\ 
+2015-3195    & OpenSSL       & Memory safety (read) & obtain sensitive information from process memory by triggering a decoding failure in a PKCS\#7 \\ 
+2015-3194    & OpenSSL       & Memory safety (read) & denial of service (NULL pointer dereference and application crash) via an RSA PSS ASN.1 signature \\ 
+2015-1790    & OpenSSL       & Memory safety (read) & remote attackers to cause a denial of service (NULL pointer dereference and application crash) \\ 
+2015-0289    & OpenSSL       & Memory safety (read) & attackers to cause a denial of service (NULL pointer dereference and application crash) \\ 
+2015-0287    & OpenSSL       & Memory safety (write) & denial of service (invalid write operation and memory corruption) \\ 
+2015-0286    & OpenSSL       & Memory safety (read) & denial of service (invalid read operation and application crash) \\ 
+2015-0208    & OpenSSL       & & denial of service (NULL pointer dereference and application crash) \\ 
+2015-1182    & PolarSSL      & Memory safety (write) & remote attackers to cause a denial of service (crash) or possibly execute arbitrary code \\ 
+2018-11058   & RSA BSAFE     & Memory safety (read) & Buffer Over-Read vulnerability when parsing ASN.1 data \\ 
+2018-11056   & RSA BSAFE     & Bounds on stack size & remote attacker could use maliciously constructed ASN.1 data that would exhaust the stack \\ 
+2018-11054   & RSA BSAFE     & Native integer overflows & integer overflow vulnerability \\ 
+2015-7540    & Samba         & Bounds on heap size & remote attackers to cause a denial of service (memory consumption and daemon crash) \\ 
+2019-6740    & Samsung S9    & Memory safety (write) & does not properly validate the length of user-supplied data prior to copying it to a fixed-length heap-based buffer \\ 
+2017-18315   & Snapdragon SOC & Memory safety (read) & Buffer over-read vulnerabilities \\ 
+2017-9023    & strongSwan    & Termination & infinite loop in CHOICE parsing \\ 
+2019-9209    & Wireshark     & Memory safety (write) & buffer overflow associated with excessive digits in time values \\ 
+2019-5718    & Wireshark     & Memory safety (read) & boundary check to make sure we don't go past the end of "ptr" \\ 
+2019-13619   & Wireshark     & Memory safety (read) & properly restricting buffer increments \\ 
+2018-14343   & Wireshark     &  & integer overflow in BER lengths \\ 
+2016-4421    & Wireshark     & Bounds on stack size & remote attackers to cause a denial of service (deep recursion, stack consumption, and application crash) via a packet that specifies deeply nested data \\ 
+2016-4418    & Wireshark     & Memory safety (read) & remote attackers to cause a denial of service (buffer over-read and application crash) \\ 
+2016-2522    & Wireshark     & Memory safety (read) & remote attackers to cause a denial of service (out-of-bounds read and application crash) \\ 
+​
+\end{longtable}
+\newpage
+\newpage
 
 
 \bibliography{report}
