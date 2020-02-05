@@ -2,40 +2,46 @@
 Require Import Clight.asn_codecs_prim.
 Require Import Core.Core.
 Require Import VST.floyd.proofauto.
+Require Import ExecutableSpec.
 
 Definition Vprog : varspecs. mk_varspecs prog. Defined.
 Instance CompSpecs : compspecs. make_compspecs prog. Defined.
 
 Open Scope Z.
 
-Inductive dec_rval_code := OK | FAIL | MORE.
-
-Record dec_rval := rval { code : dec_rval_code ;
-                          consumed : Z }.
-
-Inductive TYPE_descriptor :=
-  DEF { tags : list Z ;
-        elements : list TYPE_descriptor 
-      }.
-
 Section PrimitiveParser.
-
-Record PRIMITIVE_TYPE := prim_type { buf : list byte;
-                                     size : Z }.
-
-Definition ZeroChar := Byte.repr 48.
-Definition prim_decode_failed := rval FAIL 0.
-Definition prim_decode_starved := rval MORE 0. 
-
-Definition primitive_decoder (ls : list byte) : list byte :=
-  ls ++ [ZeroChar].
   
-(* memory representation of TYPE_descriptor tree *)
+(* memory representation of abstract types *)
 Parameter TYPE_descriptor_rep : TYPE_descriptor
                                 -> reptype (Tstruct _asn_TYPE_descriptor_s noattr). 
-Parameter PRIMITIVE_TYPE_rep : PRIMITIVE_TYPE 
-                               -> reptype  (Tstruct _ASN__PRIMITIVE_TYPE_s noattr).
-Parameter dec_rval_rep : dec_rval -> reptype (Tstruct _asn_dec_rval_s noattr).
+
+(* These two will express memory specifications *)
+
+(* on any error write {buf = 0; size = 0},
+    else {buf = ls; size = |ls|}*)
+Parameter PRIMITIVE_TYPE_rep : err (list byte) 
+                               -> reptype (Tstruct _ASN__PRIMITIVE_TYPE_s noattr).
+
+(* on error rval c l write {code := c; consumed := l},
+   else {code := OK; consumed := |ls| *)
+Parameter dec_rval_rep : err (list byte) -> reptype (Tstruct _asn_dec_rval_s noattr).
+
+(* Decoding fails : 
+   1) when calloc fails to allocate memory for the output structure sptr (FAIL) SEP spec
+   2) if ber_check_tags return FAIL (when?) or MORE (?) - executable spec
+   3) if not enough data according to length read (MORE) - executable spec
+   4) expected length doesn't fit into size (FAIL) ?
+
+        st->size = (int)length;
+	/* The following better be optimized away. */
+	if(sizeof(st->size) != sizeof(length)
+			&& (ber_tlv_len_t)st->size != length) {
+		st->size = 0;
+		ASN__DECODE_FAILED;
+	}
+
+   5) malloc buf allocation fails (FAIL) SEP spec
+ *)
 
 Definition _ber_decode_primitive_spec : ident * funspec :=
   DECLARE _ber_decode_primitive
@@ -77,7 +83,7 @@ Definition _ber_decode_primitive_spec : ident * funspec :=
             temp _buf_ptr (Vptr buf_b buf_ofs);
             temp _size (Vint size);
             temp _tag_mode (Vint tag_mode))        
-      SEP ((* td points to td with readable permission *)
+    SEP ((* td points to td with readable permission *)
            data_at sh_td (tptr (Tstruct _asn_TYPE_descriptor_s noattr)) 
                    (Vptr td'_b td'_ofs) (Vptr td_b td_ofs);
            data_at sh_td' (Tstruct _asn_TYPE_descriptor_s noattr) 
@@ -95,12 +101,11 @@ Definition _ber_decode_primitive_spec : ident * funspec :=
                    (TYPE_descriptor_rep td) (Vptr td'_b td'_ofs) ; 
            data_at sh_buf (tarray tschar (Zlength buf)) (map Vbyte buf) 
                    (Vptr buf_b buf_ofs);
-           (* OK case *)
+           (* Changed after execution *)         
            data_at sh_sptr (Tstruct _ASN__PRIMITIVE_TYPE_s noattr)
-                   (PRIMITIVE_TYPE_rep (prim_type (primitive_decoder buf)
-                                                  (Zlength buf + 1)))
-                                       (Vptr sptr_b sptr_ofs);
+                   (PRIMITIVE_TYPE_rep (prim_decoder td buf))
+                                       (Vptr sptr_b sptr_ofs); 
            data_at sh_res (Tstruct _asn_dec_rval_s noattr)
-                   (dec_rval_rep (rval OK (Zlength buf))) (Vptr res_b res_ofs)).
+                   (dec_rval_rep (prim_decoder td buf)) (Vptr res_b res_ofs)).
 
 End PrimitiveParser.
