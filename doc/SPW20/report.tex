@@ -33,14 +33,12 @@
 
 \usepackage{asn1}
 
-%\usepackage{multicol}
-
 \lstset{
   basicstyle=\ttfamily\small,
   frame=tb, % draw a frame at the top and bottom of the code block
   tabsize=4, % tab space width
   showstringspaces=false, % don't mark spaces in strings
-  numbers=left, % display line numbers on the left
+  numbers=none, % display line numbers on the left
   commentstyle=\color{green}, % comment color
   keywordstyle=\color{blue}, % keyword color
   stringstyle=\color{red}, % string color
@@ -55,7 +53,7 @@
 
 \begin{document}
 
-\title{Work-in-Proress: Formally-Verified ASN.1 Protocol C-language Stack}
+\title{Work-in-Progress: Formally-Verified ASN.1 Protocol C-language Stack}
 
 \author{Nika Pona}
 \affiliation{
@@ -74,20 +72,21 @@
   We describe our approach and progress in verification of an existing
   mature open-source ASN.1 compiler \emph{ASN1C} using the Coq proof
   assistant. Once completed, our project will provide state-of-the-art
-  high assurance which is suitable for mission-critical systems. Furthermore, since
-  formal verification will be layered atop a mature existing ASN.1
-  stack, it will combine the benefits of high-performance portable
-  stack implementation with formal correctness guarantees. As an essential and necessary step in our
-  approach, the project will also provide a formalization of a key part of
-  the ASN.1 standard. Such formal specification could subsequently be
-  used by others to analyze ASN.1 properties and validate other
-  implementations.
+  high assurance which is suitable for mission-critical
+  systems. Furthermore, since formal verification will be layered atop
+  a mature existing ASN.1 stack, it will combine the benefits of
+  high-performance portable stack implementation with formal
+  correctness guarantees. As an essential and necessary step in our
+  approach, the project will also provide a formalization of a key
+  part of the ASN.1 standard. Such formal specification could
+  subsequently be used by others to analyze ASN.1 properties and
+  validate other implementations.
 
 \end{abstract}
 
 \maketitle
 
-\tableofcontents
+%\tableofcontents
 
 \section{Introduction}
 
@@ -117,6 +116,7 @@ about 1,000 lines of ASN.1 and is impractical to include in this
 report. 
 
 \begin{lstlisting}[language=ASN1,label=lst:asnex,
+  basicstyle=\ttfamily\footnotesize,
   caption={ASN.1 example of X.509 certificates, revised for brevity}]
 X509 DEFINITIONS ::= BEGIN
 
@@ -174,25 +174,26 @@ society relies upon.
 
 
 The Computer Vulnerabilities and Exposures (CVE) database \cite{CVE}
-lists critical ASN.1-related bugs that are found each year in the existing
-systems. Noteworthy exposures have already been discovered 
+lists critical ASN.1-related bugs that are found each year in the
+existing systems. Noteworthy exposures have already been discovered
 \cite{OpenSSLMemoryCorruption} that, although not as dire to security
-as first feared \cite{ASN1Flaw}, clearly illuminate this vast risk and exposure. We analyzed the last four years of
-ASN.1-related issues reported in the CVE database. %TODO: mention Appendix with the table
-Among the vulnerabilities studied
-are CVEs for various software and hardware products and vendors,
-including \textit{Apple}, \textit{axTLS}, \textit{Botan},
-\textit{Bounty Castle}, \textit{librcrypto++}, \textit{libtasn},
-\textit{LibTomCrypt}, \textit{Linux Kernel}, \textit{MatrixSSL},
-\textit{Mozilla NSS (Firefox)}, \textit{Objective Systems},
-\textit{OpenSSL}, \textit{PolarSSL}, \textit{RSA BSAFE},
+as first feared \cite{ASN1Flaw}, clearly illuminate this vast risk and
+exposure. We analyzed the last four years of ASN.1-related issues
+reported in the CVE database (shown in Appendix~\ref{sec:cve}). Among
+the vulnerabilities studied are CVEs for various software and hardware
+products and vendors, including \textit{Apple}, \textit{axTLS},
+\textit{Botan}, \textit{Bounty Castle}, \textit{librcrypto++},
+\textit{libtasn}, \textit{LibTomCrypt}, \textit{Linux Kernel},
+\textit{MatrixSSL}, \textit{Mozilla NSS (Firefox)}, \textit{Objective
+  Systems}, \textit{OpenSSL}, \textit{PolarSSL}, \textit{RSA BSAFE},
 \textit{Samba}, \textit{Samsung}, \textit{Snapdragon},
-\textit{strongSwan}, and \textit{Wireshark}. Out of 52 problems analyzed, 39 are related to memory safety, 6 related to
-stack and heap bounds checking, and 3 are related to issues caused by
-applications accepting poorly formed ASN.1 input. Proving just
-six formal properties can prevent 49 out of 52
-vulnerabilities, which is more than 90\% of reported
-vulnerabilities\footnote{See Appendix B for more details.}.
+\textit{strongSwan}, and \textit{Wireshark}. Out of 52 problems
+analyzed, 39 are related to memory safety, 6 related to stack and heap
+bounds checking, and 3 are related to issues caused by applications
+accepting poorly formed ASN.1 input. Proving just six formal
+properties can prevent 49 out of 52 vulnerabilities, which is more
+than 90\% of reported vulnerabilities\footnote{See
+  Appendix~\ref{sec:cve} for more details.}.
 
 \subsection{Our approach}
 \label{sec:approach}
@@ -490,7 +491,7 @@ memory). Such specification can be easily examined and refined.
   code. Here, we experiment with two approaches. The function 
    \texttt{Z\_of\_string} can serve as a functional specification for
   \texttt{asn\_strtoimax\_lim} and differs little from the
-  relational specification. \newpage
+  relational specification. 
 
  \begin{lstlisting}[language=Coq]
 Fixpoint Z_of_string_loop (s : list byte) (val index : Z) (b : bool) := 
@@ -801,7 +802,7 @@ start with a chosen (X.509-related) subset of ASN.1; it is reasonably small, but
 \newpage
 
 \section{ASN.1 Vulnerabilities Analysis}
-
+\label{sec:cve}
 \bigskip
 
 \scriptsize
