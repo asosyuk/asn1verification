@@ -7,7 +7,7 @@ Require Import ExtLib.Structures.Monad.
 
 Inductive dec_rval_error := FAIL | MORE.
 
-Record dec_rval := rval { code : dec_rval_error;
+Record dec_rval := rval { error_code : dec_rval_error;
                           consumed : Z }.
 
 Definition err T := sum dec_rval T.
@@ -20,8 +20,10 @@ Inductive TYPE_descriptor :=
         elements : list TYPE_descriptor 
       }.
 
+Record check_tag_r := mk_check_tag_rval { tag_consumed : Z; tag_expected : Z }.
+
 (* checks the tag, outputs consumed length and expected length *)
-Parameter ber_check_tag : TYPE_descriptor -> list byte -> err (Z*Z).
+Parameter ber_check_tag : TYPE_descriptor -> list byte -> err check_tag_r.
 
 Definition ZeroChar := Byte.repr 48.
 
@@ -38,16 +40,29 @@ Open Scope monad.
 
 (* skip len bytes and add '\0' at the end *)
 Definition prim_content_decoder len ls :=
-   skipn (Z.to_nat len) 
-          ls ++ [ZeroChar].
+   skipn (Z.to_nat len) ls ++ [ZeroChar].
 
-Definition prim_decoder (td : TYPE_descriptor) (ls : list byte) : err (list byte) := 
+Definition int_prim_decoder (td : TYPE_descriptor) (ls : list byte) : err (list byte) := 
   match ls with 
   | [] => inl (rval FAIL 0)
-  | h :: tl => x <- ber_check_tag td ls 
-                ;; if Zlength ls - (fst x) <? (snd x)
-                   then inl (rval MORE 0)
-                   else inr (prim_content_decoder (snd x) ls)
+  | h :: tl => x <- ber_check_tag td ls ;; 
+              if Zlength ls - (tag_consumed x) <? (tag_expected x)
+              then inl (rval MORE 0)
+              else inr (prim_content_decoder (tag_consumed x) ls)
   end.
 
+Definition bool_content_decoder len ls :=
+  match (filter (fun elem => negb (Byte.eq elem Byte.zero)) 
+                (skipn (Z.to_nat len) ls)) with
+  | [] => Byte.zero
+  | x :: _ => x
+  end.
 
+Definition bool_prim_decoder (td : TYPE_descriptor) (ls : list byte) : err byte :=
+  match ls with
+  | [] => inl (rval FAIL 0)
+  | l :: lss => x <- ber_check_tag td ls ;;
+               if Zlength ls - (tag_consumed x) <? (tag_expected x)
+               then inl (rval MORE 0)
+               else inr (bool_content_decoder (tag_consumed x) ls)
+  end.
