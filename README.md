@@ -26,29 +26,25 @@ opam repo add coq-released http://coq.inria.fr/opam/released
 opam repo add coq-extra-dev https://coq.inria.fr/opam/extra-dev
 
 opam pin add coq 8.10.1
-opam install coq-struct-tact
+opam install coq-struct-tact coq-ext-lib
 ```
 Clone VST in the directory of your choice and compile it:
 ``` shell
 git clone  git@github.com:PrincetonUniversity/VST.git
-```
 or
-```shell
-https://github.com/PrincetonUniversity/VST.git
-``` 
+git clone https://github.com/PrincetonUniversity/VST.git
+```
 and then
 ```shell
 cd VST
-make
+make -j
 ```
 
 Create new opam switch to compile compcert clightgen and compile it:
 ```shell
 opam switch create clightgen 4.07.0
 git clone git@github.com:AbsInt/CompCert.git
-```
 or
-```shell
 git clone https://github.com/AbsInt/CompCert.git
 ```
 and then
@@ -60,7 +56,7 @@ cp clightgen [asn1verification_directory]/src
 ```
 Don't forget to switch back to your default switch
 
-## Building compcert
+## Building asn1verification project
 ``` shell
 cd src
 make clight coq
