@@ -1,4 +1,4 @@
-Require Import Core.Core.
+Require Import Core.Core Core.Notations.
 Import ListNotations.
 From Coq Require Import String.
 Require Import ExtLib.Structures.Monads.
@@ -15,8 +15,11 @@ Definition err T := sum dec_rval T.
 Instance Monad_err : Monad err := Monad_either dec_rval.
 Instance Exception_err : MonadExc dec_rval err := Exception_either dec_rval.
 
+Inductive asn_type := BOOLEAN | INTEGER | SEQUENCE.
+
 Inductive TYPE_descriptor :=
   def { tags : list Z;
+        type : asn_type;
         elements : list TYPE_descriptor 
       }.
 
@@ -51,6 +54,7 @@ Definition int_prim_decoder (td : TYPE_descriptor) (ls : list byte) : err (list 
               else inr (prim_content_decoder (tag_consumed x) ls)
   end.
 
+
 Definition bool_content_decoder len ls :=
   match (filter (fun elem => negb (Byte.eq elem Byte.zero)) 
                 (skipn (Z.to_nat len) ls)) with
@@ -66,3 +70,12 @@ Definition bool_prim_decoder (td : TYPE_descriptor) (ls : list byte) : err byte 
                then inl (rval MORE 0)
                else inr (bool_content_decoder (tag_consumed x) ls)
   end.
+
+(* writes tags and length: tag specified in td, length is always one *)
+
+Parameter der_write_tag : TYPE_descriptor -> list byte.
+
+Definition bool_prim_encoder (td : TYPE_descriptor) (b : int) : list byte :=
+  der_write_tag td ++ [Byte.one] ++ [if (b == 0)%int then Byte.zero else Byte.one].
+
+                

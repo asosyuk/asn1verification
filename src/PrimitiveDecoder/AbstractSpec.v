@@ -1,10 +1,12 @@
 (* Abstract specification from the standard *)
 (* "It is implicit in the specification of these encoding rules 
        that they are also used for decoding" *)
-Require Import Core.Core. 
+Require Import Core.Core Core.Notations.
 Require Import Lists.List.
 Import ListNotations.
+Require Import ExecutableSpec.
 
+(* Spec using bits *)
 Definition bit := bool.
 Inductive bit_word : nat -> Type  := 
   | empty : bit_word O
@@ -68,6 +70,32 @@ Definition tag z := if z <=? 30
                     then small_tag (Z_to_bit_word 5 z)
                     else big_tag z.
 
+(* Fixpoint intlist_to_bytelist (l: list int) : list byte :=
+ match l with
+ | nil => nil
+ | i::r =>
+     Byte.repr (Int.unsigned (Shr 24 i)) ::
+     Byte.repr (Int.unsigned (Shr 16 i)) ::
+     Byte.repr (Int.unsigned (Shr 8 i)) ::
+     Byte.repr (Int.unsigned i) ::
+     intlist_to_bytelist r
+ end. *)
+
+Parameter int_to_bytelist : int -> list byte.
+Parameter bytelist_to_int : list byte -> int.
+
+Inductive Tag : list byte -> Prop := 
+  | Small_tag t : Tag [t]
+  | Big_tag t ls : forall n l0 l1,
+     (* [tag_class ∘ tag_type ∘ 1^5] *)
+      (2 < n < 8 -> Byte.testbit t n = true) 
+      -> (nth_error ls (length ls - 1) = Some l0 /\ 
+         Byte.testbit l0 0 = false /\
+         forall m, (0 < m < (length ls - 1))%nat -> 
+               nth_error ls m = Some l1 ->    
+               Byte.testbit l1 0 = true) 
+      -> Tag (t::ls).  
+
 (* Length encoding *)
 (* for primitive types the length encoding is in definite form *)
 Definition length z := if z <=? 127 
@@ -77,37 +105,94 @@ Definition length z := if z <=? 127
                             let l := Z_to_bit_word 7 len in
                             ([[true]] ∘ l) :: z.
 
-Inductive bool_BER : bool -> list octet -> Prop:=
+
+Parameter Seq_type : Set.
+
+Definition asn_type_denot (t : asn_type) :=
+  match t with
+  | BOOLEAN => bool
+  | INTEGER => Z
+  | SEQUENCE => Seq_type
+  end.
+
+Notation "' a" := (asn_type_denot a) (at level 50).
+
+Inductive BER : forall (type : asn_type), 'type -> list octet -> Prop :=
   | False_BER (t l : Z) (tc : tag_class) :
-      bool_BER false (tag t tc primitive_type ++ (length l) ++ [all_zero])  
+      BER BOOLEAN false (tag t tc primitive_type ++ (length l) ++ [all_zero])  
        
   | True_BER (t l : Z) (tc : tag_class) (o : octet) :
       o <> all_zero ->
-      bool_BER true (tag t tc primitive_type ++ (length l) ++ [o]). 
+      BER BOOLEAN true (tag t tc primitive_type ++ (length l) ++ [o]). 
 
-Inductive bool_DER : bool -> list octet -> Prop:=
+Inductive DER : forall (type : asn_type), 'type -> list octet -> Prop :=
   | False_DER (t l : Z) (tc : tag_class) :
-      bool_DER false (tag t tc primitive_type ++ (length l) ++ [all_zero])  
+      DER BOOLEAN false (tag t tc primitive_type ++ (length l) ++ [all_zero])  
        
   | True_DER (t l : Z) (tc : tag_class) :
-      bool_DER true (tag t tc primitive_type ++ (length l) ++ [all_one]). 
+      DER BOOLEAN true (tag t tc primitive_type ++ (length l) ++ [all_one]). 
 
-Parameter ber_decode_bool : list octet -> option bool.
-Parameter der_encode_bool : bool-> list octet.
 
-Theorem roundtrip : forall ls b, ber_decode_bool (der_encode_bool b) = Some b.
-(* Yes *)
+Definition byte_to_bool b := if (b == 0)%byte then false else true.
+Definition byte_to_octet (b : byte) : octet. 
+Admitted.
+
+Parameter octet_to_byte : octet -> byte. 
+Coercion byte_to_octet : byte >-> octet.
+
+Parameter seq_decoder : TYPE_descriptor -> err (list byte).
+
+(* Definition ber_decoder td ls : err ('type td) := 
+  match type td with
+    | BOOLEAN => bool_prim_decoder td ls
+    | INTEGER => bool_prim_decoder td ls
+    | SEQUENCE => bool_prim_decoder td ls
+  end. *)
+
+Definition ber_decoder td (ls : list byte) : err ('type td).
+Admitted.
+
+Theorem decoder_correctness : forall td ls (b : 'type td), 
+    ber_decoder td ls = inr b ->
+    BER (type td) b (map byte_to_octet ls).
+Admitted.
+
+
+Theorem decoder_completeness :  forall td ls (b : 'type td), 
+    BER (type td) b ls ->
+    ber_decoder td (map octet_to_byte ls) = inr b.
+Admitted.
+
+Theorem decoder_completeness_false : forall td ls, 
+    type td = BOOLEAN -> 
+    BER BOOLEAN false ls ->
+    bool_prim_decoder td (map octet_to_byte ls) = inr Byte.zero.
+Admitted.
+
+Theorem decoder_completeness_true : forall td ls b, 
+    type td = BOOLEAN -> 
+    BER BOOLEAN true ls ->
+    b <> Byte.zero ->
+    bool_prim_decoder td (map octet_to_byte ls) = inr b.
+Admitted.
+
+Parameter int_to_byte : int -> byte.
+Parameter bool_to_int : bool -> int.
+
+Theorem roundtrip : forall td b, 
+    type td = BOOLEAN -> 
+    bool_prim_decoder td (bool_prim_encoder td b) 
+                               = inr (int_to_byte b).
+Admitted.
+
+Definition ber_encoder td (b : 'type td) : list byte. 
+Admitted.
  
-Theorem encoder_correctness : BER_bool b (ber_encode_bool ls).
+Theorem encoder_correctness : forall td (b : 'type td), 
+    BER (type td) b (map byte_to_octet (ber_encoder td b)).
+Admitted.
 
-Theorem decoder_correctness_left : forall ls b, ber_decode_bool ls = Some b -> BER_bool b ls.
-(* No, since ber_decode_bool (tag ∘ 02 ∘ ...) = Some b *)
- 
-Theorem decoder_correctness_right : BER_bool b ls -> ber_decode_bool ls = Some b.
-(* Yes *)
-
-
-Fixpoint read_tag (ol: list octet) (ls : list bit) :=
+(* Fixpoint read_tag (ol: list octet) (ls : list bit) :=
   match ol with
   | [] => ls
   | h :: tl => let z := high 7 h in 
@@ -134,3 +219,4 @@ Parameter bit_to_Z : list bit -> Z.
 
 Definition tag_to_Z (ol : list octet) := bit_to_Z (read_tag ol []).
 
+*)
