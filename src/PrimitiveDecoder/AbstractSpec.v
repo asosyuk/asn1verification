@@ -14,7 +14,7 @@ Inductive bit_word : nat -> Type  :=
 
 Notation octet := (bit_word 8).
 
-Declare Scope word_scope.
+(* Declare Scope word_scope. *)
 Notation "[[ ]]" := empty (format "[[ ]]") : word_scope.
 Notation "[[ x ]]" := (w _ x empty) : word_scope.
 Notation "[[ x ; y ; .. ; z ]]" := (w _ x (w _ y .. (w _ z empty) ..)) : word_scope.
@@ -81,20 +81,7 @@ Definition tag z := if z <=? 30
      intlist_to_bytelist r
  end. *)
 
-Parameter int_to_bytelist : int -> list byte.
-Parameter bytelist_to_int : list byte -> int.
 
-Inductive Tag : list byte -> Prop := 
-  | Small_tag t : Tag [t]
-  | Big_tag t ls : forall n l0 l1,
-     (* [tag_class ∘ tag_type ∘ 1^5] *)
-      (2 < n < 8 -> Byte.testbit t n = true) 
-      -> (nth_error ls (length ls - 1) = Some l0 /\ 
-         Byte.testbit l0 0 = false /\
-         forall m, (0 < m < (length ls - 1))%nat -> 
-               nth_error ls m = Some l1 ->    
-               Byte.testbit l1 0 = true) 
-      -> Tag (t::ls).  
 
 (* Length encoding *)
 (* for primitive types the length encoding is in definite form *)
@@ -220,3 +207,5 @@ Parameter bit_to_Z : list bit -> Z.
 Definition tag_to_Z (ol : list octet) := bit_to_Z (read_tag ol []).
 
 *)
+
+
