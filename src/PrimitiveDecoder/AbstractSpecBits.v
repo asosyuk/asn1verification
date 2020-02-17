@@ -56,9 +56,20 @@ Definition all_zero : octet := copy 8 false.
 Definition all_one : octet := copy 8 true.
 
 (* convert integer into octets according to 8.1.2.4.1-2 *)
-Definition Z_to_bit_word n : Z -> bit_word n.
+Definition Z_to_bit_word {n} : Z -> bit_word n.
 Admitted.
-Parameter Z_to_octet : Z -> list octet.
+
+Definition split n : forall m, bit_word (m + n) -> (bit_word m * bit_word n).
+Admitted.
+
+Definition Z_to_septets (z : Z) : list (bit_word 7) :=
+  let z := Z_to_bit_word z in
+  (fix Z_to_septets_loop {n} (z : bit_word n) : list (bit_word 7) :=
+     let (l,h) := split 7 O z in 
+     match z with
+     | [[]] => []
+     | _ => Z_to_septets_loop l ++ [h]
+     end) z.  
 
 Definition big_tag z (tg: tag_class) (et: encoding_type) := 
   (tg ∘ et ∘ (copy 5 true))::(Z_to_octet z).

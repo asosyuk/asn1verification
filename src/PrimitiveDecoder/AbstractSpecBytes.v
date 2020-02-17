@@ -2,52 +2,41 @@
 Require Import Core.Core Core.Notations.
 Require Import Lists.List Psatz.
 Import ListNotations.
+Require Import StructTact.StructTactics.
 Require Import ExecutableSpec.
 
 (* Spec using bytes *)
-Open Scope byte.
 
-Definition all_zero : byte := 0.
+Definition all_zero : byte := Byte.zero.
 Definition all_one : byte := Byte.repr (Byte.max_unsigned).
 
-Inductive Length : list byte -> Prop :=
+Inductive Length : Z -> list byte -> Prop :=
 (* 8.1.3.4 *)
-| Definite_short_form l : (0 <= l < 127)%Z -> Length [Byte.repr l]
+| Definite_short_form l : (0 <= l < 127)%Z -> Length l [Byte.repr l]
 (* 8.1.3.5 *)
-| Definite_long_form l ls : (127 < l < 255)%Z -> Length (Byte.repr (Zlength ls)::ls)
+| Definite_long_form l ls : (127 < l < 255)%Z -> Length l (Byte.repr (Zlength ls)::ls)
 (* 8.1.3.6 *)
-| Indefinite_form : Length [Byte.repr 127].
+| Indefinite_form : Length 127 [Byte.repr 127].
+
+Definition default_byte := all_zero.
+Definition nth n ls := nth n ls default_byte.
 
 Inductive Tag : list byte -> Prop :=
 (* 8.1.2.2 *)
-| Low_tag z : (z < 31)%Z -> Tag [Byte.repr z] (* TODO: tag_class and encoding,
-                                                Need testbit to return trailing 0 within byte *)
+(* tag number < 31 *)
+| Low_tag t : Byte.testbit t 0 = false -> Tag [t]
+
 (* 8.1.2.4 *)
-| High_tag t ls :
-    let t := Byte.or t (Byte.repr 31) in
-    (* [1...][1...]...[0...] *)
-    (forall l0, nth_error ls (length ls - 1) = Some l0 ->
-           (Byte.unsigned l0 <= 127)%Z) ->
-    (forall l1 m, (0 <= m < (length ls - 1))%nat -> 
-             nth_error ls m = Some l1 ->
-             (127 < Byte.unsigned l1)%Z)  ->
+(* tag number >= 31 *)
+| High_tag t ls : forall n,
+    (* 1st octet *)
+    (0 <= n <= 5 -> Byte.testbit t n = true) ->
+    (* subsequent octets representing the tag number *)
+    (forall m, (0 <= m < (length ls - 1))%nat -> 
+          Byte.testbit (nth m ls) 7 = true) ->
+    Byte.testbit (nth (length ls - 1) ls) 7 = false ->
+    nth 0 ls <> all_zero ->
     Tag (t::ls). 
-
-(* Incomplete for now, need smth like this:
-
-Parameter Z_to_list_septet : Z -> list byte.
-
-Definition set_lead_one b := Byte.or b (Byte.repr 128).
-Definition set_lead_zero b := Byte.and b (Byte.repr 127).
-
-| High_tag z t0  ts :
-    (31 <= z)%Z ->
-    let t0 := Byte.or t0 (Byte.repr 31) in
-    let ts = Z_to_list_septet z in
-    let ts' := (map set_lead_one
-                    (firstn (length ts - 1) ts)) in
-    let ts'' := set_lead_zero (last ts 0) in
-    Tag z (t0'::ts'++[ts'']). *)
 
 Parameter Seq_type : Set.
 
@@ -61,41 +50,80 @@ Definition asn_type_denot (t : asn_type) :=
 Notation "' a" := (asn_type_denot a) (at level 50).
 
 
-Definition PrimitiveTag t := let t' := hd 0 t in
-                             Byte.testbit t' 2 = false /\ Tag t.
+Definition PrimitiveTag t := let t' := hd Byte.zero t in
+                             Byte.testbit t' 6 = false /\ Tag t.
 
-Definition DefiniteLength l := l <> [Byte.repr 127] /\ Length l. 
+Definition DefiniteLength z l := l <> [Byte.repr 127] /\ Length z l. 
+
+Definition byte_to_Z (b : byte) (z : Z) :=
+  2^z * (Byte.unsigned b).
+
+Definition bytes_to_Z (ls : list byte) :=
+  (fix bytes_to_Z_loop ls z :=
+    match ls with 
+    | [] => z
+    | [h] => byte_to_Z h z 
+    | h :: tl => byte_to_Z h z + (bytes_to_Z_loop tl (z + 8))
+    end) (rev ls) 0. 
 
 Inductive BER : forall (type : asn_type), 'type -> list byte -> Prop :=
 | False_BER t:
     PrimitiveTag t ->
-    BER BOOLEAN false (t ++ [1] ++ [all_zero])
+    BER BOOLEAN false (t ++ [1%byte] ++ [all_zero])
        
 | True_BER t v :
     v <> all_zero ->
     PrimitiveTag t ->
-    BER BOOLEAN true (t ++ [1] ++ [v]).
+    BER BOOLEAN true (t ++ [1%byte] ++ [v])
 
-Lemma one_is_definite_len : DefiniteLength [1].
-Proof.
-  econstructor;
-    [ discriminate | econstructor];
-    auto.
-  nia.
-Qed.
+| Integer_short_BER t l v vz :
+    PrimitiveTag t ->
+    Length 1 l ->
+    Zlength v = 1 ->
+    bytes_to_Z v = vz ->
+    BER INTEGER vz (t ++ l ++ v)
 
-Definition byte_to_bool b := if (b == 0)%byte then false else true.
+| Integer_long_BER t l lz v vz:
+    PrimitiveTag t ->
+    Length lz l ->
+    Zlength v = lz ->
+    1 < lz ->
+    nth 0 v <> all_one ->
+    Byte.testbit (nth 1 v) 7 = true ->
+    bytes_to_Z v = vz ->
+    BER INTEGER vz (t ++ l ++ v).
 
-Parameter seq_decoder : TYPE_descriptor -> err (list byte).
+(* Correctness proofs *)
 
+Definition byte_to_bool b : 'BOOLEAN := if (b == 0)%byte then false else true.
+
+Definition ber_decoder td (ls : list byte) : err ('type td).
 (* Definition ber_decoder td ls : err ('type td) := 
   match type td with
     | BOOLEAN => bool_prim_decoder td ls
     | INTEGER => bool_prim_decoder td ls
     | SEQUENCE => bool_prim_decoder td ls
   end. *)
+Admitted.
 
-Definition ber_decoder td (ls : list byte) : err ('type td).
+Theorem BOOL_decoder_correctness : forall td ls b, 
+    type td = BOOLEAN -> 
+    bool_prim_decoder td ls = inr b ->
+    BER BOOLEAN (byte_to_bool b) ls.
+Proof.
+  intros.
+  destruct (byte_to_bool b) eqn : S.
+  unfold byte_to_bool in *.
+  break_if; try congruence.
+  unfold bool_prim_decoder in *.
+  break_match; try discriminate.
+  simpl in *.
+  repeat break_match; try congruence.
+  inversion H0.
+  unfold bool_content_decoder in *.
+  break_match.
+  inversion H0.
+  admit.
 Admitted.
 
 Theorem decoder_correctness : forall td ls (b : 'type td), 
