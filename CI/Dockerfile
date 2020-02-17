@@ -26,3 +26,5 @@ RUN opam switch vst && \
     opam install coq-struct-tact menhir --yes
 RUN eval $(opam env) && git clone https://github.com/PrincetonUniversity/VST.git && \
     cd VST && make && cd ..
+
+RUN cp CompCert/compcert.ini /bin && cp CompCert/clightgen /bin
