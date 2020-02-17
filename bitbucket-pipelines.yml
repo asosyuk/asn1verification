@@ -4,22 +4,28 @@ pipelines:
   default:
     - step:
         script:
+          - eval `ssh-agent`
+          - ssh-add ~/.ssh/config
           - cd ..
-          - git clone https://p3rsik@bitbucket.org/codeminders/asn1c.git
+          - git clone git@bitbucket.org:codeminders/asn1c.git
           - cd asn1verification/src
           - make clight coq
   branches:
     feature/*:
       - step:
           script:
+            - eval `ssh-agent`
+            - ssh-add ~/.ssh/config
             - cd ..
-            - git clone https://p3rsik@bitbucket.org/codeminders/asn1c.git
+            - git clone git@bitbucket.org:codeminders/asn1c.git
             - cd asn1verification/src
             - make clight coq
     hotfix/*:
       - step:
           script:
+            - eval `ssh-agent`
+            - ssh-add ~/.ssh/config
             - cd ..
-            - git clone https://p3rsik@bitbucket.org/codeminders/asn1c.git
+            - git clone git@bitbucket.org:codeminders/asn1c.git
             - cd asn1verification/src
             - make clight coq
