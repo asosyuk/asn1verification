@@ -8,6 +8,7 @@ pipelines:
           - cd ..
           - git clone git@bitbucket.org:codeminders/asn1c.git
           - cd /opt/atlassian/pipelines/agent/build/src
+          - cp -r /VST /opt/atlassian/pipelines/agent
           - eval $(opam env)
           - make clight coq
   branches:
@@ -18,6 +19,7 @@ pipelines:
             - cd ..
             - git clone git@bitbucket.org:codeminders/asn1c.git
             - cd /opt/atlassian/pipelines/agent/build/src
+            - cp -r /VST /opt/atlassian/pipelines/agent
             - eval $(opam env)
             - make clight coq
     hotfix/*:
@@ -29,5 +31,6 @@ pipelines:
             - cd ..
             - git clone git@bitbucket.org:codeminders/asn1c.git
             - cd /opt/atlassian/pipelines/agent/build/src
+            - cp -r /VST /opt/atlassian/pipelines/agent
             - eval $(opam env)
             - make clight coq
