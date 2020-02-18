@@ -22,7 +22,11 @@ pipelines:
       - step:
           script:
             - eval `ssh-agent`
+            - ls
+            - pwd
             - cd ..
+            - pwd
+            - ls
             - git clone git@bitbucket.org:codeminders/asn1c.git
             - cd asn1verification/src
             - make clight coq
