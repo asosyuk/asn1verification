@@ -5,7 +5,6 @@ pipelines:
     - step:
         script:
           - eval `ssh-agent`
-          - ssh-add ~/.ssh/config
           - cd ..
           - git clone git@bitbucket.org:codeminders/asn1c.git
           - cd asn1verification/src
@@ -15,7 +14,6 @@ pipelines:
       - step:
           script:
             - eval `ssh-agent`
-            - ssh-add ~/.ssh/config
             - cd ..
             - git clone git@bitbucket.org:codeminders/asn1c.git
             - cd asn1verification/src
@@ -24,7 +22,6 @@ pipelines:
       - step:
           script:
             - eval `ssh-agent`
-            - ssh-add ~/.ssh/config
             - cd ..
             - git clone git@bitbucket.org:codeminders/asn1c.git
             - cd asn1verification/src
