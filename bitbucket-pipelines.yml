@@ -7,7 +7,7 @@ pipelines:
           - eval `ssh-agent`
           - cd ..
           - git clone git@bitbucket.org:codeminders/asn1c.git
-          - cd asn1verification/src
+          - cd /opt/atlassian/pipelines/agent/build/src
           - make clight coq
   branches:
     feature/*:
@@ -16,7 +16,7 @@ pipelines:
             - eval `ssh-agent`
             - cd ..
             - git clone git@bitbucket.org:codeminders/asn1c.git
-            - cd asn1verification/src
+            - cd /opt/atlassian/pipelines/agent/build/src
             - make clight coq
     hotfix/*:
       - step:
@@ -25,8 +25,6 @@ pipelines:
             - ls
             - pwd
             - cd ..
-            - pwd
-            - ls
             - git clone git@bitbucket.org:codeminders/asn1c.git
-            - cd asn1verification/src
+            - cd /opt/atlassian/pipelines/agent/build/src
             - make clight coq
