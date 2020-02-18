@@ -1,4 +1,4 @@
-image: persik/asn1verification:1.1
+image: persik/asn1verification:1.2
 
 pipelines:
   default:
@@ -8,6 +8,7 @@ pipelines:
           - cd ..
           - git clone git@bitbucket.org:codeminders/asn1c.git
           - cd /opt/atlassian/pipelines/agent/build/src
+          - eval $(opam env)
           - make clight coq
   branches:
     feature/*:
@@ -17,6 +18,7 @@ pipelines:
             - cd ..
             - git clone git@bitbucket.org:codeminders/asn1c.git
             - cd /opt/atlassian/pipelines/agent/build/src
+            - eval $(opam env)
             - make clight coq
     hotfix/*:
       - step:
@@ -27,4 +29,5 @@ pipelines:
             - cd ..
             - git clone git@bitbucket.org:codeminders/asn1c.git
             - cd /opt/atlassian/pipelines/agent/build/src
+            - eval $(opam env)
             - make clight coq

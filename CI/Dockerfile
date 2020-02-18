@@ -27,4 +27,7 @@ RUN opam switch vst && \
 RUN eval $(opam env) && git clone https://github.com/PrincetonUniversity/VST.git && \
     cd VST && make && cd ..
 
-RUN cp CompCert/compcert.ini /bin && cp CompCert/clightgen /bin
+RUN cp CompCert/compcert.ini /bin && cp CompCert/clightgen /bin && \
+    cp /root/.opam/vst/bin/coqc /bin && cp /root/.opam/vst/bin/coq_makefile /bin
+
+RUN apt install -y gcc-multilib lcov libasan*
