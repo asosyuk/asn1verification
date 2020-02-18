@@ -1,4 +1,4 @@
-Require Import Nat List ZArith Decimal DecimalNat List Lia.
+(*Require Import Nat List ZArith Decimal DecimalNat List Lia.
 Import ListNotations.
 
 From compcert Require Import Integers.
@@ -116,5 +116,5 @@ Section PRIM_automaton.
      
 End PRIM_automaton.
 
-
+*)
   

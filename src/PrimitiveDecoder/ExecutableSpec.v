@@ -15,7 +15,7 @@ Definition err T := sum dec_rval T.
 Instance Monad_err : Monad err := Monad_either dec_rval.
 Instance Exception_err : MonadExc dec_rval err := Exception_either dec_rval.
 
-Inductive asn_type := BOOLEAN | INTEGER | SEQUENCE.
+Inductive asn_type := BOOLEAN_t | INTEGER_t | SEQUENCE_t.
 
 Inductive TYPE_descriptor :=
   def { tags : list Z;
