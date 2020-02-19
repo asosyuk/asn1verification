@@ -103,9 +103,9 @@ Definition _ber_decode_primitive_spec : ident * funspec :=
                    (Vptr buf_b buf_ofs);
            (* Changed after execution *)         
            data_at sh_sptr (Tstruct _ASN__PRIMITIVE_TYPE_s noattr)
-                   (PRIMITIVE_TYPE_rep (prim_decoder td buf))
+                   (PRIMITIVE_TYPE_rep (int_prim_decoder td buf))
                                        (Vptr sptr_b sptr_ofs); 
            data_at sh_res (Tstruct _asn_dec_rval_s noattr)
-                   (dec_rval_rep (prim_decoder td buf)) (Vptr res_b res_ofs)).
+                   (dec_rval_rep (int_prim_decoder td buf)) (Vptr res_b res_ofs)).
 
 End PrimitiveParser.
