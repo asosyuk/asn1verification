@@ -22,6 +22,7 @@ Definition default_byte := all_zero.
 Definition get_byte n ls := nth n ls default_byte.
 Definition hd ls := hd all_zero ls.
 Notation "t @ n" := (Byte.testbit t n) (at level 50).
+Notation len a := (Zlength a).
 
 Inductive Tag : list byte -> Prop :=
 (* 8.1.2.2 *)
@@ -39,71 +40,97 @@ Inductive Tag : list byte -> Prop :=
     
     Tag (t::ls). 
 
-Reserved Notation "' a" (at level 50).
 
 Inductive asn_value :=
   | BOOLEAN : bool -> asn_value 
   | INTEGER : Z -> asn_value
+  | BIT_STRING : list bool -> asn_value
   | SEQUENCE : list asn_value -> asn_value. 
 
 Definition PrimitiveTag t := (hd t) @ 6 = false /\ Tag t.
 Definition ConstructedTag t := (hd t) @ 6 = true /\ Tag t.
+Definition DefiniteLength z l := z <> 127 /\ Length z l. 
 
-Definition DefiniteLength z l := l <> [Byte.repr 127] /\ Length z l. 
+(* Boolean and Integer BER encodings *)
 
-(* Integer encoding *)
+Inductive BER_Bool : bool -> list byte -> Prop :=
+| False_Bool : 
+    BER_Bool false [all_zero]
+| True_Bool b :
+    b <> all_zero ->
+    BER_Bool true [b].
 
-Definition Z_of_byte (b : byte) (z : Z) :=
-  2^z * (Byte.unsigned b).
-
-Definition Z_of_bytes (ls : list byte) :=
-  (fix bytes_to_Z_loop ls z :=
-    match ls with 
-    | [] => z
-    | [h] => Z_of_byte h z 
-    | h :: tl => Z_of_byte h z + (bytes_to_Z_loop tl (z + 8))
-    end) (rev ls) 0. 
-
-Parameter bytes_of_Z : Z -> list byte.
-
-Hypothesis Z_to_bytes_roundtrip : forall z, Z_of_bytes (bytes_of_Z z) = z.
+Inductive BER_Integer : Z -> list byte -> Prop :=
+| Short_Int z b :
+    z = Byte.unsigned b ->
+    BER_Integer z [b]
+| Long_Int z v b tl : 
+    BER_Integer v tl ->
+    z = Byte.unsigned b * 2^(8 * len tl) + v ->
+    BER_Integer z (b::tl).
 
 Definition flatten {A} l := fold_right (@app _) (@nil A) l.
 
-Inductive BER : asn_value -> list byte -> Prop :=
-| False_BER t:
-    PrimitiveTag t ->
-    BER (BOOLEAN false) (t ++ [1%byte] ++ [all_zero])
-       
-| True_BER t v :
-    v <> all_zero ->
-    PrimitiveTag t ->
-    BER (BOOLEAN true) (t ++ [1%byte] ++ [v])
+Inductive BER_BitString_Primitive : list bool -> list byte -> Prop := 
+| Empty_BitString : BER_BitString_Primitive [] [all_zero]
+| Primitive_BitString i bs tl: 
+    i = - (len bs) mod 8 ->
+    (forall n b lb, (n < length bs)%nat ->
+               nth_error bs n = Some b ->
+               nth_error tl (n/8) = Some lb ->
+               b = lb @ (Z.of_nat n) mod 8) ->
+    BER_BitString_Primitive bs (Byte.repr i::tl).
 
-| Integer_short_BER t l v z :
+Notation ϵ := EmptyString.
+Parameter BER_OctetString : string -> list byte -> Prop.
+  
+Inductive BER : asn_value -> list byte -> Prop :=
+| Bool_BER b t v:
     PrimitiveTag t ->
-    Length 1 l ->
-    Zlength v = 1 ->
-    Z_of_bytes v = z ->
-    BER (INTEGER z) (t ++ l ++ v)
+    BER_Bool b v ->
+    BER (BOOLEAN b) (t ++ [Byte.one] ++ v)
+      
+| Integer_short_BER t v z :
+    PrimitiveTag t ->
+    len v = 1 ->
+    BER_Integer z v ->
+    BER (INTEGER z) (t ++ [Byte.one] ++ v) 
 
 | Integer_long_BER t l v z:
     PrimitiveTag t ->
-    Length (Zlength v) l ->
-    1 < (Zlength v) ->
+    DefiniteLength (len v) l ->
+    1 < len v ->
     get_byte 0 v <> all_one ->
     (get_byte 1 v) @ 7 = true ->
-    Z_of_bytes v = z ->
+    BER_Integer z v ->
     BER (INTEGER z) (t ++ l ++ v) 
+
+| Bitstring_Primitive_BER t l v s: 
+    PrimitiveTag t ->
+    DefiniteLength (len v) l ->
+    BER_BitString_Primitive s v ->
+    BER (BIT_STRING s) (t ++ l ++ v)
+
+| Bitstring_Constructed_BER t l v bs vs: 
+    ConstructedTag t ->
+    Length (len v) l ->
+    v = flatten vs ->
+    (forall n bn vn, 
+        (n < length vs - 1)%nat ->
+        nth_error bs n = Some bn ->
+        nth_error vs n = Some vn ->
+        (* TODO: check with 8.6.4 *)
+        nth_error vn 0 = Some all_zero -> 
+        BER (BIT_STRING bn) vn) ->
+    BER (BIT_STRING (flatten bs)) (t ++ l ++ v)
 
 | Sequence_BER t l v ls vs:
     ConstructedTag t ->
-    Length (Zlength v) l ->
+    Length (len v) l ->
     v = flatten vs ->
-    (forall n ln vn, (n < length vs)%nat ->
-          nth_error ls n = Some ln ->
-          nth_error vs n = Some vn ->
-          BER ln vn) ->
+    (forall n ln vn, nth_error ls n = Some ln ->
+                nth_error vs n = Some vn ->
+                BER ln vn) ->
     BER (SEQUENCE ls) (t ++ l ++ v).
 
 (* Correctness proofs *)
