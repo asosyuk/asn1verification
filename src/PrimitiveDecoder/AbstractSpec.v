@@ -3,7 +3,6 @@ Require Import Core.Core Core.Notations.
 Require Import Lists.List Psatz.
 Import ListNotations.
 Require Import StructTact.StructTactics.
-Require Import ExecutableSpec.
 
 (* ASN.1 types and values *)
 
@@ -12,8 +11,10 @@ Inductive asn_value :=
   | BOOLEAN : bool -> asn_value 
   | INTEGER : Z -> asn_value
   | BIT_STRING : list bool -> asn_value
-  | SEQUENCE : list asn_value -> asn_value. 
+  | SEQUENCE : list asn_value -> asn_value
+  | SET : list asn_value -> asn_value. 
 
+(* for notation purposes *)
 Instance Nth_Asn_value : Nth asn_value :=
   { default := ANY ;
     n_th := fun n ls => nth (Z.to_nat n) ls ANY;
@@ -22,6 +23,9 @@ Instance Nth_Asn_value : Nth asn_value :=
 
 (* Spec using bytes *)
 (* Tags 8.1.2 *)
+
+(* ls#n is notation for ls[n]
+   bs@n is notation for testing nth bit of bs*)
 Inductive Tag : list byte -> Prop :=
 (* 8.1.2.2 *)
 (* tag number < 31 *)
@@ -39,7 +43,6 @@ Inductive Tag : list byte -> Prop :=
     Tag (t::ls). 
 
 Definition PrimitiveTag t := (hd_nth t) @ 6 = false /\ Tag t.
-
 Definition ConstructedTag t := (hd_nth t) @ 6 = true /\ Tag t.
 
 (* Length 8.1.3 *)
@@ -53,7 +56,7 @@ Inductive Length : Z -> list byte -> Prop :=
 
 Definition DefiniteLength z l := z <> 127 /\ Length z l. 
 
-(* Primitive Values BER encodings *)
+(* Primitive Values BER and DER encodings *)
 Inductive BER_Bool : bool -> list byte -> Prop :=
 | False_Bool : 
     BER_Bool false [all_zero]
@@ -61,29 +64,44 @@ Inductive BER_Bool : bool -> list byte -> Prop :=
     b <> all_zero ->
     BER_Bool true [b].
 
+Inductive DER_Bool : bool -> list byte -> Prop :=
+| False_Bool_DER : 
+    DER_Bool false [all_zero]
+| True_Bool_DER :
+    DER_Bool true [all_one].
+
 Inductive BER_Integer : Z -> list byte -> Prop :=
 | Short_Int z b :
-    z = Byte.unsigned b ->
-    BER_Integer z [b]
+    z = Byte.unsigned b -> BER_Integer z [b]
 | Long_Int z v b tl : 
     BER_Integer v tl ->
     z = Byte.unsigned b * 2^(8 * len tl) + v ->
     BER_Integer z (b :: tl).
 
-Inductive BER_BitString_Primitive : list bool -> list byte -> Prop := 
-| Primitive_BitString bs i tl: 
-    i = - (len bs) mod 8 ->
-    (forall n, 0 <= n < len bs ->
-          bs # n = (tl#(n / 8)) @ (n mod 8)) ->
-    BER_BitString_Primitive bs (Byte.repr i :: tl)
-(* as per 8.6.2.4, remove trailing 0 bits *) 
-| Named_BitString bs i tl:
-    BER_BitString_Primitive (bs ++ [false]) (i :: tl) ->
-    BER_BitString_Primitive (bs ++ [false]) ((i - 1)%byte :: tl).
+Definition DER_Integer := BER_Integer.
 
-Notation ϵ := EmptyString.
-Parameter BER_OctetString : string -> list byte -> Prop.
-  
+Inductive BER_BitString_Primitive : list bool -> list byte -> Prop := 
+| Primitive_BitString b bs i tl: 
+    i = - (len bs) mod 8 ->
+    len tl = len bs / 8 ->  
+    (forall n, 0 <= n < len bs -> bs#n = (tl#(n / 8)) @ (n mod 8)) ->    
+    Forall (fun u => u = false) b -> (* as per 8.6.2.4, remove some trailing 0 bits *) 
+    BER_BitString_Primitive (bs ++ b) (Byte.repr i :: tl).
+
+Inductive DER_BitString_Primitive : list bool -> list byte -> Prop := 
+| Zero_BitString_DER bs:
+    Forall (fun u => u = true) bs ->
+    DER_BitString_Primitive bs [all_zero]
+
+| Primitive_BitString_DER bs b i tl: 
+    let bs' :=  bs ++ [true] in  (* as per 11.2.2, remove all trailing 0 bits *) 
+    Forall (fun u => u = false) b ->
+    i = - (len bs') mod 8 ->
+    len tl = len bs' / 8 ->                
+    (forall n, 0 <= n < len bs' -> bs'#n = (tl#(n / 8)) @ (n mod 8)) ->
+    (forall k, 0 <= k <= i -> (tl#(len tl - 1)) @ k = false) ->   (* Unused bits set to 0: 11.2.1 *)
+    DER_BitString_Primitive (bs ++ [true] ++ b) (Byte.repr i :: tl).
+
 Inductive BER : asn_value -> list byte -> Prop :=
 | Bool_BER b t v:
     PrimitiveTag t ->
@@ -111,24 +129,78 @@ Inductive BER : asn_value -> list byte -> Prop :=
     BER_BitString_Primitive s v ->
     BER (BIT_STRING s) (t ++ l ++ v)
 
-| Bitstring_Constructed_BER t l v bs vs: 
+| Bitstring_Constructed_BER t l bs vs: 
+    let v := flatten vs in
+    let s := flatten bs in
     ConstructedTag t ->
     Length (len v) l ->
-    v = flatten vs ->
-    (forall n, n < len vs - 1 ->
-          vs#0 = [all_zero] -> 
-        BER (BIT_STRING (bs#n)) (vs#n)) ->
-    BER (BIT_STRING (flatten bs)) (t ++ l ++ v)
+    (forall n, 0 <= n < len vs - 1 -> 
+          len (bs#n) mod 8 = 0 ->
+          BER (BIT_STRING (bs#n)) (vs#n)) ->
+    BER (BIT_STRING s) (t ++ l ++ v)
 
-| Sequence_BER t l v ls vs:
+| Sequence_BER t l ls vs:
+    let v := flatten vs in
+    ConstructedTag t ->
+    Length (len v) l ->    
+    len vs = len ls ->
+    (forall n, n < len ls -> BER (ls#n) (vs#n)) ->
+    BER (SEQUENCE ls) (t ++ l ++ v) 
+
+| Set_BER t l ls vs vs':
+    let v := flatten vs' in   
     ConstructedTag t ->
     Length (len v) l ->
-    v = flatten vs ->
-    (forall n, BER (ls#n) (vs#n)) ->
-    BER (SEQUENCE ls) (t ++ l ++ v).
+    len vs = len ls ->
+    (forall n, n < len ls -> BER (ls#n) (vs#n)) ->
+    Permutation vs vs' ->
+    BER (SET ls) (t ++ l ++ v).
+
+Inductive DER : asn_value -> list byte -> Prop :=
+| Bool_DER b t v:
+    PrimitiveTag t ->
+    DER_Bool b v ->
+    DER (BOOLEAN b) (t ++ [Byte.one] ++ v)
+      
+| Integer_short_DER t v z :
+    PrimitiveTag t ->
+    len v = 1 ->
+    DER_Integer z v ->
+    DER (INTEGER z) (t ++ [Byte.one] ++ v) 
+
+| Integer_long_DER t l v z:
+    PrimitiveTag t ->
+    DefiniteLength (len v) l ->
+    1 < len v ->
+    v#1 <> all_one ->
+    (v#1) @ 7 = true ->
+    DER_Integer z v ->
+    DER (INTEGER z) (t ++ l ++ v) 
+
+| Bitstring_Primitive_DER t l v s: 
+    PrimitiveTag t ->
+    DefiniteLength (len v) l ->
+    DER_BitString_Primitive s v ->
+    DER (BIT_STRING s) (t ++ l ++ v)
+
+| Sequence_DER t l ls vs:
+    let v := flatten vs in
+    ConstructedTag t ->
+    DefiniteLength (len v) l ->    
+    (forall n, n < len ls -> DER (ls#n) (vs#n)) ->
+    DER (SEQUENCE ls) (t ++ l ++ v)
+
+| Set_DER t l ls vs vs':
+    let v := flatten vs' in   
+    ConstructedTag t ->
+    DefiniteLength (len v) l ->
+    len vs = len ls ->
+    (forall n, n < len ls -> BER (ls#n) (vs#n)) ->
+    Permutation vs vs' ->
+    DER (SET ls) (t ++ l ++ v).
 
 (* Correctness proofs *)
-Definition byte_to_bool b : bool:= if (b == 0)%byte then false else true.
+(*  Definition byte_to_bool b : bool:= if (b == 0)%byte then false else true.
 
 Definition ber_decoder (td : TYPE_descriptor) (ls : list byte) : err asn_value.
 Admitted.
@@ -153,7 +225,7 @@ Proof.
   admit.
 Admitted.
 
-(* 
+
 Theorem decoder_correctness : forall td ls b, 
     ber_decoder td ls = inr b ->
     BER (type td b) ls.
