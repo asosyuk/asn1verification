@@ -5,25 +5,23 @@ Import ListNotations.
 Require Import StructTact.StructTactics.
 Require Import ExecutableSpec.
 
+(* ASN.1 types and values *)
+
+Inductive asn_value :=
+  | ANY : asn_value
+  | BOOLEAN : bool -> asn_value 
+  | INTEGER : Z -> asn_value
+  | BIT_STRING : list bool -> asn_value
+  | SEQUENCE : list asn_value -> asn_value. 
+
+Instance Nth_Asn_value : Nth asn_value :=
+  { default := ANY ;
+    n_th := fun n ls => nth (Z.to_nat n) ls ANY;
+    hd_nth := fun ls => List.hd ANY ls
+ }.
+
 (* Spec using bytes *)
-
-Definition all_zero : byte := Byte.zero.
-Definition all_one : byte := Byte.repr (Byte.max_unsigned).
-
-Inductive Length : Z -> list byte -> Prop :=
-(* 8.1.3.4 *)
-| Definite_short_form l : (0 <= l < 127)%Z -> Length l [Byte.repr l]
-(* 8.1.3.5 *)
-| Definite_long_form l ls : (127 < l < 255)%Z -> Length l (Byte.repr (Zlength ls)::ls)
-(* 8.1.3.6 *)
-| Indefinite_form : Length 127 [Byte.repr 127].
-
-Definition default_byte := all_zero.
-Definition get_byte n ls := nth n ls default_byte.
-Definition hd ls := hd all_zero ls.
-Notation "t @ n" := (Byte.testbit t n) (at level 50).
-Notation len a := (Zlength a).
-
+(* Tags 8.1.2 *)
 Inductive Tag : list byte -> Prop :=
 (* 8.1.2.2 *)
 (* tag number < 31 *)
@@ -34,25 +32,28 @@ Inductive Tag : list byte -> Prop :=
     (* 1st octet *)
     (0 <= n <= 5 -> t @ n = true) ->
     (* subsequent octets representing the tag number *)
-    get_byte 0 ls <> all_zero ->  
-    (forall m, (m < (length ls - 1))%nat -> (get_byte m ls) @ 7 = true) ->
-    (get_byte (length ls - 1) ls) @ 7 = false ->
+     ls#0 <> all_zero ->  
+    (forall m, m < len ls - 1 -> (ls#m) @ 7 = true) ->
+    (ls#(len ls - 1)) @ 7 = false ->
     
     Tag (t::ls). 
 
+Definition PrimitiveTag t := (hd_nth t) @ 6 = false /\ Tag t.
 
-Inductive asn_value :=
-  | BOOLEAN : bool -> asn_value 
-  | INTEGER : Z -> asn_value
-  | BIT_STRING : list bool -> asn_value
-  | SEQUENCE : list asn_value -> asn_value. 
+Definition ConstructedTag t := (hd_nth t) @ 6 = true /\ Tag t.
 
-Definition PrimitiveTag t := (hd t) @ 6 = false /\ Tag t.
-Definition ConstructedTag t := (hd t) @ 6 = true /\ Tag t.
+(* Length 8.1.3 *)
+Inductive Length : Z -> list byte -> Prop :=
+(* 8.1.3.4 *)
+| Definite_short_form l : 0 <= l < 127-> Length l [Byte.repr l]
+(* 8.1.3.5 *)
+| Definite_long_form l ls : 127 < l < 255 -> Length l (Byte.repr (len ls)::ls)
+(* 8.1.3.6 *)
+| Indefinite_form : Length 127 [Byte.repr 127].
+
 Definition DefiniteLength z l := z <> 127 /\ Length z l. 
 
-(* Boolean and Integer BER encodings *)
-
+(* Primitive Values BER encodings *)
 Inductive BER_Bool : bool -> list byte -> Prop :=
 | False_Bool : 
     BER_Bool false [all_zero]
@@ -67,19 +68,18 @@ Inductive BER_Integer : Z -> list byte -> Prop :=
 | Long_Int z v b tl : 
     BER_Integer v tl ->
     z = Byte.unsigned b * 2^(8 * len tl) + v ->
-    BER_Integer z (b::tl).
-
-Definition flatten {A} l := fold_right (@app _) (@nil A) l.
+    BER_Integer z (b :: tl).
 
 Inductive BER_BitString_Primitive : list bool -> list byte -> Prop := 
-| Empty_BitString : BER_BitString_Primitive [] [all_zero]
-| Primitive_BitString i bs tl: 
+| Primitive_BitString bs i tl: 
     i = - (len bs) mod 8 ->
-    (forall n b lb, (n < length bs)%nat ->
-               nth_error bs n = Some b ->
-               nth_error tl (n/8) = Some lb ->
-               b = lb @ (Z.of_nat n) mod 8) ->
-    BER_BitString_Primitive bs (Byte.repr i::tl).
+    (forall n, 0 <= n < len bs ->
+          bs # n = (tl#(n / 8)) @ (n mod 8)) ->
+    BER_BitString_Primitive bs (Byte.repr i :: tl)
+(* as per 8.6.2.4, remove trailing 0 bits *) 
+| Named_BitString bs i tl:
+    BER_BitString_Primitive (bs ++ [false]) (i :: tl) ->
+    BER_BitString_Primitive (bs ++ [false]) ((i - 1)%byte :: tl).
 
 Notation ϵ := EmptyString.
 Parameter BER_OctetString : string -> list byte -> Prop.
@@ -100,8 +100,8 @@ Inductive BER : asn_value -> list byte -> Prop :=
     PrimitiveTag t ->
     DefiniteLength (len v) l ->
     1 < len v ->
-    get_byte 0 v <> all_one ->
-    (get_byte 1 v) @ 7 = true ->
+    v#1 <> all_one ->
+    (v#1) @ 7 = true ->
     BER_Integer z v ->
     BER (INTEGER z) (t ++ l ++ v) 
 
@@ -115,22 +115,16 @@ Inductive BER : asn_value -> list byte -> Prop :=
     ConstructedTag t ->
     Length (len v) l ->
     v = flatten vs ->
-    (forall n bn vn, 
-        (n < length vs - 1)%nat ->
-        nth_error bs n = Some bn ->
-        nth_error vs n = Some vn ->
-        (* TODO: check with 8.6.4 *)
-        nth_error vn 0 = Some all_zero -> 
-        BER (BIT_STRING bn) vn) ->
+    (forall n, n < len vs - 1 ->
+          vs#0 = [all_zero] -> 
+        BER (BIT_STRING (bs#n)) (vs#n)) ->
     BER (BIT_STRING (flatten bs)) (t ++ l ++ v)
 
 | Sequence_BER t l v ls vs:
     ConstructedTag t ->
     Length (len v) l ->
     v = flatten vs ->
-    (forall n ln vn, nth_error ls n = Some ln ->
-                nth_error vs n = Some vn ->
-                BER ln vn) ->
+    (forall n, BER (ls#n) (vs#n)) ->
     BER (SEQUENCE ls) (t ++ l ++ v).
 
 (* Correctness proofs *)
