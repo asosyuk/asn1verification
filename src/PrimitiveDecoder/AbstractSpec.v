@@ -45,12 +45,23 @@ Inductive Tag : list byte -> Prop :=
 Definition PrimitiveTag t := (hd_nth t) @ 6 = false /\ Tag t.
 Definition ConstructedTag t := (hd_nth t) @ 6 = true /\ Tag t.
 
+Inductive ByteList_Integer : Z -> list byte -> Prop :=
+| Short_Int z b :
+    z = Byte.unsigned b -> ByteList_Integer z [b]
+| Long_Int z v b tl : 
+    ByteList_Integer v tl ->
+    z = Byte.unsigned b * 2^(8 * len tl) + v ->
+    ByteList_Integer z (b :: tl).
+
 (* Length 8.1.3 *)
 Inductive Length : Z -> list byte -> Prop :=
 (* 8.1.3.4 *)
 | Definite_short_form l : 0 <= l < 127-> Length l [Byte.repr l]
 (* 8.1.3.5 *)
-| Definite_long_form l ls : 127 < l < 255 -> Length l (Byte.repr (len ls)::ls)
+| Definite_long_form z l ls : 0 < l < 127 ->
+                            len ls = l ->
+                            ByteList_Integer z ls ->
+                            Length z (Byte.repr l::ls)
 (* 8.1.3.6 *)
 | Indefinite_form : Length 127 [Byte.repr 127].
 
@@ -70,14 +81,7 @@ Inductive DER_Bool : bool -> list byte -> Prop :=
 | True_Bool_DER :
     DER_Bool true [all_one].
 
-Inductive BER_Integer : Z -> list byte -> Prop :=
-| Short_Int z b :
-    z = Byte.unsigned b -> BER_Integer z [b]
-| Long_Int z v b tl : 
-    BER_Integer v tl ->
-    z = Byte.unsigned b * 2^(8 * len tl) + v ->
-    BER_Integer z (b :: tl).
-
+Definition BER_Integer := ByteList_Integer.
 Definition DER_Integer := BER_Integer.
 
 Inductive BER_BitString_Primitive : list bool -> list byte -> Prop := 
