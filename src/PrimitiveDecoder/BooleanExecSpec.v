@@ -1,19 +1,34 @@
 Require Import Core.Core Lib.
-Import ListNotations.
 From Coq Require Import String.
-Require Import ExtLib.Structures.Monads.
-Require Export ExtLib.Data.Monads.EitherMonad.
-Require Import ExtLib.Structures.Monad.
+Require Import ExtLib.Data.Monads.WriterMonad ExtLib.Structures.Monad.
+Require Import ExtLib.Structures.MonadWriter.
+Require Import ExtLib.Structures.Monoid.
+
 Import MonadNotation.
+Import ListNotations.
+
 Open Scope monad.
 
 Section Encoder.
 
-Parameter der_write_tags : TYPE_descriptor -> option (list byte).
+Variable m : Type -> Type.
 
-Definition bool_prim_encoder (td : TYPE_descriptor) (b : bool) : option (list byte) :=
-  match der_write_tags td with
-  | None => None
+Definition output_stream : Monoid (list byte) :=
+{| monoid_plus := @List.app _
+ ; monoid_unit := @nil _
+ |}.
+
+Context {Monad_m : Monad m}.
+Context {Writer_m : MonadWriter output_stream m}.
+
+Parameter der_write_tags : TYPE_descriptor -> m Type.
+
+Definition bool_prim_encoder' (td : TYPE_descriptor) (b : bool) :=
+  (der_write_tags td) >>= 
+    (listen (ret (if b then (Byte.repr 255) else (Byte.repr 0)))).
+
+Definition bool_prim_encoder (td : TYPE_descriptor) (b : bool) :option (list byte) :=
+  match der_write_tags td with | None => None
   | Some header => Some (if b 
                   then cons (Byte.repr 255) header
                   else cons (Byte.repr 0) header)
