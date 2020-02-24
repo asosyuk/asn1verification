@@ -12,7 +12,8 @@ Inductive asn_value :=
   | INTEGER : Z -> asn_value
   | BIT_STRING : list bool -> asn_value
   | SEQUENCE : list asn_value -> asn_value
-  | SET : list asn_value -> asn_value. 
+  | SET : list asn_value -> asn_value
+  | CHOICE : list asn_value -> asn_value. 
 
 (* for notation purposes *)
 Instance Nth_Asn_value : Nth asn_value :=
@@ -158,7 +159,12 @@ Inductive BER : asn_value -> list byte -> Prop :=
     len vs = len ls ->
     (forall n, n < len ls -> BER (ls#n) (vs#n)) ->
     Permutation vs vs' ->
-    BER (SET ls) (t ++ l ++ v).
+    BER (SET ls) (t ++ l ++ v)
+
+| Choice_BER t l v s ls:
+    In s ls ->
+    BER s (t ++ l ++ v) ->
+    BER (CHOICE ls) (t ++ l ++ v).
 
 Inductive DER : asn_value -> list byte -> Prop :=
 | Bool_DER b t v:
@@ -201,7 +207,12 @@ Inductive DER : asn_value -> list byte -> Prop :=
     len vs = len ls ->
     (forall n, n < len ls -> BER (ls#n) (vs#n)) ->
     Permutation vs vs' ->
-    DER (SET ls) (t ++ l ++ v).
+    DER (SET ls) (t ++ l ++ v)
+
+| Choice_DER t l v s ls:
+    In s ls ->
+    DER s (t ++ l ++ v) ->
+    DER (CHOICE ls) (t ++ l ++ v).
 
 (* Correctness proofs *)
 (*  Definition byte_to_bool b : bool:= if (b == 0)%byte then false else true.
