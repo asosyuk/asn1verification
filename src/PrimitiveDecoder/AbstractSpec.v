@@ -1,5 +1,5 @@
 (* Abstract specification from the standard *)
-Require Import Core.Core Core.Notations.
+Require Import Core.Core Core.Notations Core.Tactics.
 Require Import Lists.List Psatz.
 Import ListNotations.
 Require Import StructTact.StructTactics.
@@ -82,6 +82,27 @@ Inductive DER_Bool : bool -> list byte -> Prop :=
 | True_Bool_DER :
     DER_Bool true [all_one].
 
+Definition der_content_encoder (b : bool) :=
+  if b then [all_one] else [all_zero].
+
+Definition ber_content_decoder ls :=
+  match ls with 
+  | [b] => if (b == all_zero)%byte 
+          then Some false 
+          else Some true 
+  | _ => None
+  end.
+
+Hypothesis der_encoder_correctness : forall b, DER_Bool b (der_content_encoder b).
+Hypothesis ber_decoder_correctness : forall ls b, ber_content_decoder ls = Some b <->
+                                             BER_Bool b ls.
+Parameter der_write_tags : Z -> list byte.
+
+Definition der_encoder (b : bool) (tag : Z) := 
+  let v := der_content_encoder b in
+  let t := der_write_tags tag in
+  t ++ [Byte.one] ++ v.
+              
 Definition BER_Integer := ByteList_Integer.
 Definition DER_Integer := BER_Integer.
 
@@ -95,7 +116,7 @@ Inductive BER_BitString_Primitive : list bool -> list byte -> Prop :=
 
 Inductive DER_BitString_Primitive : list bool -> list byte -> Prop := 
 | Zero_BitString_DER bs:
-    Forall (fun u => u = true) bs ->
+    Forall (fun u => u = false) bs ->
     DER_BitString_Primitive bs [all_zero]
 
 | Primitive_BitString_DER bs b i tl: 
