@@ -1,10 +1,10 @@
 \PassOptionsToPackage{table,xcdraw}{xcolor}
 
 %% For double-blind review submission, w/o CCS and ACM Reference (max submission space)
-\documentclass[acmsmall,nonacm]{acmart} 
+\documentclass[10p,conference]{IEEEtran}  
 \pagestyle{plain} % removes running headers
 
-\bibliographystyle{ACM-Reference-Format}
+\bibliographystyle{IEEEtran}
 %\citestyle{acmauthoryear}   %% For author/year citations
 \usepackage{longtable}
 \usepackage{url}
@@ -30,6 +30,7 @@
 \usepackage{color}
 \usepackage{mathtools}
 \usepackage{enumitem}
+\usepackage{multicol}
 
 \usepackage{asn1}
 
@@ -40,7 +41,7 @@
   frame=tb, % draw a frame at the top and bottom of the code block
   tabsize=4, % tab space width
   showstringspaces=false, % don't mark spaces in strings
-  numbers=left, % display line numbers on the left
+  %numbers=left, % display line numbers on the left
   commentstyle=\color{green}, % comment color
   keywordstyle=\color{blue}, % keyword color
   stringstyle=\color{red}, % string color
@@ -57,43 +58,36 @@
 
 \title{Research Report: Formally-Verified ASN.1 Protocol C-language Stack}
 
-\author{Nika Pona}
-\affiliation{
-  \institution{Digamma.ai}
-}
-\email{npona@digamma.ai}
-\author{Vadim Zaliva}
-\affiliation{
-  \institution{Carnegie Mellon University}
-  \department{ECE}
-}
-\email{vzaliva@cmu.edu}
+\author{\IEEEauthorblockN{Nika Pona}
+\IEEEauthorblockA{\textit{Digamma.ai} \\ npona@digamma.ai}
+\and
+\IEEEauthorblockN{Vadim Zaliva}
+\IEEEauthorblockA{\textit{ECE} \\
+\textit{Carnegie Mellon University}\\
+vzaliva@cmu.edu}}
+
+\maketitle
 
 \begin{abstract}
 
-  We describe our approach and progress in verification of an existing
+  We describe our approach and progress in verification of a
   mature open-source ASN.1 compiler \emph{ASN1C} using the Coq proof
   assistant. Once completed, our project will provide state-of-the-art
   high assurance which is suitable for mission-critical systems. Furthermore, since
-  formal verification will be layered atop a mature existing ASN.1
+  formal verification will be layered atop a mature ASN.1
   stack, it will combine the benefits of high-performance portable
   stack implementation with formal correctness guarantees. As an essential and necessary step in our
   approach, the project will also provide a formalization of a key part of
   the ASN.1 standard. Such formal specification could subsequently be
   used by others to analyze ASN.1 properties and validate other
   implementations.
-
 \end{abstract}
-
-\maketitle
-
-\tableofcontents
 
 \section{Introduction}
 
 \subsection{Background}
 
-The pervasively deployed and widely adopted ASN.1 (Abstract Syntax
+The ASN.1 (Abstract Syntax
 Notation One) \cite{ASN1Intro} joint standard of the International
 Telecommunication Union (ITU-T) and the International Organization for
 Standardization (ISO/IEC) provides an essential interface description
@@ -109,15 +103,13 @@ and commercial cloud computing.
 Using ASN.1 language, one can define data structures that use
 ASN.1 {\it primitive types}, such as \emph{INTEGER}, \emph{BOOLEAN}, \emph{OBJECT
 IDENTIFIER}, and {\it constructed types}, such as \emph{SEQUENCE (OF)},
-\emph{SET (OF)}, and \emph{CHOICE (OF)}. An example ASN.1 module that describes an X.509-like public key
-certificate is shown in Listing~\ref{lst:asnex}. Such certificates are
+\emph{SET (OF)}, and \emph{CHOICE (OF)}. An example ASN.1 module that describes an X.509-like public key certificate is shown in Listing~\ref{lst:asnex} (revised for brevity). Such certificates are
 used by every browser to access HTTPS web sites. The unabridged
 version of the original ASN.1 definition for the X.509 standard takes
-about 1,000 lines of ASN.1 and is impractical to include in this
-report. 
+about 1,000 lines of ASN.1. 
 
 \begin{lstlisting}[language=ASN1,label=lst:asnex,
-  caption={ASN.1 example of X.509 certificates, revised for brevity}]
+  caption={ASN.1 example of X.509 certificates}]
 X509 DEFINITIONS ::= BEGIN
 
   Certificate  ::=  SEQUENCE  {
@@ -214,8 +206,8 @@ portability and seek to prove actual industrial-level C-code
 implementation.
 
 As shown in Figure~\ref{fig:components}, the project begins with ITU-T
-standard document in the form of human-readable text. We will manually
-convert it into formal specification (H.SPEC). This is high-level
+standard document in the form of human-readable text. We manually
+convert it into formal specification (H.spec). This is high-level
 specification (in Coq) which describes the correspondence between data
 types (such as integers) and packet octets data layout. This
 specification is one of the outputs of this project and has a value of
@@ -223,16 +215,15 @@ its own.
 
 \begin{figure}[h!]
   \centering
-  \includegraphics[width=10cm]{VerificationArchitectureDiagram.eps}
+  \includegraphics[width=9cm]{VerificationArchitectureDiagram.eps}
   \caption{Verification Architecture}
   \label{fig:components}
 \end{figure}
 
 The next level of refinement is executable specification (E.spec). Also
 written in Coq, it declares ``encoder'' and ``decoder'' for each type
-as a pair of pure functions. We will prove that the E.spec encodes and decodes bytes in conformance with high-level
-specification. TODO WRONG: High-level properties like termination, computation complexity, and memory safety could be proven based on executable specification. They are shown in the ``High Level Properties'' box on the left in Figure~\ref{fig:components}.
- E.spec abstracts the computation performed by the C function, hence by this we achieve guarantee that encoding/decoding is done right. 
+as a pair of pure functions and basically abstracts the encoding/decoding algorithm used in the C function. We prove that the E.spec encodes and decodes bytes in conformance with the high-level
+specification. Moreover we prove the roundtrip property (that decoder is the inverse of encoder).
 
 The E.spec contains enough
 information to \textit{extract} a fully functional encoder program in
@@ -250,7 +241,9 @@ possibility we might not pursue immediately. It uses randomized
 property-based automated testing based on an executable
 specification to further verify its correctness. This work could be
 done using QuickChick \cite{QuickChick} in Coq. It could also be used
-to generate a test-suite for extracted code.
+to generate a test-suite for the extracted code.
+
+The next level is VST specification (VST.spec): we state that the C program terminates and returns the same value as E.spec; on top of this we add the memory specification consisting of pre- and post-conditions written in separation logic. Corresponance to the memory specification guarantees memory safety. Further, we can add post-conditions about heap and stack bounds. 
 
 At the bottom of Figure 1 is a box labeled ``C'' which represents the
 existing C code of the \emph{ASN1C} compiler. Using an automated conversion
@@ -264,13 +257,9 @@ original C program in Coq, retaining its overall structure; Clight is further as
 by CompCert that can be used to further ``reason about'' (interrogate
 and analyze) the behviour of programs within Coq.
 
-
-
 Finally, as the most critical (and laborious) step of the project, we
 prove that semantics of Clight
-translation for each given function correspond to its executable
-specification (E.spec). This guarantees that the C program behaves exactly
-like the executable and high-level specification.
+translation for each given function correspond to its VST specification. This guarantees that the C program terminates, is memory safe and behaves exactly like the executable and hence the high-level specification.
 
 Hence, the formal certification of correctness will include the following
 three elements:
@@ -491,7 +480,7 @@ memory). Such specification can be easily examined and refined.
   code. Here, we experiment with two approaches. The function 
    \texttt{Z\_of\_string} can serve as a functional specification for
   \texttt{asn\_strtoimax\_lim} and differs little from the
-  relational specification. \newpage
+  relational specification. 
 
  \begin{lstlisting}[language=Coq]
 Fixpoint Z_of_string_loop (s : list byte) (val index : Z) (b : bool) := 
@@ -792,22 +781,20 @@ particular subset has limited applicability, and their
 effort appears encumbered by aspects of their unsuccessful approach. Although our goal is to eventually verify all of ASN.1, we
 start with a chosen (X.509-related) subset of ASN.1; it is reasonably small, but X.509 is so widely used that its verified implementation will have a wide range of immediate applications.
 
-\appendix
-\clearpage
-\section{\emph{asn\_strtoimax\_lim} source}
+ \onecolumn
+\section*{Appendix}
+
+\subsection{\emph{asn\_strtoimax\_lim} source}
+
 \label{sec:stritomax}
 
-\lstinputlisting[language=C,basicstyle=\ttfamily\scriptsize ]{asn_strtoimax_lim_old.c}
+\lstinputlisting[language=C,basicstyle=\ttfamily\scriptsize]{asn_strtoimax_lim_old.c}
 
-\newpage
-
-\section{ASN.1 Vulnerabilities Analysis}
-
-\bigskip
+ \onecolumn
+\subsection{ASN.1 Vulnerabilities Analysis}
 
 \scriptsize
-
-\begin{longtable}{ l l l p{15em} }
+\begin{longtable}{ l l l p{25em} }
  
   {\bf CVE } &  {\bf Product  } &  {\bf Property violated  }  &  {\bf Description  } \\
 
@@ -839,6 +826,7 @@ start with a chosen (X.509-related) subset of ASN.1; it is reasonably small, but
 2018-0739    & OpenSSL       & Bounds on stack size & exceed the stack given malicious input with excessive recursion \\ 
 2016-7053    & OpenSSL       & Memory safety (read) & crash with a NULL pointer dereference \\ 
 2016-2842    & OpenSSL       & Memory safety (write) & remote attackers to cause a denial of service (out-of-bounds write or memory consumption) \\ 
+ 
 2016-2176    & OpenSSL       & Memory safety (read) & remote attackers to obtain sensitive information from process stack memory or cause a denial of service (buffer over-read) \\ 
 2016-2109    & OpenSSL       & Bounds on heap size & denial of service (memory consumption) \\ 
 2016-2108    & OpenSSL       & Memory safety (write) & (buffer underflow and memory corruption) \\ 
@@ -865,12 +853,7 @@ start with a chosen (X.509-related) subset of ASN.1; it is reasonably small, but
 2016-4421    & Wireshark     & Bounds on stack size & remote attackers to cause a denial of service (deep recursion, stack consumption, and application crash) via a packet that specifies deeply nested data \\ 
 2016-4418    & Wireshark     & Memory safety (read) & remote attackers to cause a denial of service (buffer over-read and application crash) \\ 
 2016-2522    & Wireshark     & Memory safety (read) & remote attackers to cause a denial of service (out-of-bounds read and application crash) \\ 
-​
-\end{longtable}
-\newpage
-\newpage
-
-
-\bibliography{report}
+​\end{longtable}
+\begin{multicols}{2}\bibliography{report}\end{multicols}
 
 \end{document}
