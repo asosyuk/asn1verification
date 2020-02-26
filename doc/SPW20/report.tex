@@ -648,31 +648,86 @@ include the following points:
 \end{enumerate}
 
 To address these questions determining the technical feasibility of
-our proposed concept, we defined key tasks and objectives described in Section \ref{plan}.
+our proposed concept, we defined key tasks and objectives.
+
+ \section{Project Plan}
+\label{plan}
+%The following key tasks are planned:
  
+\begin{description}
+
+\item[Task 1] Formalization of X.509-Relevant Parts of ASN.1 Specification
+
+
+\item[Task 2] Refactoring of the ASN1C C Code Implementation of ASN.1
+
+
+\item[Task 3] Primitive and Constructed Type Verification
+
+\item[Task 4] Proof of High-Level Properties 
+
+\item[Task 5] Code Extraction from Execution Specification
+
+\item[Task 6] Final Code, Associated Documentation, Estimates of Additional Work Items
+ \end{description}
+
 \section{Project Status}
 
-Now, we are working on executable specification of the \emph{ASN1C}
+Now, we are working in parallel on the high-level specification of the standard and executable specification of the \texttt{asn1c}
 compiler, the intermediate level between the high-level specification
-and the C code. There are many ways of approaching this, but what we
-have to keep in mind is the future proof effort, both with respect to
-the C code and the high-level specification. Thus, our executable
-specification should correspond to the actual implementation, while remaining
-sufficiently abstract.
+and the C code. We start by formalizing BER and DER encoding rules for several primitive and constructed types in relational style. Each premise of a constructor formalizes (part of) a paragraph in the standard. E.g., for boolean type:
 
-The \emph{ASN1C} compiler has a modular structure, so we can proceed with
+\begin{lstlisting}[language=Coq]
+Inductive DER_Bool : bool -> list byte -> Prop :=
+| False_Bool_DER : (* 8.2.2 *)
+    DER_Bool false [all_zero]
+| True_Bool_DER : (* 11.1 *)
+    DER_Bool true [all_one].
+\end{lstlisting}
+
+Then we use our primitive types specifications to formalize DER relation for each type using predicates about length and tags. The formalization is first-order so ideally it could be easily translated to other languages than Coq and the relation to the text is straightforward.
+
+\begin{lstlisting}[language=Coq]
+Inductive DER : asn_value -> list byte -> Prop :=
+| Bool_DER b t v:
+    PrimitiveTag t ->  (* 8.2.1 *)
+    DER_Bool b v ->
+    DER (BOOLEAN b) (t ++ [Byte.one] ++ v)
+      
+| Integer_short_DER t v z : 
+    PrimitiveTag t -> (* 8.3.1 *)
+    length v = 1 ->   (* 8.3.2, case 1 *)  
+    DER_Integer z v ->
+    DER (INTEGER z) (t ++ [Byte.one] ++ v) 
+
+| Integer_long_DER t l v z:
+    PrimitiveTag t -> (* 8.3.1 *)         
+    DefiniteLength (length v) l -> (* 10.1 *)
+    1 < length v -> (* 8.3.2, case 2 *)
+    v[1] != all_one ->  (* 8.3.2, (a) *)
+    get_bit 7 v[1] = 1 -> (* 8.3.2, (b) *)
+    DER_Integer z v ->
+    DER (INTEGER z) (t ++ l ++ v) 
+    ...
+
+\end{lstlisting}
+
+As for the executable specification, there are many ways of approaching this, but what we
+have to keep in mind is the future proof effort, especially with respect to
+the C code. Thus, we write executable specification that is close to the actual implementation. 
+
+The \texttt{asn1c} compiler has a modular structure, so we proceed with
 verification in a modular way and exploit this structure in the
-proofs. From a high-level view, the \emph{ASN1C} compiler consists of
+proofs. From a high-level view, the \texttt{asn1c} compiler consists of
 the library of primitive type decoders (such as \emph{INTEGER}, \emph{BOOLEAN},
 \emph{FLOATING POINT}, etc.). Each of these can be verified with respect to its
 ASN.1 specification. Our work on floating point numbers is an example
-of this. Additionally, we need to specify and prove memory safety
-for each primitive decoding/encoding pair.
+of this. We started with the simplest types in this way: we wrote the high-level specification that corresponds to the C function and then checked it with respect to the specification. Even in the simplest boolean type we found that the decoder was behaving not accroding to the standard (in particular, several encodings for boolean values were possible which clearly violated the ASN.1 standard).
 
 Furthermore, the compiler contains functions that decode/encode
 constructed types (such as \emph{SEQUENCE}, \emph{CHOICE}, \emph{SET}, etc.). Then, from a
-given ASN.1 type, the \emph{ASN1C} compiler produces an internal
-representation of that type, that basically specifies which existing
+given ASN.1 type, the \texttt{asn1c} compiler produces an internal
+representation of that type, that specifies which existing
 decoders/encoders to apply and in which order, as well as the
 output/input C structures for the functions. In Coq,
 these internal representations correspond to trees with nodes labelled by the
@@ -710,60 +765,9 @@ Inductive TYPE_descriptor :=
    asn\_value $\rightarrow$ decoder asn\_value $\rightarrow$ asn\_value} that takes two
  decoders and applies them sequentially \texttt{seq p1 p2}, similar to a
  list of parsers. Then the compiler can be seen as producing the
- concrete combination of parsers given the \texttt{TYPE\_descriptor}.
+ concrete combination of parsers given the \texttt{TYPE\_descriptor}. Currently we are experimenting with these approaches.
 
- \section{Project Plan}
-\label{plan}
-The following key tasks are planned:
- 
-\paragraph{Task 1: Formalization of X.509-Relevant Parts of ASN.1 Specification}
-The first step of the project is to formalize the relevant parts of the ASN.1 standard. Our proof engineers will review standard text and express relevant parts as formal high-level specification in Coq. We will focus on a handful of primitive ASN.1 types and a few constructed types.
 
-Because it is manual and the only part of the project which is not mechanically verified, great care should be taken in performing this step. The results should be precise, unambiguous, and easily traceable to the original standard's text. They should be easy to read and comprehensible by humans. It will be openly published, and interested parties will be able to examine it to convince themselves that our formalization indeed describes the intended meaning of the ASN.1 standard text.
-
-In addition to the human-readable high-level specification described above, we will produce the next level of detail: an executable functional specification of ASN.1 encoders/decoders for all relevant types. We will prove that the executable specification encodes and decodes bytes in conformance with high-level specification.
-
-\paragraph{Task 2: Refactoring of the ASN1C C Code Implementation of ASN.1}
-
-As a first, essential step we need to ensure that the \emph{ASN1C} code can be compiled by a CompCert compiler. This involves removing any use of C language features unsupported by CompCert.
-
-Furthermore, the original \emph{ASN1C} implementation implements a ``streaming'' decoder, a state-of-the-art technique which can decode packets in segments as they are being received. Use of a streaming decoder adds a significant level of complexity and has turned out to be less useful in practice. Accordingly, we plan to simplify some of the implementations to remove this feature. This will make such decoders much easier to prove.
-
-Additionally, the code will undergo a refactoring to make the parts we are proving more clearly delimited and better organized for formal verification. For example, we might choose to eliminate some low-level code optimizations which are difficult to prove and are essentially no longer needed, since the combination of modern compilers and hardware removes the potential value of these older optimizations.
-
-\paragraph{Task 3: Primitive and Constructed Type Verification}
-Verifying correctness of encoders/decoders for atomic types (such as number, int, boolean, string, time, void/null, etc.) is classically straightforward but laborious. Constructed types rely on already proven encoders/decoders for primitive types. 
-For each type, there is a pair of C functions: encoder and decoder. We will prove that their C implementation matches the executable specification that we defined earlier.
-
-\paragraph{Task 4: Proof of High-Level Properties} 
-The proofs of high-level properties for all encoders/decoders will be done in priority order. To establish a meaningful priority, we turn to the historical analysis of the bugs in the Computer Vulnerabilities and Exposures (CVE) database. The four most frequently violated high-level properties are:
-\begin{itemize}
-
-\item Absence of read memory access violations (reading from memory locations outside of a permitted range).
-\item Absence of write memory access violations (writing to memory locations outside of a permitted range).
-\item Absence of memory leaks (allocating memory which is never freed or accounted for).
-\item The ``roundtrip property'' (for each type, the decoder is the inverse of the corresponding encoder).
-\end{itemize}
-
-By addressing these four properties, 84\% ASN1 bugs can be eliminated.
-
-Even more coverage can be attained by proving the four remaining lower-priority high-level properties:
-\begin{itemize}
-\item Bounds on stack size
-\item Bounds on heap size
-\item Bounds on computation complexity
-\item Guaranteed Termination
-\end{itemize}
-Historical analysis of the bugs in the CVE database reveals that proving the next most frequent properties (listed above) would have prevented more than 90\% of the vulnerabilities. 
-
-Accordingly, time permitting, we will attempt to include work on proofs of these four lower-priority high-level properties. High-Level Properties like termination, computation complexity, and memory safety could be proven based on executable specification. 
-
-\paragraph{Task 5: Code Extraction from Execution Specification}
-In addition to verifying C code against the executable specification, we will derive an additionally independent OCaml implementation from the same specification leveraging an OCaml code extraction from the refined executable specifications produced in Task 1 and subsequently validated and proven in Tasks 2-5. 
-
-\paragraph{Task 6: Final Code, Associated Documentation, Estimates of Additional Work Items}
-In this task, we will prepare the code and associated documentation. Additionally, we plan to publish our high-level specification as a formalization of a part of an ASN.1 standard under a permissive license at Github with an accompanying academic paper, and we will invite the community to use, comment upon, and extend it. 
-We will also provide informed estimates of any additional work items which remain unaddressed. 
 
 \section{Related Work}
 
