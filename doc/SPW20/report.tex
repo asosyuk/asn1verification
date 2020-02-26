@@ -326,7 +326,7 @@ This immediately creates a set of problems:
 
 \begin{itemize}
 \item Automatic code extraction does not provide sufficient correctness guarantees.
-\item Extracted code generally runs much slower than its counterparts implemented in other languages.
+\item Extracted code generally runs much slower than its counterparts implemented in other languages\footnote{The extracted code performed 15 times slower than the \texttt{asn1c} compiler.}.
 \item Extracted code might not be compatible with other code or viable in some real-world use-case scenarios.
 \end{itemize}
 
@@ -455,7 +455,8 @@ memory). Such specification can be easily examined and refined.
 
  \begin{lstlisting}[language=Coq]
 
-(* Relation between input string, value, index an asn_strtox_result_e message *)
+(* Relation between input string, value, 
+   index an asn_strtox_result_e message *)
   Inductive asn_strtoimax_lim : list byte -> Z -> Z -> asn_strtox_result_e -> Prop :=
   (* Invalid data encountered *)
   | ERROR_INVAL:
@@ -483,16 +484,17 @@ memory). Such specification can be easily examined and refined.
   relational specification. 
 
  \begin{lstlisting}[language=Coq]
-Fixpoint Z_of_string_loop (s : list byte) (val index : Z) (b : bool) := 
+Fixpoint Z_of_string_loop (s : list byte) 
+         (val i : Z) (b : bool) := 
     match s with 
-    | [] => {| OK; val; index |}
+    | [] => {| OK; val; i |}
     | c :: tl => 
       if is_digit c
       then let val' := app_char b val c in 
            if bounded val'
-           then Z_of_string_loop tl val' (index + 1) b
-           else {| ERROR_RANGE; val'; index; |}      
-      else {| EXTRA_DATA; val; index; |}              
+           then Z_of_string_loop tl val' (i + 1) b
+           else {| ERROR_RANGE; val'; i; |}      
+      else {| EXTRA_DATA; val; i; |}              
     end.
 
 Definition app_char (b : bool) v c := 
@@ -517,25 +519,31 @@ Definition app_char (b : bool) v c :=
 
  \begin{lstlisting}[language=Coq]
  
-Fixpoint Z_of_string_loop_C (s : list byte) (val index : Z) (b : bool) := 
+Fixpoint Z_of_string_loop_C (s : list byte)
+          (val i : Z) (b : bool) := 
     match s with 
-    | [] => {| OK; val; index |}
+    | [] => {| OK; val; i |}
     | c :: tl => 
       if is_digit c
       then let d := (Z_of_char c) in 
            let val' := val*10 + d in
            if v <? upper_boundary 
-           then Z_of_string_loop_C tl val' (index + 1) b
-           else if (v =? upper_boundary)&&(d <=? (last_digit_max b))
+           then Z_of_string_loop_C tl val' (i + 1) b
+           else if (v =? upper_boundary)
+                     &&(d <=? (last_digit_max b))
                 then match tl with
-                     | [] => {| OK; val'; (index + 1) |}
+                     | [] => {| OK; val'; (i + 1) |}
                      | c :: tl => 
                        if is_digit c
-                       then {| ERROR_RANGE; app_char b val' c; (index + 1) |}
-                       else {| EXTRA_DATA; val'; (index + 1) |}
+                       then {| ERROR_RANGE; 
+                               app_char b val' c; 
+                               (i + 1) |}
+                       else {| EXTRA_DATA; 
+                               val'; 
+                               (i + 1) |}
                      end
-                else {| ERROR_RANGE; val'; index |}      
-      else {| EXTRA_DATA ; val; index |}              
+                else {| ERROR_RANGE; val'; i |}      
+      else {| EXTRA_DATA ; val; i |}              
     end.
     
  \end{lstlisting}
@@ -553,9 +561,9 @@ Fixpoint Z_of_string_loop_C (s : list byte) (val index : Z) (b : bool) :=
  memory precondition for the function will now have the following form:
 \begin{lstlisting}[language=Coq]
 PRE ((* str and *end are valid pointers *)
-      valid_pointer *end ;
-      valid_pointer str ;
-      (* str points to contents ls of type char array  *)
+      valid_pointer *end; valid_pointer str ;
+      (* str points to contents 
+      ls of type char array  *)
       data_at (array char) ls str ; 
       (* end points to end' *)
       data_at (ptr char) *end end;
@@ -568,21 +576,26 @@ PRE ((* str and *end are valid pointers *)
      \texttt{asn\_strtoimax\_lim}, the post-condition will hold.
            
 \begin{lstlisting}[language=Coq]
- POST((* the fist four lines of the precondition didn't change after execution *)
+ POST((* the fist four lines of the precondition 
+         didn't change after execution *)
       ... 
       let r := result (Z_of_string ls) in
        (* in 3 cases intp stays unchanged,
-         otherwise store the end value of Z_of_string *)
+         otherwise store the end value
+          of Z_of_string *)
        match r with 
          | ERROR_RANGE 
          | ERROR_INVAL 
          | EXPECT_MORE => 
            data_at long v intp
-         | _ => data_at long (value (Z_of_string ls)) intp 
+         | _ => data_at long 
+                       (value (Z_of_string ls))
+                        intp 
        end ;
       (* if str >= end, end doesn't change, 
-         otherwise store the address of the last char read 
-         (before going out of range, reading extra data 
+         otherwise store the address of the last
+          char read (before going out of range,
+           reading extra data 
          or success) *)
        let i := index (Z_of_string ls) in
        if str <? *end
@@ -609,7 +622,10 @@ exercising and showcasing all features of the complete ASN.1
 standard, we focus the detailed verification on the DER part,
 which can immediately be used to implement verified X.509
 stacks for use in production applications.
- 
+
+The \texttt{asn1c} compiler supports BER, DER, CER, XER, PER and OER encoding/decoding rules. The total backend code is around 21,000 lines of code. We estimated X.509 related part to be around 3,000 lines of code. It took 18 person-years to verify 8,700 loc of sel4\cite{VNSSforSel4}, which gives us a conservative estimate of 6 person-years for this project. However, most of this time was used to develop technologies that are already available in the Coq community (formal semantics of C, some automation for machine integer arithmetic). Moreover, we already have the C code written. Our test cases showed that the tools are not as efficient as they could be but we can fine-tune them for our specific task. 
+
+
 The X.509 focus provides a setting to answer essentially all questions
 to determine the technical feasibility of the
 proposed concept of full ASN.1 stack verification. These questions
@@ -632,7 +648,7 @@ include the following points:
 \end{enumerate}
 
 To address these questions determining the technical feasibility of
-our proposed concept, we defined key tasks and objectives described in Section 5.
+our proposed concept, we defined key tasks and objectives described in Section \ref{plan}.
  
 \section{Project Status}
 
@@ -663,7 +679,7 @@ these internal representations correspond to trees with nodes labelled by the
 type's tags and decoder/encoder types.
 
  \begin{lstlisting}[language=Coq]
-Inductive decoder_type := BOOLEAN | INTEGER | SEQUENCE | ...
+Inductive decoder_type := BOOLEAN | INTEGER ...
 
 Inductive TYPE_descriptor :=
   DEF { tags : list Z;
@@ -697,6 +713,7 @@ Inductive TYPE_descriptor :=
  concrete combination of parsers given the \texttt{TYPE\_descriptor}.
 
  \section{Project Plan}
+\label{plan}
 The following key tasks are planned:
  
 \paragraph{Task 1: Formalization of X.509-Relevant Parts of ASN.1 Specification}
@@ -788,7 +805,7 @@ start with a chosen (X.509-related) subset of ASN.1; it is reasonably small, but
 
 \label{sec:stritomax}
 
-\lstinputlisting[language=C,basicstyle=\ttfamily\scriptsize]{asn_strtoimax_lim_old.c}
+\lstinputlisting[language=C,basicstyle=\ttfamily\small]{asn_strtoimax_lim_old.c}
 
  \onecolumn
 \subsection{ASN.1 Vulnerabilities Analysis}
@@ -853,7 +870,8 @@ start with a chosen (X.509-related) subset of ASN.1; it is reasonably small, but
 2016-4421    & Wireshark     & Bounds on stack size & remote attackers to cause a denial of service (deep recursion, stack consumption, and application crash) via a packet that specifies deeply nested data \\ 
 2016-4418    & Wireshark     & Memory safety (read) & remote attackers to cause a denial of service (buffer over-read and application crash) \\ 
 2016-2522    & Wireshark     & Memory safety (read) & remote attackers to cause a denial of service (out-of-bounds read and application crash) \\ 
-​\end{longtable}
-\begin{multicols}{2}\bibliography{report}\end{multicols}
+​\end{longtable} 
 
+
+\begin{multicols}{2}\bibliography{report}\end{multicols}
 \end{document}
