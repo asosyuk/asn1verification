@@ -3,20 +3,53 @@ From Coq Require Import String.
 Require Import ExtLib.Data.Monads.WriterMonad ExtLib.Structures.Monad.
 Require Import ExtLib.Structures.MonadWriter.
 Require Import ExtLib.Structures.Monoid.
+Require Import ExtLib.Structures.MonadExc.
 
 Import MonadNotation.
 Import ListNotations.
 
 Open Scope monad.
 
-Section Encoder.
-
-Variable m : Type -> Type.
-
 Definition output_stream : Monoid (list byte) :=
 {| monoid_plus := @List.app _
  ; monoid_unit := @nil _
  |}.
+
+Section Error.
+
+Variable Wr : Type.
+
+Definition errW A := Wr -> string + (Wr * A).
+
+Global Instance errW_Monad : Monad errW := {
+  ret := fun _ x => fun w => inr (w, x) ;
+  bind := fun _ _ m f => fun w => match m w with
+                            | inl v => inl v
+                            | inr (w', x) => f x w'
+                            end
+}.
+
+Global Instance errW_Exception : MonadExc string errW := {
+  raise := fun _ v => fun w => inl v ;
+  catch := fun _ c h => fun w => match c w with
+                           | inl v => h v w
+                           | inr x => inr x
+                           end
+}.
+
+Global Instance errW_Writer : MonadWriter (Monoid Wr) errW := {
+  tell := fun w => fun w' => inr (monoid_plus w' w, tt) ;
+  listen := fun _ f => f >>= 
+  tell : T -> m unit ;
+  listen : forall A : Type, m A -> m (A * T) ;
+  pass : forall A : Type, m (A * (T -> T)) -> m A ;
+}.
+
+End Section.
+
+Section Encoder.
+
+Variable m : Type -> Type.
 
 Context {Monad_m : Monad m}.
 Context {Writer_m : MonadWriter output_stream m}.
