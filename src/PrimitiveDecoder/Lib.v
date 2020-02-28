@@ -1,12 +1,11 @@
-Require Import Core.Core.
-Import ListNotations.
 From Coq Require Import String.
-Require Import ExtLib.Structures.Monads.
-Require Export ExtLib.Data.Monads.OptionMonad.
-Require Import ExtLib.Structures.Monad.
+Require Import Core.Core.
 Require Import VST.floyd.proofauto.
 Require Import Clight.asn_codecs_prim.
+
 Instance CompSpecs : compspecs. make_compspecs prog. Defined.
+
+Import ListNotations.
 
 Record dec_rval := rval { consumed : Z }.
 

@@ -1,9 +1,6 @@
-From Coq Require Import String.
-Require Import ExtLib.Structures.Monad.
+From ExtLib.Structures Require Import Monad MonadWriter MonadExc Monoid.
 Require Import ExtLib.Data.Monads.WriterMonad.
-Require Import ExtLib.Structures.MonadWriter.
-Require Import ExtLib.Structures.Monoid.
-Require Import ExtLib.Structures.MonadExc.
+Require Import Lib.
 
 Import MonadNotation.
 
@@ -14,7 +11,7 @@ Section Error.
 Context {Wr : Type}.
 Context {MWr : Monoid Wr}.
 
-Definition errW A := Wr -> string + (Wr * A).
+Definition errW A := Wr -> TYPE_descriptor + (Wr * A).
 
 Global Instance Monad_errW : Monad errW := {
   ret := fun _ x => fun w => inr (w, x) ;
@@ -24,7 +21,7 @@ Global Instance Monad_errW : Monad errW := {
                             end
 }.
 
-Global Instance Exception_errW : MonadExc string errW := {
+Global Instance Exception_errW : MonadExc TYPE_descriptor errW := {
   raise := fun _ v => fun w => inl v ;
   catch := fun _ c h => fun w => match c w with
                            | inl v => h v w
