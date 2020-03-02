@@ -28,6 +28,7 @@ Section PrimitiveParser.
    5) malloc buf allocation fails (FAIL) SEP spec
  *)
 
+(*
 Definition _ber_decode_primitive_spec : ident * funspec :=
   DECLARE _ber_decode_primitive
     WITH (* pointer to the decoded structure *)
@@ -93,4 +94,5 @@ Definition _ber_decode_primitive_spec : ident * funspec :=
            data_at sh_res (Tstruct _asn_dec_rval_s noattr)
                    (dec_rval_rep (int_prim_decoder td buf)) (Vptr res_b res_ofs)).
 
+*)
 End PrimitiveParser.

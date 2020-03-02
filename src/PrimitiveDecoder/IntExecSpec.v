@@ -1,10 +1,9 @@
-Require Import Core.Core Lib.
-Import ListNotations.
 From Coq Require Import String.
-Require Import ExtLib.Structures.Monads.
-Require Export ExtLib.Data.Monads.EitherMonad.
+Require Import Core.Core Lib.
 Require Import ExtLib.Structures.Monad.
 Import MonadNotation.
+Import ListNotations.
+
 Open Scope monad.
 
 (* Decoding fails : 
@@ -19,6 +18,7 @@ Open Scope monad.
 Definition prim_content_decoder len ls :=
    skipn (Z.to_nat len) ls ++ [ZeroChar].
 
+(*
 Definition int_prim_decoder (td : TYPE_descriptor) (ls : list byte) : err (list byte) := 
   match ls with 
   | [] => inl (rval FAIL 0)
@@ -27,3 +27,4 @@ Definition int_prim_decoder (td : TYPE_descriptor) (ls : list byte) : err (list 
               then inl (rval MORE 0)
               else inr (prim_content_decoder (tag_consumed x) ls)
   end.
+*)
