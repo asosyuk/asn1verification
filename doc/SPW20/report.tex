@@ -728,8 +728,10 @@ Inductive TYPE_descriptor :=
       }.
  \end{lstlisting}
 
- Then, a constructed type decoder has type \lstinline[language=Coq]{TYPE_descriptor -> list byte -> option asn_value} and traverses the tree and applies the respective primitive decoders. In \emph{ASN1C}, it is implemented as
- a recursive function that readily translates into a nested or mutually recursive
+ Then, a constructed type decoder has type
+ \lstinline[language=Coq]{TYPE_descriptor -> list byte -> option asn_value} and traverses the tree and applies the respective
+ primitive decoders\footnote{This is a simplified definition. In the actual implementation, we will use stream monad for input and monadic error handling.}. In \emph{ASN1C}, it is implemented as a recursive
+ function that readily translates into a nested or mutually recursive
  function in Coq.
 
  Given a particular ASN.1 type definition that translates into a
