@@ -76,25 +76,15 @@
 \begin{abstract}
 
     We describe our approach and progress in verification of a
-
   mature open-source ASN.1 compiler, \emph{ASN1C}, using the Coq proof
-
   assistant. Once completed, our project will provide state-of-the-art
-
   high assurance suitable for mission-critical systems. Furthermore, since
-
   formal verification will be layered atop a well-tested ASN.1
-
   stack, it will combine the benefits of high-performance portable
-
   stack implementation with formal correctness guarantees. As an essential step in our
-
   approach, the project will also provide a formalization of a key part of
-
   the ASN.1 standard. Such formal specification could subsequently be
-
   used by others to analyze ASN.1 properties and validate other
-
   implementations.
 
 \end{abstract}
@@ -216,7 +206,7 @@ vulnerabilities, which is more than 90\% of reported vulnerabilities:
 To date, the relevant systems and methods are either (a) automatically tested but not
 formally verified, (b) use verification approaches which rely on
 automatic extraction from executable specifications (for example
-involving network stack synthesis \cite{VNSSforSel4}, optimizing compilers
+involving network stack synthesis \cite{SEL4}, optimizing compilers
 \cite{CompCert}, cryptographic libraries \cite{HACL}, and
 encoder/decoders \cite{Narcissus}), or (c) apply a form of formal
 verification which only proves partial correctness properties (partial
@@ -267,13 +257,12 @@ specification to further verify its correctness. This work could be
 done using QuickChick \cite{QuickChick} in Coq. It could also be used
 to generate a test-suite for the extracted code.
 
-The next level is VST specification (VST.spec). We state that the C program terminates and returns the machine representation of the value mandated by E.spec and that it satisfies the memory specification consisting of pre- and post-conditions written in separation logic, formalized in Verifiable Software Toolchain  \cite{VST}. Correspondence to the memory specification guarantees memory safety. Further, we can add post-conditions about heap and stack bounds. 
+The next level is VST specification (VST.spec). VST stands for Verified Software Toolchain \cite{VST}, a tool that that formalizes separation logic in Coq using operational C semantics from CompCert. It provides uniform syntax for stating pre- and postconditions of imperative programs execution, as well as tactics that automatize machine arithmetic and sepratation logic proofs. VST.spec states that the C program terminates and returns the machine representation of the value mandated by E.spec and that it satisfies the memory specification consisting of pre- and post-conditions written in separation logic. Correspondence to the memory specification guarantees memory safety. Further, we can add post-conditions about heap and stack bounds. 
 
 At the bottom of Figure 1 is a box labeled ``C'' which represents the
 existing C code of the \emph{ASN1C} compiler. Using an automated conversion
 provided by the \texttt{clightgen} tool within the CompCert C compiler
-\cite{CompCert}, we convert this to Abstract Syntax Trees (AST)
-\cite{AST} (labeled ``C.AST'' in Figure 1) rendered from a subset
+\cite{CompCert}, we convert this to Abstract Syntax Trees (AST) (labeled ``C.AST'' in Figure 1) rendered from a subset
 of C-language, called Clight \cite{Mechanized}, which is recognized by Coq. More specifically,
 CompCert converts C ``concrete syntax'' to ``abstract'' Clight
 syntax. The resulting Clight program is just a reification of the
@@ -450,7 +439,7 @@ the end we find this approach more viable for a large project.
 
 In this simple example, we test our architecture from
 Section~\ref{sec:approach}. First, we write a high-level specification
-of this function in declarative, relational style. Each constructor
+of this function in declarative, relational style (H.spec). Each constructor
 corresponds to a return message (state) and stores a value and the
 number of iterations of the function (used to store the result in
 memory). Such specification can be easily examined and refined.
@@ -477,7 +466,7 @@ memory). Such specification can be easily examined and refined.
   \end{lstlisting}
 
   The next level is the \textit{executable specification}
-  \texttt{Z\_of\_string}, which we prove to be equivalent to the
+  \texttt{Z\_of\_string} (E.spec), which we prove to be equivalent to the
   relational specification. However, it could be extracted to Coq and
   is easier to use in future proofs of semantic equivalence with C
   code. Here, we experiment with two approaches. The function 
@@ -549,14 +538,12 @@ Fixpoint Z_of_string_loop_C (s : list byte)
     
  \end{lstlisting}
 
- We then wrote VST specifications that uses either the high-level
- or one of executable specifications but also provides a way to
- state memory specification for the function using special memory
+ We then wrote two VST specifications: one that uses the high-level specification
+ and one that uses executable specification to state functional correctness. Memory specification for the function is expressed in terms of special memory or \emph{spatial}
  predicates. For instance, the predicate \texttt{(data\_at t ls p)}
  states that at the address \texttt{p} there is content \texttt{ls} of
- type \texttt{t}. We can combine them using a separation conjunction
- (\texttt{;}). Each conjunct is true of a separate sub-heap of the
- memory. Since we compare pointers between \texttt{str} and \texttt{*end} in the body of the function, we also have to ensure
+ type \texttt{t}. One can combine such predicates with usual propositional connectives or with \emph{separation conjunction}
+ (here written as \texttt{;}). Intuitively, if \texttt{P} and \texttt{Q} are spatial predicates, \texttt{p} and \texttt{q} are pointers, then  \texttt{(P(p) ; Q(q))} means that \texttt{P(p)} and \texttt{Q(q)} are true in separate sub-heaps of the memory or, in other words, that the pointers \texttt{p} and \texttt{q} don't overlap. Since we compare pointers between \texttt{str} and \texttt{*end} in the body of the function, we also have to ensure
  that they are valid pointers according to the C standard, are
  comparable (i.e. point within the same object), and non-overlapping. For instance, the
  memory precondition for the function will now have the following form:
@@ -616,7 +603,7 @@ for HTTPS protocol for secure browsing the web), certificate
 revocation lists, certification path validation, electronic
 signatures, and many other essential applications. X.509 is based on
 ASN.1, using an important subset (Distinguished
-Encoding Rules, ``DER'') of ASN.1 \cite{BERandDER}.
+Encoding Rules, ``DER'') of ASN.1 \cite{ASN1StandardBER} \cite{BERandDER}.
 
 To limit the scope of the initial stage of the project while
 exercising and showcasing all features of the complete ASN.1
@@ -624,7 +611,7 @@ standard, we focus the detailed verification on the DER part,
 which can immediately be used to implement verified X.509
 stacks for use in production applications.
 
-The \emph{ASN1C} compiler supports BER, DER, CER, XER, PER and OER encoding/decoding rules. The total backend code is around 21,000 lines of code. We estimated X.509 related part to be around 3,000 lines of code. To compare, it took 18 person-years to write and verify 8,700 lines of code of \emph{sel4}, a formally verified operating-system kernel \cite{VNSSforSel4}. This gives us a conservative estimate of 6 person-years for this project. However, in the aforementioned project most of the time was used to develop technologies that are already available in the Coq community (formal semantics of C, some automation for machine integer arithmetic and separation logic proofs in VST). 
+The \emph{ASN1C} compiler supports BER, DER, CER, XER, PER and OER encoding/decoding rules. The total backend code is around 21,000 lines of code. We estimated X.509 related part to be around 3,000 lines of code. To compare, it took 18 person-years to write and verify 8,700 lines of code of \emph{sel4}, a formally verified operating-system kernel \cite{SEL4}. This gives us a conservative estimate of 6 person-years for this project. However, in the aforementioned project most of the time was used to develop technologies that are already available in the Coq community (formal semantics of C, some automation for machine integer arithmetic and separation logic proofs in VST). 
 
 The X.509 focus provides a setting to answer after completion of the
 1st stage essentially all questions
@@ -714,32 +701,20 @@ the C code. This involves devising structures and functions that are easily tran
 
 
 The \emph{ASN1C} compiler has a modular structure, so we can proceed with
-
 verification in a modular way by exploiting this structure. From a high-level view, the \emph{ASN1C} compiler consists of
-
 the library of primitive type decoders (\emph{INTEGER}, \emph{BOOLEAN},
-
 \emph{FLOATING POINT}, etc.). Each of these can be verified with respect to its
-
 ASN.1 specification. Our previous work on floating point numbers is an example
-
 of this. We start with the simplest types; we write the executable specification that corresponds to the C function; and then check it with respect to the specification. Even for the simplest boolean type, we find that the decoder was not behaving according to the standard; in particular, several encodings for boolean values were possible, which clearly violates the ASN.1 standard for DER encoding/decoding.
 
 
 Furthermore, the compiler contains functions that decode/encode
-
 constructed types (such as \emph{SEQUENCE}, \emph{CHOICE}, \emph{SET}). Then, from a
-
 given ASN.1 type definition, the \emph{ASN1C} compiler produces an internal
-
 representation of that type, specifying which existing
-
 decoders/encoders to apply and in which order, as well as the
-
 output/input C structures for the functions. In Coq,
-
 these internal representations correspond to trees with nodes labelled by the
-
 type's tags and decoder/encoder types.
 
 
@@ -760,20 +735,17 @@ Inductive TYPE_descriptor :=
  Given a particular ASN.1 type definition that translates into a
  \texttt{TYPE\_descriptor}, the \texttt{decoder} function for that
  particular type corresponds to a transition system with states where
- primitive decoders are called. Hence, one of the ways we could
+ primitive decoders are called. Hence, one of the ways we can
  formalize the compiler is as a function that creates a transition
- system from a given ASN.1 type definition or \texttt{TYPE\_descriptor} tree (like a finite state machine). Since the run of the
+ system from a given ASN.1 type definition or \texttt{TYPE\_descriptor} tree. Since the run of the
  recursive \texttt{decoder} function corresponds to the transition
  system, we can use this model in the proof of implementation
  correctness.
 
  The \texttt{decoder} function could also be viewed in terms
  of a sequence parser combinator, known from the monadic parser combinators
- approach \cite{MPC}. Assume there are given decoders for primitive
- functions. Then, it is possible to add an operator \texttt{seq : decoder
-   asn\_value $\rightarrow$ decoder asn\_value $\rightarrow$ asn\_value} that takes two
- decoders and applies them sequentially \texttt{seq p1 p2}, similar to a
- list of parsers. Then the compiler can be seen as producing the
+ approach \cite{MPC}. Given decoders \lstinline[language=Coq]{p1, p2 : decoder asn_value} for primitive functions, it is possible to add an operator \lstinline[language=Coq]{seq} that takes two
+ decoders and applies them sequentially \lstinline[language=Coq]{seq p1 p2}. Then the compiler can be seen as producing the
  concrete combination of parsers given the \texttt{TYPE\_descriptor}. Currently, we are experimenting with these approaches.
 
 \section{Related Work}
@@ -827,7 +799,7 @@ to join us in the full ASN.1 verification endeavor.
 \subsection{ASN.1 Vulnerabilities Analysis}
 
 \scriptsize
-\begin{longtable}{ l l l p{25em} }
+\begin{longtable}{ l l l p{26em} }
  
   {\bf CVE } &  {\bf Product  } &  {\bf Property violated  }  &  {\bf Description  } \\
 
