@@ -1,7 +1,8 @@
 \PassOptionsToPackage{table,xcdraw}{xcolor}
 
 %% For double-blind review submission, w/o CCS and ACM Reference (max submission space)
-\documentclass[10p,conference]{IEEEtran}  
+\documentclass[10p,conference]{IEEEtran}
+\usepackage{times} 
 \pagestyle{plain} % removes running headers
 
 \bibliographystyle{IEEEtran}
@@ -14,6 +15,7 @@
 \usepackage{listings}
 \usepackage{color}
 \usepackage{graphicx}
+\usepackage{balance}
 
 \input{listings-coq.tex}
 \usepackage{booktabs} 
@@ -655,6 +657,7 @@ our proposed concept, we defined key tasks and objectives:
 \item[Task 6] Final Code, Associated Documentation, Estimates of Additional Work
  \end{description}
 
+\balance 
 \section{Project Status}
 
 Now, we are working in parallel on the high-level specification of the standard and executable specification of the \emph{ASN1C} encoders/decoders,  while recording changes that should be made to the C code.
@@ -730,7 +733,8 @@ Inductive TYPE_descriptor :=
 
  Then, a constructed type decoder has type
  \lstinline[language=Coq]{TYPE_descriptor -> list byte -> option asn_value} and traverses the tree and applies the respective
- primitive decoders\footnote{This is a simplified definition. In the actual implementation, we will use stream monad for input and monadic error handling.}. In \emph{ASN1C}, it is implemented as a recursive
+ primitive decoders (this is a simplified definition; in the actual implementation, we use stream monad for input and monadic error handling).
+ In \emph{ASN1C}, the decoder is implemented as a recursive
  function that readily translates into a nested or mutually recursive
  function in Coq.
 
