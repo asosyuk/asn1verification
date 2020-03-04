@@ -657,7 +657,7 @@ our proposed concept, we defined key tasks and objectives:
 \item[Task 6] Final Code, Associated Documentation, Estimates of Additional Work
  \end{description}
 
-\balance 
+
 \section{Project Status}
 
 Now, we are working in parallel on the high-level specification of the standard and executable specification of the \emph{ASN1C} encoders/decoders,  while recording changes that should be made to the C code.
@@ -754,18 +754,18 @@ Inductive TYPE_descriptor :=
  decoders and applies them sequentially \lstinline[language=Coq]{seq p1 p2}. Then the compiler can be seen as producing the
  concrete combination of parsers given the \texttt{TYPE\_descriptor}. Currently, we are experimenting with these approaches.
 
+\balance
+
 \section{Related Work}
 
 Microsoft's EverParse project \cite{RamananandroDFS19} is the closest
 to what we do. However, they don't verify the existing protocol stack but
 build their own. They define their own input language which accepts
 C-like type definitions, which automatically generate specifications, their implementations, and proofs of correctness. This is possible because the produced decoders are combinations of existing parsers that are proved correct in F*. They
-follow the tradition of parser combinators\footnote{Starting with
-  primitive parser combinators \texttt{fail}, \texttt{return[x]}
-  (output \texttt{x}), \texttt{read\_byte}, and monadic composition of
+follow the tradition of parser combinators. Starting with
+  primitive parser combinators \texttt{fail}, \texttt{return[x]}, \texttt{read\_byte}, and monadic composition of
   two parsers \texttt{and\_then}, one can define combinators for
-  parsing of pairs (*), mapping of function on parser results
-  (\texttt{synth}), \texttt{filter} of parser results etc.}. For each
+  parsing of pairs, mapping of functions on parser results, filtering of parser results etc. For each
 combinator there are two implementations: functional and
 C-like. C-like implementation is written in a subset of F* that models
 imperative language, called Low*. Functions written in Low* operate on
