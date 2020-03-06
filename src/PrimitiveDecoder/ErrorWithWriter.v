@@ -8,10 +8,11 @@ Open Scope monad.
 
 Section Error.
 
+Context {T : Type}.
 Context {Wr : Type}.
 Context {MWr : Monoid Wr}.
 
-Definition errW A := Wr -> TYPE_descriptor + (Wr * A).
+Definition errW A := Wr -> T + (Wr * A).
 
 Global Instance Monad_errW : Monad errW := {
   ret := fun _ x => fun w => inr (w, x) ;
@@ -21,7 +22,7 @@ Global Instance Monad_errW : Monad errW := {
                             end
 }.
 
-Global Instance Exception_errW : MonadExc TYPE_descriptor errW := {
+Global Instance Exception_errW : MonadExc T errW := {
   raise := fun _ v => fun w => inl v ;
   catch := fun _ c h => fun w => match c w with
                            | inl v => h v w
@@ -40,5 +41,17 @@ Global Instance Writer_errW : MonadWriter MWr errW := {
                         | inr (w', (x, f)) => inr (f w', x)
                         end ;
 }.
+
+Definition evalErrW {A : Type} (e : errW A) (init : Wr) : option A := 
+  match e init with
+  | inl _ => None
+  | inr (_, v) => Some v
+  end.
+
+Definition execErrW {A : Type} (e : errW A) (init : Wr) : option Wr :=
+  match e init with
+  | inl _ => None
+  | inr (w, _) => Some w
+  end.
 
 End Error.
