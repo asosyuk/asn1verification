@@ -1,7 +1,7 @@
 Require Import Core.Core Lib ErrorWithWriter.
 From Coq Require Import String.
 From ExtLib.Structures Require Import Monad Monoid MonadWriter.
-Require Import ExtLib.Data.Monads.OptionMonad.
+Require Import ExtLib.Data.Monads.OptionMonad. 
 
 Import MonadNotation.
 Import ListNotations.
@@ -15,20 +15,19 @@ Definition output_stream : Monoid (list byte) :=
  ; monoid_unit := @nil _
  |}.
 
-Variable m : Type -> Type.
-
-Context {Monad_m : Monad m}.
-Context {Writer_m : MonadWriter output_stream m}.
-
 Record asn_enc_rval : Type := encode {
   encoded : Z ;
 }.
 
-Parameter der_write_tags : TYPE_descriptor -> m asn_enc_rval.
+Check errW.
 
-Definition bool_prim_encoder (td : TYPE_descriptor) (b : bool) : m asn_enc_rval :=
+Definition errW1 `{ Monoid (list byte) } := @errW string (list byte).
+Parameter der_write_tags : TYPE_descriptor -> @errW1 output_stream asn_enc_rval.
+
+(* Typeclasses eauto := 1.*)
+Definition bool_prim_encoder (td : TYPE_descriptor) (b : bool) : errW1 asn_enc_rval :=
   let r := if b then (Byte.repr 255) else (Byte.repr 0) in
-  (der_write_tags td) >>= fun x => tell [r] >>= fun _ => ret (encode (1 + encoded x)).
+  der_write_tags td >>= fun x => tell [r] >>= fun _ => ret (encode (1 + encoded x)).
 
 End Encoder.
 
