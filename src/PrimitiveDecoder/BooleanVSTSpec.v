@@ -1,5 +1,5 @@
 (* VST specification of as *)
-Require Import Clight.asn_codecs_prim.
+Require Import Clight.BOOLEAN.
 Require Import Core.Core Lib.
 Require Import VST.floyd.proofauto Psatz.
 Require Import BooleanExecSpec.
@@ -17,8 +17,8 @@ Definition cb_type := (Tfunction
                                  (Tcons tuint (Tcons (tptr tvoid) Tnil))) tint 
                           cc_default).
 
-Definition bool_der_encode_primitive_spec : ident * funspec :=
-  DECLARE _der_encode_primitive
+Definition bool_der_encode_spec : ident * funspec :=
+  DECLARE _BOOLEAN_encode_der
     WITH (* pointer to the decoded structure *)
          sptr_b : block, sptr_ofs : ptrofs, sptr_val : Z, sh_sptr : share,
          (* pointer to the DEF table for the type decoded *)
@@ -67,18 +67,18 @@ Definition bool_der_encode_primitive_spec : ident * funspec :=
                    (Vptr app_key_b app_key_ofs) ;
            data_at sh_cb (cb_type) (tt) (Vptr cb_b cb_ofs)).
 
-Definition Gprog1 := ltac:(with_library prog [bool_der_encode_primitive_spec]).
+Definition Gprog1 := ltac:(with_library prog [bool_der_encode_spec]).
 
-Theorem bool_der_encode : semax_body Vprog Gprog1 f_der_encode_primitive
-                                     bool_der_encode_primitive_spec.
+Theorem bool_der_encode : semax_body Vprog Gprog1 f_BOOLEAN_encode_der
+                                     bool_der_encode_spec.
 Admitted.
 
 End Boolean_der_encode_primitive.
 
 Section Boolean_der_decode_primitive.
 
-Definition bool_ber_decode_primitive_spec : ident * funspec :=
-  DECLARE _ber_decode_primitive
+Definition bool_ber_decode_spec : ident * funspec :=
+  DECLARE _BOOLEAN_decode_ber
     WITH (* pointer to the decoded structure *)
          sptr_b : block, sptr_ofs : ptrofs,
          (* double pointer to the DEF table for the type decoded *)
@@ -136,16 +136,15 @@ Definition bool_ber_decode_primitive_spec : ident * funspec :=
            data_at sh_buf (tarray tschar (Zlength buf)) (map Vbyte buf) 
                    (Vptr buf_b buf_ofs);
            (* Changed after execution *)         
-           data_at sh_sptr (Tstruct _ASN__PRIMITIVE_TYPE_s noattr)
-                   (PRIMITIVE_TYPE_rep (bool_prim_decoder td buf))
-                                       (Vptr sptr_b sptr_ofs); 
+           data_at sh_sptr (Tstruct _asn_TYPE_descriptor_s noattr) 
+                   (bool_prim_decoder td buf) (Vptr sptr_b sptr_ofs); 
            data_at sh_res (Tstruct _asn_dec_rval_s noattr)
                    (dec_rval_rep (bool_prim_decoder td buf)) (Vptr res_b res_ofs)).
 
-Definition Gprog2 := ltac:(with_library prog [bool_ber_decode_primitive_spec]).
+Definition Gprog2 := ltac:(with_library prog [bool_ber_decode_spec]).
 
-Theorem bool_ber_decode : semax_body Vprog Gprog2 f_ber_decode_primitive
-                                     bool_ber_decode_primitive_spec.
+Theorem bool_ber_decode : semax_body Vprog Gprog2 f_BOOLEAN_decode_ber
+                                     bool_ber_decode_spec.
 Admitted.
 
 End Boolean_der_decode_primitive.

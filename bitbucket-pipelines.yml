@@ -10,7 +10,9 @@ pipelines:
           - cd /opt/atlassian/pipelines/agent/build/src
           - cp -r /VST /opt/atlassian/pipelines/agent
           - eval $(opam env)
-          - make distclean clight coq
+          - make distclean
+          - make clight
+          - make coq
   branches:
     feature/*:
       - step:
@@ -21,7 +23,9 @@ pipelines:
             - cd /opt/atlassian/pipelines/agent/build/src
             - cp -r /VST /opt/atlassian/pipelines/agent
             - eval $(opam env)
-            - make distclean clight coq
+            - make distclean
+            - make clight
+            - make coq
     hotfix/*:
       - step:
           script:
@@ -33,4 +37,6 @@ pipelines:
             - cd /opt/atlassian/pipelines/agent/build/src
             - cp -r /VST /opt/atlassian/pipelines/agent
             - eval $(opam env)
-            - make distclean clight coq
+            - make distclean
+            - make clight
+            - make coq
