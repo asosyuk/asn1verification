@@ -36,14 +36,16 @@ End Encoder. *)
 
 Section Decoder.
 
-Definition bool_decoder (td : TYPE_descriptor) (ls : list byte) : option byte :=
-  match ls with
-  | [] => None
-  | _ => ber_check_tag td ls >>= fun x => 
-               if (Zlength ls - (tag_consumed x) <? tag_expected x)
-                   || (negb (tag_expected x =? 1))
-               then None
-               else hd_error (skipn (Z.to_nat (tag_consumed x)) ls)
-  end.
+  Definition bool_decoder (td : TYPE_descriptor) (ls : list byte) : option (byte * Z) :=
+    match ls with
+    | [] => None
+    | _ => ber_check_tag td ls >>=
+                        fun x => let c := tag_consumed x in
+                               let e := tag_expected x in
+                               if (Zlength ls - c <? e) || negb (e =? 1)
+                               then None
+                               else (hd_error (skipn (Z.to_nat c) ls)) 
+                                      >>= fun y => Some (y, c + 1)
+    end.
 
 End Decoder.
