@@ -1,1 +1,3 @@
 -R . ASN1V -Q ../../VST VST -Q ../../VST/compcert compcert
+
+-arg -w -arg -none

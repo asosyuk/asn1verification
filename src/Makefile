@@ -5,7 +5,7 @@ COQARGS := $(strip $(shell cat _CoqProject))
 ASN1C_DIR := ../../asn1c
 
 # files from asn1c/skeletons to be included (space-separated)
-ASN1C_FILES := asn_codecs_prim.c INTEGER.c
+ASN1C_FILES := asn_codecs_prim.c INTEGER.c BOOLEAN.c
 
 # generate [.v] clight
 # from a [.c] in [asn1c/skeletons]
@@ -22,7 +22,7 @@ endef
 
 default: coq
 
-clight:
+clight: $(ASN1C_FILES)
 	$(foreach FILE, $(ASN1C_FILES), $(call generate_clight, $(FILE)))
 
 VFILES := $(shell find . -name "*.v" -type f)
