@@ -22,7 +22,7 @@ endef
 
 default: coq
 
-clight: $(ASN1C_FILES)
+clight:
 	$(foreach FILE, $(ASN1C_FILES), $(call generate_clight, $(FILE)))
 
 VFILES := $(shell find . -name "*.v" -type f)
