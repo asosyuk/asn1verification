@@ -8,7 +8,7 @@ Import ListNotations.
 
 Open Scope monad.
 
-(* Section Encoder.
+Section Encoder.
 
 Definition output_stream : Monoid (list byte) :=
 {| monoid_plus := @List.app _
@@ -19,20 +19,20 @@ Record asn_enc_rval : Type := encode {
   encoded : Z ;
 }.
 
-Definition errW1 `{ Monoid (list byte) } := @errW string (list byte).
-Parameter der_write_tags : TYPE_descriptor -> @errW1 output_stream asn_enc_rval.
+Inductive Err := HeaderEncodeError | CBEncodeError.
+
+Definition m := @errW Err (list byte).
+Context {WrM : MonadWriter output_stream m}.
+
+Parameter der_write_tags : TYPE_descriptor -> m asn_enc_rval.
 
 (* Typeclasses eauto := 1.*)
 
-Definition Writer_errW1 := @Writer_errW string (list byte). output_stream.
-
-Definition tellW1 := @tell (list byte) output_stream.
-
-Definition bool_prim_encoder (td : TYPE_descriptor) (b : bool) : errW1 asn_enc_rval :=
+Definition bool_prim_encoder (td : TYPE_descriptor) (b : bool) : m asn_enc_rval :=
   let r := if b then (Byte.repr 255) else (Byte.repr 0) in
   der_write_tags td >>= fun x => tell [r] >>= fun _ => ret (encode (1 + encoded x)).
 
-End Encoder. *)
+End Encoder.
 
 Section Decoder.
 
