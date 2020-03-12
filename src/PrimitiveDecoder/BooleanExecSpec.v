@@ -21,14 +21,25 @@ Record asn_enc_rval : Type := encode {
 
 Inductive Err := HeaderEncodeError | CBEncodeError.
 
-Definition m := @errW Err (list byte).
-Context {WrM : MonadWriter output_stream m}.
+Definition errW1 := @errW Err (list byte).
 
-Parameter der_write_tags : TYPE_descriptor -> m asn_enc_rval.
+Global Instance Writer_errW : MonadWriter output_stream errW1 := {
+  tell := fun w => fun _ => inr (w, tt) ;
+  listen := fun _ m => fun w => match m w with 
+                          | inl v => inl v 
+                          | inr (w', x) => inr (w', (x, w'))
+                          end ;
+  pass := fun _ m => fun w => match m w with
+                        | inl v => inl v
+                        | inr (w', (x, f)) => inr (f w', x)
+                        end ;
+}.  
+  
+Parameter der_write_tags : TYPE_descriptor -> errW1 asn_enc_rval.
 
 (* Typeclasses eauto := 1.*)
 
-Definition bool_prim_encoder (td : TYPE_descriptor) (b : bool) : m asn_enc_rval :=
+Definition bool_prim_encoder (td : TYPE_descriptor) (b : bool) : errW1 asn_enc_rval :=
   let r := if b then (Byte.repr 255) else (Byte.repr 0) in
   der_write_tags td >>= fun x => tell [r] >>= fun _ => ret (encode (1 + encoded x)).
 
