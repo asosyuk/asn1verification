@@ -8,10 +8,13 @@ Open Scope monad.
 
 Section Error.
 
+(* Error type *)
 Context {E : Type}.
+(* Log type that must implement monoid typeclass *)
 Context {T : Type}.
 Context {MT : Monoid T}.
 
+(* Custom monad parametrized by Error type, Log type and return type *)
 Definition errW A := T -> E + (T * A).
 
 Global Instance Monad_errW : Monad errW := {
@@ -42,12 +45,14 @@ Global Instance Writer_errW : MonadWriter MT errW := {
                         end ;
 }.
 
+(* Run monad and get inner value *)
 Definition evalErrW {A : Type} (e : errW A) (init : T) : option A := 
   match e init with
   | inl _ => None
   | inr (_, v) => Some v
   end.
 
+(* Run monad and get log value *)
 Definition execErrW {A : Type} (e : errW A) (init : T) : option T :=
   match e init with
   | inl _ => None

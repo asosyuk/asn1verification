@@ -10,17 +10,22 @@ Open Scope monad.
 Section Encoder.
 
 Existing Class Monoid.
-
 Existing Instance Monoid_list_app.
 
 Record asn_enc_rval : Type := encode {
   encoded : Z ;
 }.
 
+(* The function can return error in 2 cases:
+   1) If der_write_tags failed
+   2) If cb failed
+*)
 Inductive Err := HeaderEncodeError | CBEncodeError.
 
+(* Specialized version of errW with custom Error and Log type *)
 Definition errW1 := @errW Err (list byte).
 
+(* Writes header octets *)
 Parameter der_write_tags : TYPE_descriptor -> errW1 asn_enc_rval.
 
 Definition bool_prim_encoder (td : TYPE_descriptor) (b : bool) : errW1 asn_enc_rval :=
