@@ -1,7 +1,6 @@
 Require Import Core.Core Core.Notations Lib ErrorWithWriter.
-From Coq Require Import String.
-From ExtLib.Structures Require Import Monad Monoid MonadWriter.
-Require Import ExtLib.Data.Monads.OptionMonad. 
+From ExtLib.Structures Require Import Monad MonadWriter Monoid.
+From ExtLib.Data Require Import List Monads.OptionMonad.
 
 Import MonadNotation.
 Import ListNotations.
@@ -10,10 +9,9 @@ Open Scope monad.
 
 Section Encoder.
 
-Definition output_stream : Monoid (list byte) :=
-{| monoid_plus := @List.app _
- ; monoid_unit := @nil _
- |}.
+Existing Class Monoid.
+
+Existing Instance Monoid_list_app.
 
 Record asn_enc_rval : Type := encode {
   encoded : Z ;
@@ -23,21 +21,7 @@ Inductive Err := HeaderEncodeError | CBEncodeError.
 
 Definition errW1 := @errW Err (list byte).
 
-Global Instance Writer_errW : MonadWriter output_stream errW1 := {
-  tell := fun w => fun _ => inr (w, tt) ;
-  listen := fun _ m => fun w => match m w with 
-                          | inl v => inl v 
-                          | inr (w', x) => inr (w', (x, w'))
-                          end ;
-  pass := fun _ m => fun w => match m w with
-                        | inl v => inl v
-                        | inr (w', (x, f)) => inr (f w', x)
-                        end ;
-}.  
-  
 Parameter der_write_tags : TYPE_descriptor -> errW1 asn_enc_rval.
-
-(* Typeclasses eauto := 1.*)
 
 Definition bool_prim_encoder (td : TYPE_descriptor) (b : bool) : errW1 asn_enc_rval :=
   let r := if b then (Byte.repr 255) else (Byte.repr 0) in
@@ -47,16 +31,16 @@ End Encoder.
 
 Section Decoder.
 
-  Definition bool_decoder (td : TYPE_descriptor) (ls : list byte) : option (byte * Z) :=
+Definition bool_decoder (td : TYPE_descriptor) (ls : list byte) : option (byte * Z) :=
     match ls with
     | [] => None
     | _ => ber_check_tag td ls >>=
-                        fun x => let c := tag_consumed x in
-                               let e := tag_expected x in
-                               if (Zlength ls - c <? e) || negb (e =? 1)
-                               then None
-                               else (hd_error (skipn (Z.to_nat c) ls)) 
-                                      >>= fun y => Some (y, c + 1)
+                        fun x => let c := tag_consumed x in 
+                              let e := tag_expected x in 
+                              if (Zlength ls - c <? e) || negb (e =? 1) 
+                              then None 
+                              else (hd_error (skipn (Z.to_nat c) ls)) 
+                                     >>= fun y => Some (y, c + 1)
     end.
 
 End Decoder.
