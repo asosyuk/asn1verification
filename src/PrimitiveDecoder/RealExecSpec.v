@@ -7,27 +7,13 @@ Import ListNotations.
 
 Open Scope monad.
 
-(* Decoding fails : 
-   1) when calloc fails to allocate memory for the output structure sptr (FAIL) SEP spec
-   2) if ber_check_tags return FAIL (when?) or MORE (?) - executable spec
-   3) if not enough data according to length read (MORE) - executable spec
-   4) expected length doesn't fit into size (FAIL) ?
-   5) malloc buf allocation fails (FAIL) SEP spec
- *)
-
 Section Encoder.
 
 Existing Class Monoid.
 Existing Instance Monoid_list_app.
 
-Fixpoint remove_leading_zeros (l : list Z) : list Z := 
-  match l with
-  | 0%Z::tl => remove_leading_zeros tl
-  | x::tl => x::tl
-  end.
-
-Definition real_prim_encoder (td : TYPE_descriptor) (i : list Z) : errW1 asn_enc_rval :=
-  let rlz := remove_leading_zeros i in
+Definition real_prim_encoder (td : TYPE_descriptor) (r : list Z) : errW1 asn_enc_rval :=
+  let r := map (Byte.repr) r in
   der_write_tags td >>= fun x => tell r >>= fun _ => ret (encode (1 + encoded x)).
 
 End Encoder.

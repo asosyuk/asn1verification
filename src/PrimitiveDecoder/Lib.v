@@ -8,7 +8,13 @@ Instance CompSpecs : compspecs. make_compspecs prog. Defined.
 
 Import ListNotations.
 
-Record dec_rval := rval { consumed : Z }.
+(* Decoder return type *)
+Record asn_dec_rval := rval { consumed : Z }.
+
+(* Encoder return type *)
+Record asn_enc_rval : Type := encode {
+  encoded : Z ;
+}.
 
 Inductive TYPE_descriptor :=
   def { tags : list Z;
@@ -16,6 +22,18 @@ Inductive TYPE_descriptor :=
       }.
 
 Record check_tag_r := mk_check_tag_rval { tag_consumed : Z; tag_expected : Z }.
+
+(* The function can return error in 2 cases:
+   1) If der_write_tags fails
+   2) If cb fails
+*)
+Inductive Err := HeaderEncodeError | CBEncodeError.
+
+(* Specialized version of errW with custom Error and Log type *)
+Definition errW1 := @errW Err (list byte).
+
+(* Writes header octets *)
+Parameter der_write_tags : TYPE_descriptor -> errW1 asn_enc_rval.
 
 (* checks the tag, outputs consumed length and expected length *)
 Parameter ber_check_tag : TYPE_descriptor -> list byte -> option check_tag_r.

@@ -1,9 +1,7 @@
 (* VST specification of as *)
-Require Import Clight.BOOLEAN.
-Require Import Core.Core Lib.
+Require Import Core.Core Lib BooleanExecSpec ErrorWithWriter.
 Require Import VST.floyd.proofauto Psatz.
-Require Import BooleanExecSpec.
-Require Import ErrorWithWriter.
+Require Import Clight.BOOLEAN.
 
 Definition Vprog : varspecs. mk_varspecs prog. Defined.
 Instance CompSpecs : compspecs. make_compspecs prog. Defined.
