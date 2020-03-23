@@ -1,6 +1,6 @@
 Require Import Core.Core Core.Notations Lib ErrorWithWriter.
-From ExtLib.Structures Require Import Monad MonadWriter Monoid.
-From ExtLib.Data Require Import List Monads.OptionMonad.
+From ExtLib.Structures Require Import Monad MonadWriter MonadExc.
+From ExtLib.Data Require Import Monads.OptionMonad.
 
 Import MonadNotation.
 Import ListNotations.
@@ -17,24 +17,34 @@ Open Scope monad.
 
 Section Encoder.
 
-Existing Class Monoid.
-Existing Instance Monoid_list_app.
-
+(* TODO Add non-empty proof to get rid of nil *)
 Fixpoint remove_leading_zeros (l : list Z) : list Z := 
   match l with
   | 0%Z::tl => remove_leading_zeros tl
   | x::tl => x::tl
+  | nil => nil
   end.
 
-Definition real_prim_encoder (td : TYPE_descriptor) (i : list Z) : errW1 asn_enc_rval :=
-  let rlz := remove_leading_zeros i in
-  der_write_tags td >>= fun x => tell r >>= fun _ => ret (encode (1 + encoded x)).
+Inductive IntEncError := NoBufferError.
+
+(* TODO Get rid of this context definitions *)
+Context {MT : Monoid.Monoid (list Z)}.
+Context {MW : MonadWriter MT errW1}.
+
+Definition int_encoder (td : TYPE_descriptor) (i : list Z) : errW1 asn_enc_rval :=
+  match i with
+  | nil => raise (CustomError NoBufferError)
+  | _ => let rlz := remove_leading_zeros i in 
+        der_write_tags td >>= 
+                       fun x => tell rlz >>= 
+                                  fun _ => ret (encode (1 + encoded x))
+  end.
 
 End Encoder.
 
 Section Decoder.
 
-Definition bool_decoder (td : TYPE_descriptor) (ls : list byte) : option (byte * Z) :=
+Definition int_decoder (td : TYPE_descriptor) (ls : list byte) : option (byte * Z) :=
     match ls with
     | [] => None
     | _ => ber_check_tag td ls >>=

@@ -1,6 +1,6 @@
 Require Import Core.Core Core.Notations Lib ErrorWithWriter.
-From ExtLib.Structures Require Import Monad MonadWriter Monoid.
-From ExtLib.Data Require Import List Monads.OptionMonad.
+From ExtLib.Structures Require Import Monad MonadWriter.
+From ExtLib.Data Require Import Monads.OptionMonad.
 
 Import MonadNotation.
 Import ListNotations.
@@ -8,9 +8,6 @@ Import ListNotations.
 Open Scope monad.
 
 Section Encoder.
-
-Existing Class Monoid.
-Existing Instance Monoid_list_app.
 
 Definition bool_prim_encoder (td : TYPE_descriptor) (b : bool) : errW1 asn_enc_rval :=
   let r := if b then (Byte.repr 255) else (Byte.repr 0) in

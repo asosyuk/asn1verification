@@ -1,6 +1,5 @@
 From ExtLib.Structures Require Import Monad MonadWriter MonadExc Monoid.
 Require Import ExtLib.Data.Monads.WriterMonad.
-Require Import Lib.
 
 Import MonadNotation.
 

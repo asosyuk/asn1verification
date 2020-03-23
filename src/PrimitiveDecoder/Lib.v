@@ -3,10 +3,16 @@ Require Import Core.Core.
 Require Import VST.floyd.proofauto.
 Require Import Clight.asn_codecs_prim.
 Require Import ExtLib.Structures.Monad.
+Require Import ErrorWithWriter.
+From ExtLib.Data Require Import List.
+From ExtLib.Structures Require Import Monoid.
 
 Instance CompSpecs : compspecs. make_compspecs prog. Defined.
 
 Import ListNotations.
+
+Existing Class Monoid.
+Existing Instance Monoid_list_app.
 
 (* Decoder return type *)
 Record asn_dec_rval := rval { consumed : Z }.
@@ -23,11 +29,15 @@ Inductive TYPE_descriptor :=
 
 Record check_tag_r := mk_check_tag_rval { tag_consumed : Z; tag_expected : Z }.
 
-(* The function can return error in 2 cases:
-   1) If der_write_tags fails
-   2) If cb fails
+(* The function can return error in 3 cases:
+   1) If der_write_tags fails.
+   2) If cb fails.
+   3) Fail of encoding or decoding with custom error message, to distinguish between them.
 *)
-Inductive Err := HeaderEncodeError | CBEncodeError.
+(* TODO Maybe rename CustomError constructor to smt like LogicError *)
+Inductive Err := HeaderEncodeError 
+                 | CBEncodeError
+                 | CustomError {T : Type} : T -> Err.
 
 (* Specialized version of errW with custom Error and Log type *)
 Definition errW1 := @errW Err (list byte).
