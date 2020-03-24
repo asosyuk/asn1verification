@@ -17,6 +17,16 @@ Open Scope monad.
 
 Section Encoder.
 
+Definition remove_leading_zeros__t : forall (l : list Z), (l <> nil) -> list Z.
+Proof.
+  intros.
+  destruct l.
+  contradiction.
+  assumption.
+Defined.
+
+Print remove_leading_zeros__t.
+
 (* TODO Add non-empty proof to get rid of nil *)
 Fixpoint remove_leading_zeros (l : list Z) : list Z := 
   match l with
@@ -31,6 +41,12 @@ Inductive IntEncError := NoBufferError.
 Context {MT : Monoid.Monoid (list Z)}.
 Context {MW : MonadWriter MT errW1}.
 
+(* Fixpoint canonicalize_int (l : list Z) : list Z :=
+  match l with
+  | 0%Z::x::xs => nil
+  | nil => nil
+  end. *)
+
 Definition int_encoder (td : TYPE_descriptor) (i : list Z) : errW1 asn_enc_rval :=
   match i with
   | nil => raise (CustomError NoBufferError)
@@ -44,16 +60,6 @@ End Encoder.
 
 Section Decoder.
 
-Definition int_decoder (td : TYPE_descriptor) (ls : list byte) : option (byte * Z) :=
-    match ls with
-    | [] => None
-    | _ => ber_check_tag td ls >>=
-                        fun x => let c := tag_consumed x in 
-                              let e := tag_expected x in 
-                              if (Zlength ls - c <? e) || negb (e =? 1) 
-                              then None 
-                              else (hd_error (skipn (Z.to_nat c) ls)) 
-                                     >>= fun y => Some (y, c + 1)
-    end.
+Definition int_decoder := primitive_decoder.
 
 End Decoder.

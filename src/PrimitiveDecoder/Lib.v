@@ -1,15 +1,11 @@
-From Coq Require Import String.
-Require Import Core.Core.
-Require Import VST.floyd.proofauto.
-Require Import Clight.asn_codecs_prim.
-Require Import ExtLib.Structures.Monad.
-Require Import ErrorWithWriter.
-From ExtLib.Data Require Import List.
-From ExtLib.Structures Require Import Monoid.
-
-Instance CompSpecs : compspecs. make_compspecs prog. Defined.
+Require Import Core.Core ErrorWithWriter.
+From ExtLib.Structures Require Import Monad MonadWriter Monoid.
+From ExtLib.Data Require Import Monads.OptionMonad List.
 
 Import ListNotations.
+Import MonadNotation.
+
+Open Scope monad.
 
 Existing Class Monoid.
 Existing Instance Monoid_list_app.
@@ -48,19 +44,19 @@ Parameter der_write_tags : TYPE_descriptor -> errW1 asn_enc_rval.
 (* checks the tag, outputs consumed length and expected length *)
 Parameter ber_check_tag : TYPE_descriptor -> list byte -> option check_tag_r.
 
+Definition primitive_decoder (td : TYPE_descriptor) (ls : list byte) : option (byte * Z) :=
+    match ls with
+    | [] => None
+    | _ => ber_check_tag td ls >>=
+                        fun x => let c := tag_consumed x in 
+                              let e := tag_expected x in 
+                              if (Zlength ls - c <? e) || negb (e =? 1) 
+                              then None 
+                              else (hd_error (skipn (Z.to_nat c) ls)) 
+                                     >>= fun y => Some (y, c + 1)
+    end.
+
+Definition primitive_encoder (td : TYPE_descriptor) (ls : list byte) : errW1 asn_enc_rval :=
+  der_write_tags td >>= fun x => tell ls >>= fun _ => ret (encode (1 + encoded x)).
+
 Definition ZeroChar := Byte.repr 48.
-  
-(* memory representation of abstract types *)
-Parameter TYPE_descriptor_rep : TYPE_descriptor
-                                -> reptype (Tstruct _asn_TYPE_descriptor_s noattr). 
-
-(* These two will express memory specifications *)
-
-(* on any error write {buf = 0; size = 0},
-    else {buf = ls; size = |ls|}*)
-Parameter PRIMITIVE_TYPE_rep : option byte
-                               -> reptype (Tstruct _ASN__PRIMITIVE_TYPE_s noattr).
-
-(* on error rval c l write {code := c; consumed := l},
-   else {code := OK; consumed := |ls| *)
-Parameter dec_rval_rep : option byte -> reptype (Tstruct _asn_dec_rval_s noattr).

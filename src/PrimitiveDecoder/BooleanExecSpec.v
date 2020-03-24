@@ -1,32 +1,15 @@
-Require Import Core.Core Core.Notations Lib ErrorWithWriter.
-From ExtLib.Structures Require Import Monad MonadWriter.
-From ExtLib.Data Require Import Monads.OptionMonad.
-
-Import MonadNotation.
-Import ListNotations.
-
-Open Scope monad.
+Require Import Core.Core Core.Notations Lib.
 
 Section Encoder.
 
-Definition bool_prim_encoder (td : TYPE_descriptor) (b : bool) : errW1 asn_enc_rval :=
-  let r := if b then (Byte.repr 255) else (Byte.repr 0) in
-  der_write_tags td >>= fun x => tell [r] >>= fun _ => ret (encode (1 + encoded x)).
+Definition bool_encoder := 
+  fun td (b : bool) => let t := if b then (Byte.repr 255) else (Byte.repr 0) in 
+                 primitive_encoder td (cons t nil).
 
 End Encoder.
 
 Section Decoder.
 
-Definition bool_decoder (td : TYPE_descriptor) (ls : list byte) : option (byte * Z) :=
-    match ls with
-    | [] => None
-    | _ => ber_check_tag td ls >>=
-                        fun x => let c := tag_consumed x in 
-                              let e := tag_expected x in 
-                              if (Zlength ls - c <? e) || negb (e =? 1) 
-                              then None 
-                              else (hd_error (skipn (Z.to_nat c) ls)) 
-                                     >>= fun y => Some (y, c + 1)
-    end.
+Definition bool_decoder := primitive_decoder.
 
 End Decoder.

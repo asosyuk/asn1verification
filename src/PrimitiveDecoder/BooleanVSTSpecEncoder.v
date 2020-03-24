@@ -1,5 +1,5 @@
 (* VST specification of as *)
-Require Import Core.Core Lib BooleanExecSpec ErrorWithWriter.
+Require Import Core.Core VstLib Lib BooleanExecSpec ErrorWithWriter.
 Require Import VST.floyd.proofauto Psatz.
 Require Import Clight.BOOLEAN.
 
