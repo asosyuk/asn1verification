@@ -1,4 +1,4 @@
-Require Import Core.Core Core.Notations Lib ErrorWithWriter.
+Require Import ASN1V.Core.Core Core.Notations Lib ErrorWithWriter.
 From ExtLib.Structures Require Import Monad MonadWriter MonadExc.
 From ExtLib.Data Require Import Monads.OptionMonad.
 
@@ -17,44 +17,32 @@ Open Scope monad.
 
 Section Encoder.
 
-Definition remove_leading_zeros__t : forall (l : list Z), (l <> nil) -> list Z.
-Proof.
-  intros.
-  destruct l.
-  contradiction.
-  assumption.
-Defined.
-
-Print remove_leading_zeros__t.
-
-(* TODO Add non-empty proof to get rid of nil *)
-Fixpoint remove_leading_zeros (l : list Z) : list Z := 
-  match l with
-  | 0%Z::tl => remove_leading_zeros tl
-  | x::tl => x::tl
-  | nil => nil
-  end.
-
 Inductive IntEncError := NoBufferError.
 
 (* TODO Get rid of this context definitions *)
 Context {MT : Monoid.Monoid (list Z)}.
 Context {MW : MonadWriter MT errW1}.
 
-(* Fixpoint canonicalize_int (l : list Z) : list Z :=
+Fixpoint canonicalize_int (l : list byte) : list byte :=
   match l with
-  | 0%Z::x::xs => nil
-  | nil => nil
-  end. *)
+  | nil => l
+  | x::nil => l
+  | x::xs => match xs with
+            | nil => l
+            | y::ys => 
+              if (x == Byte.repr 0)%byte 
+              then if (negb (Byte.and y (Byte.repr 128) == 0))%byte 
+                   then xs else canonicalize_int xs 
+              else if (x == Byte.repr 255)%byte 
+                   then if (Byte.and y (Byte.repr 128) == 0)%byte 
+                        then xs else canonicalize_int xs
+                   else canonicalize_int xs
+            end
+  end.
 
 Definition int_encoder (td : TYPE_descriptor) (i : list Z) : errW1 asn_enc_rval :=
-  match i with
-  | nil => raise (CustomError NoBufferError)
-  | _ => let rlz := remove_leading_zeros i in 
-        der_write_tags td >>= 
-                       fun x => tell rlz >>= 
-                                  fun _ => ret (encode (1 + encoded x))
-  end.
+  let ib := map (Byte.repr) i in
+  let c := canonicalize_int ib in primitive_encoder td c.
 
 End Encoder.
 

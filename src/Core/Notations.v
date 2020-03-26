@@ -3,7 +3,7 @@ Import ListNotations.
 
 (* Notations for integers and ptrofs *)
 
- Delimit Scope ByteScope with byte.
+Delimit Scope ByteScope with byte.
 Infix "==" := Byte.eq (at level 70) : ByteScope.
 Notation "x ~= y" := (negb Byte.eq x y) (at level 70) : ByteScope.
 Notation "x >> y" := (Byte.shru x y) (at level 70) : ByteScope.
