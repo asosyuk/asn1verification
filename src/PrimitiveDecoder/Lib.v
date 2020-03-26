@@ -57,6 +57,7 @@ Definition primitive_decoder (td : TYPE_descriptor) (ls : list byte) : option (b
     end.
 
 Definition primitive_encoder (td : TYPE_descriptor) (ls : list byte) : errW1 asn_enc_rval :=
-  der_write_tags td >>= fun x => tell ls >>= fun _ => ret (encode (1 + encoded x)).
+  der_write_tags td >>= 
+                 fun x => tell ls >>= fun _ => ret (encode ((Zlength ls) + encoded x)).
 
 Definition ZeroChar := Byte.repr 48.

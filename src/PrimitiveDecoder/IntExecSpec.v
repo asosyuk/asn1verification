@@ -17,26 +17,23 @@ Open Scope monad.
 
 Section Encoder.
 
-Inductive IntEncError := NoBufferError.
-
 (* TODO Get rid of this context definitions *)
 Context {MT : Monoid.Monoid (list Z)}.
 Context {MW : MonadWriter MT errW1}.
 
 Fixpoint canonicalize_int (l : list byte) : list byte :=
   match l with
-  | nil => l
-  | x::nil => l
+  | nil => nil
   | x::xs => match xs with
             | nil => l
             | y::ys => 
               if (x == Byte.repr 0)%byte 
-              then if (negb (Byte.and y (Byte.repr 128) == 0))%byte 
-                   then xs else canonicalize_int xs 
+              then if (Byte.and y (Byte.repr 128) == 0)%byte 
+                   then canonicalize_int xs else xs 
               else if (x == Byte.repr 255)%byte 
-                   then if (Byte.and y (Byte.repr 128) == 0)%byte 
-                        then xs else canonicalize_int xs
-                   else canonicalize_int xs
+                   then if (negb (Byte.and y (Byte.repr 128) == 0))%byte 
+                        then canonicalize_int xs else xs
+                   else l
             end
   end.
 
