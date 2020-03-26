@@ -34,6 +34,7 @@ git clone  git@github.com:PrincetonUniversity/VST.git
 or
 git clone https://github.com/PrincetonUniversity/VST.git
 ```
+(Don't forget to checkout latest commit that successfuly passed CI)
 and then
 ```shell
 cd VST
