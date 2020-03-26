@@ -17,16 +17,17 @@ Open Scope monad.
 
 Section Encoder.
 
-(* TODO Get rid of this context definitions *)
-Context {MT : Monoid.Monoid (list Z)}.
-Context {MW : MonadWriter MT errW1}.
-
+(* If the contents octets of an integer value encoding
+   consist of more than one octet, then the bits of the
+   first octet and bit 8 of the second octet:
+   a) shall not all be ones; and
+   b) shall not all be zero. *)
 Fixpoint canonicalize_int (l : list byte) : list byte :=
   match l with
   | nil => nil
   | x::xs => match xs with
-            | nil => l
-            | y::ys => 
+            | nil => l  (* If there is only one octet do nothing *)
+            | y::ys => (* else do check *)
               if (x == Byte.repr 0)%byte 
               then if (Byte.and y (Byte.repr 128) == 0)%byte 
                    then canonicalize_int xs else xs 
@@ -37,10 +38,9 @@ Fixpoint canonicalize_int (l : list byte) : list byte :=
             end
   end.
 
-Definition int_encoder (td : TYPE_descriptor) (i : list Z) : errW1 asn_enc_rval :=
-  let ib := map (Byte.repr) i in
-  let c := canonicalize_int ib in primitive_encoder td c.
-
+Definition int_encoder := fun td (ls : list Z) => let lb := map (Byte.repr) ls in 
+                                               let c := canonicalize_int lb in
+                                               primitive_encoder td c.
 End Encoder.
 
 Section Decoder.
