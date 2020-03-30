@@ -44,7 +44,9 @@ Parameter der_write_tags : TYPE_descriptor -> errW1 asn_enc_rval.
 (* checks the tag, outputs consumed length and expected length *)
 Parameter ber_check_tag : TYPE_descriptor -> list byte -> option check_tag_r.
 
-Definition primitive_decoder (td : TYPE_descriptor) (ls : list byte) : option (byte * Z) :=
+(* checks tag in ls wrt td, 
+   then returns head of ls and consumed bytes or error *) 
+Definition primitive_decoder_bool td ls : option (byte * Z) :=
     match ls with
     | [] => None
     | _ => ber_check_tag td ls >>=
@@ -52,12 +54,26 @@ Definition primitive_decoder (td : TYPE_descriptor) (ls : list byte) : option (b
                               let e := tag_expected x in 
                               if (Zlength ls - c <? e) || negb (e =? 1) 
                               then None 
-                              else (hd_error (skipn (Z.to_nat c) ls)) 
+                              else hd_error (skipn (Z.to_nat c) ls) 
                                      >>= fun y => Some (y, c + 1)
     end.
 
-Definition primitive_encoder (td : TYPE_descriptor) (ls : list byte) : errW1 asn_enc_rval :=
+Definition primitive_decoder td ls : option (list byte * Z) :=
+    match ls with
+    | [] => None
+    | _ => ber_check_tag td ls >>=
+                        fun x => let c := tag_consumed x in 
+                              let e := tag_expected x in 
+                              if (Zlength ls - c <? e)
+                              then None 
+                              else let y := skipn (Z.to_nat c) ls in
+                                    Some (y, c + 1)
+    end.
+
+(* writes tags, copies ls and outputs the number of encoded bytes *)
+Definition primitive_encoder td ls : errW1 asn_enc_rval :=
   der_write_tags td >>= 
-                 fun x => tell ls >>= fun _ => ret (encode ((Zlength ls) + encoded x)).
+                 fun x => tell ls >>= 
+                            fun _ => ret (encode (Zlength ls + encoded x)).
 
 Definition ZeroChar := Byte.repr 48.

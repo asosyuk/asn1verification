@@ -5,7 +5,7 @@ From ExtLib.Data Require Import Monads.OptionMonad.
 Import MonadNotation.
 Import ListNotations.
 
-Open Scope monad.
+Open Scope byte.
 
 (* Decoding fails : 
    1) when calloc fails to allocate memory for the output structure sptr (FAIL) SEP spec
@@ -22,25 +22,27 @@ Section Encoder.
    first octet and bit 8 of the second octet:
    a) shall not all be ones; and
    b) shall not all be zero. *)
+
 Fixpoint canonicalize_int (l : list byte) : list byte :=
   match l with
-  | nil => nil
+  | nil => nil 
   | x::xs => match xs with
-            | nil => l  (* If there is only one octet do nothing *)
+            | nil => l (* If there is only one octet do nothing *)
             | y::ys => (* else do check *)
-              if (x == Byte.repr 0)%byte 
-              then if (Byte.and y (Byte.repr 128) == 0)%byte 
-                   then canonicalize_int xs else xs 
-              else if (x == Byte.repr 255)%byte 
-                   then if (negb (Byte.and y (Byte.repr 128) == 0))%byte 
-                        then canonicalize_int xs else xs
-                   else l
+              if x == 0
+              then if y @ 0 (* 1st bit of y is one *)
+                   then xs 
+                   else canonicalize_int xs 
+              else if x == all_one
+                   then if y @ 0
+                        then canonicalize_int xs
+                        else xs
+              else l
             end
   end.
 
-Definition int_encoder := fun td (ls : list Z) => let lb := map (Byte.repr) ls in 
-                                               let c := canonicalize_int lb in
-                                               primitive_encoder td c.
+Definition int_encoder td (ls : list byte) := let c := canonicalize_int ls in
+                                              primitive_encoder td c.
 End Encoder.
 
 Section Decoder.

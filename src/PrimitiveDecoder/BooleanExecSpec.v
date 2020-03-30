@@ -10,6 +10,6 @@ End Encoder.
 
 Section Decoder.
 
-Definition bool_decoder := primitive_decoder.
+Definition bool_decoder := primitive_decoder_bool.
 
 End Decoder.
