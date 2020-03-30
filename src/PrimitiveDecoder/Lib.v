@@ -1,4 +1,4 @@
-Require Import Core.Core ErrorWithWriter.
+Require Import Core.Core Core.Notations Core.Tactics ErrorWithWriter.
 From ExtLib.Structures Require Import Monad MonadWriter Monoid.
 From ExtLib.Data Require Import Monads.OptionMonad List.
 
@@ -18,9 +18,36 @@ Record asn_enc_rval : Type := encode {
   encoded : Z ;
 }.
 
+(* ASN.1 types and values *)
+Inductive asn_value :=
+  | ANY : asn_value
+  | BOOLEAN : bool -> asn_value 
+  | INTEGER : Z -> asn_value
+  | BIT_STRING : list bool -> asn_value
+  | SEQUENCE : list asn_value -> asn_value
+  | SET : list asn_value -> asn_value
+  | CHOICE : list asn_value -> asn_value. 
+
+(* for notation purposes *)
+Instance Nth_Asn_value : Nth asn_value :=
+  { default := ANY ;
+    n_th := fun n ls => nth (Z.to_nat n) ls ANY;
+    hd_nth := fun ls => List.hd ANY ls
+ }.
+
+Inductive asn_type :=
+  | ANY_t 
+  | BOOLEAN_t 
+  | INTEGER_t 
+  | BIT_STRING_t 
+  | SEQUENCE_t 
+  | SET_t
+  | CHOICE_t.
+
 Inductive TYPE_descriptor :=
   def { tags : list Z;
-        elements : list TYPE_descriptor 
+        elements : list TYPE_descriptor; 
+        decoder_type : asn_type
       }.
 
 Record check_tag_r := mk_check_tag_rval { tag_consumed : Z; tag_expected : Z }.
