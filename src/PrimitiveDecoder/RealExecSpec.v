@@ -1,4 +1,4 @@
-Require Import Core.Core Core.Notations Lib.Lib Lib.ErrorWithWriter.
+Require Import Core.Core Core.Notations Lib.Lib.
 
 Section Encoder.
 

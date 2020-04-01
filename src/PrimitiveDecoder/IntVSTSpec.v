@@ -1,6 +1,6 @@
 (* VST specification of as *)
 Require Import Clight.asn_codecs_prim.
-Require Import Core.Core Lib.Lib Lib.Types Lib.VstLib.
+Require Import Core.Core Lib.Lib Lib.VstLib.
 Require Import VST.floyd.proofauto.
 Require Import IntExecSpec.
 

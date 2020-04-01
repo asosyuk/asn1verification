@@ -2,6 +2,8 @@ Require Import Core.Core Core.Notations Core.Tactics Types.
 From ExtLib.Structures Require Import Monad MonadWriter Monoid.
 From ExtLib.Data Require Import Monads.OptionMonad List.
 
+Require Export Types.
+
 Import ListNotations.
 Import MonadNotation.
 

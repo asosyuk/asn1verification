@@ -1,4 +1,4 @@
-Require Import Core.Core Core.Notations Lib.Lib Lib.Types.
+Require Import Core.Core Core.Notations Lib.Lib.
 Require Import ExtLib.Structures.Monad.
 Import ListNotations.
 Import MonadNotation.

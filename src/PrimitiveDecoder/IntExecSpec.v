@@ -1,4 +1,4 @@
-Require Import ASN1V.Core.Core Core.Notations Lib.Lib Lib.ErrorWithWriter.
+Require Import ASN1V.Core.Core Core.Notations Lib.Lib.
 From ExtLib.Structures Require Import Monad MonadWriter MonadExc.
 From ExtLib.Data Require Import Monads.OptionMonad.
 

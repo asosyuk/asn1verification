@@ -1,5 +1,5 @@
 (* Abstract specification from the standard *)
-Require Import Core.Core Core.Notations Core.Tactics Lib.Lib Lib.Types.
+Require Import Core.Core Core.Notations Core.Tactics Lib.Lib.
 Require Import Lists.List Psatz.
 Import ListNotations.
 Require Import StructTact.StructTactics.

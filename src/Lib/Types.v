@@ -1,4 +1,5 @@
 Require Import ZArith Core.Core Core.Notations ErrorWithWriter.
+Require Export ErrorWithWriter.
 
 (* Decoder return type *)
 Record asn_dec_rval := rval { consumed : Z }.
