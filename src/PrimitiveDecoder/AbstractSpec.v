@@ -1,30 +1,10 @@
 (* Abstract specification from the standard *)
-Require Import Core.Core Core.Notations Core.Tactics.
+Require Import Core.Core Core.Notations Core.Tactics Lib.Lib.
 Require Import Lists.List Psatz.
 Import ListNotations.
 Require Import StructTact.StructTactics.
 
-(* ASN.1 types and values *)
-
-Inductive asn_value :=
-  | ANY : asn_value
-  | BOOLEAN : bool -> asn_value 
-  | INTEGER : Z -> asn_value
-  | BIT_STRING : list bool -> asn_value
-  | SEQUENCE : list asn_value -> asn_value
-  | SET : list asn_value -> asn_value
-  | CHOICE : list asn_value -> asn_value. 
-
-(* for notation purposes *)
-Instance Nth_Asn_value : Nth asn_value :=
-  { default := ANY ;
-    n_th := fun n ls => nth (Z.to_nat n) ls ANY;
-    hd_nth := fun ls => List.hd ANY ls
- }.
-
-(* Spec using bytes *)
 (* Tags 8.1.2 *)
-
 (* ls#n is notation for ls[n]
    bs@n is notation for testing nth bit of bs*)
 Inductive Tag : list byte -> Prop :=
@@ -81,27 +61,6 @@ Inductive DER_Bool : bool -> list byte -> Prop :=
     DER_Bool false [all_zero]
 | True_Bool_DER :
     DER_Bool true [all_one].
-
-Definition der_content_encoder (b : bool) :=
-  if b then [all_one] else [all_zero].
-
-Definition ber_content_decoder ls :=
-  match ls with 
-  | [b] => if (b == all_zero)%byte 
-          then Some false 
-          else Some true 
-  | _ => None
-  end.
-
-Hypothesis der_encoder_correctness : forall b, DER_Bool b (der_content_encoder b).
-Hypothesis ber_decoder_correctness : forall ls b, ber_content_decoder ls = Some b <->
-                                             BER_Bool b ls.
-Parameter der_write_tags : Z -> list byte.
-
-Definition der_encoder (b : bool) (tag : Z) := 
-  let v := der_content_encoder b in
-  let t := der_write_tags tag in
-  t ++ [Byte.one] ++ v.
               
 Definition BER_Integer := ByteList_Integer.
 Definition DER_Integer := BER_Integer.
@@ -236,14 +195,14 @@ Inductive DER : asn_value -> list byte -> Prop :=
     DER (CHOICE ls) (t ++ l ++ v).
 
 (* Correctness proofs *)
-(*  Definition byte_to_bool b : bool:= if (b == 0)%byte then false else true.
+(* Definition byte_to_bool b : bool:= if (b == 0)%byte then false else true.
 
 Definition ber_decoder (td : TYPE_descriptor) (ls : list byte) : err asn_value.
 Admitted.
 
 Theorem BOOL_decoder_correctness : forall td ls b, 
     type td = BOOLEAN_t -> 
-    bool_prim_decoder td ls = inr b ->
+    bool_decoder td ls = inr b ->
     BER (BOOLEAN (byte_to_bool b)) ls.
 Proof.
   intros.

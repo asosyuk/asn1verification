@@ -23,7 +23,7 @@ RUN opam switch vst && \
     opam repo add coq-released https://coq.inria.fr/opam/released && \
     opam repo add coq-extra-dev https://coq.inria.fr/opam/extra-dev && \
     opam pin add coq 8.10.1 --yes && \
-    opam install coq-struct-tact menhir --yes
+    opam install coq-struct-tact coq-ext-lib menhir --yes
 RUN eval $(opam env) && git clone https://github.com/PrincetonUniversity/VST.git && \
     cd VST && make && cd ..
 
