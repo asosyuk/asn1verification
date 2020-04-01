@@ -1,7 +1,7 @@
 Require Import Core.Core ErrorWithWriter.
 Require Import VST.floyd.proofauto.
 Require Import Clight.asn_codecs_prim.
-Require Import Lib.
+Require Import Lib Types.
 
 Instance CompSpecs : compspecs. make_compspecs prog. Defined.
 
