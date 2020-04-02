@@ -72,12 +72,11 @@ Definition normalize_function f :=
   mkfunction (fn_return f) (fn_callconv f) (fn_params f) (fn_vars f) (fn_temps f)
              (struct_normalize (fn_body f) composites).
 
-Eval simpl in struct_normalize (fn_body f_BOOLEAN_encode_der) composites.
-
+(* Eval simpl in struct_normalize (fn_body f_BOOLEAN_encode_der) composites. *)
 
 Theorem bool_der_encode : semax_body Vprog Gprog1 (normalize_function f_BOOLEAN_encode_der)
                                      bool_der_encode_spec.
-  start_function.
+  (* start_function. *)
 Admitted.
 End Boolean_der_encode_primitive.
 
