@@ -1,6 +1,8 @@
 From ExtLib.Structures Require Import Monad MonadWriter MonadExc Monoid.
 Require Import ExtLib.Data.Monads.WriterMonad.
 
+From ExtLib.Structures Require Export MonadWriter MonadExc Monoid.
+
 Import MonadNotation.
 
 Open Scope monad.
@@ -20,7 +22,7 @@ Global Instance Monad_errW : Monad errW := {
   ret := fun _ x => fun w => inr (w, x) ;
   bind := fun _ _ m f => fun w => match m w with
                             | inl v => inl v
-                            | inr (w', x) => f x w'
+                            | inr (w', x) => f x (monoid_plus MT w w')
                             end
 }.
 
