@@ -7,6 +7,7 @@ Require Import StructTact.StructTactics.
 (* Tags 8.1.2 *)
 (* ls#n is notation for ls[n]
    bs@n is notation for testing nth bit of bs*)
+
 Inductive Tag : list byte -> Prop :=
 (* 8.1.2.2 *)
 (* tag number < 31 *)

@@ -86,11 +86,18 @@ Definition bool_ber_decode_spec : ident * funspec :=
 
 Definition Gprog2 := ltac:(with_library prog [bool_ber_decode_spec]).
 
+Require Import StructNormalizer.
 
-Theorem bool_ber_decode : semax_body Vprog Gprog2 f_BOOLEAN_decode_ber
+Eval simpl in struct_normalize (fn_body f_BOOLEAN_decode_ber) composites.
+Eval simpl in (fn_body f_BOOLEAN_encode_der).
+
+Definition normalize_function f :=
+  mkfunction (fn_return f) (fn_callconv f) (fn_params f) (fn_vars f) (fn_temps f)
+             (struct_normalize (fn_body f) composites).
+
+Theorem bool_der_encode : semax_body Vprog Gprog2 (normalize_function f_BOOLEAN_decode_ber)
                                      bool_ber_decode_spec.
-
-Fail start_function.
+  start_function.
 Admitted.
 
 End Boolean_ber_decode.
