@@ -16,17 +16,13 @@ Proof.
   intros TD Val Res DT Enc; intros.
   unfold bool_encoder, primitive_encoder, DWTExecSpec.der_write_tags in Enc. 
   rewrite DT in Enc; cbn in Enc.
-  assert ([Byte.repr 1; Byte.repr 1; if Val 
-                                     then Byte.repr 255 
-                                     else Byte.repr 0] = Res) 
-    as Res' by congruence.
+  inversion Enc; rename H0 into Res'.
   replace ([Byte.repr 1; Byte.repr 1; if Val 
                                      then Byte.repr 255 
                                      else Byte.repr 0]) with
       ([Byte.repr 1] ++ [Byte.repr 1] ++ [if Val 
                                           then Byte.repr 255 
-                                          else Byte.repr 0]) in Res' 
-    by reflexivity.
+                                          else Byte.repr 0]) by reflexivity.
   destruct Val eqn:V in Enc; subst; repeat econstructor.
 Qed.
 
@@ -35,6 +31,27 @@ Definition byte_to_bool b := if (b == 0)%byte then false else true.
 Theorem ber_decoder_correctness : forall td ls b z,
     decoder_type td = BOOLEAN_t ->
     bool_decoder td ls = Some (b, z) ->
-    BER_Bool (byte_to_bool b) (firstn (Z.to_nat z) ls).
-Admitted.
+    (* since bool_encoder returns how many bytes it consumed,
+       we need to substract one byte to get to the bool value *)
+    BER_Bool (byte_to_bool b) (firstn 1 (skipn (Z.to_nat (z - 1)) ls)).
+Proof.
+  intros TD ToDec ResB Len DT Dec.
+  unfold bool_decoder, BCTExecSpec.ber_check_tag in Dec; cbn in Dec.
+  rewrite DT in Dec; cbn in Dec.
+  destruct ToDec eqn:K1; [congruence|]; 
+    destruct l eqn:K2; [congruence|]; 
+      destruct ((i == 1) && (i0 == 1))%byte; cbn in *; [|congruence]; 
+        destruct (Zlength_aux 2 byte l0 - 2 <? 1); cbn in *; [congruence|].
+  replace (Pos.to_nat 2) with (2)%nat in Dec by reflexivity; 
+    do 2 rewrite skipn_cons in Dec; 
+    rewrite skipn_O in Dec.
+  destruct l0 eqn:K3; cbn in *; [congruence|]; 
+    inversion Dec.
+  replace (Z.to_nat (3 - 1)) with (2)%nat by reflexivity; 
+    do 2 rewrite skipn_cons; rewrite skipn_O; 
+      unfold byte_to_bool.
+  pose proof Byte.eq_spec (ResB) (default_byte).
+  destruct (ResB == default_byte)%byte eqn:K; cbn in *; subst; econstructor.
+  assumption.
+Qed.
 

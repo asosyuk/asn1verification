@@ -1,4 +1,4 @@
-Require Import Core.Core Core.Notations Core.Tactics Types DWTExecSpec.
+Require Import Core.Core Core.Notations Core.Tactics Types DWTExecSpec BCTExecSpec.
 From ExtLib.Structures Require Import Monad MonadWriter.
 From ExtLib.Data Require Import Monads.OptionMonad.
 
@@ -10,9 +10,6 @@ Import ListNotations.
 Import MonadNotation.
 
 Open Scope monad.
-
-(* checks the tag, outputs consumed length and expected length *)
-Parameter ber_check_tag : TYPE_descriptor -> list byte -> option check_tag_r.
 
 Definition primitive_decoder td ls : option (list byte * Z) :=
     match ls with
