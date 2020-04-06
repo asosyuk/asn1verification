@@ -1,4 +1,6 @@
 Require Import ZArith Core.Core Core.Notations ErrorWithWriter.
+Require Import ExtLib.Data.List.
+
 Require Export ErrorWithWriter.
 
 (* Decoder return type *)
@@ -53,5 +55,10 @@ Inductive Err := HeaderEncodeError
                  | CBEncodeError
                  | CustomError {T : Type} : T -> Err.
 
-(* Specialized version of errW with custom Error and Log type *)
+(* Specialized version of errW with custom Error and Log type with specialized tell *)
 Definition errW1 := @errW Err (list byte).
+
+Existing Class Monoid.
+Existing Instance Monoid_list_app.
+
+Definition tell1 := @tell (list byte) (Monoid_list_app) errW1 Writer_errW.

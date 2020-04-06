@@ -1,22 +1,15 @@
-Require Import Core.Core Core.Notations Core.Tactics Types.
-From ExtLib.Structures Require Import Monad MonadWriter Monoid.
-From ExtLib.Data Require Import Monads.OptionMonad List.
+Require Import Core.Core Core.Notations Core.Tactics Types DWTExecSpec BCTExecSpec.
+From ExtLib.Structures Require Import Monad MonadWriter.
+From ExtLib.Data Require Import Monads.OptionMonad.
 
 Require Export Types.
+Require Export ExtLib.Structures.Monad.
+From ExtLib.Data Require Export Monads.OptionMonad List.
 
 Import ListNotations.
 Import MonadNotation.
 
 Open Scope monad.
-
-Existing Class Monoid.
-Existing Instance Monoid_list_app.
-
-(* Writes header octets *)
-Parameter der_write_tags : TYPE_descriptor -> errW1 asn_enc_rval.
-
-(* checks the tag, outputs consumed length and expected length *)
-Parameter ber_check_tag : TYPE_descriptor -> list byte -> option check_tag_r.
 
 Definition primitive_decoder td ls : option (list byte * Z) :=
     match ls with
@@ -37,3 +30,7 @@ Definition primitive_encoder td ls : errW1 asn_enc_rval :=
                             fun _ => ret (encode (Zlength ls + encoded x)).
 
 Definition ZeroChar := Byte.repr 48.
+
+Definition byte_of_bool (b : byte) := if (b == default_byte)%byte 
+                                      then false
+                                      else true.
