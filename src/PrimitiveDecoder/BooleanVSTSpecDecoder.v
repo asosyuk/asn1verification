@@ -1,7 +1,12 @@
 (* VST specification of as *)
-Require Import Core.Core VstLib Lib BooleanExecSpec ErrorWithWriter.
+Require Import Core.Core  Core.StructNormalizer VstLib Lib BooleanExecSpec ErrorWithWriter.
 Require Import VST.floyd.proofauto Psatz.
+Require Import VST.floyd.library.
+
 Require Import Clight.BOOLEAN.
+Require Import StructNormalizer.
+
+
 
 Definition Vprog : varspecs. mk_varspecs prog. Defined.
 Instance CompSpecs : compspecs. make_compspecs prog. Defined.
@@ -52,8 +57,7 @@ Definition bool_ber_decode_spec : ident * funspec :=
             temp _bool_value bool_value;
             temp _buf_ptr (Vptr buf_b buf_ofs);
             temp _size (Vint (Int.repr size));
-            temp _tag_mode (Vint (Int.repr tag_mode));
-            temp _st bool_value)
+            temp _tag_mode (Vint (Int.repr tag_mode)))
     SEP (data_at sh_ctx (tptr (Tstruct _asn_codec_ctx_s noattr))
                    (Vptr ctx_b ctx_ofs) ctx;
          data_at sh_td (Tstruct _asn_TYPE_descriptor_s noattr)
@@ -83,21 +87,16 @@ Definition bool_ber_decode_spec : ident * funspec :=
                              (default_val (tptr tuchar)) bool_value
            end).
            
-
 Definition Gprog2 := ltac:(with_library prog [bool_ber_decode_spec]).
 
-Require Import StructNormalizer.
+Eval simpl in struct_normalize (fn_body f_BOOLEAN_decode_ber) composites.
 
-(* Eval simpl in struct_normalize (fn_body f_BOOLEAN_decode_ber) composites.
-Eval simpl in (fn_body f_BOOLEAN_encode_der). *)
+Eval simpl in  (fn_body f_BOOLEAN_decode_ber).
 
-Definition normalize_function f :=
-  mkfunction (fn_return f) (fn_callconv f) (fn_params f) (fn_vars f) (fn_temps f)
-             (struct_normalize (fn_body f) composites).
-
-Theorem bool_der_encode : semax_body Vprog Gprog2 (normalize_function f_BOOLEAN_decode_ber) bool_ber_decode_spec.
+Theorem bool_der_encode : semax_body Vprog Gprog2 
+           (normalize_function f_BOOLEAN_decode_ber composites) bool_ber_decode_spec.
   Proof.
-  (* start_function. *)
+  start_function.
 Admitted.
 
 End Boolean_ber_decode.
