@@ -98,23 +98,31 @@
   series = {CADE’13}
 }
 
+@misc{ASN1StandardBER,
+  author = {{ISO/IEC 8825-1}},
+  title = {{ASN.1} encoding rules: Specification of Basic Encoding Rules ({BER}), Canonical Encoding Rules ({CER}) and Distinguished Encoding Rules ({DER})},
+  year = {2015},
+  url = {http://handle.itu.int/11.1002/1000/12483},
+  note = {[accessed 30-January-2020]}
+}
+
 @misc{ASN1Intro,
-  author = {Wikipedia contributors},
-  title = {Abstract Syntax Notation One --- Wikipedia, The Free Encyclopedia},
-  year = {2019},
-  url = {https://en.wikipedia.org/w/index.php?title=Abstract_Syntax_Notation_One&oldid=925669270},
-  note = {[Online; accessed 30-January-2020]. Also see https://www.itu.int/en/ITU-T/asn1/Pages/introduction.aspx}
+  author = {{ISO/IEC 8824-1}},
+  title = {{Abstract Syntax Notation One (ASN.1)}: Specification of basic notation},
+  year = {2015},
+  url = {http://handle.itu.int/11.1002/1000/12479},
+  note = {accessed 30-January-2020}
 }
 
 @misc{OpenSSLMemoryCorruption,
   author={Richard Chirgwin},
-  title={Guilt by ASN: Compiler's bad memory bug could sting mobes, cell towers Telco, embedded systems may inherit remote vulns},
+  title={Guilt by {ASN}: Compiler's bad memory bug could sting mobes, cell towers Telco, embedded systems may inherit remote vulns},
   year={2016},
-  url={https://www.theregister.co.uk/2016/07/19/asn\_objective\_systems\_asn\_compiler\_memory_bug/}
+  url={https://www.theregister.co.uk/2016/07/19/asn_objective_systems_asn_compiler_memory_bug/}
 }
 
 @misc{ASN1Flaw,
-  title={ASN.1 Flaw Threatens Mobile Networks},
+  title={{ASN.1} Flaw Threatens Mobile Networks},
   year={2019},
   url={https://www.pindrop.com/blog/asn-1-flaw-threatens-mobile-networks/}
 }
@@ -135,8 +143,23 @@ month={Nov},}
 @misc{VNSSforSel4,
   author={Kestrel Technology, LLC},
   title={Verified Network Stack Synthesis for seL4},
-  note={DOD Phase I SBIR proposal, available at https://www.sbir.gov/sbirsearch/detail/1467573}
+  url={https://www.sbir.gov/sbirsearch/detail/1467573}, 
+  note={DOD Phase I SBIR proposal}
 }
+
+@article{SEL4,
+    author           = {Klein, Gerwin and Andronick, June and Elphinstone, Kevin and Murray, Toby and Sewell, Thomas and
+                        Kolanski, Rafal and Heiser, Gernot},
+    doi              = {10.1145/2560537},
+    number           = {1},
+    month            = feb,
+    year             = {2014},
+    keywords         = {sel4, isabelle/hol, verification, microkernel},
+    title            = {Comprehensive Formal Verification of an {OS} Microkernel},
+    volume           = {32},
+    pages            = {2:1-2:70},
+    journal          = {ACM Transactions on Computer Systems}
+  }
 
 @article{CompCert,
   author = {Leroy, Xavier},
@@ -157,7 +180,7 @@ month={Nov},}
 }
 
 @inproceedings{HACL,
-  TITLE = {{HACL * : A Verified Modern Cryptographic Library}},
+  TITLE = {{HACL*: A Verified Modern Cryptographic Library}},
   AUTHOR = {Zinzindohou{\'e}, Jean-Karim and Bhargavan, Karthikeyan and Protzenko, Jonathan and Beurdouche, Benjamin},
   URL = {https://hal.inria.fr/hal-01588421},
   BOOKTITLE = {{ACM Conference on Computer and Communications Security (CCS)}},
@@ -228,14 +251,6 @@ month={Nov},}
   year={2014}
 }
 
-@misc{AST,
-  author = {Wikipedia contributors},
-  title = {Abstract syntax tree --- Wikipedia, The Free Encyclopedia},
-  year = {2020},
-  url = {https://en.wikipedia.org/w/index.php?title=Abstract_syntax_tree&oldid=936878248},
-  note = {[Online; accessed 30-January-2020]}
-}
-
 @article{Mechanized,
   title={Mechanized semantics for the Clight subset of the C language},
   author={Blazy, Sandrine and Leroy, Xavier},
@@ -270,29 +285,32 @@ month={Nov},}
 }
 
 @misc{X509,
-  author = {Wikipedia contributors},
-  title = {X.509 --- Wikipedia, The Free Encyclopedia},
-  year = {2020},
-  howpublished = {\url{https://en.wikipedia.org/w/index.php?title=X.509&oldid=936494663}},
+  author = {{ISO/IEC 9594-8}},
+  title = {X.590 (10/2019): Public-key and attribute certificate frameworks},
+  year = {2019},
+  howpublished = {http://handle.itu.int/11.1002/1000/14033},
   note = {[Online; accessed 30-January-2020]}
 }
 
 @article{BERandDER,
-  title={A Layman's Guide to a Subset of ASN. 1, BER, and DER},
+  title={A Layman's Guide to a Subset of {ASN.1}, {BER}, and DER},
   author={Kaliski Jr, Burton S and Redwood City, CA},
   year={1993},
   publisher={RSA Laboratories, November}
 }
 
-@article{MPC,
-  title={Monadic parser combinators},
-  author={Hutton, Graham and Meijer, Erik},
-  year={1996},
-  publisher={School of Computer Science and IT}
-}
+
+@techreport{MPC,
+        author = "Graham Hutton and Erik Meijer",
+        title = "{Monadic Parser Combinators}",
+        institution = "Department of Computer Science, University of Nottingham",
+        type = "Technical Report",
+        number = "NOTTCS-TR-96-4",
+        year = 1996}
+
 
 @inproceedings{ASN1FormalSem,
-  title={A Formal Semantics for ASN.1},
+  title={A Formal Semantics for {ASN.1}},
   author={Paul Steckler},
   booktitle={2019 High Confidence Software and Systems Conference, Annapolis, Maryland},
   year={2019},
@@ -300,7 +318,7 @@ month={Nov},}
 }
 
 @inproceedings{ASN1EncDec,
-  title={Challenges and Possibilities for Safe and Secure ASN.1 Encoders and Decoders},
+  title={Challenges and Possibilities for Safe and Secure {ASN.1} Encoders and Decoders},
   author={Mark Tullsen},
   booktitle={Fifth Workshop on Language-Theoretic Security (LangSec) Conference},
   year={2018},
@@ -308,7 +326,7 @@ month={Nov},}
 }
 
 @inproceedings{V2V,
-  title={Formal verification of a vehicle-to-vehicle (V2V) messaging system},
+  title={Formal verification of a vehicle-to-vehicle ({V2V}) messaging system},
   author={Tullsen, Mark and Pike, Lee and Collins, Nathan and Tomb, Aaron},
   booktitle={International Conference on Computer Aided Verification},
   pages={413--429},
@@ -318,7 +336,7 @@ month={Nov},}
 
 @misc{asn1fpcoq,
   author       = {Ilia Zaichuk},
-  title        = {Formal verification of floating-point number conversion between ASN.1 BER and IEEE 754 binary encodings},
+  title        = {Formal verification of floating-point number conversion between {ASN.1} {BER} and {IEEE} 754 binary encodings},
   booktitle    = {POPL 2019 Student Research Competition},
   year         = {2019},
   url          = {https://github.com/digamma-ai/asn1fpcoq/blob/master/doc/paper/paper.pdf}

@@ -1,5 +1,5 @@
 (* Abstract specification from the standard *)
-Require Import Core.Core Core.Notations Core.Tactics Lib.
+Require Import Core.Core Core.Notations Core.Tactics Lib.Lib.
 Require Import Lists.List Psatz.
 Import ListNotations.
 Require Import StructTact.StructTactics.
@@ -196,14 +196,14 @@ Inductive DER : asn_value -> list byte -> Prop :=
     DER (CHOICE ls) (t ++ l ++ v).
 
 (* Correctness proofs *)
-(*  Definition byte_to_bool b : bool:= if (b == 0)%byte then false else true.
+(* Definition byte_to_bool b : bool:= if (b == 0)%byte then false else true.
 
 Definition ber_decoder (td : TYPE_descriptor) (ls : list byte) : err asn_value.
 Admitted.
 
 Theorem BOOL_decoder_correctness : forall td ls b, 
     type td = BOOLEAN_t -> 
-    bool_prim_decoder td ls = inr b ->
+    bool_decoder td ls = inr b ->
     BER (BOOLEAN (byte_to_bool b)) ls.
 Proof.
   intros.
