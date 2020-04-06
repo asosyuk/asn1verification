@@ -1,7 +1,8 @@
 \PassOptionsToPackage{table,xcdraw}{xcolor}
 
 %% For double-blind review submission, w/o CCS and ACM Reference (max submission space)
-\documentclass[10p,conference]{IEEEtran}  
+\documentclass[10p,conference]{IEEEtran}
+\usepackage{times} 
 \pagestyle{plain} % removes running headers
 
 \bibliographystyle{IEEEtran}
@@ -14,6 +15,7 @@
 \usepackage{listings}
 \usepackage{color}
 \usepackage{graphicx}
+\usepackage{balance}
 
 \input{listings-coq.tex}
 \usepackage{booktabs} 
@@ -176,7 +178,7 @@ lists critical ASN.1-related bugs that are found each year in the
 existing systems. Noteworthy exposures have already been discovered
 \cite{OpenSSLMemoryCorruption} that clearly illuminate potential vast
 risk and exposure. We analyzed the last four years of ASN.1-related
-issues reported in the CVE database\footnote{See Appendix B for more
+issues reported in the CVE database\footnote{See Appendix~\ref{sec:vulnerabilities} for more
   details.}.  Among the vulnerabilities studied are CVEs for various
 software and hardware products and vendors, including \textit{Apple},
 \textit{axTLS}, \textit{Botan}, \textit{Bounty Castle},
@@ -275,7 +277,7 @@ translation for each given function correspond to its VST specification. This gu
 
 
 
-We perform all the proofs using the Coq Proof Assistant \cite{Coq}). From the
+We perform all the proofs using the Coq Proof Assistant \cite{Coq}. From the
   proofs Coq can generate a ``certificate,'' which is a program in a
   formal language based on the Calculus of Inductive Constructions
   (``CIC'') \cite{CIC}. The certificate allows 3rd party
@@ -655,6 +657,7 @@ our proposed concept, we defined key tasks and objectives:
 \item[Task 6] Final Code, Associated Documentation, Estimates of Additional Work
  \end{description}
 
+
 \section{Project Status}
 
 Now, we are working in parallel on the high-level specification of the standard and executable specification of the \emph{ASN1C} encoders/decoders,  while recording changes that should be made to the C code.
@@ -728,8 +731,11 @@ Inductive TYPE_descriptor :=
       }.
  \end{lstlisting}
 
- Then, a constructed type decoder has type \lstinline[language=Coq]{TYPE_descriptor -> list byte -> option asn_value} and traverses the tree and applies the respective primitive decoders. In \emph{ASN1C}, it is implemented as
- a recursive function that readily translates into a nested or mutually recursive
+ Then, a constructed type decoder has type
+ \lstinline[language=Coq]{TYPE_descriptor -> list byte -> option asn_value} and traverses the tree and applies the respective
+ primitive decoders (this is a simplified definition; in the actual implementation, we use stream monad for input and monadic error handling).
+ In \emph{ASN1C}, the decoder is implemented as a recursive
+ function that readily translates into a nested or mutually recursive
  function in Coq.
 
  Given a particular ASN.1 type definition that translates into a
@@ -748,18 +754,18 @@ Inductive TYPE_descriptor :=
  decoders and applies them sequentially \lstinline[language=Coq]{seq p1 p2}. Then the compiler can be seen as producing the
  concrete combination of parsers given the \texttt{TYPE\_descriptor}. Currently, we are experimenting with these approaches.
 
+\balance
+
 \section{Related Work}
 
 Microsoft's EverParse project \cite{RamananandroDFS19} is the closest
 to what we do. However, they don't verify the existing protocol stack but
 build their own. They define their own input language which accepts
 C-like type definitions, which automatically generate specifications, their implementations, and proofs of correctness. This is possible because the produced decoders are combinations of existing parsers that are proved correct in F*. They
-follow the tradition of parser combinators\footnote{Starting with
-  primitive parser combinators \texttt{fail}, \texttt{return[x]}
-  (output \texttt{x}), \texttt{read\_byte}, and monadic composition of
+follow the tradition of parser combinators. Starting with
+  primitive parser combinators \texttt{fail}, \texttt{return[x]}, \texttt{read\_byte}, and monadic composition of
   two parsers \texttt{and\_then}, one can define combinators for
-  parsing of pairs (*), mapping of function on parser results
-  (\texttt{synth}), \texttt{filter} of parser results etc.}. For each
+  parsing of pairs, mapping of functions on parser results, filtering of parser results etc. For each
 combinator there are two implementations: functional and
 C-like. C-like implementation is written in a subset of F* that models
 imperative language, called Low*. Functions written in Low* operate on
@@ -786,8 +792,9 @@ While Digamma.ai is committed to sponsor the initial stage of the
 project, we are currently looking for industry and academic partners
 to join us in the full ASN.1 verification endeavor.
 
- \onecolumn
-\section*{Appendix}
+\onecolumn
+\appendix
+\section{Appendix}
 
 \subsection{\emph{asn\_strtoimax\_lim} source}
 
@@ -797,6 +804,8 @@ to join us in the full ASN.1 verification endeavor.
 
  \onecolumn
 \subsection{ASN.1 Vulnerabilities Analysis}
+
+\label{sec:vulnerabilities}
 
 \scriptsize
 \begin{longtable}{ l l l p{26em} }
