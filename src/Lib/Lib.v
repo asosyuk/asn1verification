@@ -30,3 +30,7 @@ Definition primitive_encoder td ls : errW1 asn_enc_rval :=
                             fun _ => ret (encode (Zlength ls + encoded x)).
 
 Definition ZeroChar := Byte.repr 48.
+
+Definition byte_of_bool (b : byte) := if (b == default_byte)%byte 
+                                      then false
+                                      else true.

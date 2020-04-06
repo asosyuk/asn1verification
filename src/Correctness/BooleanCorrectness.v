@@ -26,14 +26,12 @@ Proof.
   destruct Val eqn:V in Enc; subst; repeat econstructor.
 Qed.
 
-Definition byte_to_bool b := if (b == 0)%byte then false else true.
-
 Theorem ber_decoder_correctness : forall td ls b z,
     decoder_type td = BOOLEAN_t ->
     bool_decoder td ls = Some (b, z) ->
     (* since bool_encoder returns how many bytes it consumed,
        we need to substract one byte to get to the bool value *)
-    BER_Bool (byte_to_bool b) (firstn 1 (skipn (Z.to_nat (z - 1)) ls)).
+    BER_Bool b (firstn 1 (skipn (Z.to_nat (z - 1)) ls)).
 Proof.
   intros TD ToDec ResB Len DT Dec.
   unfold bool_decoder, BCTExecSpec.ber_check_tag in Dec; cbn in Dec.
@@ -49,31 +47,35 @@ Proof.
     inversion Dec.
   replace (Z.to_nat (3 - 1)) with (2)%nat by reflexivity; 
     do 2 rewrite skipn_cons; rewrite skipn_O; 
-      unfold byte_to_bool.
-  pose proof Byte.eq_spec (ResB) (default_byte).
-  destruct (ResB == default_byte)%byte eqn:K; cbn in *; subst; econstructor.
+      unfold byte_of_bool.
+  pose proof Byte.eq_spec i1 (default_byte).
+  destruct (i1 == default_byte)%byte eqn:K; cbn in *; subst; econstructor.
   assumption.
 Qed.
 
 Theorem boolean_roundtrip : forall td ls b z,
     decoder_type td = BOOLEAN_t ->
     z = Zlength ls ->
-    execErrW (bool_encoder td (byte_to_bool b)) nil = Some ls ->
-    b = Byte.repr 255 \/ b = Byte.repr 0 ->
+    execErrW (bool_encoder td b) nil = Some ls ->
     bool_decoder td ls = Some (b, z).
 Proof.
   intros TD ls B z DT Len.
   unfold execErrW, bool_encoder, primitive_encoder, 
-  DWTExecSpec.der_write_tags, byte_to_bool, bool_decoder, 
-  BCTExecSpec.ber_check_tag; cbn; rewrite DT.
-  destruct (B == default_byte)%byte eqn:ResC; cbn.
-  all: intros Res ResP; inversion Res as [T]; clear Res; rename T into Res.
-  all: replace (Byte.repr 1 == 1)%byte with true by reflexivity; cbn.
-  all: replace (Pos.to_nat 2) with (2)%nat by reflexivity.
-  all: do 2 rewrite skipn_cons; rewrite skipn_O; cbn; f_equal.
-  all: rewrite <-Res in Len; cbn in Len; subst.
-  all: pose proof Byte.eq_spec (B) (default_byte) as T; rewrite ResC in T.
-  rewrite T; reflexivity.
-  destruct ResP; [|unfold default_byte in T; contradiction].
-  rewrite H; reflexivity.
+  DWTExecSpec.der_write_tags, bool_decoder, 
+  BCTExecSpec.ber_check_tag, byte_of_bool; cbn; rewrite DT.
+  intros Res; inversion Res as [T]; clear Res; rename T into Res.
+  replace (Byte.repr 1 == 1)%byte with true by reflexivity; cbn.
+  replace (Pos.to_nat 2) with (2)%nat by reflexivity.
+  do 2 rewrite skipn_cons; rewrite skipn_O; cbn.
+  pose proof Byte.eq_spec  
+       ((if B then Byte.repr 255 else Byte.repr 0)) 
+       (default_byte) as ResC.
+  unfold default_byte in *; cbn in ResC.
+  rewrite <-Res in Len; cbn in Len.
+  subst.
+  destruct B; cbn.
+  * assert (Byte.repr 255 <> Byte.repr 0) as T by congruence.
+    pose proof Byte.eq_false (Byte.repr 255) (Byte.repr 0) T as T'; 
+      rewrite T'; reflexivity.
+  * pose proof Byte.eq_true (Byte.repr 0) as T; rewrite T; reflexivity.
 Qed.
