@@ -69,7 +69,10 @@ Definition Gprog1 := ltac:(with_library prog [bool_der_encode_spec]).
 Theorem bool_der_encode : semax_body Vprog Gprog1 
 (normalize_function f_BOOLEAN_encode_der composites)
                                      bool_der_encode_spec.
-  start_function. 
+Proof.
+  start_function.
+  unfold MORE_COMMANDS.
+  unfold abbreviate.
 Admitted.
 
 End Boolean_der_encode_primitive.
