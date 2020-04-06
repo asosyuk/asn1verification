@@ -55,3 +55,25 @@ Proof.
   assumption.
 Qed.
 
+Theorem boolean_roundtrip : forall td ls b z,
+    decoder_type td = BOOLEAN_t ->
+    z = Zlength ls ->
+    execErrW (bool_encoder td (byte_to_bool b)) nil = Some ls ->
+    b = Byte.repr 255 \/ b = Byte.repr 0 ->
+    bool_decoder td ls = Some (b, z).
+Proof.
+  intros TD ls B z DT Len.
+  unfold execErrW, bool_encoder, primitive_encoder, 
+  DWTExecSpec.der_write_tags, byte_to_bool, bool_decoder, 
+  BCTExecSpec.ber_check_tag; cbn; rewrite DT.
+  destruct (B == default_byte)%byte eqn:ResC; cbn.
+  all: intros Res ResP; inversion Res as [T]; clear Res; rename T into Res.
+  all: replace (Byte.repr 1 == 1)%byte with true by reflexivity; cbn.
+  all: replace (Pos.to_nat 2) with (2)%nat by reflexivity.
+  all: do 2 rewrite skipn_cons; rewrite skipn_O; cbn; f_equal.
+  all: rewrite <-Res in Len; cbn in Len; subst.
+  all: pose proof Byte.eq_spec (B) (default_byte) as T; rewrite ResC in T.
+  rewrite T; reflexivity.
+  destruct ResP; [|unfold default_byte in T; contradiction].
+  rewrite H; reflexivity.
+Qed.
