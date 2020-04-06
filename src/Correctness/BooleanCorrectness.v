@@ -47,8 +47,9 @@ Proof.
     inversion Dec.
   replace (Z.to_nat (3 - 1)) with (2)%nat by reflexivity; 
     do 2 rewrite skipn_cons; rewrite skipn_O; 
-      unfold byte_of_bool.
+      unfold bool_to_byte.
   pose proof Byte.eq_spec i1 (default_byte).
+  unfold bool_of_byte.
   destruct (i1 == default_byte)%byte eqn:K; cbn in *; subst; econstructor.
   assumption.
 Qed.
@@ -62,7 +63,7 @@ Proof.
   intros TD ls B z DT Len.
   unfold execErrW, bool_encoder, primitive_encoder, 
   DWTExecSpec.der_write_tags, bool_decoder, 
-  BCTExecSpec.ber_check_tag, byte_of_bool; cbn; rewrite DT.
+  BCTExecSpec.ber_check_tag, bool_of_byte; cbn; rewrite DT.
   intros Res; inversion Res as [T]; clear Res; rename T into Res.
   replace (Byte.repr 1 == 1)%byte with true by reflexivity; cbn.
   replace (Pos.to_nat 2) with (2)%nat by reflexivity.

@@ -24,7 +24,7 @@ Definition bool_decoder td ls : option (bool * Z) :=
                               if (Zlength ls - c <? e) || negb (e =? 1) 
                               then None 
                               else hd_error (skipn (Z.to_nat c) ls) 
-                                     >>= fun y => Some (byte_of_bool y, c + 1)
+                                     >>= fun y => Some (bool_of_byte y, c + 1)
     end.
 
 End Decoder.

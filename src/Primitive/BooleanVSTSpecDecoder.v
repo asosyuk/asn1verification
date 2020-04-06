@@ -6,7 +6,6 @@ Require Import Clight.BOOLEAN.
 Require Import StructNormalizer.
 
 
-
 Definition Vprog : varspecs. mk_varspecs prog. Defined.
 Instance CompSpecs : compspecs. make_compspecs prog. Defined.
 
@@ -80,7 +79,7 @@ Definition bool_ber_decode_spec : ident * funspec :=
            else let res := bool_decoder td buf in
            match res with
            | Some (r, c) => asn_dec_rval_rep sh_res (Vptr res_b res_ofs) 0 c * 
-                            data_at sh_val (tptr tuchar) (Vbyte r) bool_value
+                            data_at sh_val (tptr tuchar) (Vbyte (bool_to_byte r)) bool_value
            | None => RC_FAIL *
                      data_at sh_val (tptr tuchar)
                              (default_val (tptr tuchar)) bool_value
