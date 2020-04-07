@@ -7,11 +7,6 @@ Require Export Lib.
 
 Instance CompSpecs : compspecs. make_compspecs prog. Defined.
 
-Definition cb_type := (Tfunction 
-                          (Tcons (tptr tvoid) 
-                                 (Tcons tuint (Tcons (tptr tvoid) Tnil))) tint 
-                          cc_default).
-
 (* memory representation of abstract types *)
 Parameter TYPE_descriptor_rep : TYPE_descriptor
                                 -> reptype (Tstruct _asn_TYPE_descriptor_s noattr). 
@@ -26,3 +21,11 @@ Parameter PRIMITIVE_TYPE_rep : option byte
 (* on error rval c l write {code := c; consumed := l},
    else {code := OK; consumed := |ls| *)
 Parameter dec_rval_rep : option byte -> reptype (Tstruct _asn_dec_rval_s noattr).
+
+
+Definition cb_type := (Tfunction 
+                          (Tcons (tptr tvoid) 
+                                 (Tcons tuint (Tcons (tptr tvoid) Tnil))) tint 
+                          cc_default).
+Definition enc_rval_s := Tstruct _asn_enc_rval_s noattr.
+Definition type_descriptor_s := Tstruct _asn_TYPE_descriptor_s noattr.
