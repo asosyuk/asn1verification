@@ -1,6 +1,14 @@
-Require Import Core.Core Core.StructNormalizer VstLib Lib BooleanExecSpec ErrorWithWriter.
+Require Import Core.Core Core.StructNormalizer VstLib 
+        BooleanExecSpec ErrorWithWriter DWTVSTSpec.
 Require Import VST.floyd.proofauto Psatz.
-Require Import Clight.BOOLEAN.
+Require Import Clight.BOOLEAN Clight.der_encoder.
+
+Definition prog : Clight.program := 
+  mkprogram composites 
+            (Clight.BOOLEAN.global_definitions ++ 
+             Clight.der_encoder.global_definitions) 
+            (Clight.BOOLEAN.public_idents ++ Clight.der_encoder.public_idents)
+            _main Logic.I.
 
 Definition Vprog : varspecs. mk_varspecs prog. Defined.
 Instance CompSpecs : compspecs. make_compspecs prog. Defined.
@@ -8,11 +16,6 @@ Instance CompSpecs : compspecs. make_compspecs prog. Defined.
 Open Scope Z.
 
 Section Boolean_der_encode_primitive.
-
-Definition cb_type := (Tfunction 
-                          (Tcons (tptr tvoid) 
-                                 (Tcons tuint (Tcons (tptr tvoid) Tnil))) tint 
-                          cc_default).
 
 Definition bool_der_encode_spec : ident * funspec :=
   DECLARE _BOOLEAN_encode_der
@@ -64,17 +67,13 @@ Definition bool_der_encode_spec : ident * funspec :=
                    (Vptr app_key_b app_key_ofs) ;
            data_at sh_cb (cb_type) (tt) (Vptr cb_b cb_ofs)).
 
-Definition Gprog1 := ltac:(with_library prog [bool_der_encode_spec]).
+Definition Gprog := ltac:(with_library prog [der_write_tags_spec; 
+                                               bool_der_encode_spec]).
 
-Theorem bool_der_encode : semax_body Vprog Gprog1 
-(normalize_function f_BOOLEAN_encode_der composites)
+Theorem bool_der_encode : semax_body Vprog Gprog 
+                                     (normalize_function 
+                                        f_BOOLEAN_encode_der composites) 
                                      bool_der_encode_spec.
-Proof.
-  start_function.
-  unfold MORE_COMMANDS.
-  unfold abbreviate.
 Admitted.
 
 End Boolean_der_encode_primitive.
-
-

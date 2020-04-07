@@ -3,7 +3,14 @@ Require Import VST.floyd.proofauto.
 Require Import Clight.asn_codecs_prim.
 Require Import Lib.
 
+Require Export Lib.
+
 Instance CompSpecs : compspecs. make_compspecs prog. Defined.
+
+Definition cb_type := (Tfunction 
+                          (Tcons (tptr tvoid) 
+                                 (Tcons tuint (Tcons (tptr tvoid) Tnil))) tint 
+                          cc_default).
 
 (* memory representation of abstract types *)
 Parameter TYPE_descriptor_rep : TYPE_descriptor

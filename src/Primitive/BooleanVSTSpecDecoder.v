@@ -1,4 +1,4 @@
-Require Import Core.Core  Core.StructNormalizer VstLib Lib BooleanExecSpec ErrorWithWriter.
+Require Import Core.Core Core.StructNormalizer VstLib BooleanExecSpec ErrorWithWriter.
 Require Import VST.floyd.proofauto Psatz.
 Require Import VST.floyd.library.
 
