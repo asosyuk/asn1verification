@@ -60,14 +60,17 @@ Fixpoint struct_normalize (s : statement) (c : list composite_definition) (p : p
   | s => s 
   end.
 
-Fixpoint maximum (e : positive) (l : list positive) : positive :=
+(* Fixpoint maximum (e : positive) (l : list positive) : positive :=
     match l with
     | nil => e
     | x :: xs => Pos.max x (maximum e xs)
     end.
 
 Definition fresh_ident f := let ids := map fst (fn_vars f) in
-                            (1 + maximum 1 (map id ids))%positive.
+                            (1 + maximum 1 (map id ids))%positive. *)
+
+Definition fresh_ident f := 
+   (Z.to_pos (Zlength (fn_temps f)) * last (map fst (fn_temps f)) 1)%positive. 
 
 Definition normalize_function f c :=
   mkfunction (fn_return f) (fn_callconv f) (fn_params f) (fn_vars f) (fn_temps f)

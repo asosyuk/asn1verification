@@ -5,7 +5,7 @@ Import ListNotations.
 Import MonadNotation.
 
 (* checks the tag, outputs consumed length and expected length *)
-Definition ber_check_tag (td : TYPE_descriptor) 
+Definition ber_check_tags (td : TYPE_descriptor) 
            (ls : list byte) : option check_tag_r :=
   match decoder_type td with
   | BOOLEAN_t => match ls with

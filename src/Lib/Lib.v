@@ -14,7 +14,7 @@ Open Scope monad.
 Definition primitive_decoder td ls : option (list byte * Z) :=
     match ls with
     | [] => None
-    | _ => ber_check_tag td ls >>=
+    | _ => ber_check_tags td ls >>=
                         fun x => let c := tag_consumed x in 
                               let e := tag_expected x in 
                               if (Zlength ls - c <? e)
