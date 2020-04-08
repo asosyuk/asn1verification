@@ -105,24 +105,18 @@ Definition calloc_spec  :=
           
 Definition Gprog2 := ltac:(with_library prog [calloc_spec; ber_check_tags_spec; bool_ber_decode_spec]).
 
-  Variable gl : ident -> val.
-
-
 Theorem bool_der_encode : semax_body Vprog Gprog2 
            (normalize_function f_BOOLEAN_decode_ber composites) bool_ber_decode_spec.
   Proof.
   start_function.
   forward.
   forward.
-  hint.
   forward_if True.
   entailer!.
   try autorewrite with sublist in *|-.
-  hint.
   eapply denote_tc_test_eq_split.
   admit.
   entailer!.  
-  hint.
   forward_call (tint).
 Admitted.
 
