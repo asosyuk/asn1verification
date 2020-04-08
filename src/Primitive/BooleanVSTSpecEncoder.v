@@ -72,7 +72,6 @@ Theorem bool_der_encode : semax_body Vprog Gprog1
 Proof.
   start_function.
   forward.
-  forward.
 Admitted.
 
 End Boolean_der_encode_primitive.
