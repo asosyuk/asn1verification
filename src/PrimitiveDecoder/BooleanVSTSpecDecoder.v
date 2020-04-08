@@ -89,11 +89,12 @@ Definition bool_ber_decode_spec : ident * funspec :=
 Definition Gprog2 := ltac:(with_library prog [bool_ber_decode_spec]).
 
 Theorem bool_der_encode : semax_body Vprog Gprog2 
-           (normalize_function f_BOOLEAN_decode_ber composites) bool_ber_decode_spec.
+           (normalize_function f_BOOLEAN_decode_ber composites 900%positive) bool_ber_decode_spec.
   Proof.
   start_function.
   unfold MORE_COMMANDS.
   unfold abbreviate.
+  forward.
 
 Admitted.
 

@@ -1,6 +1,6 @@
 (* VST specification of as *)
 Require Import Clight.asn_codecs_prim.
-Require Import Core.Core Lib.Lib Lib.VstLib.
+Require Import Core.Core Core.StructNormalizer Lib.Lib Lib.VstLib.
 Require Import VST.floyd.proofauto.
 Require Import IntExecSpec.
 
@@ -28,8 +28,8 @@ Section PrimitiveParser.
    5) malloc buf allocation fails (FAIL) SEP spec
  *)
 
-(*
-Definition _ber_decode_primitive_spec : ident * funspec :=
+
+Definition ber_decode_primitive_spec : ident * funspec :=
   DECLARE _ber_decode_primitive
     WITH (* pointer to the decoded structure *)
          sptr_b : block, sptr_ofs : ptrofs,
@@ -86,13 +86,25 @@ Definition _ber_decode_primitive_spec : ident * funspec :=
            data_at sh_td' (Tstruct _asn_TYPE_descriptor_s noattr) 
                    (TYPE_descriptor_rep td) (Vptr td'_b td'_ofs) ; 
            data_at sh_buf (tarray tschar (Zlength buf)) (map Vbyte buf) 
-                   (Vptr buf_b buf_ofs);
+                   (Vptr buf_b buf_ofs)
            (* Changed after execution *)         
-           data_at sh_sptr (Tstruct _ASN__PRIMITIVE_TYPE_s noattr)
-                   (PRIMITIVE_TYPE_rep (int_prim_decoder td buf))
+           (* data_at sh_sptr (Tstruct _ASN__PRIMITIVE_TYPE_s noattr)
+                   (PRIMITIVE_TYPE_rep (int_decoder td buf))
                                        (Vptr sptr_b sptr_ofs); 
            data_at sh_res (Tstruct _asn_dec_rval_s noattr)
-                   (dec_rval_rep (int_prim_decoder td buf)) (Vptr res_b res_ofs)).
+                   (dec_rval_rep (int_decoder td buf)) (Vptr res_b res_ofs) *)).
 
-*)
+
+Definition Gprog := ltac:(with_library prog [ber_decode_primitive_spec]).
+
+Theorem bool_der_encode : semax_body Vprog Gprog
+           (normalize_function f_ber_decode_primitive composites)
+           ber_decode_primitive_spec.
+  Proof.
+  start_function.
+  unfold MORE_COMMANDS.
+  unfold abbreviate.
+
+Admitted.
+
 End PrimitiveParser.
