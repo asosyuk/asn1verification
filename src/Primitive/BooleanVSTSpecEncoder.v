@@ -71,8 +71,8 @@ Theorem bool_der_encode : semax_body Vprog Gprog1
                                      bool_der_encode_spec.
 Proof.
   start_function.
-  unfold MORE_COMMANDS.
-  unfold abbreviate.
+  forward.
+  forward.
 Admitted.
 
 End Boolean_der_encode_primitive.

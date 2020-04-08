@@ -35,7 +35,8 @@ Definition bool_ber_decode_spec : ident * funspec :=
          sh_buf : share, buf_b : block, buf_ofs : ptrofs, buf : list byte,
          (* pointer to the return struct dec_rval *)                        
          sh_res : share, res_b : block, res_ofs : ptrofs,
-         size : Z, tag_mode : Z
+         size : Z, tag_mode : Z,
+         bv : val
     PRE  [
          __res OF (tptr (Tstruct _asn_dec_rval_s noattr)),
          _opt_codec_ctx OF (tptr (Tstruct _asn_codec_ctx_s noattr)),
@@ -48,7 +49,8 @@ Definition bool_ber_decode_spec : ident * funspec :=
            readable_share sh_td; 
            readable_share sh_buf;
            writable_share sh_res;
-           is_pointer_or_null bool_value
+            writable_share sh_val;
+           is_pointer_or_null bv
             )
     LOCAL ( temp _opt_codec_ctx ctx;
             temp _td (Vptr td_b td_ofs);
@@ -61,7 +63,8 @@ Definition bool_ber_decode_spec : ident * funspec :=
          data_at sh_td (Tstruct _asn_TYPE_descriptor_s noattr)
                    (TYPE_descriptor_rep td) (Vptr td_b td_ofs);
          data_at sh_buf (tarray tschar (Zlength buf)) (map Vbyte buf) 
-                   (Vptr buf_b buf_ofs))
+                   (Vptr buf_b buf_ofs);
+        data_at sh_val (tptr tvoid) bv bool_value)
     POST [tvoid]
       PROP()
       LOCAL ()
@@ -88,13 +91,18 @@ Definition bool_ber_decode_spec : ident * funspec :=
 Definition Gprog2 := ltac:(with_library prog [bool_ber_decode_spec]).
 
 Theorem bool_der_encode : semax_body Vprog Gprog2 
-           (normalize_function f_BOOLEAN_decode_ber composites 900%positive) bool_ber_decode_spec.
+           (normalize_function f_BOOLEAN_decode_ber composites) bool_ber_decode_spec.
   Proof.
   start_function.
-  unfold MORE_COMMANDS.
-  unfold abbreviate.
-  forward.
-
+  repeat forward.
+  hint.
+  forward_if True.
+  entailer!.
+  try autorewrite with sublist in *|-.
+  hint.
+  eapply denote_tc_test_eq_split.
+  admit.
+  entailer!.  
 Admitted.
 
 End Boolean_ber_decode.

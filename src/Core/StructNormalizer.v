@@ -30,7 +30,7 @@ Fixpoint copy_by_fields (p : positive) (e : expr) (id2 : ident) (ty : type) (ls 
               match e with 
                 | (Evar id1 ty1) => (Sassign (Efield (Evar id1 (tptr ty)) f t) (Etempvar p t))
                 | (Etempvar id1 ty1) => (Sassign (Efield (Etempvar id1 (tptr ty)) f t) (Etempvar p t))
-                | (Ederef (Evar id1 ty1) _)  (* cannot happen? *)
+                | (Ederef (Evar id1 ty1) _) 
                 | (Ederef (Etempvar id1 ty1) _) => (Sassign  (Efield (Ederef (Etempvar id1 (tptr ty)) ty) f t) (Etempvar p t))
                 | _ => Sskip
               end in
@@ -60,7 +60,8 @@ Fixpoint struct_normalize (s : statement) (c : list composite_definition) (p : p
   | s => s 
   end.
 
-Definition normalize_function f c p :=
-  mkfunction (fn_return f) (fn_callconv f) (fn_params f) (fn_vars f) (fn_temps f)
-             (struct_normalize (fn_body f) c p).
+Definition fresh_ident f := 
+   (Z.to_pos (Zlength (fn_temps f)) * last (map fst (fn_temps f)) 1)%positive. 
 
+Definition normalize_function f c :=
+  mkfunction (fn_return f) (fn_callconv f) (fn_params f) (fn_vars f) (fn_temps f) (struct_normalize (fn_body f) c (fresh_ident f)).
