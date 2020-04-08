@@ -1,11 +1,9 @@
-Require Import Core.Core Core.StructNormalizer
- VstLib BooleanExecSpec ErrorWithWriter.
+Require Import Core.Core  Core.StructNormalizer VstLib Lib BooleanExecSpec ErrorWithWriter.
 Require Import VST.floyd.proofauto Psatz.
 Require Import VST.floyd.library.
 
-Require Import Clight.BOOLEAN Clight.ber_decoder.
+Require Import Clight.BOOLEAN BCTVSTSpec.
 Require Import StructNormalizer.
-
 
 Definition Vprog : varspecs. mk_varspecs prog. Defined.
 Instance CompSpecs : compspecs. make_compspecs prog. Defined.
@@ -24,40 +22,6 @@ Definition asn_dec_rval_rep sh v code cons :=
            [StructField _consumed] 
            (Vint (Int.repr cons)) v)%logic. 
 
-Definition ber_check_tags_spec : ident * funspec :=
-  DECLARE _ber_check_tags
-    WITH (* Codec context pointer *) 
-         sh_ctx : share, ctx_b : block, ctx_ofs : ptrofs, ctx : val,
-         (* Type Descriptor pointer *)
-         sh_td : share, td_b : block, td_ofs : ptrofs, td : TYPE_descriptor,
-         (* Struct context pointer *) 
-         sh_ctx_s : share, ctx_s_b : block, ctx_s_ofs : ptrofs, ctx_s : val,
-         (* Buffer pointer *)
-         sh_ptr : share, ptr_b : block, ptr_ofs : ptrofs, ptr : list byte,
-         (* pointer to the return struct dec_rval *)                        
-         sh_res : share, res_b : block, res_ofs : ptrofs,
-         size : Z, tag_mode : Z, last_tag_from : Z
-         (* sh_ll : share, ll_b : block, ll_ofs : ptrofs, ll : val,
-         sh_opt : share, opt_b : block, opt_ofs : ptrofs, opt : val *)
-
-    PRE [ __res OF (tptr (Tstruct _asn_dec_rval_s noattr)),
-         _opt_codec_ctx OF (tptr (Tstruct _asn_codec_ctx_s noattr)),
-         _td OF (tptr (Tstruct _asn_TYPE_descriptor_s noattr)),
-         _opt_ctx OF (tptr (Tstruct _asn_struct_ctx_s noattr)),
-         _ptr OF (tptr tvoid),
-         _size OF tuint,
-         _tag_mode OF tint,
-         _last_tag_form OF tint,
-         _last_length OF (tptr tint),
-         _opt_tlv_form OF (tptr tint)]
-    PROP ( )
-    LOCAL ()
-    SEP ()
-    POST [tvoid]
-      PROP ()
-      LOCAL ()
-      SEP ().
-
 Definition bool_ber_decode_spec : ident * funspec :=
   DECLARE _BOOLEAN_decode_ber
     WITH (* Context pointer *)
@@ -70,7 +34,8 @@ Definition bool_ber_decode_spec : ident * funspec :=
          sh_buf : share, buf_b : block, buf_ofs : ptrofs, buf : list byte,
          (* pointer to the return struct dec_rval *)                        
          sh_res : share, res_b : block, res_ofs : ptrofs,
-         size : Z, tag_mode : Z
+         size : Z, tag_mode : Z,
+         bv : val
     PRE  [
          __res OF (tptr (Tstruct _asn_dec_rval_s noattr)),
          _opt_codec_ctx OF (tptr (Tstruct _asn_codec_ctx_s noattr)),
@@ -83,7 +48,8 @@ Definition bool_ber_decode_spec : ident * funspec :=
            readable_share sh_td; 
            readable_share sh_buf;
            writable_share sh_res;
-           is_pointer_or_null bool_value
+            writable_share sh_val;
+           is_pointer_or_null bv
             )
     LOCAL ( temp _opt_codec_ctx ctx;
             temp _td (Vptr td_b td_ofs);
@@ -96,7 +62,8 @@ Definition bool_ber_decode_spec : ident * funspec :=
          data_at sh_td (Tstruct _asn_TYPE_descriptor_s noattr)
                    (TYPE_descriptor_rep td) (Vptr td_b td_ofs);
          data_at sh_buf (tarray tschar (Zlength buf)) (map Vbyte buf) 
-                   (Vptr buf_b buf_ofs))
+                   (Vptr buf_b buf_ofs);
+        data_at sh_val (tptr tvoid) bv bool_value)
     POST [tvoid]
       PROP()
       LOCAL ()
@@ -119,13 +86,44 @@ Definition bool_ber_decode_spec : ident * funspec :=
                      data_at sh_val (tptr tuchar)
                              (default_val (tptr tuchar)) bool_value
            end).
-           
-Definition Gprog2 := ltac:(with_library prog [ber_check_tags_spec; bool_ber_decode_spec]).
+
+
+Definition calloc_spec  :=
+  DECLARE _calloc
+   WITH t:type
+   PRE [ 1%positive OF tuint , 2%positive OF tuint  ]
+       PROP (0 <= sizeof t <= Ptrofs.max_unsigned;
+                complete_legal_cosu_type t = true;
+                natural_aligned natural_alignment t = true)
+       LOCAL (temp 1%positive (Vptrofs (Ptrofs.repr (sizeof t))))
+       SEP ()
+    POST [ tptr tvoid ] EX p:_,
+       PROP ()
+       LOCAL (temp ret_temp p)
+       SEP ( if eq_dec p nullval then emp
+            else (malloc_token Ews t p * data_at_ Ews t p)).
+          
+Definition Gprog2 := ltac:(with_library prog [calloc_spec; ber_check_tags_spec; bool_ber_decode_spec]).
+
+  Variable gl : ident -> val.
+
 
 Theorem bool_der_encode : semax_body Vprog Gprog2 
            (normalize_function f_BOOLEAN_decode_ber composites) bool_ber_decode_spec.
   Proof.
   start_function.
+  forward.
+  forward.
+  hint.
+  forward_if True.
+  entailer!.
+  try autorewrite with sublist in *|-.
+  hint.
+  eapply denote_tc_test_eq_split.
+  admit.
+  entailer!.  
+  hint.
+  forward_call (tint).
 Admitted.
 
 End Boolean_ber_decode.
