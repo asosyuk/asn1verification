@@ -29,3 +29,6 @@ Definition cb_type := (Tfunction
                           cc_default).
 Definition enc_rval_s := Tstruct _asn_enc_rval_s noattr.
 Definition type_descriptor_s := Tstruct _asn_TYPE_descriptor_s noattr.
+
+Definition construct_enc_rval encoded (td : TYPE_descriptor) (sptr : val) := 
+  (Vint (Int.repr encoded), (Vundef, sptr)).
