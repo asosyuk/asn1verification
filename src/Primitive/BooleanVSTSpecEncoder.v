@@ -50,7 +50,8 @@ Definition bool_der_encode_spec : ident * funspec :=
           data_at Tsh cb_type tt cb_p)
     POST [tvoid]
       PROP()
-      LOCAL ()
+      LOCAL (lvar _bool_value tuchar b_addr;
+             lvar _erval enc_rval_s erval_addr)
       SEP( (* Unchanged by the execution : *)
            data_at Tsh tuchar 
                    (Vbyte (match execErrW (bool_encoder td b) [] with
@@ -75,9 +76,9 @@ Theorem bool_der_encode : semax_body Vprog Gprog
                                         f_BOOLEAN_encode_der composites) 
                                      bool_der_encode_spec.
 Proof.
-  start_function.
+  (*start_function.
   forward.
-  forward_call (td_p, td, 1, tag_mode, 0, tag, cb_p, cb_val, app_p, app_key_val).
+forward_call (td_p, td, 1, tag_mode, 0, tag, cb_p, cb_val, app_p, app_key_val). *)
 Admitted.
 
 End Boolean_der_encode_primitive.
