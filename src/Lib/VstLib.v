@@ -32,3 +32,18 @@ Definition type_descriptor_s := Tstruct _asn_TYPE_descriptor_s noattr.
 
 Definition construct_enc_rval encoded (td : TYPE_descriptor) (sptr : val) := 
   (Vint (Int.repr encoded), (Vundef, sptr)).
+
+Definition cb_spec : funspec :=
+  WITH buf_addr : val, buf : val, size : Z, app_addr : val, app_key : val
+    PRE[tptr tvoid, tint, tptr tvoid]
+      PROP()
+      PARAMS(buf; Vint (Int.repr size); app_key)
+      GLOBALS()
+      SEP(data_at Tsh (tptr tvoid) buf buf_addr;
+          data_at Tsh (tptr tvoid) app_key app_addr)
+    POST[tint]
+      PROP()
+      LOCAL(temp ret_temp (Vint (Int.repr size)))
+      SEP(data_at Tsh (tptr tvoid) buf buf_addr;
+          data_at Tsh (tptr tvoid) app_key app_addr).
+  

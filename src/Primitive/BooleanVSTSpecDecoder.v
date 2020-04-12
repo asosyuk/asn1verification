@@ -1,6 +1,7 @@
 Require Import Core.Core  Core.StructNormalizer VstLib Lib BooleanExecSpec ErrorWithWriter.
 Require Import VST.floyd.proofauto Psatz.
 Require Import VST.floyd.library.
+Require Export VST.floyd.Funspec_old_Notation.
 
 Require Import Clight.BOOLEAN BCTVSTSpec.
 Require Import StructNormalizer.

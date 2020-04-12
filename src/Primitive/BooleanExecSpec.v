@@ -9,6 +9,28 @@ Definition bool_encoder :=
   fun td (b : bool) => let t := if b then (Byte.repr 255) else (Byte.repr 0) in 
                  primitive_encoder td (cons t nil).
 
+(* Related lemmas *)
+
+Theorem exec_boolean_enc : forall td b, 
+  decoder_type td = BOOLEAN_t ->
+  execErrW (bool_encoder td b) [] = Some [Byte.one; Byte.one; bool_to_byte b].
+Proof.
+  intros.
+  unfold execErrW, bool_encoder, primitive_encoder, DWTExecSpec.der_write_tags; 
+    rewrite H; cbn.
+  unfold bool_to_byte; reflexivity.
+Qed.
+
+Theorem eval_boolean_enc : forall td b,
+  decoder_type td = BOOLEAN_t ->
+  evalErrW (bool_encoder td b) [] = Some (encode 3).
+Proof.
+  intros.
+  unfold evalErrW, bool_encoder, primitive_encoder, DWTExecSpec.der_write_tags; 
+    rewrite H; cbn.
+  reflexivity.
+Qed.
+
 End Encoder.
 
 Section Decoder.

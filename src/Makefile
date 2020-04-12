@@ -14,7 +14,7 @@ endef
 default: coq
 
 clight':
-	clightgen -normalize -fstruct-passing -flongdouble -dclight \
+	clightgen -normalize -fstruct-passing -flongdouble \
 	-I $(ASN1C_DIR)/skeletons \
 	$(foreach FILE, $(ASN1C_FILES), $(call skel_path, $(FILE)))
 
@@ -31,13 +31,16 @@ coq: CoqMakefile
 
 clean:
 	find . -name "*.vo"    -type f -not -path "./Clight/*" -delete
+	find . -name "*.vok"   -type f -not -path "./Clight/*" -delete
+	find . -name "*.vos"   -type f -not -path "./Clight/*" -delete
 	find . -name "*.aux"   -type f -not -path "./Clight/*" -delete
 	find . -name "*.glob"  -type f -not -path "./Clight/*" -delete
 	find . -name "*.cache" -type f -not -path "./Clight/*" -delete
 
 distclean:
 	find . -name "*.vo"    -type f -delete
-	find . -name "*.vo"    -type f -delete
+	find . -name "*.vok"   -type f -delete
+	find . -name "*.vos"   -type f -delete
 	find . -name "*.aux"   -type f -delete
 	find . -name "*.glob"  -type f -delete
 	find . -name "*.cache" -type f -delete

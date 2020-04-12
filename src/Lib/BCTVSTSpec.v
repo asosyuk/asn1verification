@@ -2,6 +2,7 @@ Require Import Core.Core Core.StructNormalizer
  VstLib DWTExecSpec ErrorWithWriter BCTExecSpec.
 Require Import VST.floyd.proofauto Psatz.
 Require Import Clight.ber_decoder.
+Require Export VST.floyd.Funspec_old_Notation.
 
 Definition Vprog : varspecs. mk_varspecs prog. Defined.
 Instance CompSpecs : compspecs. make_compspecs prog. Defined.
@@ -47,9 +48,6 @@ Definition ber_check_tags_spec : ident * funspec :=
 Definition Gprog := ltac:(with_library prog [ber_check_tags_spec]).
 
 Theorem bool_der_encode : semax_body Vprog Gprog (normalize_function f_ber_check_tags composites) ber_check_tags_spec.
-Proof.
-  start_function.
-  repeat forward.
 Admitted.
 
 End Ber_check_tags.
