@@ -60,18 +60,31 @@ Fixpoint struct_normalize (s : statement) (c : list composite_definition) (p : p
   | s => s 
   end.
 
-(* Fixpoint maximum (e : positive) (l : list positive) : positive :=
-    match l with
-    | nil => e
-    | x :: xs => Pos.max x (maximum e xs)
-    end.
-
-Definition fresh_ident f := let ids := map fst (fn_vars f) in
-                            (1 + maximum 1 (map id ids))%positive. *)
-
 Definition fresh_ident f := 
    (Z.to_pos (Zlength (fn_temps f)) * last (map fst (fn_temps f)) 1)%positive. 
 
+Fixpoint new_fn_temps p fs c :=
+match fs with
+| [] => []
+| h :: tl =>
+  (fix new_fn_temps_loop  (f : list (ident * type))  c :=
+      match f with
+      | [] => []
+      | h :: tl =>
+        match snd h with
+           | Tstruct id _ =>
+        let ls := find_struct_fields id c in
+        map (fun t => ((fun x => p + x)%positive (fst t), snd t)) ls
+                                  ++ new_fn_temps_loop tl c
+           | _ => new_fn_temps_loop tl c
+        end
+      end) h c ++ new_fn_temps p tl c
+end.
+
 Definition normalize_function f c :=
-  mkfunction (fn_return f) (fn_callconv f) (fn_params f) (fn_vars f) (fn_temps f)
+  mkfunction (fn_return f) (fn_callconv f) (fn_params f) (fn_vars f)
+             ((fn_temps f) ++ new_fn_temps (fresh_ident f)
+                           [(fn_temps f); (fn_vars f);
+                              (fn_params f)] c)
              (struct_normalize (fn_body f) c (fresh_ident f)).
+
