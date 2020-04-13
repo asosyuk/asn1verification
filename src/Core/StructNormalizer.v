@@ -24,17 +24,22 @@ Fixpoint copy_by_fields (p : positive) (e : expr) (id2 : ident) (ty : type) (ls 
   | [] => []
   | h :: tl => let f := fst h in
              let t := snd h in
+             let p' := (p + f)%positive in
              let s :=
                  Ssequence
-                   (Sset p (Efield (Evar id2 ty) f t))
+                   (Sset p' (Efield (Evar id2 ty) f t))
               match e with 
-                | (Evar id1 ty1) => (Sassign (Efield (Evar id1 (tptr ty)) f t) (Etempvar p t))
-                | (Etempvar id1 ty1) => (Sassign (Efield (Etempvar id1 (tptr ty)) f t) (Etempvar p t))
+                | (Evar id1 ty1) => (Sassign (Efield (Evar id1 (tptr ty)) f t)
+                                            (Etempvar p' t))
+                | (Etempvar id1 ty1) => (Sassign (Efield (Etempvar id1 (tptr ty)) f t) 
+                                                (Etempvar p' t))
                 | (Ederef (Evar id1 ty1) _) 
-                | (Ederef (Etempvar id1 ty1) _) => (Sassign  (Efield (Ederef (Etempvar id1 (tptr ty)) ty) f t) (Etempvar p t))
+                | (Ederef (Etempvar id1 ty1) _) =>
+                  (Sassign  (Efield (Ederef (Etempvar id1 (tptr ty)) ty) f t) 
+                            (Etempvar p' t))
                 | _ => Sskip
               end in
-             s :: copy_by_fields (p + f)%positive e id2 ty tl
+             s :: copy_by_fields p e id2 ty tl
   end.
 
 Fixpoint struct_normalize (s : statement) (c : list composite_definition) (p : positive) :=
@@ -63,5 +68,35 @@ Fixpoint struct_normalize (s : statement) (c : list composite_definition) (p : p
 Definition fresh_ident f := 
    (Z.to_pos (Zlength (fn_temps f)) * last (map fst (fn_temps f)) 1)%positive. 
 
+Fixpoint new_fn_temps p fs c :=
+match fs with
+| [] => []
+| h :: tl =>
+  (fix new_fn_temps_loop  (f : list (ident * type))  c :=
+      match f with
+      | [] => []
+      | h :: tl =>
+        match snd h with
+           | Tstruct id _ =>
+        let ls := find_struct_fields id c in
+        map (fun t => ((fun x => p + x)%positive (fst t), snd t)) ls
+                                  ++ new_fn_temps_loop tl c
+           | _ => new_fn_temps_loop tl c
+        end
+      end) h c ++ new_fn_temps p tl c
+end.
+
 Definition normalize_function f c :=
-  mkfunction (fn_return f) (fn_callconv f) (fn_params f) (fn_vars f) (fn_temps f) (struct_normalize (fn_body f) c (fresh_ident f)).
+  mkfunction (fn_return f) (fn_callconv f) (fn_params f) (fn_vars f)
+             ((fn_temps f) ++ new_fn_temps (fresh_ident f)
+                           [(fn_temps f); (fn_vars f);
+                              (fn_params f)] c)
+             (struct_normalize (fn_body f) c (fresh_ident f)).
+
+(* Require Import BOOLEAN.
+
+ Eval simpl in ((fn_temps f_BOOLEAN_decode_ber) ++ (new_fn_temps (fresh_ident f_BOOLEAN_decode_ber)
+                            [(fn_temps f_BOOLEAN_decode_ber); (fn_vars f_BOOLEAN_decode_ber);
+                               (fn_params f_BOOLEAN_decode_ber)] composites)).
+
+  Eval simpl in  (struct_normalize (fn_body f_BOOLEAN_decode_ber) composites (fresh_ident f_BOOLEAN_decode_ber)). *)

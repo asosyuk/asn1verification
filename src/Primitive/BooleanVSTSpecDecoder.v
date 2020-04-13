@@ -5,7 +5,6 @@ Require Import VST.floyd.library.
 Require Import Clight.BOOLEAN.
 Require Import StructNormalizer.
 
-
 Definition Vprog : varspecs. mk_varspecs prog. Defined.
 Instance CompSpecs : compspecs. make_compspecs prog. Defined.
 
@@ -36,7 +35,7 @@ Definition bool_ber_decode_spec : ident * funspec :=
          (* pointer to the return struct dec_rval *)                        
          sh_res : share, res_b : block, res_ofs : ptrofs,
          size : Z, tag_mode : Z,
-         bv : val
+         bv : val, _res : val
     PRE  [
          __res OF (tptr (Tstruct _asn_dec_rval_s noattr)),
          _opt_codec_ctx OF (tptr (Tstruct _asn_codec_ctx_s noattr)),
@@ -57,14 +56,16 @@ Definition bool_ber_decode_spec : ident * funspec :=
             temp _bool_value bool_value;
             temp _buf_ptr (Vptr buf_b buf_ofs);
             temp _size (Vint (Int.repr size));
-            temp _tag_mode (Vint (Int.repr tag_mode)))
+            temp _tag_mode (Vint (Int.repr tag_mode));
+            temp __res _res)
     SEP (data_at sh_ctx (tptr (Tstruct _asn_codec_ctx_s noattr))
                    (Vptr ctx_b ctx_ofs) ctx;
          data_at sh_td (Tstruct _asn_TYPE_descriptor_s noattr)
                    (TYPE_descriptor_rep td) (Vptr td_b td_ofs);
          data_at sh_buf (tarray tschar (Zlength buf)) (map Vbyte buf) 
                    (Vptr buf_b buf_ofs);
-        data_at sh_val (tptr tvoid) bv bool_value)
+        data_at sh_val (tptr tvoid) bv bool_value;
+        data_at_ sh_res _asn_dec_rval_s_struct _res)
     POST [tvoid]
       PROP()
       LOCAL ()
@@ -87,22 +88,67 @@ Definition bool_ber_decode_spec : ident * funspec :=
                      data_at sh_val (tptr tuchar)
                              (default_val (tptr tuchar)) bool_value
            end).
-           
-Definition Gprog2 := ltac:(with_library prog [bool_ber_decode_spec]).
+
+
+Definition calloc_spec  :=
+  DECLARE _calloc
+   WITH t:type
+   PRE [ 1%positive OF tuint , 2%positive OF tuint  ]
+       PROP (0 <= sizeof t <= Ptrofs.max_unsigned;
+                complete_legal_cosu_type t = true;
+                natural_aligned natural_alignment t = true)
+       LOCAL (temp 1%positive (Vptrofs (Ptrofs.repr (sizeof t))))
+       SEP ()
+    POST [ tptr tvoid ] EX p:_,
+       PROP ()
+       LOCAL (temp ret_temp p)
+       SEP ( if eq_dec p nullval then emp
+            else (malloc_token Ews t p * data_at_ Ews t p)).
+          
+Definition Gprog2 := ltac:(with_library prog [calloc_spec; bool_ber_decode_spec]).
 
 Theorem bool_der_encode : semax_body Vprog Gprog2 
            (normalize_function f_BOOLEAN_decode_ber composites) bool_ber_decode_spec.
   Proof.
   start_function.
-  repeat forward.
-  hint.
+  forward.
+  forward.
   forward_if True.
   entailer!.
   try autorewrite with sublist in *|-.
-  hint.
   eapply denote_tc_test_eq_split.
   admit.
   entailer!.  
+  forward_call (tint).
+  admit.
+  admit.
+  Intros x.
+  forward.
+  forward.
+  forward_if.
+  admit.
+  forward.
+  forward.
+  forward.
+  forward.
+  forward.
+  forward.
+  forward.
+  forward.
+  admit.
+  forward.
+  admit.
+  forward.
+  admit.
+  forward_loop (PROP()LOCAL()SEP()) break: (PROP()LOCAL()SEP()).
+  unfold fresh_ident.
+  simpl.
+
+  Eval simpl in ((fn_temps f_BOOLEAN_decode_ber) ++ (new_fn_temps (fresh_ident f_BOOLEAN_decode_ber)
+                            [(fn_temps f_BOOLEAN_decode_ber); (fn_vars f_BOOLEAN_decode_ber);
+                               (fn_params f_BOOLEAN_decode_ber)] composites)).
+  forward.
+  
 Admitted.
 
 End Boolean_ber_decode.
