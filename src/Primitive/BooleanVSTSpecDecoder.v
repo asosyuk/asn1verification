@@ -2,7 +2,6 @@ Require Import Core.Core  Core.StructNormalizer VstLib Lib BooleanExecSpec Error
 Require Import VST.floyd.proofauto Psatz.
 Require Import VST.floyd.library.
 Require Export VST.floyd.Funspec_old_Notation.
-
 Require Import Clight.BOOLEAN BCTVSTSpec.
 Require Import StructNormalizer.
 
@@ -116,7 +115,7 @@ Definition Gprog2 := ltac:(with_library prog [calloc_spec;
 
 Theorem bool_der_encode : semax_body Vprog Gprog2 
            (normalize_function f_BOOLEAN_decode_ber composites) bool_ber_decode_spec.
-  Proof.
+Proof.
   start_function.
   forward.
   forward.
