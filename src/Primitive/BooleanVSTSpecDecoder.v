@@ -91,24 +91,25 @@ Definition bool_ber_decode_spec : ident * funspec :=
                              (default_val (tptr tuchar)) bool_value
            end).
 
-
 Definition calloc_spec :=
    DECLARE _calloc
-   WITH m : int, t : type, gv : globals
-   PRE [ 1%positive OF tuint, 2%positive OF tuint ]
-       PROP (0 <= sizeof t <= Ptrofs.max_unsigned;
-             complete_legal_cosu_type t = true;
-             natural_aligned natural_alignment t = true)
-       LOCAL (temp 1%positive (Vint m); 
-              temp 2%positive (Vptrofs (Ptrofs.repr (sizeof t)));
-              gvars gv)
-       SEP (mem_mgr gv)
-    POST [ tptr tvoid ] EX p:_,
-       PROP ()
+   WITH m : Z, n : Z, ls : list byte (*, gv : globals *)
+   PRE [ 1%positive OF size_t, 2%positive OF size_t ]
+       PROP (0 <= m <= Ptrofs.max_unsigned ;
+             0 <= n <= Ptrofs.max_unsigned ;
+             0 <= m * n <= Ptrofs.max_unsigned;
+             Zlength ls = (m * n)%Z )
+       LOCAL (temp 1%positive (Vptrofs (Ptrofs.repr m)); 
+              temp 2%positive (Vptrofs (Ptrofs.repr n)) (*;
+              gvars gv *))
+       SEP ((* mem_mgr gv *))
+    POST [ tptr tvoid ] EX p : val, EX t : type,
+       PROP (Forall (fun x => x = Byte.zero) ls)
        LOCAL (temp ret_temp p)
-       SEP (mem_mgr gv;
-             if eq_dec p nullval then emp
-            else (malloc_token Ews t p * data_at_ Ews t p)).
+       SEP ((* mem_mgr gv; *)
+         if eq_dec p nullval then emp
+         else (malloc_token Ews t p *
+               data_at Ews (tarray tschar m) (map Vbyte ls) p)).
           
 Definition Gprog2 := ltac:(with_library prog [calloc_spec; 
                                               ber_check_tags_spec; 
@@ -126,7 +127,18 @@ Theorem bool_der_encode : semax_body Vprog Gprog2
   eapply denote_tc_test_eq_split.
   admit.
   entailer!.
-  Fail forward_call (Int.one, tint, gv).
+  forward_call (1, 4, [Byte.zero]). (* change spec *)
+  admit.
+  Intros p.
+  forward.
+  forward.
+  forward_if.
+  destruct (eq_dec (fst p) nullval) eqn : N.
+  entailer!.
+  admit.
+  entailer!.
+  repeat forward.
+  entailer!.
 Admitted.
 
 End Boolean_ber_decode.
