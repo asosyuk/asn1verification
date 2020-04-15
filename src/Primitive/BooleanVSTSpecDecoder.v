@@ -2,11 +2,16 @@ Require Import Core.Core  Core.StructNormalizer VstLib Lib BooleanExecSpec Error
 Require Import VST.floyd.proofauto Psatz.
 Require Import VST.floyd.library.
 Require Export VST.floyd.Funspec_old_Notation.
-Require Import Clight.BOOLEAN BCTVSTSpec.
+Require Import BCTVSTSpec Clight.BOOLEAN.
 Require Import StructNormalizer.
 
 Definition Vprog : varspecs. mk_varspecs prog. Defined.
 Instance CompSpecs : compspecs. make_compspecs prog. Defined.
+
+Instance Change1 : change_composite_env CompSpecs BCTVSTSpec.CompSpecs.
+Proof. make_cs_preserve CompSpecs BCTVSTSpec.CompSpecs. Defined.
+Instance Change2 : change_composite_env BCTVSTSpec.CompSpecs CompSpecs.
+Proof. make_cs_preserve BCTVSTSpec.CompSpecs CompSpecs. Defined.
 
 Open Scope Z.
 
@@ -90,6 +95,9 @@ Definition bool_ber_decode_spec : ident * funspec :=
                              (default_val (tptr tuchar)) bool_value
            end).
 
+(* SearchAbout mem_mgr.
+SearchAbout malloc_token. *)
+
 Definition calloc_spec :=
    DECLARE _calloc
    WITH m : Z, n : Z, ls : list byte (*, gv : globals *)
@@ -126,8 +134,9 @@ Proof.
   eapply denote_tc_test_eq_split.
   admit.
   entailer!.
-  forward_call (1, 4, [Byte.zero]). (* change spec *)
-  admit.
+  forward_call (1, 4, [Byte.zero; Byte.zero; Byte.zero; Byte.zero]).
+  cbn.
+  nia.
   Intros p.
   forward.
   forward.
@@ -137,6 +146,47 @@ Proof.
   admit.
   entailer!.
   repeat forward.
+  entailer!.
+  admit.
+  forward.
+  entailer!.
+  hint.
+  autorewrite with sublist in *|-.
+  admit.
+  admit.
+  forward.
+  entailer!.
+  forward_loop (PROP (True)
+     LOCAL (temp _st bv; temp _t'11 bv; lvar __res__1 _asn_dec_rval_s_struct v__res__1;
+     lvar _tmp_error _asn_dec_rval_s_struct v_tmp_error; lvar _length tint v_length;
+     lvar _rval _asn_dec_rval_s_struct v_rval; temp __res res; temp _opt_codec_ctx ctx;
+     temp _td (Vptr td_b td_ofs); temp _bool_value bool_value;
+     temp _buf_ptr (Vptr buf_b buf_ofs); temp _size (Vint (Int.repr size));
+     temp _tag_mode (Vint (Int.repr tag_mode)))
+     SEP (data_at_ Tsh _asn_dec_rval_s_struct v__res__1;
+     data_at_ Tsh _asn_dec_rval_s_struct v_tmp_error; data_at_ Tsh tint v_length;
+     data_at_ Tsh _asn_dec_rval_s_struct v_rval;
+     data_at sh_ctx (tptr (Tstruct _asn_codec_ctx_s noattr)) (Vptr ctx_b ctx_ofs) ctx;
+     data_at sh_td (Tstruct _asn_TYPE_descriptor_s noattr) (TYPE_descriptor_rep td)
+       (Vptr td_b td_ofs);
+     data_at sh_buf (tarray tschar (Zlength buf)) (map Vbyte buf) (Vptr buf_b buf_ofs);
+     data_at sh_val (tptr tvoid) bv bool_value; data_at_ sh_res _asn_dec_rval_s_struct res)) break: (PROP (True)
+     LOCAL (temp _st bv; temp _t'11 bv; lvar __res__1 _asn_dec_rval_s_struct v__res__1;
+     lvar _tmp_error _asn_dec_rval_s_struct v_tmp_error; lvar _length tint v_length;
+     lvar _rval _asn_dec_rval_s_struct v_rval; temp __res res; temp _opt_codec_ctx ctx;
+     temp _td (Vptr td_b td_ofs); temp _bool_value bool_value;
+     temp _buf_ptr (Vptr buf_b buf_ofs); temp _size (Vint (Int.repr size));
+     temp _tag_mode (Vint (Int.repr tag_mode)))
+     SEP (data_at_ Tsh _asn_dec_rval_s_struct v__res__1;
+     data_at_ Tsh _asn_dec_rval_s_struct v_tmp_error; data_at_ Tsh tint v_length;
+     data_at_ Tsh _asn_dec_rval_s_struct v_rval;
+     data_at sh_ctx (tptr (Tstruct _asn_codec_ctx_s noattr)) (Vptr ctx_b ctx_ofs) ctx;
+     data_at sh_td (Tstruct _asn_TYPE_descriptor_s noattr) (TYPE_descriptor_rep td)
+       (Vptr td_b td_ofs);
+     data_at sh_buf (tarray tschar (Zlength buf)) (map Vbyte buf) (Vptr buf_b buf_ofs);
+     data_at sh_val (tptr tvoid) bv bool_value; data_at_ sh_res _asn_dec_rval_s_struct res)).
+  entailer!.
+  forward.
   entailer!.
 Admitted.
 

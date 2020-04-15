@@ -204,9 +204,7 @@ Proof.
     forward.
     unfold construct_enc_rval, encoded, last.
     forward_loop (loop_inv sptr_p v_bool_value v_erval res td_p tag_mode tag
-                                cb_p app_p cb_spec b)
-                 break: (loop_post sptr_p b_val res td_p 
-                                       cb_p app_p cb_spec b); 
+                                cb_p app_p cb_spec b); 
       unfold loop_inv, loop_post.
     - entailer!.
     - 
@@ -218,7 +216,6 @@ Proof.
       unfold_data_at (data_at _ _ _ res).
       unfold_data_at_  v_erval; unfold_data_at (data_at _ _ _ v_erval).
       entailer!.
-    - admit
 Admitted.     
 
 End Boolean_der_encode_primitive.
