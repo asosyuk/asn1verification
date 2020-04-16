@@ -10,6 +10,7 @@ Definition calloc_spec {cs : compspecs} :=
              0 <= m * n <= Ptrofs.max_unsigned)
        PARAMS (Vptrofs (Ptrofs.repr m); 
                Vptrofs (Ptrofs.repr n)) 
+       GLOBALS()
        SEP ()
     POST [ tptr tvoid ] EX p : val, EX t : type, EX ls : list byte, 
        PROP (Zlength ls = (m * n)%Z;
@@ -24,6 +25,7 @@ Definition memcpy_spec {cs : compspecs} :=
    PRE [ tptr tvoid, tptr tvoid, tuint ]
        PROP (readable_share qsh; writable_share psh; 0 <= n <= Int.max_unsigned)
        PARAMS (p; q; Vint (Int.repr n))
+       GLOBALS()
        SEP (data_at qsh (tarray tuchar n) (map Vint contents) q;
               memory_block psh n p)
     POST [ tptr tvoid ]
@@ -36,6 +38,7 @@ Definition memset_spec {cs : compspecs}:=
    PRE [ tptr tvoid, tint, tuint ]
        PROP (writable_share sh; 0 <= n <= Int.max_unsigned)
        PARAMS (p; Vint c; Vint (Int.repr n))
+       GLOBALS()
        SEP (memory_block sh n p)
     POST [ tptr tvoid ]
        PROP() LOCAL(temp ret_temp p)

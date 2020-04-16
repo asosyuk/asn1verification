@@ -184,8 +184,7 @@ Proof.
     forward.
     unfold construct_enc_rval, encoded, last.
     forward_loop (loop_inv sptr_p v_bool_value v_erval res td_p tag_mode tag
-                                cb_p app_p cb_spec b); 
-      unfold loop_inv, loop_post.
+                                cb_p app_p cb_spec b); unfold loop_inv.
     - entailer!.
     - 
       unfold_data_at_ res.

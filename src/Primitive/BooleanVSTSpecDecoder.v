@@ -29,20 +29,22 @@ Definition bool_ber_decode_spec : ident * funspec :=
           tptr asn_codec_ctx_s,
           tptr type_descriptor_s,
           tptr (tptr tvoid), tptr tvoid, tuint, tint ] 
-    PROP (is_pointer_or_null bv)
+    PROP (writable_share sh_val;
+         writable_share sh_res; is_pointer_or_null bv)
     PARAMS (res; ctx; Vptr td_b td_ofs; bool_value;
             Vptr buf_b buf_ofs; Vint (Int.repr size);
               Vint (Int.repr tag_mode))
     GLOBALS()
-    SEP (valid_pointer bv;
+    SEP (
+         valid_pointer bv;
          data_at sh_ctx (tptr asn_codec_ctx_s)
                    (Vptr ctx_b ctx_ofs) ctx;
          data_at sh_td type_descriptor_s
                    (TYPE_descriptor_rep td) (Vptr td_b td_ofs);
          data_at sh_buf (tarray tschar (Zlength buf)) (map Vbyte buf) 
                    (Vptr buf_b buf_ofs);
-        data_at Share.Rsh (tptr tvoid) bv bool_value;
-        data_at_ Share.Rsh asn_dec_rval_s res)
+        data_at sh_val (tptr tvoid) bv bool_value;
+        data_at_ sh_res asn_dec_rval_s res)
     POST [tvoid]
       PROP()
       LOCAL ()
@@ -77,7 +79,7 @@ Proof.
   start_function.
   repeat forward.
   forward_if (is_pointer_or_null bv).
-  - forward_call (1, sizeof(tint)).
+  - Time forward_call (1, sizeof(tint)).
     cbn; nia.
     Intros p.
     forward.
@@ -88,7 +90,7 @@ Proof.
     forward_if.
     repeat forward.
     (* entailer!.
-    break_if.
+    break_if/
     + entailer! *)
 Admitted.
 
