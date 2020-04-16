@@ -1,6 +1,6 @@
 Require Import Core.Core.
 Require Import VST.floyd.proofauto.
-Require Import VST.floyd.library.
+Require Import VST.floyd.library. (* contains malloc, exit and free specs *)
 
 Definition calloc_spec {cs : compspecs} :=
    WITH m : Z, n : Z
@@ -43,3 +43,36 @@ Definition memset_spec {cs : compspecs}:=
     POST [ tptr tvoid ]
        PROP() LOCAL(temp ret_temp p)
        SEP(data_at sh (tarray tuchar n) (list_repeat (Z.to_nat n) (Vint c)) p).
+
+Definition memcmp_spec {cs : compspecs} :=
+    WITH qsh : share, psh : share, p : val, q : val, 
+         n : Z, r : int, ls: list byte
+   PRE [ tptr tvoid, tptr tvoid, size_t ]
+       PROP (readable_share qsh; readable_share psh;
+             0 <= n <= Ptrofs.max_unsigned;
+             n < Zlength ls)
+       PARAMS (p; q; Vptrofs (Ptrofs.repr n))
+       GLOBALS()
+       SEP (data_at qsh (tarray tuchar n) (map Vbyte ls) q;
+            data_at psh (tarray tuchar n) (map Vbyte ls) p)
+    POST [ tint ]
+       PROP() LOCAL(temp ret_temp (Vint r))
+       SEP(data_at qsh (tarray tuchar n) (map Vbyte ls) q;
+           data_at psh (tarray tuchar n) (map Vbyte ls) p).
+
+(* Definition memchr_spec {cs : compspecs}:=
+   WITH sh : share, p: val, n: Z, c: int
+   PRE [ tptr tvoid, tint, tuint ]
+       PROP (writable_share sh; 0 <= n <= Int.max_unsigned)
+       PARAMS (p; Vint c; Vint (Int.repr n))
+       GLOBALS()
+       SEP (memory_block sh n p)
+    POST [ tptr tvoid ]
+       PROP() LOCAL(temp ret_temp p)
+       SEP(data_at sh (tarray tuchar n) (list_repeat (Z.to_nat n) (Vint c)) p).
+
+const void * memchr ( const void * ptr, int value, size_t num );
+      void * memchr (       void * ptr, int value, size_t num ); *)
+
+
+
