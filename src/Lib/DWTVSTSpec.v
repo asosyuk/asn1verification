@@ -1,4 +1,5 @@
-Require Import Core.Core Core.StructNormalizer VstLib DWTExecSpec ErrorWithWriter.
+Require Import Core.Core Core.StructNormalizer VstLib DWTExecSpec 
+        ErrorWithWriter VstCallback.
 Require Import VST.floyd.proofauto.
 Require Import Clight.der_encoder.
 
@@ -26,7 +27,7 @@ Definition der_write_tags_spec : ident * funspec :=
     GLOBALS()
     SEP(data_at_ Tsh type_descriptor_s td_p ; 
         data_at_ Tsh tvoid app_p ;
-        func_ptr cb_spec cb_p)
+        func_ptr callback cb_p)
     POST[tint]
       PROP()
       LOCAL(temp ret_temp 
@@ -37,7 +38,7 @@ Definition der_write_tags_spec : ident * funspec :=
       SEP((* Unchanged by the execution : *)
           data_at_ Tsh type_descriptor_s td_p ; 
           data_at_ Tsh tvoid app_p ;
-          func_ptr cb_spec cb_p).
+          func_ptr callback cb_p).
 
 Definition Gprog := ltac:(with_library prog [der_write_tags_spec]).
 

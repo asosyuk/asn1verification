@@ -5,7 +5,8 @@ COQARGS := $(strip $(shell cat _CoqProject))
 ASN1C_DIR := ../../asn1c
 
 # files from asn1c/skeletons to be included (space-separated)
-ASN1C_FILES := asn_codecs_prim.c INTEGER.c BOOLEAN.c der_encoder.c ber_decoder.c
+ASN1C_FILES := asn_codecs_prim.c INTEGER.c BOOLEAN.c der_encoder.c \
+	ber_decoder.c asn_application.c
 
 define skel_path
 	$(ASN1C_DIR)/skeletons/$(strip $(1))

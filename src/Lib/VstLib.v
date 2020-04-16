@@ -32,18 +32,3 @@ Definition construct_enc_rval encoded (sptr : val) :=
 
 Definition construct_dec_rval code consumed := 
   (Vint (Int.repr code), Vint (Int.repr consumed)).
-
-Definition cb_spec : funspec :=
-  WITH buf_addr : val, buf : val, size : Z, app_addr : val, app_key : val
-    PRE[tptr tvoid, tint, tptr tvoid]
-      PROP()
-      PARAMS(buf; Vint (Int.repr size); app_key)
-      GLOBALS()
-      SEP(data_at Tsh (tptr tvoid) buf buf_addr;
-          data_at Tsh (tptr tvoid) app_key app_addr)
-    POST[tint]
-      PROP()
-      LOCAL(temp ret_temp (Vint (Int.repr size)))
-      SEP(data_at Tsh (tptr tvoid) buf buf_addr;
-          data_at Tsh (tptr tvoid) app_key app_addr).
-  
