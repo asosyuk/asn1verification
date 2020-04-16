@@ -31,8 +31,7 @@ Definition primitive_encoder td ls : errW1 asn_enc_rval :=
 
 Definition ZeroChar := Byte.repr 48.
 
-Definition bool_of_byte (b : byte) := if (b == default_byte)%byte 
-                                      then false
-                                      else true.
-
-Definition bool_to_byte (b : bool) := if b then (Byte.repr 255) else (default_byte).
+Definition bool_of_byte (b : byte) := 
+  if (b == default_byte)%byte then false else true.
+Definition byte_of_bool (b : bool) := Byte.repr (if b then 255 else 0).
+Definition int_of_bool (b : bool) := Int.repr (if b then 255 else 0).

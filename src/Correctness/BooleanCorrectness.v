@@ -14,15 +14,12 @@ Theorem der_encoder_correctness : forall td b ls ,
   DER (BOOLEAN b) ls.
 Proof.
   intros TD Val Res DT Enc; intros.
-  unfold bool_encoder, primitive_encoder, DWTExecSpec.der_write_tags in Enc. 
+  unfold bool_encoder, primitive_encoder, DWTExecSpec.der_write_tags
+     in Enc. 
   rewrite DT in Enc; cbn in Enc.
   inversion Enc; rename H0 into Res'.
-  replace ([Byte.repr 1; Byte.repr 1; if Val 
-                                     then Byte.repr 255 
-                                     else Byte.repr 0]) with
-      ([Byte.repr 1] ++ [Byte.repr 1] ++ [if Val 
-                                          then Byte.repr 255 
-                                          else Byte.repr 0]) by reflexivity.
+  replace ([Byte.repr 1; Byte.repr 1; byte_of_bool Val]) with
+      ([Byte.repr 1] ++ [Byte.repr 1] ++ [byte_of_bool Val]) by reflexivity.
   destruct Val eqn:V in Enc; subst; repeat econstructor.
 Qed.
 
@@ -47,7 +44,7 @@ Proof.
     inversion Dec.
   replace (Z.to_nat (3 - 1)) with (2)%nat by reflexivity; 
     do 2 rewrite skipn_cons; rewrite skipn_O; 
-      unfold bool_to_byte.
+      unfold byte_of_bool.
   pose proof Byte.eq_spec i1 (default_byte).
   unfold bool_of_byte.
   destruct (i1 == default_byte)%byte eqn:K; cbn in *; subst; econstructor.
@@ -69,8 +66,9 @@ Proof.
   replace (Pos.to_nat 2) with (2)%nat by reflexivity.
   do 2 rewrite skipn_cons; rewrite skipn_O; cbn.
   pose proof Byte.eq_spec  
-       ((if B then Byte.repr 255 else Byte.repr 0)) 
+       (byte_of_bool B) 
        (default_byte) as ResC.
+  unfold byte_of_bool in *.
   unfold default_byte in *; cbn in ResC.
   rewrite <-Res in Len; cbn in Len.
   subst.

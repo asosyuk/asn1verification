@@ -6,19 +6,18 @@ Import MonadNotation.
 Section Encoder.
 
 Definition bool_encoder := 
-  fun td (b : bool) => let t := if b then (Byte.repr 255) else (Byte.repr 0) in 
-                 primitive_encoder td (cons t nil).
+  fun td (b : bool) => primitive_encoder td [byte_of_bool b].
 
 (* Related lemmas *)
 
 Theorem exec_boolean_enc : forall td b, 
   decoder_type td = BOOLEAN_t ->
-  execErrW (bool_encoder td b) [] = Some [Byte.one; Byte.one; bool_to_byte b].
+  execErrW (bool_encoder td b) [] = Some [Byte.one; Byte.one; byte_of_bool b].
 Proof.
   intros.
   unfold execErrW, bool_encoder, primitive_encoder, DWTExecSpec.der_write_tags; 
     rewrite H; cbn.
-  unfold bool_to_byte; reflexivity.
+  unfold byte_of_bool; reflexivity.
 Qed.
 
 Theorem eval_boolean_enc : forall td b,

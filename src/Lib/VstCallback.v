@@ -24,7 +24,7 @@ Definition callback : funspec :=
           data_at Tsh enc_key (constr_enc_key) key_p; *))
     POST[tint]
       PROP()
-      LOCAL(temp __res (Vint (Int.repr 0)))
+      LOCAL(temp ret_temp (Vint (Int.repr 0)))
       SEP().
 
 Definition callback_spec : ident * funspec :=
@@ -34,8 +34,6 @@ Definition Gprog := ltac:(with_library prog [callback_spec]).
 
 Theorem bool_der_encode : semax_body Vprog Gprog f_overrun_encoder_cb 
                                      callback_spec.
-Proof.
-  start_function.
 Admitted.
 
 End Encoder_callback.

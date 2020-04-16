@@ -14,8 +14,6 @@ Open Scope Z.
 
 Section Boolean_der_encode_primitive.
 
-Definition int_of_bool (b : bool) := Int.repr (if b then 255 else 0).
-
 Definition cb := _overrun_encoder_cb.
 
 Definition bool_der_encode_spec : ident * funspec :=
@@ -60,8 +58,8 @@ Definition bool_der_encode_spec : ident * funspec :=
                    end) res;
           data_at_ Tsh type_descriptor_s td_p ; 
           data_at Tsh tint (Vint (int_of_bool b)) sptr_p ;
-          data_at_ Tsh tvoid app_p ;
-          valid_pointer (gv cb); func_ptr callback (gv cb)).
+          data_at_ Tsh tvoid app_p ; valid_pointer (gv cb); 
+          func_ptr callback (gv cb); func_ptr' callback (gv cb)).
 
 Definition Gprog := ltac:(with_library prog [der_write_tags_spec; callback_spec;
                                                bool_der_encode_spec]).
@@ -69,7 +67,8 @@ Definition Gprog := ltac:(with_library prog [der_write_tags_spec; callback_spec;
 Definition if_post1 (gv : globals) cb sptr_p res bool_p erval_p td_p tag_mode 
            tag app_p td b cb_spec := 
   PROP(is_pointer_or_null (gv cb))
-  LOCAL(temp _t'6 (Vint (Int.repr 2)); 
+  LOCAL(gvars gv;
+        temp _t'6 (Vint (Int.repr 2)); 
         temp _t'1 (Vint (Int.repr (encoded {| encoded := 2 |}))); 
         temp _st sptr_p; lvar _bool_value tuchar bool_p;
         lvar _erval (Tstruct _asn_enc_rval_s noattr) erval_p; 
@@ -78,15 +77,15 @@ Definition if_post1 (gv : globals) cb sptr_p res bool_p erval_p td_p tag_mode
         temp _tag (Vint (Int.repr tag)); 
         temp _cb (gv cb); temp _app_key app_p) 
   SEP(data_at_ Tsh type_descriptor_s td_p; 
-      data_at_ Tsh enc_rval_s res;
-      data_at_ Tsh tvoid app_p; func_ptr cb_spec (gv cb); 
+      data_at_ Tsh enc_rval_s res; data_at_ Tsh tvoid app_p; 
+      func_ptr cb_spec (gv cb); func_ptr' cb_spec (gv cb); 
       (match (gv cb) with
        | Vint _ => data_at_ Tsh tuchar bool_p
        | _ => data_at Tsh tuchar 
-                     (Vbyte (match execErrW (bool_encoder td b) [] with 
-                             | Some v => last v (Byte.repr (-1)) 
-                             | None => (Byte.repr (-1)) 
-                             end)) bool_p end);
+                     (Vubyte (match execErrW (bool_encoder td b) [] with 
+                              | Some v => last v (Byte.repr (-1)) 
+                              | None => (Byte.repr (-1)) 
+                              end)) bool_p end);
       field_at Tsh (Tstruct _asn_enc_rval_s noattr) (DOT _encoded) 
                (Vint (Int.repr 2)) erval_p;
       field_at Tsh (Tstruct _asn_enc_rval_s noattr) (DOT _failed_type) 
@@ -98,10 +97,16 @@ Definition if_post1 (gv : globals) cb sptr_p res bool_p erval_p td_p tag_mode
       valid_pointer (gv cb)).
 
 Definition if_post2 (gv : globals) (b : bool) app_p (v_bool_value : val) cb_spec 
-           cb v_bool_value v_erval td_p res sptr_p := 
+           cb v_bool_value v_erval td_p res sptr_p tag_mode tag := 
   PROP()
-  LOCAL(temp _cb (gv cb); temp _app_key app_p; 
-        lvar _bool_value tuchar v_bool_value; 
+  LOCAL(gvars gv; temp _t'6 (Vint (Int.repr 2));
+        temp _t'1 (Vint (Int.repr (encoded {| encoded := 2 |}))); 
+        temp _st sptr_p; lvar _bool_value tuchar v_bool_value;
+        lvar _erval (Tstruct _asn_enc_rval_s noattr) v_erval; 
+        temp __res res; temp _td td_p; temp _sptr sptr_p;
+        temp _tag_mode (Vint (Int.repr tag_mode)); 
+        temp _tag (Vint (Int.repr tag)); 
+        temp _cb (gv cb); temp _app_key app_p;
         temp _t'2 (Vint (Int.repr (if b then 255 else 0))))
   SEP(data_at_ Tsh type_descriptor_s td_p;
       data_at_ Tsh tvoid app_p; func_ptr cb_spec (gv cb);
@@ -119,35 +124,32 @@ Definition if_post2 (gv : globals) (b : bool) app_p (v_bool_value : val) cb_spec
 Definition loop_inv (gv : globals) sptr_p v_bool_value v_erval res td_p tag_mode 
            tag cb app_p (cb_spec : funspec) b :=
   PROP()
-  LOCAL(temp _t'4 (Vint (Int.repr 2)); 
-        temp _t'6 (Vint (Int.repr 2)); 
-        temp _t'1 (Vint (Int.repr 2)); temp _st sptr_p; 
-        lvar _bool_value tuchar v_bool_value; 
-        lvar _erval (Tstruct _asn_enc_rval_s noattr) v_erval; 
-        temp __res res; temp _td td_p; temp _sptr sptr_p; 
-        temp _tag_mode (Vint (Int.repr tag_mode)); 
-        temp _tag (Vint (Int.repr tag)); temp _cb (gv cb); 
+  LOCAL(gvars gv; temp _t'4 (Vint (Int.repr 2)); 
+        temp _t'6 (Vint (Int.repr 2)); temp _t'1 (Vint (Int.repr 2)); 
+        temp _st sptr_p; lvar _bool_value tuchar v_bool_value;
+        lvar _erval (Tstruct _asn_enc_rval_s noattr) v_erval;
+        temp __res res; temp _td td_p; temp _sptr sptr_p;
+        temp _tag_mode (Vint (Int.repr tag_mode));
+        temp _tag (Vint (Int.repr tag)); temp _cb (gv cb);
         temp _app_key app_p)
   SEP(data_at_ Tsh type_descriptor_s td_p;
-      data_at_ Tsh enc_rval_s res;
-      data_at_ Tsh tvoid app_p; func_ptr callback (gv cb);
-      data_at Tsh tuchar (Vbyte (bool_to_byte b)) v_bool_value;
-      field_at Tsh (Tstruct _asn_enc_rval_s noattr)
-        (DOT _encoded)
-        (Vint (Int.add (Int.repr 2) (Int.repr 1))) v_erval;
-      field_at Tsh (Tstruct _asn_enc_rval_s noattr)
-        (DOT _failed_type)
-        (default_val
-           (tptr (Tstruct _asn_TYPE_descriptor_s noattr)))
-        v_erval;
-      field_at Tsh (Tstruct _asn_enc_rval_s noattr)
-        (DOT _structure_ptr) (default_val (tptr tvoid)) v_erval;
+      data_at_ Tsh enc_rval_s res; data_at_ Tsh tvoid app_p;
+      func_ptr callback (gv cb);
+func_ptr' callback (gv cb);
+      data_at Tsh tuchar (Vubyte (byte_of_bool b)) v_bool_value;
+      field_at Tsh (Tstruct _asn_enc_rval_s noattr) (DOT _encoded) 
+               (Vint (Int.add (Int.repr 2) (Int.repr 1))) v_erval;
+      field_at Tsh (Tstruct _asn_enc_rval_s noattr) (DOT _failed_type)  
+               (default_val (tptr (Tstruct _asn_TYPE_descriptor_s noattr)))
+               v_erval;
+      field_at Tsh (Tstruct _asn_enc_rval_s noattr) (DOT _structure_ptr)
+               (default_val (tptr tvoid)) v_erval;
       data_at Tsh tint (Vint (int_of_bool b)) sptr_p;
       valid_pointer (gv cb)).
 
 Theorem bool_der_encode : semax_body Vprog Gprog 
-                                     (normalize_function 
-                                        f_BOOLEAN_encode_der composites) 
+                                     (normalize_function f_BOOLEAN_encode_der
+                                                         composites)
                                      bool_der_encode_spec.
 Proof.
   start_function; rename H into DT.
@@ -158,45 +160,35 @@ Proof.
   forward.
   forward.
   forward_if; [contradiction|clear H].
-  forward_if (if_post1 gv cb sptr_p res v_bool_value v_erval 
-                       td_p tag_mode tag app_p td b callback).
+  forward_if (if_post1 gv cb sptr_p res v_bool_value v_erval td_p tag_mode tag 
+                       app_p td b callback); unfold if_post1.
   * (* if(cb) = true *)
     forward.
     (* bool_value = *st ? 0xff : 0; /* 0xff mandated by DER */ *)
-    forward_if (if_post2 gv b app_p v_bool_value callback cb
-                         v_bool_value v_erval td_p res sptr_p).
+    forward_if (if_post2 gv b app_p v_bool_value callback cb v_bool_value 
+                         v_erval td_p res sptr_p tag_mode tag); unfold if_post2.
     - (* if(b) = true *)
       forward; unfold if_post2; entailer!.
       destruct b; [auto|contradiction].
     - (* if(b) = false *)
       forward; unfold if_post2; entailer!.
       destruct b; unfold int_of_bool in H2; [discriminate|auto].
-    - unfold if_post2.
-      Intros.
-      forward.
-      (* Definition cb_spec : funspec := 
-         WITH buf_addr : val, buf : val, size : Z, app_addr : val, app_key : val *)
-      eapply (make_func_ptr _overrun_encoder_cb).
-      reflexivity.
-      reflexivity.
-      reflexivity.
-      cbn. admit.
-      instantiate (1 := (gv cb)).
-      admit.
-      (* make_func_ptr _overrun_encoder_cb. *)
-      (* forward_call ([bool_to_byte b], v_bool_value, 1, app_p). *)
+    - forward.
+      make_func_ptr cb.
+      forward_call ([byte_of_bool b], v_bool_value, 1, app_p).
+      forward_if; [congruence|].
+      ** (* cb() >= 0 *)
+        unfold if_post1; forward.
+         entailer!.
+         destruct (gv cb); intuition.
+         rewrite exec_boolean_enc by assumption.
+         destruct b; entailer!.
   * (* post if *)
-    forward.
-    unfold if_post1.
+    forward; unfold if_post1.
     rewrite H; entailer!.
   * (* if(cb) = false *)
-    unfold if_post1.
     rewrite exec_boolean_enc by assumption.
     Intros.
-    (*{
-      destruct (gv cb) eqn:C; unfold last; unfold is_pointer_or_null in H; 
-        intuition.
-    }*)
     forward.
     forward.
     unfold construct_enc_rval, encoded, last.
@@ -205,14 +197,13 @@ Proof.
     - entailer!.
       destruct (gv cb); intuition.
     - 
-      unfold_data_at_ res.
-      unfold_data_at (data_at _ _ _ res).
+      unfold_data_at_ res; unfold_data_at (data_at _ _ _ res).
       repeat forward.
       rewrite eval_boolean_enc by assumption.
       unfold construct_enc_rval, encoded, last.
       unfold_data_at (data_at _ _ _ res).
       unfold_data_at_  v_erval; unfold_data_at (data_at _ _ _ v_erval).
       entailer!.
-Admitted.     
+Qed.
 
 End Boolean_der_encode_primitive.
