@@ -18,20 +18,20 @@ Parameter TYPE_descriptor_rep : TYPE_descriptor
 Parameter PRIMITIVE_TYPE_rep : option byte
                                -> reptype (Tstruct _ASN__PRIMITIVE_TYPE_s noattr).
 
-(* on error rval c l write {code := c; consumed := l},
-   else {code := OK; consumed := |ls| *)
-Parameter dec_rval_rep : option byte -> reptype (Tstruct _asn_dec_rval_s noattr).
-
-
 Definition cb_type := (Tfunction 
                           (Tcons (tptr tvoid) 
                                  (Tcons tuint (Tcons (tptr tvoid) Tnil))) tint 
                           cc_default).
 Definition enc_rval_s := Tstruct _asn_enc_rval_s noattr.
 Definition type_descriptor_s := Tstruct _asn_TYPE_descriptor_s noattr.
+Definition asn_codec_ctx_s := Tstruct _asn_codec_ctx_s noattr.
+Definition asn_dec_rval_s := Tstruct _asn_dec_rval_s noattr.
 
-Definition construct_enc_rval encoded (td : TYPE_descriptor) (sptr : val) := 
+Definition construct_enc_rval encoded (sptr : val) := 
   (Vint (Int.repr encoded), (Vundef, sptr)).
+
+Definition construct_dec_rval code consumed := 
+  (Vint (Int.repr code), Vint (Int.repr consumed)).
 
 Definition cb_spec : funspec :=
   WITH buf_addr : val, buf : val, size : Z, app_addr : val, app_key : val

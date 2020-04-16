@@ -54,8 +54,8 @@ Definition bool_der_encode_spec : ident * funspec :=
       SEP((* Unchanged by the execution : *)
           data_at Tsh enc_rval_s 
                   (match evalErrW (bool_encoder td b) [] with
-                   | Some v => construct_enc_rval (encoded v) td (Vint (Int.repr 0))
-                   | None => construct_enc_rval (-1) td sptr_p
+                   | Some v => construct_enc_rval (encoded v) (Vint (Int.repr 0))
+                   | None => construct_enc_rval (-1) sptr_p
                    end) res;
           data_at_ Tsh type_descriptor_s td_p ; 
           data_at Tsh tint (Vint (int_of_bool b)) sptr_p ;
@@ -141,26 +141,6 @@ Definition loop_inv sptr_p v_bool_value v_erval res td_p tag_mode tag
          (DOT _structure_ptr) (default_val (tptr tvoid)) v_erval;
        data_at Tsh tint (Vint (int_of_bool b)) sptr_p;
        valid_pointer cb_p).
-
-Definition loop_post sptr_p v_bool_value v_erval td_p 
-           cb_p app_p cb_spec b :=
-  PROP()
-  LOCAL()
-  SEP(data_at_ Tsh type_descriptor_s td_p;
-      data_at_ Tsh tvoid app_p; func_ptr cb_spec cb_p;
-      data_at Tsh tuchar (Vbyte (bool_to_byte b)) v_bool_value;
-      field_at Tsh (Tstruct _asn_enc_rval_s noattr)
-        (DOT _encoded)
-        (Vint (Int.add (Int.repr 2) (Int.repr 1))) v_erval;
-      field_at Tsh (Tstruct _asn_enc_rval_s noattr)
-        (DOT _failed_type)
-        (default_val
-           (tptr (Tstruct _asn_TYPE_descriptor_s noattr)))
-        v_erval;
-      field_at Tsh (Tstruct _asn_enc_rval_s noattr)
-        (DOT _structure_ptr) (default_val (tptr tvoid)) v_erval;
-      data_at Tsh tint (Vint (int_of_bool b)) sptr_p;
-      valid_pointer cb_p).
 
 Theorem bool_der_encode : semax_body Vprog Gprog 
                                      (normalize_function 
