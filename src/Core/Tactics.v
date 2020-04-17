@@ -1,5 +1,4 @@
-Require Import Core IntLemmas Notations.
-Require Import StructTact.StructTactics.
+Require Import Core Int Notations.
 
 Ltac ints_to_Z :=
   repeat rewrite Int.unsigned_repr_eq; repeat rewrite Zmod_small.

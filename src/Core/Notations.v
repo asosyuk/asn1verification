@@ -1,5 +1,4 @@
 Require Import Core.
-Import ListNotations.
 
 (* Notations for integers and ptrofs *)
 

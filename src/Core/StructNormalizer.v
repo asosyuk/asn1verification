@@ -1,5 +1,4 @@
-Require Import Core.Core.
-Import ListNotations.
+Require Import Core.
 
 Fixpoint find_struct_fields (id : ident) (c : list composite_definition) :=
   match c with

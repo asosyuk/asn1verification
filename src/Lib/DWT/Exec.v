@@ -1,7 +1,6 @@
-Require Import Core.Core Core.Notations Types Core.Notations List.
+Require Import Core.Core Core.Notations Core.Notations Types.
 Require Import ExtLib.Structures.Monad.
 
-Import ListNotations.
 Import MonadNotation.
 
 Inductive DWT_Error := NotBoolean.

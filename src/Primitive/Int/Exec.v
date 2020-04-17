@@ -1,9 +1,8 @@
-Require Import ASN1V.Core.Core Core.Notations Lib.Lib.
+Require Import Core.Core Core.Notations Lib.Lib.
 From ExtLib.Structures Require Import Monad MonadWriter MonadExc.
 From ExtLib.Data Require Import Monads.OptionMonad.
 
 Import MonadNotation.
-Import ListNotations.
 
 Open Scope byte.
 

@@ -1,14 +1,14 @@
 Require Import Core.Core Core.StructNormalizer VstLib VstCallback
-        BooleanExecSpec ErrorWithWriter DWTVSTSpec.
+        Boolean.Exec ErrorWithWriter DWT.Vst.
 Require Import VST.floyd.proofauto Psatz.
 Require Import Clight.asn_application Clight.BOOLEAN.
 
 Definition Vprog : varspecs. mk_varspecs prog. Defined.
 Instance CompSpecs : compspecs. make_compspecs prog. Defined.
-Instance Change1 : change_composite_env CompSpecs DWTVSTSpec.CompSpecs.
-Proof. make_cs_preserve CompSpecs DWTVSTSpec.CompSpecs. Defined.
-Instance Change2 : change_composite_env DWTVSTSpec.CompSpecs CompSpecs.
-Proof. make_cs_preserve DWTVSTSpec.CompSpecs CompSpecs. Defined.
+Instance Change1 : change_composite_env CompSpecs DWT.Vst.CompSpecs.
+Proof. make_cs_preserve CompSpecs DWT.Vst.CompSpecs. Defined.
+Instance Change2 : change_composite_env DWT.Vst.CompSpecs CompSpecs.
+Proof. make_cs_preserve DWT.Vst.CompSpecs CompSpecs. Defined.
 
 Open Scope Z.
 
@@ -155,7 +155,7 @@ Proof.
   start_function; rename H into DT.
   forward.
   forward_call (td_p, td, 1, tag_mode, 0, tag, (gv cb), app_p, app_key_val).
-  rewrite DWTExecSpec.eval_dwt_boolean by assumption.
+  rewrite eval_dwt_boolean by assumption.
   unfold_data_at_ v_erval; unfold_data_at (data_at _ _ _ v_erval).
   forward.
   forward.

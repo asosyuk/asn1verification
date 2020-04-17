@@ -1,4 +1,4 @@
-Require Import ZArith Core.Core Core.Notations ErrorWithWriter.
+Require Import Core.Core Core.Notations ErrorWithWriter.
 Require Import ExtLib.Data.List.
 
 Require Export ErrorWithWriter.

@@ -1,12 +1,11 @@
-Require Import Core.Core Core.Notations Core.Tactics Types DWTExecSpec BCTExecSpec.
+Require Import Core.Core Core.Notations Core.Tactics Types DWT.Exec BCT.Exec.
 From ExtLib.Structures Require Import Monad MonadWriter.
 From ExtLib.Data Require Import Monads.OptionMonad.
 
 Require Export Types.
 Require Export ExtLib.Structures.Monad.
-From ExtLib.Data Require Export Monads.OptionMonad List.
+From ExtLib.Data Require Export Monads.OptionMonad.
 
-Import ListNotations.
 Import MonadNotation.
 
 Open Scope monad.

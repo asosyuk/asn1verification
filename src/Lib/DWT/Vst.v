@@ -1,4 +1,4 @@
-Require Import Core.Core Core.StructNormalizer VstLib DWTExecSpec 
+Require Import Core.Core Core.StructNormalizer VstLib DWT.Exec 
         ErrorWithWriter VstCallback.
 Require Import VST.floyd.proofauto.
 Require Import Clight.der_encoder.

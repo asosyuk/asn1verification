@@ -1,8 +1,6 @@
 (* Abstract specification from the standard *)
 Require Import Core.Core Core.Notations Core.Tactics Lib.Lib.
-Require Import Lists.List Psatz.
-Import ListNotations.
-Require Import StructTact.StructTactics.
+Require Import Lists.List.
 
 (* Tags 8.1.2 *)
 (* ls#n is notation for ls[n]

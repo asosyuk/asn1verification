@@ -1,9 +1,8 @@
-Require Import Primitive.BooleanExecSpec Primitive.AbstractSpec Lib.Lib.
-Require Import Core.Core Core.Notations Core.Tactics List.
+Require Import Boolean.Exec AbstractSpec Lib.
+Require Import Core.Core Core.Notations Core.Tactics.
 From ExtLib.Structures Require Import Monad MonadWriter Monoid.
 From ExtLib.Data Require Import Monads.OptionMonad List.
 
-Import ListNotations.
 Import MonadNotation.
 
 Open Scope monad.
@@ -14,7 +13,7 @@ Theorem der_encoder_correctness : forall td b ls ,
   DER (BOOLEAN b) ls.
 Proof.
   intros TD Val Res DT Enc; intros.
-  unfold bool_encoder, primitive_encoder, DWTExecSpec.der_write_tags
+  unfold bool_encoder, primitive_encoder, Exec.der_write_tags
      in Enc. 
   rewrite DT in Enc; cbn in Enc.
   inversion Enc; rename H0 into Res'.
@@ -31,7 +30,7 @@ Theorem ber_decoder_correctness : forall td ls b z,
     BER_Bool b (firstn 1 (skipn (Z.to_nat (z - 1)) ls)).
 Proof.
   intros TD ToDec ResB Len DT Dec.
-  unfold bool_decoder, BCTExecSpec.ber_check_tags in Dec; cbn in Dec.
+  unfold bool_decoder, Exec.ber_check_tags in Dec; cbn in Dec.
   rewrite DT in Dec; cbn in Dec.
   destruct ToDec eqn:K1; [congruence|]; 
     destruct l eqn:K2; [congruence|]; 
@@ -59,8 +58,8 @@ Theorem boolean_roundtrip : forall td ls b z,
 Proof.
   intros TD ls B z DT Len.
   unfold execErrW, bool_encoder, primitive_encoder, 
-  DWTExecSpec.der_write_tags, bool_decoder, 
-  BCTExecSpec.ber_check_tags, bool_of_byte; cbn; rewrite DT.
+  Exec.der_write_tags, bool_decoder, 
+  Exec.ber_check_tags, bool_of_byte; cbn; rewrite DT.
   intros Res; inversion Res as [T]; clear Res; rename T into Res.
   replace (Byte.repr 1 == 1)%byte with true by reflexivity; cbn.
   replace (Pos.to_nat 2) with (2)%nat by reflexivity.

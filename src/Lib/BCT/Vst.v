@@ -1,6 +1,6 @@
 Require Import Core.Core Core.StructNormalizer
- VstLib DWTExecSpec ErrorWithWriter BCTExecSpec.
-Require Import VST.floyd.proofauto Psatz.
+        VstLib ErrorWithWriter BCT.Exec.
+Require Import VST.floyd.proofauto.
 Require Import Clight.ber_decoder.
 Require Export VST.floyd.Funspec_old_Notation.
 
