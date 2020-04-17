@@ -23,13 +23,13 @@ Definition bool_ber_decode_spec : ident * funspec :=
          res_p : val, size : Z, tag_mode : Z, bv_p : val 
    PRE[tptr asn_dec_rval_s, tptr asn_codec_ctx_s, tptr type_descriptor_s,
          tptr (tptr tvoid), tptr tvoid, tuint, tint] 
-    PROP(is_pointer_or_null bv_p)
+    PROP(is_pointer_or_null bv_p; decoder_type td = BOOLEAN_t)
     PARAMS(res_p; ctx_p; td_p; bv_pp; buf_p; Vint (Int.repr size);
              Vint (Int.repr tag_mode))
     GLOBALS()
     SEP(valid_pointer bv_p;
         data_at Tsh asn_codec_ctx_s ctx ctx_p;
-        data_at Tsh type_descriptor_s (TYPE_descriptor_rep td) td_p;
+        data_at_ Tsh type_descriptor_s td_p;
         data_at Tsh (tarray tschar (Zlength buf)) (map Vbyte buf) buf_p;
         data_at Tsh (tptr tvoid) bv_p bv_pp;
         data_at_ Tsh asn_dec_rval_s res_p)
@@ -39,7 +39,7 @@ Definition bool_ber_decode_spec : ident * funspec :=
       SEP((* Unchanged by the execution : *)
           valid_pointer bv_p;
           data_at Tsh asn_codec_ctx_s ctx ctx_p;
-          data_at Tsh type_descriptor_s (TYPE_descriptor_rep td) td_p;
+          data_at_ Tsh type_descriptor_s td_p;
           data_at Tsh (tarray tschar (Zlength buf)) (map Vbyte buf) buf_p;
           data_at Tsh (tptr tvoid) bv_p bv_pp;
           (* Changes according to the exec spec *)
@@ -54,38 +54,78 @@ Definition bool_ber_decode_spec : ident * funspec :=
                | None => RC_FAIL                          
                end).
 
-Definition Gprog := ltac:(with_library prog [(_calloc, calloc_spec); 
+Definition if_post1 bv_p v__res__1 v_tmp_error v_length v_rval res_p ctx ctx_p 
+           td_p bv_pp buf buf_p size tag_mode := 
+  EX p : val * type * list byte,
+  PROP()
+  LOCAL(temp _st (fst (fst p)); temp _t'11 bv_p;
+  lvar __res__1 (Tstruct _asn_dec_rval_s noattr) v__res__1;
+  lvar _tmp_error (Tstruct _asn_dec_rval_s noattr) v_tmp_error;
+  lvar _length tint v_length;
+  lvar _rval (Tstruct _asn_dec_rval_s noattr) v_rval;
+  temp __res res_p; temp _opt_codec_ctx ctx_p;
+  temp _td td_p; temp _bool_value bv_pp;
+  temp _buf_ptr buf_p;
+  temp _size (Vint (Int.repr size));
+  temp _tag_mode (Vint (Int.repr tag_mode)))
+  SEP (if eq_dec (fst (fst p)) nullval
+       then emp
+       else
+        malloc_token Ews (snd (fst p)) (fst (fst p)) *
+        data_at Ews (tarray tschar 1)
+          (map Vbyte (snd p)) (fst (fst p));
+  data_at_ Tsh (Tstruct _asn_dec_rval_s noattr) v__res__1;
+  data_at_ Tsh (Tstruct _asn_dec_rval_s noattr) v_tmp_error;
+  data_at_ Tsh tint v_length; 
+  data_at_ Tsh (Tstruct _asn_dec_rval_s noattr) v_rval; valid_pointer bv_p;
+  data_at Tsh asn_codec_ctx_s ctx ctx_p;
+  data_at_ Tsh type_descriptor_s td_p;
+  data_at Tsh (tarray tschar (Zlength buf)) (map Vbyte buf) buf_p;
+  data_at Tsh (tptr tvoid) (fst (fst p)) bv_pp;
+  data_at_ Tsh asn_dec_rval_s res_p).
+
+Definition Gprog := ltac:(with_library prog [(_calloc, calloc_spec);
                                               ber_check_tags_spec; 
                                               bool_ber_decode_spec]).
 
 Theorem bool_der_encode : semax_body Vprog Gprog 
-           (normalize_function f_BOOLEAN_decode_ber composites) bool_ber_decode_spec.
+           (normalize_function f_BOOLEAN_decode_ber composites) 
+           bool_ber_decode_spec.
 Proof.
   start_function.
   repeat forward.
-  forward_if (True).
-  - forward_call (1, sizeof tint).
+  forward_if (if_post1 bv_p v__res__1 v_tmp_error v_length v_rval res_p ctx 
+                       ctx_p td_p bv_pp buf buf_p size tag_mode).
+  * (* _st = NULL *)
+    forward_call (1, sizeof tint).
     cbn; nia.
     Intros p.
     forward.
     forward.
     forward_if.
-    break_if; break_let.
-    -- entailer!.
-       simpl in e; subst.
-       entailer!.
-    -- eapply denote_tc_test_eq_split; entailer!.
-    -- Intros.
-       repeat forward.
-       entailer!.
-       repeat break_if; entailer!.
-    -- forward.
-       break_if; entailer!.
-       admit.
-       admit.
-  - forward.
-    entailer!.
-  - admit.   
+    destruct eq_dec eqn:ED; unfold fst in *; break_let.
+    - cbn in e; subst.
+      entailer!.
+    - eapply denote_tc_test_eq_split; entailer!.
+    - unfold fst in *; rewrite H4.
+      destruct eq_dec; [|congruence].
+      repeat forward.
+      entailer!.
+      repeat break_if; entailer!.
+    - forward.
+      unfold if_post1.
+      destruct eq_dec; [unfold fst in e, H4; congruence|].
+      Exists p.
+      destruct eq_dec; [congruence|].
+      entailer!.
+  * (* _st <> NULL *)
+    forward.
+    unfold if_post1.
+    (* p belongs to inner if, since we didn't reach it, it's uninitialized *)
+    Exists (nullval, tptr tvoid, buf).
+    unfold fst; destruct eq_dec; [|congruence].
+    admit.
+  * admit.   
 Admitted.
 
 End Boolean_ber_decode.
