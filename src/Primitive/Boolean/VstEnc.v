@@ -155,7 +155,7 @@ Proof.
   start_function; rename H into DT.
   forward.
   forward_call (td_p, td, 1, tag_mode, 0, tag, (gv cb), app_p, app_key_val).
-  rewrite eval_dwt_boolean by assumption.
+  rewrite Exec.eval_dwt_boolean by assumption.
   unfold_data_at_ v_erval; unfold_data_at (data_at _ _ _ v_erval).
   forward.
   forward.
