@@ -54,11 +54,11 @@ Definition bool_ber_decode_spec : ident * funspec :=
                | None => RC_FAIL                          
                end).
 
-Definition if_post1 bv_p v__res__1 v_tmp_error v_length v_rval res_p ctx ctx_p 
-           td_p bv_pp buf buf_p size tag_mode := 
-  EX p : val * type * list byte,
+Definition if_post1 bv_p v__res__1 v_tmp_error v_length v_rval 
+           res_p ctx ctx_p td_p bv_pp buf buf_p size tag_mode := 
+  EX is_inner : bool, EX p : val * type * list byte,
   PROP()
-  LOCAL(temp _st (fst (fst p)); temp _t'11 bv_p;
+  LOCAL(temp _st (if is_inner then fst (fst p) else bv_p); temp _t'11 bv_p;
   lvar __res__1 (Tstruct _asn_dec_rval_s noattr) v__res__1;
   lvar _tmp_error (Tstruct _asn_dec_rval_s noattr) v_tmp_error;
   lvar _length tint v_length;
@@ -68,12 +68,10 @@ Definition if_post1 bv_p v__res__1 v_tmp_error v_length v_rval res_p ctx ctx_p
   temp _buf_ptr buf_p;
   temp _size (Vint (Int.repr size));
   temp _tag_mode (Vint (Int.repr tag_mode)))
-  SEP (if eq_dec (fst (fst p)) nullval
-       then emp
-       else
-        malloc_token Ews (snd (fst p)) (fst (fst p)) *
-        data_at Ews (tarray tschar 1)
-          (map Vbyte (snd p)) (fst (fst p));
+  SEP (if eq_dec (fst (fst p)) nullval 
+       then emp 
+       else malloc_token Ews (snd (fst p)) (fst (fst p)) * 
+            data_at Ews (tarray tschar 1) (map Vbyte (snd p)) (fst (fst p));
   data_at_ Tsh (Tstruct _asn_dec_rval_s noattr) v__res__1;
   data_at_ Tsh (Tstruct _asn_dec_rval_s noattr) v_tmp_error;
   data_at_ Tsh tint v_length; 
@@ -81,7 +79,7 @@ Definition if_post1 bv_p v__res__1 v_tmp_error v_length v_rval res_p ctx ctx_p
   data_at Tsh asn_codec_ctx_s ctx ctx_p;
   data_at_ Tsh type_descriptor_s td_p;
   data_at Tsh (tarray tschar (Zlength buf)) (map Vbyte buf) buf_p;
-  data_at Tsh (tptr tvoid) (fst (fst p)) bv_pp;
+  data_at Tsh (tptr tvoid) (if is_inner then fst (fst p) else bv_p) bv_pp;
   data_at_ Tsh asn_dec_rval_s res_p).
 
 Definition Gprog := ltac:(with_library prog [(_calloc, calloc_spec);
@@ -115,6 +113,7 @@ Proof.
     - forward.
       unfold if_post1.
       destruct eq_dec; [unfold fst in e, H4; congruence|].
+      Exists true.
       Exists p.
       destruct eq_dec; [congruence|].
       entailer!.
@@ -122,10 +121,12 @@ Proof.
     forward.
     unfold if_post1.
     (* p belongs to inner if, since we didn't reach it, it's uninitialized *)
+    Exists false.
     Exists (nullval, tptr tvoid, buf).
     unfold fst; destruct eq_dec; [|congruence].
+    entailer!.
+  * (* after the if *)
     admit.
-  * admit.   
 Admitted.
 
 End Boolean_ber_decode.
