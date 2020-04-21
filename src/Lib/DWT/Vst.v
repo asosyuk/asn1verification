@@ -27,7 +27,7 @@ Definition der_write_tags_spec : ident * funspec :=
     GLOBALS()
     SEP(data_at_ Tsh type_descriptor_s td_p ; 
         data_at_ Tsh tvoid app_p ;
-        func_ptr callback cb_p)
+        func_ptr' callback cb_p)
     POST[tint]
       PROP()
       LOCAL(temp ret_temp 
@@ -35,10 +35,9 @@ Definition der_write_tags_spec : ident * funspec :=
                                   | Some w => encoded w
                                   | None => -1
                                   end))))
-      SEP((* Unchanged by the execution : *)
-          data_at_ Tsh type_descriptor_s td_p ; 
+      SEP(data_at_ Tsh type_descriptor_s td_p ; 
           data_at_ Tsh tvoid app_p ;
-          func_ptr callback cb_p).
+          func_ptr' callback cb_p).
 
 Definition Gprog := ltac:(with_library prog [der_write_tags_spec]).
 

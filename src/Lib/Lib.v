@@ -34,3 +34,6 @@ Definition bool_of_byte (b : byte) :=
   if (b == default_byte)%byte then false else true.
 Definition byte_of_bool (b : bool) := Byte.repr (if b then 255 else 0).
 Definition int_of_bool (b : bool) := Int.repr (if b then 255 else 0).
+Definition bool_of_int (i : int) := 
+  if (i == 0)%int then false else true.
+

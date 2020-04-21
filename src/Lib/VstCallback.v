@@ -15,19 +15,24 @@ Definition constr_enc_key buf size comp_size : reptype enc_key :=
   (buf, (Vint (Int.repr size), Vint (Int.repr comp_size))).
 
 Definition callback : funspec :=
-    WITH data : list int, data_p : val, size : Z, key_p : val
+    WITH data : list int, data_p : val, size : Z, app_key_p : val
     PRE[tptr tvoid, tuint, tptr tvoid]
       PROP()
-      PARAMS(data_p; Vint (Int.repr size); key_p)
+      PARAMS(data_p; Vint (Int.repr size); app_key_p)
       GLOBALS()
-      SEP((*data_at Tsh (tarray tint size) _ data_p;
-          data_at Tsh enc_key (constr_enc_key) key_p; *))
+      SEP((*data_at Tsh (tarray tuchar (Zlength data)) (map Vint data) data_p;
+          data_at_ Tsh tvoid app_key_p ;
+          data_at Tsh enc_key (constr_enc_key) key_p *) )
     POST[tint]
       PROP()
       LOCAL(temp ret_temp (Vint (Int.repr 0)))
-      SEP().
+      SEP((*data_at Tsh (tarray tuchar (Zlength data)) (map Vint data) data_p;
+          data_at_ Tsh tvoid app_key_p *)).
 
-Definition callback_spec : ident * funspec :=
+Definition cb := 9999999999%positive. 
+Definition callback_spec := DECLARE cb callback.
+
+Definition callback_overrun_spec : ident * funspec :=
   DECLARE _overrun_encoder_cb callback.
 
 Definition Gprog := ltac:(with_library prog [callback_spec]).
