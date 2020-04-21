@@ -15,7 +15,7 @@ Definition constr_enc_key buf size comp_size : reptype enc_key :=
   (buf, (Vint (Int.repr size), Vint (Int.repr comp_size))).
 
 Definition callback : funspec :=
-    WITH data : list byte, data_p : val, size : Z, key_p : val
+    WITH data : list int, data_p : val, size : Z, key_p : val
     PRE[tptr tvoid, tuint, tptr tvoid]
       PROP()
       PARAMS(data_p; Vint (Int.repr size); key_p)
