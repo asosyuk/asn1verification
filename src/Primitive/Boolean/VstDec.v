@@ -187,7 +187,9 @@ Proof.
       forward.
       entailer!.
     - (* after the loop *)
-      admit
+      (*forward_call (ctx_p, ctx, td_p, td, nullval, nullval, buf_p, buf, v_rval, 
+                    size, tag_mode, 0, v_length, 0, nullval, nullval). *)
+      admit.
 Admitted.
 
 End Boolean_ber_decode.
