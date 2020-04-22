@@ -61,6 +61,13 @@ Fixpoint struct_normalize (s : statement) (c : list composite_definition) (p : p
       ls_to_seq (copy_by_fields p e id2 (Tstruct _struct noattr) ls)
     | _ => s
     end
+  | Scall id e le => 
+    match e with
+    | Evar v (Tfunction tl t cc) => 
+      Scall id (Evar v (Tfunction tl t (mkcallconv (cc_vararg cc)
+                                                   (cc_unproto cc) false))) le
+    | _ => s
+    end
   | s => s 
   end.
 
@@ -92,10 +99,3 @@ Definition normalize_function f c :=
                               (fn_params f)] c)
              (struct_normalize (fn_body f) c (fresh_ident f)).
 
-(* Require Import BOOLEAN.
-
- Eval simpl in ((fn_temps f_BOOLEAN_decode_ber) ++ (new_fn_temps (fresh_ident f_BOOLEAN_decode_ber)
-                            [(fn_temps f_BOOLEAN_decode_ber); (fn_vars f_BOOLEAN_decode_ber);
-                               (fn_params f_BOOLEAN_decode_ber)] composites)).
-
-  Eval simpl in  (struct_normalize (fn_body f_BOOLEAN_decode_ber) composites (fresh_ident f_BOOLEAN_decode_ber)). *)

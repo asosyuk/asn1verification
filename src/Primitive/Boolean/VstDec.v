@@ -92,6 +92,8 @@ Theorem bool_der_encode : semax_body Vprog Gprog
            bool_ber_decode_spec.
 Proof.
   start_function.
+  unfold MORE_COMMANDS.
+  unfold abbreviate.
   repeat forward.
   forward_if (if_post1 bv_p v__res__1 v_tmp_error v_length v_rval res_p ctx 
                        ctx_p td_p bv_pp buf buf_p size tag_mode).
@@ -187,8 +189,8 @@ Proof.
       forward.
       entailer!.
     - (* after the loop *)
-      (*forward_call (ctx_p, ctx, td_p, td, nullval, nullval, buf_p, buf, v_rval, 
-                    size, tag_mode, 0, v_length, 0, nullval, nullval). *)
+      forward_call (ctx_p, ctx, td_p, td, nullval, nullval, buf_p, buf, v_rval, 
+                    size, tag_mode, 0, v_length, 0, nullval, 0). 
       admit.
 Admitted.
 
