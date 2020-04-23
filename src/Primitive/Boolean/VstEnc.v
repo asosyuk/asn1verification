@@ -1,7 +1,7 @@
 Require Import Core.Core Core.StructNormalizer VstLib VstCallback
         Boolean.Exec ErrorWithWriter DWT.Vst.
 Require Import VST.floyd.proofauto Psatz.
-Require Import (* Clight.asn_application *) Clight.BOOLEAN.
+Require Import Clight.asn_application Clight.BOOLEAN.
 
 Require Import Core.Notations. 
 
@@ -14,23 +14,26 @@ Proof. make_cs_preserve CompSpecs DWT.Vst.CompSpecs. Defined.
 Instance Change2 : change_composite_env DWT.Vst.CompSpecs CompSpecs.
 Proof. make_cs_preserve DWT.Vst.CompSpecs CompSpecs. Defined.
 
+Instance Change3 : change_composite_env Lib.VstCallback.CompSpecs CompSpecs.
+Proof. make_cs_preserve Lib.VstCallback.CompSpecs CompSpecs. Defined.
+
+Instance Change4 : change_composite_env CompSpecs Lib.VstCallback.CompSpecs .
+Proof. make_cs_preserve CompSpecs Lib.VstCallback.CompSpecs.  Defined.
+
 Open Scope Z.
 
 Section Boolean_der_encode_primitive.
 
 Definition bool_der_encode_spec : ident * funspec :=
   DECLARE _BOOLEAN_encode_der
-    WITH (* parameters : *)
-         res: val,  sptr_p : val, sptr_val : int, 
+    WITH res: val,  sptr_p : val, sptr_val : int, 
          td_p : val, td : TYPE_descriptor,
          tag_mode : Z, tag : Z,
-         (* callback pointer *)
          cb_p : val, 
-         (* callback argument pointer *)                    
          app_key_p : val, app_key_val : val
     PRE [tptr enc_rval_s, tptr type_descriptor_s, tptr tvoid, tint, 
          tuint, tptr cb_type, tptr tvoid]
-      PROP (decoder_type td = BOOLEAN_t) (* an implicit contract *)
+      PROP (decoder_type td = BOOLEAN_t) 
       PARAMS (res; td_p; sptr_p; Vint (Int.repr tag_mode);
              Vint (Int.repr tag); cb_p; app_key_p)
       GLOBALS ()
@@ -38,9 +41,8 @@ Definition bool_der_encode_spec : ident * funspec :=
            data_at_ Tsh type_descriptor_s td_p; 
            data_at Tsh tint (Vint sptr_val) sptr_p;
            data_at_ Tsh tvoid app_key_p;
-           valid_pointer cb_p;
-           
-           func_ptr' callback cb_p)
+           valid_pointer cb_p;          
+           func_ptr' dummy_callback cb_p)
     POST [tvoid]
       PROP ()
       LOCAL ()
@@ -53,9 +55,10 @@ Definition bool_der_encode_spec : ident * funspec :=
            data_at_ Tsh type_descriptor_s td_p ; 
            data_at Tsh tint (Vint sptr_val) sptr_p ;
            data_at_ Tsh tvoid app_key_p ; valid_pointer cb_p; 
-           func_ptr' callback cb_p).
+           func_ptr' dummy_callback cb_p).
 
-Definition Gprog := ltac:(with_library prog [der_write_tags_spec; callback_spec;
+Definition Gprog := ltac:(with_library prog [der_write_tags_spec; 
+                                               (_overrun_encoder_cb, dummy_callback);
                                                bool_der_encode_spec]).
 
 Definition if_post1 cb_p sptr_p res bool_p erval_p td_p tag_mode 
@@ -128,7 +131,7 @@ Definition loop_inv sptr_p v_bool_value v_erval res td_p tag_mode
         temp _app_key app_key_p)
   SEP(data_at_ Tsh type_descriptor_s td_p;
       data_at_ Tsh enc_rval_s res; data_at_ Tsh tvoid app_key_p;
-      func_ptr' callback (cb_p);
+      func_ptr' dummy_callback (cb_p);
       data_at Tsh tuchar (Vubyte (byte_of_bool (bool_of_int sptr_val))) v_bool_value;
       field_at Tsh (Tstruct _asn_enc_rval_s noattr) (DOT _encoded) 
                (Vint (Int.add (Int.repr 2) (Int.repr 1))) v_erval;
@@ -148,17 +151,18 @@ Proof.
   start_function; rename H into DT.
   forward.
   forward_call (td_p, td, 1, tag_mode, 0, tag, cb_p, app_key_p, app_key_val).
+  
   rewrite Exec.eval_dwt_boolean by assumption.
   unfold_data_at_ v_erval; unfold_data_at (data_at _ _ _ v_erval).
   forward.
   forward.
   forward_if; [contradiction|clear H].
   forward_if (if_post1 cb_p sptr_p res v_bool_value v_erval td_p tag_mode tag 
-                       app_key_p td sptr_val callback); unfold if_post1.
+                       app_key_p td sptr_val dummy_callback); unfold if_post1.
   * (* if(cb) = true *)
     forward.
     (* bool_value = *st ? 0xff : 0; /* 0xff mandated by DER */ *)
-    forward_if (if_post2 sptr_val app_key_p v_bool_value callback cb_p v_bool_value 
+    forward_if (if_post2 sptr_val app_key_p v_bool_value dummy_callback cb_p v_bool_value 
                          v_erval td_p res sptr_p tag_mode tag); unfold if_post2.
     - (* if(b) = true *)
       forward; unfold if_post2; entailer!.
@@ -168,17 +172,27 @@ Proof.
     - (* if(b) = false *)
       forward; unfold if_post2; entailer!.
     - forward.
+      (* erewrite <- data_at_tuchar_singleton_array_eq. *)
       forward_call 
-             ([(Int.zero_ext 8 (Int.repr (if bool_of_int sptr_val then 255 else 0)))],
-              v_bool_value, 1, app_key_p).                                                 
+             (v_bool_value, 1, app_key_p).    
       forward_if; [congruence|].
       ** (* cb() >= 0 *)
         unfold if_post1; forward.
          entailer!.
-         destruct (cb_p); intuition.
+         destruct cb_p; intuition.
          rewrite exec_boolean_enc by assumption.
          unfold bool_of_int.
          destruct (sptr_val == 0)%int eqn : S; entailer!.
+       (*    try (erewrite <- data_at_tuchar_singleton_array_eq; 
+                entailer!).
+         unfold len; simpl.
+         unfold byte_of_bool.
+         entailer!.
+         normalize.
+         unfold Vubyte.
+         entailer!.
+         erewrite <- data_at_tuchar_singleton_array_eq.
+         entailer!. *)
   * (* post if *)
     forward; unfold if_post1.
     rewrite H; entailer!.
@@ -189,7 +203,7 @@ Proof.
     forward.
     unfold construct_enc_rval, encoded, last.
     forward_loop (loop_inv sptr_p v_bool_value v_erval res td_p tag_mode tag
-                                cb_p app_key_p callback sptr_val); unfold loop_inv.
+                                cb_p app_key_p dummy_callback sptr_val); unfold loop_inv.
     - entailer!.
       destruct cb_p; intuition.
     - 
