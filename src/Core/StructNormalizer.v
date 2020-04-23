@@ -28,11 +28,13 @@ Fixpoint copy_by_fields (p : positive) (e : expr) (id2 : ident) (ty : type) (ls 
                  Ssequence
                    (Sset p' (Efield (Evar id2 ty) f t))
               match e with 
-                | (Evar id1 ty1) => (Sassign (Efield (Evar id1 (tptr ty)) f t)
+                | (Evar id1 ty1) => (Sassign (Efield (Evar id1 ty) f t)
                                             (Etempvar p' t))
-                | (Etempvar id1 ty1) => (Sassign (Efield (Etempvar id1 (tptr ty)) f t) 
+                | (Etempvar id1 ty1) => (Sassign (Efield (Etempvar id1 ty) f t) 
                                                 (Etempvar p' t))
-                | (Ederef (Evar id1 ty1) _) 
+                | (Ederef (Evar id1 ty1) _) => 
+                  (Sassign  (Efield (Ederef (Evar id1 (tptr ty)) ty) f t) 
+                            (Etempvar p' t))
                 | (Ederef (Etempvar id1 ty1) _) =>
                   (Sassign  (Efield (Ederef (Etempvar id1 (tptr ty)) ty) f t) 
                             (Etempvar p' t))
