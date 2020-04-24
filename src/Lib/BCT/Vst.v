@@ -39,9 +39,8 @@ Definition ber_check_tags_spec : ident * funspec :=
       LOCAL ()
       SEP (data_at Tsh asn_dec_rval_s 
                    (match ber_check_tags td buf with
-                    | Some v => construct_dec_rval (tag_consumed v) (tag_expected v)
-                    | None => construct_dec_rval 0 0 
-                    (* TODO set appropriate values for failure *)
+                    | Some v => construct_dec_rval 0 (tag_consumed v)
+                    | None => construct_dec_rval 2 0
                     end) res_p).
 
 Definition Gprog := ltac:(with_library prog [ber_check_tags_spec]).

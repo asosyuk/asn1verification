@@ -15,11 +15,11 @@ Definition primitive_decoder td ls : option (list byte * Z) :=
     | [] => None
     | _ => ber_check_tags td ls >>=
                         fun x => let c := tag_consumed x in 
-                              let e := tag_expected x in 
-                              if (Zlength ls - c <? e)
+                              let l := tag_length x in 
+                              if (Zlength ls - c <? l)
                               then None 
                               else let y := skipn (Z.to_nat c) ls in
-                                    Some (y, c + 1)
+                                    Some (y, c + 1)    
     end.
 
 (* writes tags, copies ls and outputs the number of encoded bytes *)
