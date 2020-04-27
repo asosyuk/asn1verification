@@ -35,8 +35,11 @@ Definition callback  : funspec :=
            data_at Tsh enc_key_s 
                    (mk_enc_key (Vptr buf_b buf_ofs) buf_size computed_size) 
                    key_p;
-           memory_block Tsh buf_size (Vptr buf_b buf_ofs))
-    POST [tint]
+          if buf_size <? computed_size + size 
+          then memory_block Tsh buf_size (Vptr buf_b buf_ofs)
+          else memory_block Tsh size (Vptr buf_b (Ptrofs.add buf_ofs
+                                      (Ptrofs.repr computed_size))))    
+     POST [tint]
       PROP ()
       LOCAL (temp ret_temp Vzero)
       SEP (data_at Tsh (tarray tuchar (Zlength data)) (map Vint data) data_p;
@@ -46,16 +49,9 @@ Definition callback  : funspec :=
                    (mk_enc_key (Vptr buf_b buf_ofs) 0 (computed_size + size))  
                    key_p
            else 
-             (memory_block Tsh computed_size (Vptr buf_b buf_ofs) *
-              data_at Tsh 
-                      (tarray tuchar size) (map Vint data) 
+             (data_at Tsh (tarray tuchar size) (map Vint data) 
                       (Vptr buf_b (Ptrofs.add buf_ofs
                                               (Ptrofs.repr computed_size))) *
-              memory_block Tsh (buf_size - computed_size - size) 
-                           (Vptr buf_b
-                                 (Ptrofs.add buf_ofs
-                                             (Ptrofs.repr 
-                                                (computed_size + size)))) *
               data_at Tsh enc_key_s 
                       (mk_enc_key (Vptr buf_b buf_ofs)
                                   buf_size (computed_size + size)) key_p)). 
@@ -98,11 +94,10 @@ Theorem bool_der_encode : semax_body Vprog Gprog f_overrun_encoder_cb
             data_at Tsh enc_key_s 
                    (mk_enc_key (Vptr buf_b buf_ofs) 0 computed_size) 
                    key_p));
-    repeat (forward || entailer! || nia). 
+    repeat (forward || entailer! || nia).    
     - 
     assert (computed_size + size <= buf_size) by (Zbool_to_Prop; eassumption).
     repeat forward.
-    simpl.
     forward_if
       (PROP ()
        LOCAL (
@@ -114,36 +109,16 @@ Theorem bool_der_encode : semax_body Vprog Gprog f_overrun_encoder_cb
          temp _size (Vint (Int.repr size));
          temp _keyp key_p)
        SEP (data_at Tsh (tarray tuchar (Zlength data)) (map Vint data) data_p;
-            memory_block Tsh computed_size (Vptr buf_b buf_ofs);
-              data_at Tsh 
-                      (tarray tuchar size) (map Vint data) 
+            data_at Tsh (tarray tuchar size) (map Vint data) 
                       (Vptr buf_b (Ptrofs.add buf_ofs
                                               (Ptrofs.repr computed_size)));
-              memory_block Tsh (buf_size - computed_size - size) 
-                           (Vptr buf_b
-                                 (Ptrofs.add buf_ofs
-                                             (Ptrofs.repr 
-                                                (computed_size + size))));
-              data_at Tsh enc_key_s 
+            data_at Tsh enc_key_s 
                       (mk_enc_key (Vptr buf_b buf_ofs)
-                                  buf_size (computed_size + size)) key_p));
+                                  buf_size (computed_size)) key_p));
        repeat (forward || entailer! || nia). 
-    (* qsh : share, psh: share, p: val, q: val, n: Z, contents: list int *)
     forward_call (Tsh, Tsh, Vptr buf_b (Ptrofs.add buf_ofs (Ptrofs.repr computed_size)), data_p,
-                  size, data).
-    admit.
-    simpl.
+                  size, data); entailer!.
     entailer!.
-    entailer!.
-    simpl.
-    entailer!.
-    (* copy of data_at data (buf + computed size) - why ? *)
-    Intros.
-    repeat forward.
-    entailer!.
-    simpl.
-    entailer!.
-    admit.
-Admitted.
+Qed.
 
 End Encoder_callback. 
