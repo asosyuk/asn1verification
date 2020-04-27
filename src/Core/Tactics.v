@@ -49,3 +49,11 @@ Ltac destruct_andb_hyp :=
  | [H : andb _ _ = true |- _] => apply andb_prop in H; destruct H
  | [H : andb _ _ = false |- _] => apply andb_false_elim in H; destruct H
  end.
+
+Ltac Zbool_to_Prop :=
+  try (rewrite Z.leb_le in * 
+        || rewrite Z.leb_gt in * 
+        || rewrite Z.eqb_eq in * 
+        || rewrite Z.eqb_neq in * 
+        || rewrite Z.ltb_ge in * 
+        || rewrite Z.ltb_lt in *).
