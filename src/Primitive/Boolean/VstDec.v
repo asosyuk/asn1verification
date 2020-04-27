@@ -25,7 +25,10 @@ Definition bool_ber_decode_spec : ident * funspec :=
           tptr (tptr tvoid), tptr tvoid, tuint, tint] 
       PROP (is_pointer_or_null bv_p; decoder_type td = BOOLEAN_t; 
             (* 88 line in BOOLEAN.c, cast size of type tuint into tint *)
-            0 <= size <= Int.max_signed; Zlength buf = size)
+            match Exec.ber_check_tags td buf with
+            | Some v => size = (tag_consumed v + tag_length v)%Z
+            | None => 0 <= size <= Int.max_signed
+            end; Zlength buf = size)
       PARAMS (res_p; ctx_p; td_p; bv_pp; buf_p; Vint (Int.repr size);
                 Vint (Int.repr tag_mode))
       GLOBALS ()
@@ -211,7 +214,7 @@ Proof.
       forward_call (ctx_p, ctx, td_p, td, nullval, nullval, buf_p, buf,
                     v__res__1, size, tag_mode, 0, v_length, nullval, 0). 
       pose proof Exec.ber_check_tags_bool_res td buf DT as BCT.
-      inversion BCT as [T | T]; rewrite T;
+      inversion BCT as [T | T]; rewrite T in *;
         unfold construct_dec_rval, tag_length, tag_consumed.
       2: { (* If ber_check_tags failed *)
         normalize.
@@ -225,7 +228,7 @@ Proof.
         unfold bool_decoder; rewrite T; cbn; destruct buf; entailer!.
       }
       (* If ber_check_tags succeded *)
-      clear BCT; rename T into BCT.
+      clear BCT; rename T into BCT; cbn in Size; subst.
       normalize.
       repeat forward.
       forward_if; [congruence|].
@@ -239,7 +242,7 @@ Proof.
                  temp __res res_p;
                  lvar _rval (Tstruct _asn_dec_rval_s noattr) v_rval;
                  temp _buf_ptr buf_p;
-                 temp _size (Vint (Int.repr size)))
+                 temp _size (Vint (Int.repr 3)))
           SEP (data_at Tsh asn_dec_rval_s (Vint (Int.repr 0), Vint (Int.repr 2)) 
                        v__res__1; 
                data_at Tsh tint (Vint (Int.repr 1)) v_length;
@@ -272,7 +275,7 @@ Proof.
                                    lvar _rval 
                                         (Tstruct _asn_dec_rval_s noattr) v_rval;
                                    temp _buf_ptr buf_p; 
-                                   temp _size (Vint (Int.repr size)))
+                                   temp _size (Vint (Int.repr 3)))
                             SEP (data_at Tsh asn_dec_rval_s 
                                          (Vint (Int.repr 0), 
                                           Vint (Int.repr 2)) v__res__1;
@@ -302,7 +305,7 @@ Proof.
       forward; entailer!.
       repeat forward.
       forward_if.
-      (* RW_MORE case *) admit.
+      (* RW_MORE case *) congruence.
       forward.
       deadvars!.
       forward_if (
@@ -321,6 +324,7 @@ Proof.
                  lvar _rval (Tstruct _asn_dec_rval_s noattr) v_rval)
           SEP (data_at Tsh asn_dec_rval_s (Vint (Int.repr 0), Vint (Int.repr 2)) 
                        v__res__1;
+               
                data_at Tsh tint (Vint (Int.repr 1)) v_length;
                if eq_dec (fst (fst p)) nullval
                then emp
@@ -345,26 +349,18 @@ Proof.
          that if ber_check_tags succedes, then length = 1 *)
       congruence.
 
-      forward.
-      entailer!.
+      forward; entailer!.
       (* if length = 1 *)
-      assert_PROP((force_val (sem_add_ptr_int tschar Signed buf_p 
-                                              (Vint (Int.repr 2))) = 
-                   field_address (tarray tschar (Zlength buf)) 
-                                 [ArraySubsc 2] buf_p)).
-      entailer!.
-      admit.
-      Fail forward.
-      (*change (Tarray tschar (Zlength buf) noattr) with 
-          (tarray tschar (Zlength buf)) in H14.
-      rewrite field_compatible_Tarray_split with (i := 2) in H14 by lia.
-      inversion H14.
-      rewrite field_address0_clarify in H21; cbn in H21.
-      rewrite field_compatible_field_address.
-      cbn; reflexivity.
-      rewrite H21.
-      repeat forward.*)
-
+      cbn -[PROPx LOCALx SEPx abbreviate eq_dec nullval CompSpecs].
+      rewrite data_at_isptr with (p0 := buf_p).
+      normalize.
+      rewrite sem_add_pi_ptr.
+      2: assumption.
+      2: cbn; lia.
+      cbn -[PROPx LOCALx SEPx abbreviate eq_dec nullval CompSpecs].
+      assert_PROP (offset_val 2 buf_p = 
+                   field_address (tarray tuchar (Zlength buf)) 
+                                 [ArraySubsc 2] buf_p).
 Admitted.
 
 End Boolean_ber_decode.
