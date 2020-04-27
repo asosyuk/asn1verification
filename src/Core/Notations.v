@@ -12,6 +12,7 @@ Infix "+" := Byte.add  : ByteScope.
 Infix "-" := Byte.sub : ByteScope.
 Infix "*" := Byte.mul : ByteScope.
 Infix "<" := Byte.lt : ByteScope.
+Infix "<u" := Byte.ltu (at level 70) : ByteScope.
 Notation "x <=u y" := (negb (Byte.ltu y x)) (at level 70) : ByteScope.
 Notation "x <= y" := (negb (Byte.lt y x)) (at level 70) : ByteScope.
 Infix "%" := Byte.mods (at level 70) : ByteScope.
@@ -29,6 +30,7 @@ Infix "+" := Int.add : IntScope.
 Infix "-" := Int.sub : IntScope.
 Infix "*" := Int.mul : IntScope.
 Infix "<" := Int.lt : IntScope.
+Infix "<u" := Int.ltu (at level 70) : IntScope.
 Notation "x <=u y" := (negb (Int.ltu y x)) (at level 70) : IntScope.
 Notation "x <= y" := (negb (Int.lt y x)) (at level 70) : IntScope.
 Infix "%" := Int.mods (at level 70) : IntScope.
