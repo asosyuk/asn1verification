@@ -25,51 +25,64 @@ Definition bool_ber_decode_spec : ident * funspec :=
           tptr (tptr tvoid), tptr tvoid, tuint, tint] 
       PROP (is_pointer_or_null bv_p; decoder_type td = BOOLEAN_t; 
             (* 88 line in BOOLEAN.c, cast size of type tuint into tint *)
-            match Exec.ber_check_tags td buf with
-            | Some v => size = (tag_consumed v + tag_length v)%Z
-            | None => 0 <= size <= Int.max_signed
-            end; Zlength buf = size)
+            0 <= size <= Int.max_signed;
+            Zlength buf = size)
       PARAMS (res_p; ctx_p; td_p; bv_pp; buf_p; Vint (Int.repr size);
                 Vint (Int.repr tag_mode))
       GLOBALS ()
       SEP (valid_pointer bv_p;
+          (* if eq_dec bv_p nullval 
+           then emp
+           else data_at_ Tsh tint bv_p ; *)
            data_at Tsh asn_codec_ctx_s ctx ctx_p;
            data_at_ Tsh type_descriptor_s td_p;
            data_at Tsh (tarray tuchar (Zlength buf)) (map Vbyte buf) buf_p;
            data_at Tsh (tptr tvoid) bv_p bv_pp;
            data_at_ Tsh asn_dec_rval_s res_p)
-    POST [tvoid] EX p : val * type * list byte,
+    POST [tvoid] 
       PROP ()
       LOCAL ()
-      SEP ((* Unchanged by the execution : *)
-           if eq_dec (fst (fst p)) nullval 
-           then emp 
-           else malloc_token Ews (snd (fst p)) (fst (fst p)) * 
-                data_at Ews (tarray tschar 1) (map Vbyte (snd p)) (fst (fst p));
-           valid_pointer bv_p;
-           data_at Tsh asn_codec_ctx_s ctx ctx_p;
-           data_at_ Tsh type_descriptor_s td_p;
-           data_at Tsh (tarray tuchar (Zlength buf)) (map Vbyte buf) buf_p;
-           data_at Tsh (tptr tvoid) (if eq_dec bv_p nullval 
-                                     then fst (fst p) 
-                                     else bv_p) bv_pp;
-           (* Changes according to the exec spec *)
-           let RC_FAIL := 
-               data_at Tsh asn_dec_rval_s (construct_dec_rval 2 0) res_p in
-           if eq_dec (fst (fst p)) nullval
-           then RC_FAIL 
-           else match bool_decoder td buf with
+      SEP (
+        (* Unchanged *)
+         valid_pointer bv_p;
+         data_at Tsh asn_codec_ctx_s ctx ctx_p;
+         data_at_ Tsh type_descriptor_s td_p;
+         data_at Tsh (tarray tuchar (Zlength buf)) (map Vbyte buf) buf_p;
+         (* Changed according to spec *)
+         let RC_FAIL := data_at Tsh asn_dec_rval_s (Vint (Int.repr 2), Vzero) res_p in
+         if eq_dec bv_p nullval 
+         then EX v : val, EX t : type, EX ls : list byte, 
+                     data_at Tsh (tptr tvoid) v bv_pp *
+                     if eq_dec v nullval 
+                     then RC_FAIL  
+                     else match bool_decoder td buf with
+                           | Some (r, c) => 
+                             data_at Tsh asn_dec_rval_s (Vzero, Vint (Int.repr c)) res_p *
+                             data_at Tsh tschar (Val.of_bool r) v
+                           | None => RC_FAIL * 
+                                    malloc_token Ews t v *
+                                    data_at Ews (tarray tschar 1) (map Vbyte ls) v 
+                                    
+      
+                          end
+         else data_at Tsh (tptr tvoid) bv_p bv_pp *
+              match bool_decoder td buf with
                 | Some (r, c) => 
-                  data_at Tsh asn_dec_rval_s (construct_dec_rval 0 c) res_p *
-                  data_at Tsh tuchar (Val.of_bool r) bv_p 
+                  data_at Tsh asn_dec_rval_s (Vzero, Vint (Int.repr c)) res_p *
+                  data_at Tsh tschar (Val.of_bool r) bv_p 
                 | None => RC_FAIL
                 end).
 
-Definition if_post1 bv_p v__res__1 v_tmp_error v_length v_rval 
+
+Definition Gprog := ltac:(with_library prog [(_calloc, calloc_spec);
+                                              ber_check_tags_spec; 
+                                              bool_ber_decode_spec]).
+
+Definition if_post1  bv_p v__res__1 v_tmp_error v_length v_rval 
            res_p ctx ctx_p td_p bv_pp buf buf_p size tag_mode := 
-  EX p : val * type * list byte,
-  PROP ()
-  LOCAL (temp _st (if eq_dec bv_p nullval then fst (fst p) else bv_p); 
+  EX p : val, EX t : type, EX ls : list byte,
+  PROP (if eq_dec bv_p nullval then p <> nullval else (p = bv_p /\ bv_p <> nullval))
+  LOCAL (temp _st p; 
          temp _t'11 bv_p;
          lvar __res__1 (Tstruct _asn_dec_rval_s noattr) v__res__1;
          lvar _tmp_error (Tstruct _asn_dec_rval_s noattr) v_tmp_error;
@@ -79,24 +92,24 @@ Definition if_post1 bv_p v__res__1 v_tmp_error v_length v_rval
          temp _td td_p; temp _bool_value bv_pp;
          temp _buf_ptr buf_p; temp _size (Vint (Int.repr size));
          temp _tag_mode (Vint (Int.repr tag_mode)))
-  SEP (if eq_dec (fst (fst p)) nullval 
-       then emp
-       else malloc_token Ews (snd (fst p)) (fst (fst p)) * 
-            data_at Ews (tarray tschar 1) (map Vbyte (snd p)) (fst (fst p));
-       data_at_ Tsh (Tstruct _asn_dec_rval_s noattr) v__res__1;
+  SEP (data_at_ Tsh (Tstruct _asn_dec_rval_s noattr) v__res__1;
        data_at_ Tsh (Tstruct _asn_dec_rval_s noattr) v_tmp_error;
        data_at_ Tsh tint v_length; 
        data_at_ Tsh (Tstruct _asn_dec_rval_s noattr) v_rval; valid_pointer bv_p;
        data_at Tsh asn_codec_ctx_s ctx ctx_p;
        data_at_ Tsh type_descriptor_s td_p;
        data_at Tsh (tarray tuchar (Zlength buf)) (map Vbyte buf) buf_p;
-       data_at Tsh (tptr tvoid) (if eq_dec bv_p nullval 
-                                 then fst (fst p) else bv_p) bv_pp;
-       data_at_ Tsh asn_dec_rval_s res_p).
-
-Definition Gprog := ltac:(with_library prog [(_calloc, calloc_spec);
-                                              ber_check_tags_spec; 
-                                              bool_ber_decode_spec]).
+       data_at Tsh (tptr tvoid) p bv_pp;
+       if eq_dec bv_p nullval 
+       then data_at_ Tsh asn_dec_rval_s res_p * malloc_token Ews t p * 
+            data_at Ews (tarray tschar 1) (map Vbyte ls) p 
+       else data_at_ Tsh asn_dec_rval_s res_p 
+       ).
+Ltac forward_empty_loop :=
+      match goal with
+      | [ _ : _ |- semax _ ?Pre (Ssequence (Sloop Sskip Sbreak) _) _ ] =>
+          forward_loop Pre break: Pre; try forward ; try entailer! 
+      end. 
 
 Theorem bool_der_encode : semax_body Vprog Gprog 
            (normalize_function f_BOOLEAN_decode_ber composites) 
@@ -125,225 +138,69 @@ Proof.
       unfold fst in *; rewrite H3.
       rewrite if_true by reflexivity.
       repeat forward.
-      Exists p.
+      entailer!.
+      if_tac; try congruence.
+      Exists (fst (fst p)) (snd (fst p)) (snd p).
       rewrite if_true by assumption.
-      rewrite if_true by reflexivity.
-      rewrite if_true by assumption.
+      entailer!.
+      unfold fst.
       rewrite H3.
       entailer!.
     - (* maloc returned non-null value *)
       forward.
       unfold if_post1.
-      Exists p.
+      break_let.
+      Exists v.
+      Exists t.
+      Exists (snd p).
       rewrite if_false by assumption.
       repeat rewrite if_true by assumption.
       entailer!.
+      entailer!.
+      (* if_tac; try congruence.
+      entailer!. *)
   * (* _st <> NULL *)
     forward.
     unfold if_post1.
-    Exists (nullval, tptr tvoid, buf).
-    rewrite if_false by assumption.
-    rewrite if_true by reflexivity.
-    rewrite if_false by assumption.
+    Exists bv_p (tptr tvoid) buf.
+    repeat rewrite if_false by assumption.
     entailer!.
   * (* after the first if *)
     unfold if_post1.
-    Intros p.
-    forward_loop 
-      (PROP ()
-       LOCAL (temp _st (if eq_dec bv_p nullval 
-                        then fst (fst p) else bv_p);
-              lvar __res__1 (Tstruct _asn_dec_rval_s noattr) v__res__1;
-              lvar _tmp_error (Tstruct _asn_dec_rval_s noattr)
-                v_tmp_error; lvar _length tint v_length;
-              temp __res res_p; temp _opt_codec_ctx ctx_p;
-              lvar _rval (Tstruct _asn_dec_rval_s noattr) v_rval;
-              temp _td td_p; temp _bool_value bv_pp;
-              temp _buf_ptr buf_p; temp _size (Vint (Int.repr size));
-              temp _tag_mode (Vint (Int.repr tag_mode)))
-       SEP (if eq_dec (fst (fst p)) nullval
-            then emp
-            else malloc_token Ews (snd (fst p)) (fst (fst p)) * 
-                 data_at Ews (tarray tschar 1) (map Vbyte (snd p)) 
-                         (fst (fst p));
-            data_at_ Tsh (Tstruct _asn_dec_rval_s noattr) v__res__1;
-            data_at_ Tsh (Tstruct _asn_dec_rval_s noattr) v_tmp_error;
-            data_at_ Tsh tint v_length;
-            data_at_ Tsh (Tstruct _asn_dec_rval_s noattr) v_rval;
-            valid_pointer bv_p; data_at Tsh asn_codec_ctx_s ctx ctx_p;
-            data_at_ Tsh type_descriptor_s td_p;
-            data_at Tsh (tarray tuchar (Zlength buf)) 
-              (map Vbyte buf) buf_p;
-            data_at Tsh (tptr tvoid) (if eq_dec bv_p nullval 
-                                      then fst (fst p) else bv_p) bv_pp;
-            data_at_ Tsh asn_dec_rval_s res_p)) 
-      break: 
-      (PROP ()
-       LOCAL (temp _st (if eq_dec bv_p nullval 
-                        then fst (fst p) else bv_p);
-              lvar __res__1 (Tstruct _asn_dec_rval_s noattr) v__res__1;
-              lvar _tmp_error (Tstruct _asn_dec_rval_s noattr)
-                v_tmp_error; lvar _length tint v_length;
-              temp __res res_p; temp _opt_codec_ctx ctx_p;
-              lvar _rval (Tstruct _asn_dec_rval_s noattr) v_rval;
-              temp _td td_p; temp _bool_value bv_pp;
-              temp _buf_ptr buf_p; temp _size (Vint (Int.repr size));
-              temp _tag_mode (Vint (Int.repr tag_mode)))
-       SEP (if eq_dec (fst (fst p)) nullval
-            then emp
-            else malloc_token Ews (snd (fst p)) (fst (fst p)) * 
-                 data_at Ews (tarray tschar 1) (map Vbyte (snd p)) 
-                         (fst (fst p));
-            data_at_ Tsh (Tstruct _asn_dec_rval_s noattr) v__res__1;
-            data_at_ Tsh (Tstruct _asn_dec_rval_s noattr) v_tmp_error;
-            data_at_ Tsh tint v_length;
-            data_at_ Tsh (Tstruct _asn_dec_rval_s noattr) v_rval;
-            valid_pointer bv_p; data_at Tsh asn_codec_ctx_s ctx ctx_p;
-            data_at_ Tsh type_descriptor_s td_p;
-            data_at Tsh (tarray tuchar (Zlength buf)) 
-              (map Vbyte buf) buf_p;
-            data_at Tsh (tptr tvoid) (if eq_dec bv_p nullval 
-                                      then fst (fst p) else bv_p) bv_pp;
-            data_at_ Tsh asn_dec_rval_s res_p)).
-    - (* pre-condition = invariant *)
-      entailer!.
-    - (* invariant step to post condition *)
-      forward.
-      entailer!.
-    - (* after the loop *)
-      forward_call (ctx_p, ctx, td_p, td, nullval, nullval, buf_p, buf,
-                    v__res__1, size, tag_mode, 0, v_length, nullval, 0). 
-      pose proof Exec.ber_check_tags_bool_res td buf DT as BCT.
-      inversion BCT as [T | T]; rewrite T in *;
+    Intros p t ls.
+    forward_empty_loop.
+    forward_call (ctx_p, ctx, td_p, td, nullval, nullval, buf_p, buf,
+                  v__res__1, size, tag_mode, 0, v_length, nullval, 0). 
+    pose proof Exec.ber_check_tags_bool_res td buf DT as BCT.
+    inversion BCT as [T | T]; rewrite T in *;
         unfold construct_dec_rval, tag_length, tag_consumed.
       2: { (* If ber_check_tags failed *)
-        normalize.
+        repeat break_if;
+        normalize;
         repeat forward.
-        forward_if; [|discriminate].
-        repeat forward.
-        Exists p.
+        all: forward_if; [|discriminate];
+          repeat forward.
+        Exists p t ls.
+        rewrite if_false by assumption.
+        unfold bool_decoder; rewrite T; 
+          destruct buf;  entailer!. 
+        simpl.
         entailer!.
-        break_if. 
-        entailer!.
-        unfold bool_decoder; rewrite T; cbn; destruct buf; entailer!.
-      }
+        unfold bool_decoder. rewrite T.
+        simpl.
+        destruct buf; inversion H0; entailer!. }
+
       (* If ber_check_tags succeded *)
       clear BCT; rename T into BCT; cbn in Size; subst.
       normalize.
       repeat forward.
       forward_if; [congruence|].
-      deadvars!.
-      forward_loop (
-          PROP ( )
-          LOCAL (temp _st (if eq_dec bv_p nullval then fst (fst p) else bv_p); 
-                 lvar __res__1 (Tstruct _asn_dec_rval_s noattr) v__res__1;
-                 lvar _tmp_error (Tstruct _asn_dec_rval_s noattr)
-                      v_tmp_error; lvar _length tint v_length;
-                 temp __res res_p;
-                 lvar _rval (Tstruct _asn_dec_rval_s noattr) v_rval;
-                 temp _buf_ptr buf_p;
-                 temp _size (Vint (Int.repr 3)))
-          SEP (data_at Tsh asn_dec_rval_s (Vint (Int.repr 0), Vint (Int.repr 2)) 
-                       v__res__1; 
-               data_at Tsh tint (Vint (Int.repr 1)) v_length;
-               if eq_dec (fst (fst p)) nullval 
-               then emp 
-               else malloc_token Ews (snd (fst p)) (fst (fst p)) * 
-                    data_at Ews (tarray tschar 1) (map Vbyte (snd p)) 
-                            (fst (fst p));
-               data_at_ Tsh (Tstruct _asn_dec_rval_s noattr) v_tmp_error;
-               data_at Tsh (Tstruct _asn_dec_rval_s noattr)
-                       (Vint (Int.repr 0), Vint (Int.repr 2)) v_rval;
-               valid_pointer bv_p;
-               data_at Tsh asn_codec_ctx_s ctx ctx_p;
-               data_at_ Tsh type_descriptor_s td_p;
-               data_at Tsh (tarray tuchar (Zlength buf))
-                       (map Vbyte buf) buf_p;
-               data_at Tsh (tptr tvoid)
-                       (if eq_dec bv_p nullval then fst (fst p) else bv_p)
-                       bv_pp; data_at_ Tsh asn_dec_rval_s res_p))
-                   break: (
-                            PROP ( ) 
-                            LOCAL (temp _st (if eq_dec bv_p nullval 
-                                             then fst (fst p) 
-                                             else bv_p); 
-                                   lvar __res__1 (Tstruct _asn_dec_rval_s noattr) 
-                                        v__res__1;
-                                   lvar _tmp_error (Tstruct _asn_dec_rval_s noattr)
-                                        v_tmp_error; lvar _length tint v_length;
-                                   temp __res res_p;
-                                   lvar _rval 
-                                        (Tstruct _asn_dec_rval_s noattr) v_rval;
-                                   temp _buf_ptr buf_p; 
-                                   temp _size (Vint (Int.repr 3)))
-                            SEP (data_at Tsh asn_dec_rval_s 
-                                         (Vint (Int.repr 0), 
-                                          Vint (Int.repr 2)) v__res__1;
-                                 data_at Tsh tint (Vint (Int.repr 1)) v_length;
-                                 if eq_dec (fst (fst p)) nullval
-                                 then emp
-                                 else
-                                   malloc_token Ews (snd (fst p)) (fst (fst p)) *
-                                   data_at Ews (tarray tschar 1) 
-                                           (map Vbyte (snd p)) (fst (fst p));
-                                 data_at_ Tsh (Tstruct _asn_dec_rval_s noattr) 
-                                          v_tmp_error;
-                                 data_at Tsh (Tstruct _asn_dec_rval_s noattr)
-                                         (Vint (Int.repr 0), Vint (Int.repr 2)) 
-                                         v_rval;
-                                 valid_pointer bv_p;
-                                 data_at Tsh asn_codec_ctx_s ctx ctx_p;
-                                 data_at_ Tsh type_descriptor_s td_p;
-                                 data_at Tsh (tarray tuchar (Zlength buf)) 
-                                         (map Vbyte buf) buf_p;
-                                 data_at Tsh (tptr tvoid)
-                                         (if eq_dec bv_p nullval 
-                                          then fst (fst p) else bv_p)
-                                         bv_pp; 
-                                 data_at_ Tsh asn_dec_rval_s res_p)).
-      entailer!.
-      forward; entailer!.
+      forward_empty_loop.
       repeat forward.
       forward_if.
-      (* RW_MORE case *) congruence.
+      (* RW_MORE case *) admit.
       forward.
-      deadvars!.
-      forward_if (
-          PROP ( )
-          LOCAL (temp _t'6 (Vint (Int.repr 1)); 
-                 temp _buf_ptr (force_val
-                                  (sem_binary_operation' Oadd 
-                                                         (tptr tschar) tuint
-                                                         (eval_cast (tptr tvoid) 
-                                                                    (tptr tschar) buf_p)
-                                                         (Vint (Int.repr 2))));
-                 temp _st (if eq_dec bv_p nullval then fst (fst p) else bv_p);
-                 lvar __res__1 (Tstruct _asn_dec_rval_s noattr) v__res__1;
-                 lvar _tmp_error (Tstruct _asn_dec_rval_s noattr) v_tmp_error;
-                 lvar _length tint v_length; temp __res res_p;
-                 lvar _rval (Tstruct _asn_dec_rval_s noattr) v_rval)
-          SEP (data_at Tsh asn_dec_rval_s (Vint (Int.repr 0), Vint (Int.repr 2)) 
-                       v__res__1;
-               
-               data_at Tsh tint (Vint (Int.repr 1)) v_length;
-               if eq_dec (fst (fst p)) nullval
-               then emp
-               else
-                 malloc_token Ews (snd (fst p)) (fst (fst p)) *
-                 data_at Ews (tarray tschar 1) (map Vbyte (snd p)) (fst (fst p));
-               data_at_ Tsh (Tstruct _asn_dec_rval_s noattr) v_tmp_error;
-               data_at Tsh (Tstruct _asn_dec_rval_s noattr) 
-                       (Vint (Int.repr 0), Vint (Int.repr 2)) v_rval; 
-               valid_pointer bv_p;
-               data_at Tsh asn_codec_ctx_s ctx ctx_p;
-               data_at_ Tsh type_descriptor_s td_p;
-               data_at Tsh (tarray tuchar (Zlength buf)) (map Vbyte buf) buf_p;
-               data_at Tsh (tptr tvoid)
-                       (if eq_dec bv_p nullval
-                        then fst (fst p)
-                        else bv_p) bv_pp;
-               data_at_ Tsh asn_dec_rval_s res_p)).
-
+      forward_if True.
       (* if length <> 1 *)
       (* Since we're not yet working with real type_descriptors we're assuming 
          that if ber_check_tags succedes, then length = 1 *)
@@ -361,6 +218,16 @@ Proof.
       assert_PROP (offset_val 2 buf_p = 
                    field_address (tarray tuchar (Zlength buf)) 
                                  [ArraySubsc 2] buf_p).
+      entailer!.
+      rewrite field_address_offset;
+      auto with field_compatible.
+      forward.
+      entailer!.
+      admit.
+      break_if.
+      Intros.
+      Fail forward.
 Admitted.
+
 
 End Boolean_ber_decode.
