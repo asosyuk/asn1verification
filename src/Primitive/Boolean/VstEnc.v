@@ -2,11 +2,52 @@ Require Import Core.Core Core.StructNormalizer VstLib Callback.Overrun
         Boolean.Exec ErrorWithWriter DWT.Vst.
 Require Import VST.floyd.proofauto Psatz.
 Require Import Clight.BOOLEAN.
-
 Require Import Core.Notations. 
 
-Definition Vprog : varspecs. mk_varspecs prog. Defined.
-Instance CompSpecs : compspecs. make_compspecs prog. Defined.
+Definition new_cs := composites ++ (match find_cs 
+                                            asn_application._overrun_encoder_key 
+                                            asn_application.composites with
+                      | Some r => [r]
+                      | None => []
+                      end).
+
+Definition Vprog : varspecs. 
+Proof.
+  set (cs := new_cs).
+  set (gd := global_definitions).
+  set (pi := public_idents).
+  unfold new_cs in cs.
+  simpl (composites ++
+           match
+             find_cs
+               asn_application._overrun_encoder_key
+               asn_application.composites
+           with
+           | Some r => [r]
+           | None => []
+           end) in cs.
+  set (prog := Clightdefs.mkprogram cs gd pi _main Logic.I).
+  mk_varspecs prog. 
+Defined.
+
+Instance CompSpecs : compspecs. 
+Proof.
+  set (cs := new_cs).
+  set (gd := global_definitions).
+  set (pi := public_idents).
+  unfold new_cs in cs.
+  simpl (composites ++
+           match
+             find_cs
+               asn_application._overrun_encoder_key
+               asn_application.composites
+           with
+           | Some r => [r]
+           | None => []
+           end) in cs.
+  set (prog := Clightdefs.mkprogram cs gd pi _main Logic.I).
+  make_compspecs prog.
+Defined.
 
 (* DWT compspecs *)
 Instance Change1 : change_composite_env CompSpecs Vst.CompSpecs.
@@ -15,9 +56,12 @@ Proof. make_cs_preserve CompSpecs Vst.CompSpecs. Defined.
 Instance Change2 : change_composite_env Vst.CompSpecs CompSpecs.
 Proof. make_cs_preserve Vst.CompSpecs CompSpecs. Defined.
 
+(* Callback compspecs *)
 Instance Change3 : change_composite_env Overrun.CompSpecs CompSpecs.
 Proof. make_cs_preserve Overrun.CompSpecs CompSpecs. Defined.
 
+Instance Change4 : change_composite_env CompSpecs Overrun.CompSpecs.
+Proof. make_cs_preserve CompSpecs Overrun.CompSpecs. Defined.
 
 Open Scope Z.
 
@@ -41,7 +85,7 @@ Definition bool_der_encode_spec : ident * funspec :=
       SEP (data_at_ Tsh enc_rval_s res;
            data_at_ Tsh type_descriptor_s td_p; 
            data_at Tsh tint (Vint sptr_val) sptr_p;
-           (*data_at Tsh enc_key_s (mk_enc_key sptr_p 3 0) app_key_p;*)
+           data_at Tsh enc_key_s (mk_enc_key sptr_p 3 0) app_key_p;
            valid_pointer cb_p;          
            func_ptr' callback cb_p)
     POST [tvoid]
@@ -55,16 +99,16 @@ Definition bool_der_encode_spec : ident * funspec :=
            data_at Tsh enc_rval_s res_val res;
            data_at_ Tsh type_descriptor_s td_p; 
            data_at Tsh tint (Vint sptr_val) sptr_p;
-           (*data_at Tsh enc_key_s (mk_enc_key sptr_p 3 3) app_key_p;*)
+           data_at Tsh enc_key_s (mk_enc_key sptr_p 3 3) app_key_p;
            valid_pointer cb_p; 
            func_ptr' callback cb_p).
 
 Definition Gprog := ltac:(with_library prog [der_write_tags_spec; 
-                                               callback_overrun_spec;
-                                               bool_der_encode_spec]).
+                                             callback_overrun_spec; 
+                                             bool_der_encode_spec]).
 
 Definition if_post1 cb_p sptr_p res bool_p erval_p td_p tag_mode 
-           tag app_key_p td sptr_val cb_spec := 
+           tag app_key_p td sptr_val cb_spec buf_p buf_size computed_size := 
   PROP(is_pointer_or_null (cb_p))
   LOCAL(temp _t'6 (Vint (Int.repr 2)); 
         temp _t'1 (Vint (Int.repr (encoded {| encoded := 2 |}))); 
@@ -76,8 +120,7 @@ Definition if_post1 cb_p sptr_p res bool_p erval_p td_p tag_mode
         temp _cb (cb_p); temp _app_key app_key_p) 
   SEP(data_at_ Tsh type_descriptor_s td_p; 
       data_at_ Tsh enc_rval_s res; 
-      (*data_at Tsh enc_key_s (mk_enc_key buf_p buf_size computed_size) 
-              app_key_p;*)
+      data_at Tsh enc_key_s (mk_enc_key buf_p buf_size computed_size) app_key_p;
       func_ptr' cb_spec (cb_p); 
       (match (cb_p) with
        | Vint _ => data_at_ Tsh tuchar bool_p
@@ -97,7 +140,7 @@ Definition if_post1 cb_p sptr_p res bool_p erval_p td_p tag_mode
       valid_pointer (cb_p)).
 
 Definition if_post2 sptr_val app_key_p v_bool_value cb_spec cb_p v_erval 
-           td_p res sptr_p tag_mode tag := 
+           td_p res sptr_p tag_mode tag buf_p buf_size computed_size := 
   PROP()
   LOCAL( temp _t'6 (Vint (Int.repr 2));
         temp _t'1 (Vint (Int.repr (encoded {| encoded := 2 |}))); 
@@ -109,8 +152,7 @@ Definition if_post2 sptr_val app_key_p v_bool_value cb_spec cb_p v_erval
         temp _cb (cb_p); temp _app_key app_key_p;
         temp _t'2 (Vint (Int.repr (if (bool_of_int sptr_val) then 255 else 0))))
   SEP(data_at_ Tsh type_descriptor_s td_p;
-      (*data_at Tsh enc_key_s (mk_enc_key buf_p buf_size computed_size) 
-              app_key_p;*)
+      data_at Tsh enc_key_s (mk_enc_key buf_p buf_size computed_size) app_key_p;
       func_ptr' cb_spec (cb_p);
       data_at_ Tsh tuchar v_bool_value;
       field_at Tsh (Tstruct _asn_enc_rval_s noattr) (DOT _encoded) 
@@ -124,7 +166,7 @@ Definition if_post2 sptr_val app_key_p v_bool_value cb_spec cb_p v_erval
       data_at Tsh tint (Vint sptr_val) sptr_p; valid_pointer (cb_p)).
 
 Definition loop_inv sptr_p v_bool_value v_erval res td_p tag_mode tag cb_p 
-           app_key_p cb_spec sptr_val :=
+           app_key_p cb_spec sptr_val buf_p buf_size computed_size :=
   PROP()
   LOCAL(temp _t'4 (Vint (Int.repr 2)); 
         temp _t'6 (Vint (Int.repr 2)); temp _t'1 (Vint (Int.repr 2)); 
@@ -136,7 +178,7 @@ Definition loop_inv sptr_p v_bool_value v_erval res td_p tag_mode tag cb_p
         temp _app_key app_key_p)
   SEP(data_at_ Tsh type_descriptor_s td_p;
       data_at_ Tsh enc_rval_s res; 
-      (*data_at Tsh enc_key_s (mk_enc_key buf_p buf_size computed_size) app_key_p;*)
+      data_at Tsh enc_key_s (mk_enc_key buf_p buf_size computed_size) app_key_p;
       func_ptr' cb_spec (cb_p);
       data_at Tsh tuchar (Vubyte (byte_of_bool (bool_of_int sptr_val))) v_bool_value;
       field_at Tsh (Tstruct _asn_enc_rval_s noattr) (DOT _encoded) 

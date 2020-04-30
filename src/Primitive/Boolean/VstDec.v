@@ -166,7 +166,7 @@ Proof.
     rewrite if_true in * by assumption.
     pose proof Exec.ber_check_tags_bool_res td buf DT as BCT.
     inversion BCT as [T | T]; rewrite T in *;
-        unfold construct_dec_rval, tag_length, tag_consumed.
+        unfold mk_dec_rval, tag_length, tag_consumed.
       2: { (* If ber_check_tags failed *)
         normalize;
         repeat forward.
@@ -271,7 +271,7 @@ Proof.
                   v__res__1, size, tag_mode, 0, v_length, nullval, 0). 
     pose proof Exec.ber_check_tags_bool_res td buf DT as BCT.
     inversion BCT as [T | T]; rewrite T in *;
-        unfold construct_dec_rval, tag_length, tag_consumed.
+        unfold mk_dec_rval, tag_length, tag_consumed.
       2: { (* If ber_check_tags failed *)
            rewrite if_false by assumption.
          normalize;

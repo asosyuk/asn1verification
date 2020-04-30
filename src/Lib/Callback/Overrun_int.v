@@ -7,11 +7,6 @@ Require Import Core.Notations.
 
 Instance CompSpecs : compspecs. make_compspecs prog. Defined.
 
-(* Overrun callback key *)
-Definition enc_key_s := Tstruct _overrun_encoder_key noattr.
-Definition mk_enc_key buf size comp_size : @reptype CompSpecs enc_key_s := 
-  (buf, (Vint (Int.repr size), Vint (Int.repr comp_size))). 
-
 Open Scope Z.
 
 Definition callback_int  : funspec :=

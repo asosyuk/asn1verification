@@ -9,11 +9,6 @@ Instance CompSpecs : compspecs. make_compspecs prog. Defined.
 
 Open Scope Z.
 
-(* Overrun callback key *)
-Definition enc_key_s := Tstruct _overrun_encoder_key noattr.
-Definition mk_enc_key buf size comp_size : reptype enc_key_s := 
-  (buf, (Vint (Int.repr size), Vint (Int.repr comp_size))). 
-
 Definition callback  : funspec :=
     WITH (* parameters *)
          data : list int, data_p : val, 

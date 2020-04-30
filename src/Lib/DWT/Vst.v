@@ -3,8 +3,50 @@ Require Import Core.Core Core.StructNormalizer VstLib DWT.Exec
 Require Import VST.floyd.proofauto.
 Require Import Clight.der_encoder.
 
-Definition Vprog : varspecs. mk_varspecs prog. Defined.
-Instance CompSpecs : compspecs. make_compspecs prog. Defined.
+Definition new_cs := composites ++ (match find_cs 
+                                            asn_application._overrun_encoder_key 
+                                            asn_application.composites with
+                      | Some r => [r]
+                      | None => []
+                      end).
+
+Definition Vprog : varspecs. 
+Proof.
+  set (cs := new_cs).
+  set (gd := global_definitions).
+  set (pi := public_idents).
+  unfold new_cs in cs.
+  simpl (composites ++
+           match
+             find_cs
+               asn_application._overrun_encoder_key
+               asn_application.composites
+           with
+           | Some r => [r]
+           | None => []
+           end) in cs.
+  set (prog := Clightdefs.mkprogram cs gd pi _main Logic.I).
+  mk_varspecs prog. 
+Defined.
+
+Instance CompSpecs : compspecs. 
+Proof.
+  set (cs := new_cs).
+  set (gd := global_definitions).
+  set (pi := public_idents).
+  unfold new_cs in cs.
+  simpl (composites ++
+           match
+             find_cs
+               asn_application._overrun_encoder_key
+               asn_application.composites
+           with
+           | Some r => [r]
+           | None => []
+           end) in cs.
+  set (prog := Clightdefs.mkprogram cs gd pi _main Logic.I).
+  make_compspecs prog.
+Defined.
 
 Open Scope Z.
 
@@ -29,7 +71,7 @@ Definition der_write_tags_spec : ident * funspec :=
            Vint (Int.repr last_tag_form); Vint (Int.repr tag); cb_p; app_p)
     GLOBALS()
     SEP(data_at_ Tsh type_descriptor_s td_p ; 
-        (*data_at Tsh enc_key_s (mk_enc_key buf_p buf_size computed_size) app_p;*)
+        data_at Tsh enc_key_s (mk_enc_key buf_p buf_size computed_size) app_p;
         func_ptr' callback cb_p)
     POST[tint]
       PROP()
@@ -39,9 +81,9 @@ Definition der_write_tags_spec : ident * funspec :=
                                   | None => -1
                                   end))))
       SEP(data_at_ Tsh type_descriptor_s td_p ; 
-          (*data_at Tsh enc_key_s 
+          data_at Tsh enc_key_s 
                   (mk_enc_key buf_p buf_size (computed_size + size)) 
-                  app_p;*)
+                  app_p;
           func_ptr' callback cb_p).
 
 Definition Gprog := ltac:(with_library prog [der_write_tags_spec]).
