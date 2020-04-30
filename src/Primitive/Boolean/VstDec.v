@@ -62,8 +62,6 @@ Definition bool_ber_decode_spec : ident * funspec :=
                            | None => RC_FAIL * 
                                     (* malloc_token Ews (tarray tuchar 1) v * *)
                                     data_at Ews (tarray tint 1) (map Vint ls) v 
-                                    
-      
                           end
          else data_at Tsh (tptr tvoid) bv_p bv_pp *
               match bool_decoder td buf with
@@ -415,6 +413,7 @@ Proof.
     
   * (* after the first if *)
     unfold if_post1.
+<<<<<<< HEAD
     Intros p t ls.
     forward_empty_loop.
     forward_call (ctx_p, ctx, td_p, td, nullval, nullval, buf_p, buf,
@@ -422,6 +421,76 @@ Proof.
     pose proof Exec.ber_check_tags_bool_res td buf DT as BCT.
     inversion BCT as [T | T]; rewrite T in *;
         unfold construct_dec_rval, tag_length, tag_consumed.
+=======
+    Intros p.
+    forward_loop 
+      (PROP ()
+       LOCAL (temp _st (if eq_dec bv_p nullval 
+                        then fst (fst p) else bv_p);
+              lvar __res__1 (Tstruct _asn_dec_rval_s noattr) v__res__1;
+              lvar _tmp_error (Tstruct _asn_dec_rval_s noattr)
+                v_tmp_error; lvar _length tint v_length;
+              temp __res res_p; temp _opt_codec_ctx ctx_p;
+              lvar _rval (Tstruct _asn_dec_rval_s noattr) v_rval;
+              temp _td td_p; temp _bool_value bv_pp;
+              temp _buf_ptr buf_p; temp _size (Vint (Int.repr size));
+              temp _tag_mode (Vint (Int.repr tag_mode)))
+       SEP (if eq_dec (fst (fst p)) nullval
+            then emp
+            else malloc_token Ews (snd (fst p)) (fst (fst p)) * 
+                 data_at Ews (tarray tschar 1) (map Vbyte (snd p)) 
+                         (fst (fst p));
+            data_at_ Tsh (Tstruct _asn_dec_rval_s noattr) v__res__1;
+            data_at_ Tsh (Tstruct _asn_dec_rval_s noattr) v_tmp_error;
+            data_at_ Tsh tint v_length;
+            data_at_ Tsh (Tstruct _asn_dec_rval_s noattr) v_rval;
+            valid_pointer bv_p; data_at Tsh asn_codec_ctx_s ctx ctx_p;
+            data_at_ Tsh type_descriptor_s td_p;
+            data_at Tsh (tarray tuchar (Zlength buf)) 
+              (map Vbyte buf) buf_p;
+            data_at Tsh (tptr tvoid) (if eq_dec bv_p nullval 
+                                      then fst (fst p) else bv_p) bv_pp;
+            data_at_ Tsh asn_dec_rval_s res_p)) 
+      break: 
+      (PROP ()
+       LOCAL (temp _st (if eq_dec bv_p nullval 
+                        then fst (fst p) else bv_p);
+              lvar __res__1 (Tstruct _asn_dec_rval_s noattr) v__res__1;
+              lvar _tmp_error (Tstruct _asn_dec_rval_s noattr)
+                v_tmp_error; lvar _length tint v_length;
+              temp __res res_p; temp _opt_codec_ctx ctx_p;
+              lvar _rval (Tstruct _asn_dec_rval_s noattr) v_rval;
+              temp _td td_p; temp _bool_value bv_pp;
+              temp _buf_ptr buf_p; temp _size (Vint (Int.repr size));
+              temp _tag_mode (Vint (Int.repr tag_mode)))
+       SEP (if eq_dec (fst (fst p)) nullval
+            then emp
+            else malloc_token Ews (snd (fst p)) (fst (fst p)) * 
+                 data_at Ews (tarray tschar 1) (map Vbyte (snd p)) 
+                         (fst (fst p));
+            data_at_ Tsh (Tstruct _asn_dec_rval_s noattr) v__res__1;
+            data_at_ Tsh (Tstruct _asn_dec_rval_s noattr) v_tmp_error;
+            data_at_ Tsh tint v_length;
+            data_at_ Tsh (Tstruct _asn_dec_rval_s noattr) v_rval;
+            valid_pointer bv_p; data_at Tsh asn_codec_ctx_s ctx ctx_p;
+            data_at_ Tsh type_descriptor_s td_p;
+            data_at Tsh (tarray tuchar (Zlength buf)) 
+              (map Vbyte buf) buf_p;
+            data_at Tsh (tptr tvoid) (if eq_dec bv_p nullval 
+                                      then fst (fst p) else bv_p) bv_pp;
+            data_at_ Tsh asn_dec_rval_s res_p)).
+    - (* pre-condition = invariant *)
+      entailer!.
+    - (* invariant step to post condition *)
+      forward.
+      entailer!.
+    - (* after the loop *)
+      forward_call (ctx_p, ctx, td_p, td, nullval, nullval, buf_p, buf,
+                    v__res__1, size, tag_mode, 0, v_length, nullval, 0). 
+      pose proof Exec.ber_check_tags_bool_res td buf DT as BCT.
+      inversion BCT as [T | T]; rewrite T in *;
+        unfold mk_dec_rval, tag_length, tag_consumed.
+>>>>>>> Refactor callbacks; refactor dwt and vst enc; [skip ci]
       2: { (* If ber_check_tags failed *)
         break_if.
         (* p <> nullval *)

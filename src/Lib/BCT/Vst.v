@@ -41,10 +41,10 @@ Definition ber_check_tags_spec : ident * funspec :=
       SEP (match ber_check_tags td buf with
            | Some v => 
              data_at Tsh asn_dec_rval_s 
-                     (construct_dec_rval 0 (tag_consumed v)) res_p *
+                     (mk_dec_rval 0 (tag_consumed v)) res_p *
              data_at Tsh tint (Vint (Int.repr (tag_length v))) ll_p
            | None => 
-             data_at Tsh asn_dec_rval_s (construct_dec_rval 2 0) res_p *
+             data_at Tsh asn_dec_rval_s (mk_dec_rval 2 0) res_p *
              data_at_ Tsh tint ll_p
            end).
 

@@ -1,24 +1,23 @@
-Require Import Core.Core Core.StructNormalizer VstLib VstCallback
+Require Import Core.Core Core.StructNormalizer VstLib Callback.Overrun
         Boolean.Exec ErrorWithWriter DWT.Vst.
 Require Import VST.floyd.proofauto Psatz.
-Require Import Clight.asn_application Clight.BOOLEAN.
+Require Import Clight.BOOLEAN.
 
 Require Import Core.Notations. 
 
 Definition Vprog : varspecs. mk_varspecs prog. Defined.
 Instance CompSpecs : compspecs. make_compspecs prog. Defined.
 
-Instance Change1 : change_composite_env CompSpecs DWT.Vst.CompSpecs.
-Proof. make_cs_preserve CompSpecs DWT.Vst.CompSpecs. Defined.
+(* DWT compspecs *)
+Instance Change1 : change_composite_env CompSpecs Vst.CompSpecs.
+Proof. make_cs_preserve CompSpecs Vst.CompSpecs. Defined.
 
-Instance Change2 : change_composite_env DWT.Vst.CompSpecs CompSpecs.
-Proof. make_cs_preserve DWT.Vst.CompSpecs CompSpecs. Defined.
+Instance Change2 : change_composite_env Vst.CompSpecs CompSpecs.
+Proof. make_cs_preserve Vst.CompSpecs CompSpecs. Defined.
 
-Instance Change3 : change_composite_env Lib.VstCallback.CompSpecs CompSpecs.
-Proof. make_cs_preserve Lib.VstCallback.CompSpecs CompSpecs. Defined.
+Instance Change3 : change_composite_env Overrun.CompSpecs CompSpecs.
+Proof. make_cs_preserve Overrun.CompSpecs CompSpecs. Defined.
 
-Instance Change4 : change_composite_env CompSpecs Lib.VstCallback.CompSpecs .
-Proof. make_cs_preserve CompSpecs Lib.VstCallback.CompSpecs.  Defined.
 
 Open Scope Z.
 
@@ -30,7 +29,9 @@ Definition bool_der_encode_spec : ident * funspec :=
          td_p : val, td : TYPE_descriptor,
          tag_mode : Z, tag : Z,
          cb_p : val, 
-         app_key_p : val, app_key_val : val
+         app_key_p : val,
+         (* overrun callback destination buffer *)
+         buf_p : val
     PRE [tptr enc_rval_s, tptr type_descriptor_s, tptr tvoid, tint, 
          tuint, tptr cb_type, tptr tvoid]
       PROP (decoder_type td = BOOLEAN_t) 
@@ -40,25 +41,26 @@ Definition bool_der_encode_spec : ident * funspec :=
       SEP (data_at_ Tsh enc_rval_s res;
            data_at_ Tsh type_descriptor_s td_p; 
            data_at Tsh tint (Vint sptr_val) sptr_p;
-           data_at_ Tsh tvoid app_key_p;
+           (*data_at Tsh enc_key_s (mk_enc_key sptr_p 3 0) app_key_p;*)
            valid_pointer cb_p;          
-           func_ptr' dummy_callback cb_p)
+           func_ptr' callback cb_p)
     POST [tvoid]
       PROP ()
       LOCAL ()
       SEP (let res_val := 
                match evalErrW (bool_encoder td (bool_of_int sptr_val)) [] with
-               | Some v => construct_enc_rval (encoded v) Vzero
-               | None => construct_enc_rval (-1) sptr_p
+               | Some v => mk_enc_rval (encoded v) Vzero
+               | None => mk_enc_rval (-1) sptr_p
                end in
            data_at Tsh enc_rval_s res_val res;
-           data_at_ Tsh type_descriptor_s td_p ; 
-           data_at Tsh tint (Vint sptr_val) sptr_p ;
-           data_at_ Tsh tvoid app_key_p ; valid_pointer cb_p; 
-           func_ptr' dummy_callback cb_p).
+           data_at_ Tsh type_descriptor_s td_p; 
+           data_at Tsh tint (Vint sptr_val) sptr_p;
+           (*data_at Tsh enc_key_s (mk_enc_key sptr_p 3 3) app_key_p;*)
+           valid_pointer cb_p; 
+           func_ptr' callback cb_p).
 
 Definition Gprog := ltac:(with_library prog [der_write_tags_spec; 
-                                               (_overrun_encoder_cb, dummy_callback);
+                                               callback_overrun_spec;
                                                bool_der_encode_spec]).
 
 Definition if_post1 cb_p sptr_p res bool_p erval_p td_p tag_mode 
@@ -73,7 +75,9 @@ Definition if_post1 cb_p sptr_p res bool_p erval_p td_p tag_mode
         temp _tag (Vint (Int.repr tag)); 
         temp _cb (cb_p); temp _app_key app_key_p) 
   SEP(data_at_ Tsh type_descriptor_s td_p; 
-      data_at_ Tsh enc_rval_s res; data_at_ Tsh tvoid app_key_p; 
+      data_at_ Tsh enc_rval_s res; 
+      (*data_at Tsh enc_key_s (mk_enc_key buf_p buf_size computed_size) 
+              app_key_p;*)
       func_ptr' cb_spec (cb_p); 
       (match (cb_p) with
        | Vint _ => data_at_ Tsh tuchar bool_p
@@ -92,8 +96,8 @@ Definition if_post1 cb_p sptr_p res bool_p erval_p td_p tag_mode
       data_at Tsh tint (Vint sptr_val) sptr_p; 
       valid_pointer (cb_p)).
 
-Definition if_post2  (sptr_val : int) app_key_p (v_bool_value : val) cb_spec 
-           cb_p v_bool_value v_erval td_p res sptr_p tag_mode tag := 
+Definition if_post2 sptr_val app_key_p v_bool_value cb_spec cb_p v_erval 
+           td_p res sptr_p tag_mode tag := 
   PROP()
   LOCAL( temp _t'6 (Vint (Int.repr 2));
         temp _t'1 (Vint (Int.repr (encoded {| encoded := 2 |}))); 
@@ -105,7 +109,8 @@ Definition if_post2  (sptr_val : int) app_key_p (v_bool_value : val) cb_spec
         temp _cb (cb_p); temp _app_key app_key_p;
         temp _t'2 (Vint (Int.repr (if (bool_of_int sptr_val) then 255 else 0))))
   SEP(data_at_ Tsh type_descriptor_s td_p;
-      data_at_ Tsh tvoid app_key_p; 
+      (*data_at Tsh enc_key_s (mk_enc_key buf_p buf_size computed_size) 
+              app_key_p;*)
       func_ptr' cb_spec (cb_p);
       data_at_ Tsh tuchar v_bool_value;
       field_at Tsh (Tstruct _asn_enc_rval_s noattr) (DOT _encoded) 
@@ -118,8 +123,8 @@ Definition if_post2  (sptr_val : int) app_key_p (v_bool_value : val) cb_spec
       data_at_ Tsh enc_rval_s res;
       data_at Tsh tint (Vint sptr_val) sptr_p; valid_pointer (cb_p)).
 
-Definition loop_inv sptr_p v_bool_value v_erval res td_p tag_mode 
-           tag cb_p app_key_p (cb_spec : funspec) sptr_val :=
+Definition loop_inv sptr_p v_bool_value v_erval res td_p tag_mode tag cb_p 
+           app_key_p cb_spec sptr_val :=
   PROP()
   LOCAL(temp _t'4 (Vint (Int.repr 2)); 
         temp _t'6 (Vint (Int.repr 2)); temp _t'1 (Vint (Int.repr 2)); 
@@ -130,8 +135,9 @@ Definition loop_inv sptr_p v_bool_value v_erval res td_p tag_mode
         temp _tag (Vint (Int.repr tag)); temp _cb (cb_p);
         temp _app_key app_key_p)
   SEP(data_at_ Tsh type_descriptor_s td_p;
-      data_at_ Tsh enc_rval_s res; data_at_ Tsh tvoid app_key_p;
-      func_ptr' dummy_callback (cb_p);
+      data_at_ Tsh enc_rval_s res; 
+      (*data_at Tsh enc_key_s (mk_enc_key buf_p buf_size computed_size) app_key_p;*)
+      func_ptr' cb_spec (cb_p);
       data_at Tsh tuchar (Vubyte (byte_of_bool (bool_of_int sptr_val))) v_bool_value;
       field_at Tsh (Tstruct _asn_enc_rval_s noattr) (DOT _encoded) 
                (Vint (Int.add (Int.repr 2) (Int.repr 1))) v_erval;
@@ -150,7 +156,9 @@ Theorem bool_der_encode : semax_body Vprog Gprog
 Proof.
   start_function; rename H into DT.
   forward.
-  forward_call (td_p, td, 1, tag_mode, 0, tag, cb_p, app_key_p, app_key_val).
+  (* TODO specify data array with der_write_tags output *)
+  forward_call (td_p, td, 1, tag_mode, 0, tag, cb_p, app_key_p, 2, 
+                [Int.one; Int.one], td_p, buf_p, 3, 0).
   
   rewrite Exec.eval_dwt_boolean by assumption.
   unfold_data_at_ v_erval; unfold_data_at (data_at _ _ _ v_erval).
@@ -158,12 +166,12 @@ Proof.
   forward.
   forward_if; [contradiction|clear H].
   forward_if (if_post1 cb_p sptr_p res v_bool_value v_erval td_p tag_mode tag 
-                       app_key_p td sptr_val dummy_callback); unfold if_post1.
+                       app_key_p td sptr_val callback); unfold if_post1.
   * (* if(cb) = true *)
     forward.
     (* bool_value = *st ? 0xff : 0; /* 0xff mandated by DER */ *)
-    forward_if (if_post2 sptr_val app_key_p v_bool_value dummy_callback cb_p v_bool_value 
-                         v_erval td_p res sptr_p tag_mode tag); unfold if_post2.
+    forward_if (if_post2 sptr_val app_key_p v_bool_value callback cb_p v_erval 
+                         td_p res sptr_p tag_mode tag); unfold if_post2.
     - (* if(b) = true *)
       forward; unfold if_post2; entailer!.
       unfold bool_of_int.
@@ -172,9 +180,7 @@ Proof.
     - (* if(b) = false *)
       forward; unfold if_post2; entailer!.
     - forward.
-      (* erewrite <- data_at_tuchar_singleton_array_eq. *)
-      forward_call 
-             (v_bool_value, 1, app_key_p).    
+      forward_call ([sptr_val], v_bool_value, 1, app_key_p, buf_p, 3, 2).
       forward_if; [congruence|].
       ** (* cb() >= 0 *)
         unfold if_post1; forward.
@@ -201,7 +207,7 @@ Proof.
     Intros.
     forward.
     forward.
-    unfold construct_enc_rval, encoded, last.
+    unfold mk_enc_rval, encoded, last.
     forward_loop (loop_inv sptr_p v_bool_value v_erval res td_p tag_mode tag
                                 cb_p app_key_p dummy_callback sptr_val); unfold loop_inv.
     - entailer!.
@@ -210,7 +216,7 @@ Proof.
       unfold_data_at_ res; unfold_data_at (data_at _ _ _ res).
       repeat forward.
       rewrite eval_boolean_enc by assumption.
-      unfold construct_enc_rval, encoded, last.
+      unfold mk_enc_rval, encoded, last.
       unfold_data_at (data_at _ _ _ res).
       unfold_data_at_  v_erval; unfold_data_at (data_at _ _ _ v_erval).
       entailer!.

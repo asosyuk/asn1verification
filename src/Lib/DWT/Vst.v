@@ -1,5 +1,5 @@
 Require Import Core.Core Core.StructNormalizer VstLib DWT.Exec 
-        ErrorWithWriter VstCallback.
+        ErrorWithWriter Callback.Overrun.
 Require Import VST.floyd.proofauto.
 Require Import Clight.der_encoder.
 
@@ -18,7 +18,10 @@ Definition der_write_tags_spec : ident * funspec :=
        (* callback pointer *)
        cb_p : val,
        (* callback argument pointer *)
-       app_p : val, app_key_val : val
+       app_p : val, size : Z,
+       (* overrun_encoder_key fields *)
+       data : list int, data_p : val,
+       buf_p : val, buf_size : Z, computed_size : Z
   PRE[tptr type_descriptor_s, tuint, tint, tint, tuint, 
       tptr cb_type, tptr tvoid]
     PROP()
@@ -26,8 +29,8 @@ Definition der_write_tags_spec : ident * funspec :=
            Vint (Int.repr last_tag_form); Vint (Int.repr tag); cb_p; app_p)
     GLOBALS()
     SEP(data_at_ Tsh type_descriptor_s td_p ; 
-        data_at_ Tsh tvoid app_p ;
-        func_ptr' dummy_callback cb_p)
+        (*data_at Tsh enc_key_s (mk_enc_key buf_p buf_size computed_size) app_p;*)
+        func_ptr' callback cb_p)
     POST[tint]
       PROP()
       LOCAL(temp ret_temp 
@@ -36,8 +39,10 @@ Definition der_write_tags_spec : ident * funspec :=
                                   | None => -1
                                   end))))
       SEP(data_at_ Tsh type_descriptor_s td_p ; 
-          data_at_ Tsh tvoid app_p ;
-          func_ptr' dummy_callback cb_p).
+          (*data_at Tsh enc_key_s 
+                  (mk_enc_key buf_p buf_size (computed_size + size)) 
+                  app_p;*)
+          func_ptr' callback cb_p).
 
 Definition Gprog := ltac:(with_library prog [der_write_tags_spec]).
 
