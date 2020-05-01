@@ -26,7 +26,7 @@ Theorem ber_decoder_correctness : forall td ls b z,
     bool_decoder td ls = Some (b, z) ->
     (* since bool_encoder returns how many bytes it consumed,
        we need to substract one byte to get to the bool value *)
-    BER_Bool b (firstn 1 (skipn (Z.to_nat (z - 1)) ls)).
+    BER_Bool (bool_of_byte b) (firstn 1 (skipn (Z.to_nat (z - 1)) ls)).
 Proof.
   intros TD ToDec ResB Len DT Dec.
   unfold bool_decoder, Exec.ber_check_tags in Dec; cbn in Dec.
@@ -45,36 +45,30 @@ Proof.
   pose proof Byte.eq_spec i1 (default_byte).
   unfold bool_of_byte.
   inversion Heqo0.
-  destruct (i0 == default_byte)%byte eqn:K; cbn in *; subst; 
-    pose proof Byte.eq_spec i0 default_byte; rewrite K in H0.
+  destruct (i0 == default_byte)%byte eqn:K; cbn in *; subst;
+    pose proof Byte.eq_spec ResB default_byte; rewrite K in H0.
   subst; econstructor.
-  econstructor; assumption.
+  rewrite K; econstructor; assumption.
 Qed.
 
 Theorem boolean_roundtrip : forall td ls b z,
     decoder_type td = BOOLEAN_t ->
     z = Zlength ls ->
     execErrW (bool_encoder td b) nil = Some ls ->
-    bool_decoder td ls = Some (b, z).
+    bool_decoder td ls = Some (byte_of_bool b, z).
 Proof.
   intros TD ls B z DT Len.
   unfold execErrW, bool_encoder, primitive_encoder,
   Exec.der_write_tags, bool_decoder,
-  Exec.ber_check_tags, bool_of_byte; cbn; rewrite DT.
+  Exec.ber_check_tags, byte_of_bool; cbn; rewrite DT.
   intros Res; inversion Res as [T]; clear Res; rename T into Res.
   replace (Byte.repr 1 == 1)%byte with true by reflexivity; cbn.
   replace (Pos.to_nat 2) with (2)%nat by reflexivity.
   do 2 rewrite skipn_cons; rewrite skipn_O; cbn.
-  pose proof Byte.eq_spec  
-       (byte_of_bool B) 
-       (default_byte) as ResC.
+  pose proof Byte.eq_spec (byte_of_bool B) default_byte as ResC.
   unfold byte_of_bool in *.
   unfold default_byte in *; cbn in ResC.
   rewrite <-Res in Len; cbn in Len.
   subst.
-  destruct B; cbn.
-  * assert (Byte.repr 255 <> Byte.repr 0) as T by congruence.
-    pose proof Byte.eq_false (Byte.repr 255) (Byte.repr 0) T as T'; 
-      rewrite T'; reflexivity.
-  * pose proof Byte.eq_true (Byte.repr 0) as T; rewrite T; reflexivity.
+  destruct B; cbn; repeat f_equal.
 Qed.

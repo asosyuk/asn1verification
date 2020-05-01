@@ -33,7 +33,7 @@ Definition bool_ber_decode_spec : ident * funspec :=
       SEP (valid_pointer bv_p;
           if eq_dec bv_p nullval 
            then emp
-           else data_at_ Tsh tint bv_p ; 
+           else data_at_ Ews tint bv_p ; 
            data_at Tsh asn_codec_ctx_s ctx ctx_p;
            data_at_ Tsh type_descriptor_s td_p;
            data_at Tsh (tarray tuchar (Zlength buf)) (map Vubyte buf) buf_p;
@@ -58,7 +58,7 @@ Definition bool_ber_decode_spec : ident * funspec :=
                      else match bool_decoder td buf with
                            | Some (r, c) => 
                              data_at Tsh asn_dec_rval_s (Vzero, Vint (Int.repr c)) res_p *
-                             data_at Tsh tint (Val.of_bool r) v
+                             data_at Ews tint (Vubyte r) v
                            | None => RC_FAIL * 
                                     (* malloc_token Ews (tarray tuchar 1) v * *)
                                     data_at Ews (tarray tint 1) (map Vint ls) v 
@@ -67,8 +67,8 @@ Definition bool_ber_decode_spec : ident * funspec :=
               match bool_decoder td buf with
                 | Some (r, c) => 
                   data_at Tsh asn_dec_rval_s (Vzero, Vint (Int.repr c)) res_p *
-                  data_at Tsh tint (Val.of_bool r) bv_p 
-                | None => RC_FAIL * data_at_ Tsh tint bv_p
+                  data_at Ews tint (Vubyte r) bv_p 
+                | None => RC_FAIL * data_at_ Ews tint bv_p
                 end).
 
 
@@ -103,7 +103,7 @@ Definition if_post1  bv_p v__res__1 v_tmp_error v_length v_rval
        if eq_dec bv_p nullval 
        then data_at_ Tsh asn_dec_rval_s res_p * (* malloc_token Ews (tarray tuchar 1) p * *) 
             data_at Ews (tarray tint 1) (map Vint ls) p 
-       else data_at_ Tsh asn_dec_rval_s res_p * data_at_ Tsh tint bv_p
+       else data_at_ Tsh asn_dec_rval_s res_p * data_at_ Ews tint bv_p
        ).
 Ltac forward_empty_loop :=
       match goal with
@@ -123,7 +123,7 @@ Proof.
   rename H2 into Len.
   repeat forward.
   forward_if (if_post1 bv_p v__res__1 v_tmp_error v_length v_rval res_p ctx 
-                       ctx_p td_p bv_pp buf buf_p size tag_mode).
+                       ctx_p td_p bv_pp buf buf_p size tag_mode); try congruence.
   * (* _st = NULL *)
     forward_call (1, sizeof tint, tint).
     cbn; nia.
@@ -151,12 +151,6 @@ Proof.
       rewrite if_false by assumption.
       repeat rewrite if_true by assumption.
       entailer!.
-  * (* _st <> NULL *)
-    forward.
-    unfold if_post1.
-    Exists bv_p (map (fun x => Int.repr (Byte.unsigned x)) buf).
-    repeat rewrite if_false by assumption.
-    entailer!.  
   * (* after the first if *)
     unfold if_post1.
     Intros p ls.
@@ -164,6 +158,7 @@ Proof.
     forward_call (ctx_p, ctx, td_p, td, nullval, nullval, buf_p, buf,
                   v__res__1, size, tag_mode, 0, v_length, nullval, 0).
     rewrite if_true in * by assumption.
+    inversion H0.
     pose proof Exec.ber_check_tags_bool_res td buf DT as BCT.
     inversion BCT as [T | T]; rewrite T in *;
         unfold mk_dec_rval, tag_length, tag_consumed.
@@ -173,10 +168,9 @@ Proof.
         all: forward_if; [|discriminate];
           repeat forward.
         Exists p ls.
-        inversion H0.
         rewrite if_false by assumption.
         unfold bool_decoder; rewrite T; 
-          destruct buf;  entailer!. 
+          destruct buf; entailer!. 
         simpl.
         entailer!. }
       (* If ber_check_tags succeded *)
@@ -195,87 +189,79 @@ Proof.
       (* Since we're not yet working with real type_descriptors we're assuming 
          that if ber_check_tags succedes, then length = 1 *)
         congruence.
-
-      forward; entailer!.
-      (* if length = 1 *)
-      cbn -[PROPx LOCALx SEPx abbreviate eq_dec nullval CompSpecs].
-      rewrite data_at_isptr with (p0 := buf_p).
-      normalize.
-      rewrite sem_add_pi_ptr.
-      2: assumption.
-      2: cbn; lia.
-      cbn -[PROPx LOCALx SEPx abbreviate eq_dec nullval CompSpecs]. 
-      assert_PROP (offset_val 2 buf_p = 
-                   field_address (tarray tuchar (Zlength buf)) 
-                                 [ArraySubsc 2] buf_p).
-      entailer!.
-      rewrite field_address_offset;
-      auto with field_compatible.
-      forward.
-      entailer!.
-      simpl. normalize.
-      rep_omega.
-      inversion H0.
-      assert (exists i, ls = [i]) as LS by admit. (* from H5 *)
-      destruct LS as [i LS].  
-      subst.  
-      Search tarray 1.
-      erewrite data_at_singleton_array_eq with (t := tint) (v := (Vint i)); auto.
-      Intros.
-      forward.
-      repeat forward.
-      forward_empty_loop.
-      repeat forward.
-      Exists p [i].
-      inversion H0.
-      rewrite if_false by assumption.
-      entailer!.
-      unfold bool_decoder; rewrite BCT; 
-        destruct buf; simpl; entailer!.
-      assert ((Zlength (i0 :: buf) - 2 <? 1) = false) as Z.
-      erewrite Z.ltb_ge.
-      nia.
+        forward; entailer!.
+        (* if length = 1 *)
+        cbn -[PROPx LOCALx SEPx abbreviate eq_dec nullval CompSpecs].
+        rewrite data_at_isptr with (p0 := buf_p).
+        normalize.
+        rewrite sem_add_pi_ptr.
+        2: assumption.
+        2: cbn; lia.
+        cbn -[PROPx LOCALx SEPx abbreviate eq_dec nullval CompSpecs]. 
+        assert_PROP (offset_val 2 buf_p = 
+                     field_address (tarray tuchar (Zlength buf)) 
+                                   [ArraySubsc 2] buf_p).
+        entailer!.
+        rewrite field_address_offset;
+          auto with field_compatible.
+        forward.
+        entailer!.
+        simpl. normalize.
+        rep_omega.
+        assert (exists i, ls = [i]) as LS.
+          { destruct ls; autorewrite with sublist in *.
+            nia.
+            exists i. destruct ls. auto.
+            assert (0 <= Zlength ls) by eapply Zlength_nonneg.
+            autorewrite with sublist in *.
+            nia. }
+        destruct LS as [i LS].  
+        subst.  
+        erewrite data_at_singleton_array_eq with (t := tint) (v := (Vint i));
+          auto.
+        Intros.
+        forward.
+        repeat forward.
+        forward_empty_loop.
+        repeat forward.
+        Exists p [i].
+        rewrite if_false by assumption.
+        entailer!.
+        unfold bool_decoder; rewrite BCT; 
+        destruct buf; [simpl; entailer! |
+                       destruct buf; 
+                       [simpl; simpl in H4; try nia |
+                        destruct buf; simpl; simpl in H4; try nia]].
+      assert ((Zlength (i0 :: i1 :: i2 :: buf) - 2 <? 1) = false) 
+          as Z by (erewrite Z.ltb_ge; nia).
       rewrite Z.
-      destruct buf;
-      simpl;
-      simpl in H2;
-      try nia.
-      destruct buf.
       simpl.
-      simpl in H2.
-      nia.
-      simpl.
-      entailer!.
-      cbn.
-      entailer!.
-      (* need to return byte and not bool *)
-      admit. }
-    - (* bv <> nullval *)
-  rename H0 into DT.
-  rename H1 into Size.
-  rename H2 into Len.
-  repeat forward.
-  forward_if (if_post1 bv_p v__res__1 v_tmp_error v_length v_rval res_p ctx 
-                       ctx_p td_p bv_pp buf buf_p size tag_mode).
-  congruence.
-  forward. 
-  unfold if_post1.
-   Exists bv_p (@nil int).
-   repeat rewrite if_false by assumption.
-   entailer!.
-  * (* after the first if *)
+      entailer!. }
+  - (* bv <> nullval *)
+    rename H0 into DT.
+    rename H1 into Size.
+    rename H2 into Len.
+    repeat forward.
+    forward_if (if_post1 bv_p v__res__1 v_tmp_error v_length v_rval res_p ctx 
+                         ctx_p td_p bv_pp buf buf_p size tag_mode); try congruence.
+    forward. 
     unfold if_post1.
-    Intros p ls.
-    forward_empty_loop.
-    forward_call (ctx_p, ctx, td_p, td, nullval, nullval, buf_p, buf,
-                  v__res__1, size, tag_mode, 0, v_length, nullval, 0). 
-    pose proof Exec.ber_check_tags_bool_res td buf DT as BCT.
-    inversion BCT as [T | T]; rewrite T in *;
+    Exists bv_p (@nil int).
+    repeat rewrite if_false by assumption.
+    entailer!.
+    * (* after the first if *)
+      unfold if_post1.
+      Intros p ls.
+      forward_empty_loop.
+      forward_call (ctx_p, ctx, td_p, td, nullval, nullval, buf_p, buf,
+                    v__res__1, size, tag_mode, 0, v_length, nullval, 0). 
+      pose proof Exec.ber_check_tags_bool_res td buf DT as BCT.
+      inversion BCT as [T | T]; rewrite T in *;
         unfold mk_dec_rval, tag_length, tag_consumed.
       2: { (* If ber_check_tags failed *)
-           rewrite if_false by assumption.
-         normalize;
-        repeat forward.
+        rewrite if_false by assumption.
+        normalize;
+          repeat forward.
         all: forward_if; [|discriminate];
           repeat forward.
         unfold bool_decoder; rewrite T; 
@@ -285,9 +271,9 @@ Proof.
         inversion H0.
         subst.
         entailer!.
-      simpl. 
-      entailer!.
-       rewrite if_false in * by assumption.
+        simpl. 
+        entailer!.
+        rewrite if_false in * by assumption.
         inversion H0.
         subst.
         entailer!.
@@ -322,7 +308,7 @@ Proof.
                                  [ArraySubsc 2] buf_p).
       entailer!.
       rewrite field_address_offset;
-      auto with field_compatible.
+        auto with field_compatible.
       forward.
       entailer!.
       simpl. normalize.
@@ -334,25 +320,15 @@ Proof.
       forward_empty_loop.
       repeat forward.
       unfold bool_decoder; rewrite BCT; 
-        destruct buf; simpl; entailer!.
-      assert ((Zlength (i :: buf) - 2 <? 1) = false) as Z.
-      erewrite Z.ltb_ge.
-      nia.
+        destruct buf; [simpl; entailer! |
+                       destruct buf; 
+                       [simpl; simpl in H2; try nia |
+                        destruct buf; simpl; simpl in H2; try nia]].
+      assert ((Zlength (i :: i0 :: i1 :: buf) - 2 <? 1) = false) 
+          as Z by (erewrite Z.ltb_ge; nia).
       rewrite Z.
-      destruct buf;
-      simpl;
-      simpl in H2;
-      try nia.
-      destruct buf.
-      simpl.
-      simpl in H2.
-      nia.
       simpl.
       entailer!.
-      cbn.
-      entailer!.
-      (* need to return byte and not bool *)
-      admit.
 Admitted.
 
 (*
