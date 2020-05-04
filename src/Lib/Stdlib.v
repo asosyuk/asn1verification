@@ -46,11 +46,11 @@ Definition memcpy_spec {cs : compspecs} :=
        PARAMS (p; q; Vint (Int.repr n))
        GLOBALS()
        SEP (data_at qsh (tarray tuchar n) (map Vint contents) q;
-              memory_block psh n p)
+            memory_block psh n p)
     POST [ tptr tvoid ]
        PROP() LOCAL(temp ret_temp p)
        SEP(data_at qsh (tarray tuchar n) (map Vint contents) q;
-             data_at psh (tarray tuchar n) (map Vint contents) p).
+           data_at psh (tarray tuchar n) (map Vint contents) p).
 
 Definition memset_spec {cs : compspecs}:=
    WITH sh : share, p: val, n: Z, c: int
