@@ -50,26 +50,18 @@ Definition bool_ber_decode_spec : ident * funspec :=
          data_at Tsh (tarray tuchar (Zlength buf)) (map Vubyte buf) buf_p;
          (* Changed according to spec *)
          let RC_FAIL := data_at Tsh asn_dec_rval_s (Vint (Int.repr 2), Vzero) res_p in
-         if eq_dec bv_p nullval 
-         then EX v : val, EX ls : list int, 
-                     data_at Tsh (tptr tvoid) v bv_pp *
-                     if eq_dec v nullval 
-                     then RC_FAIL  
-                     else match bool_decoder td buf with
-                           | Some (r, c) => 
-                             data_at Tsh asn_dec_rval_s (Vzero, Vint (Int.repr c)) res_p *
-                             data_at Ews tint (Vubyte r) v
-                           | None => RC_FAIL * 
-                                    (* malloc_token Ews (tarray tuchar 1) v * *)
-                                    data_at Ews (tarray tint 1) (map Vint ls) v 
-                          end
-         else data_at Tsh (tptr tvoid) bv_p bv_pp *
-              match bool_decoder td buf with
-                | Some (r, c) => 
-                  data_at Tsh asn_dec_rval_s (Vzero, Vint (Int.repr c)) res_p *
-                  data_at Ews tint (Vubyte r) bv_p 
-                | None => RC_FAIL * data_at_ Ews tint bv_p
-                end).
+         EX v : val, EX ls : list val,
+             data_at Tsh (tptr tvoid) v bv_pp *
+             if eq_dec v nullval 
+             then RC_FAIL  
+             else match bool_decoder td buf with
+                  | Some (r, c) => 
+                    data_at Tsh asn_dec_rval_s (Vzero, Vint (Int.repr c)) res_p *
+                    data_at Ews tint (Vubyte r) v
+                  | None =>
+                    RC_FAIL * 
+                    data_at Ews (tarray tint 1) ls v 
+                  end).
 
 
 Definition Gprog := ltac:(with_library prog [(_calloc, calloc_spec);
@@ -139,7 +131,7 @@ Proof.
       rewrite if_true in * by reflexivity.
       repeat forward.
       entailer!.
-      Exists nullval (snd p).
+      Exists nullval (map Vint (snd p)).
       rewrite if_true by assumption.
       entailer!.
     -- (* maloc returned non-null value *)
@@ -167,7 +159,7 @@ Proof.
         repeat forward.
         all: forward_if; [|discriminate];
           repeat forward.
-        Exists p ls.
+        Exists p (map Vint ls).
         rewrite if_false by assumption.
         unfold bool_decoder; rewrite T; 
           destruct buf; entailer!. 
@@ -224,7 +216,7 @@ Proof.
         repeat forward.
         forward_empty_loop.
         repeat forward.
-        Exists p [i].
+        Exists p [Vint i].
         rewrite if_false by assumption.
         entailer!.
         unfold bool_decoder; rewrite BCT; 
@@ -273,10 +265,29 @@ Proof.
         entailer!.
         simpl. 
         entailer!.
+        Exists bv_p.
+        
+        Exists [default_val tint].
+
         rewrite if_false in * by assumption.
         inversion H0.
         subst.
         entailer!.
+         erewrite data_at_singleton_array_eq with (t := tint) (v := Vundef).
+         entailer!.
+         reflexivity.
+        Exists bv_p.
+        
+        Exists [default_val tint].
+         rewrite if_false in * by assumption.
+        inversion H0.
+        subst.
+        entailer!.
+         erewrite data_at_singleton_array_eq with (t := tint) (v := Vundef).
+         entailer!.
+         simpl.
+         entailer!.
+         reflexivity.
       }
       (* If ber_check_tags succeded *)
       clear BCT; rename T into BCT; cbn in Size; subst.
@@ -319,6 +330,8 @@ Proof.
       repeat forward.
       forward_empty_loop.
       repeat forward.
+      Exists bv_p.
+      Exists [Vundef].
       unfold bool_decoder; rewrite BCT; 
         destruct buf; [simpl; entailer! |
                        destruct buf; 
@@ -328,6 +341,7 @@ Proof.
           as Z by (erewrite Z.ltb_ge; nia).
       rewrite Z.
       simpl.
+      rewrite if_false by eassumption.
       entailer!.
 Admitted.
 
