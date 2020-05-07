@@ -89,14 +89,14 @@ Definition der_write_tags_spec : ident * funspec :=
                      | None => [] end in
           (if buf_size <? computed_size + size
            then data_at Tsh enc_key_s 
-                   (mk_enc_key buf_p 0 computed_size) app_p
+                   (mk_enc_key buf_p 0 (computed_size + size)) app_p
            else 
              (data_at Tsh (tarray tuchar size) (map Vubyte arr) 
                       (offset_val computed_size buf_p) *
               data_at Tsh enc_key_s 
                       (mk_enc_key buf_p buf_size (computed_size + size)) 
                       app_p));
-          data_at_ Tsh type_descriptor_s td_p ; 
+          data_at_ Tsh type_descriptor_s td_p; 
           func_ptr' callback cb_p).
 
 Definition Gprog := ltac:(with_library prog [der_write_tags_spec]).
