@@ -22,6 +22,7 @@ Definition callback  : funspec :=
             0 <= buf_size <= Int.max_unsigned;
             0 <= computed_size <= Int.max_unsigned;
             0 <= size <= Int.max_unsigned;
+            (* Implicit assumptions *)
             0 <= computed_size + size <= Int.max_unsigned;
             0 <= computed_size + size + Ptrofs.unsigned buf_ofs < Ptrofs.modulus;
             0 <= Ptrofs.unsigned buf_ofs + buf_size < Ptrofs.modulus)
@@ -41,7 +42,7 @@ Definition callback  : funspec :=
              (data_at Tsh enc_key_s
                       (mk_enc_key 
                          (Vptr buf_b buf_ofs) 0 (computed_size + size)) key_p *
-                memory_block Tsh buf_size  (Vptr buf_b buf_ofs))
+                memory_block Tsh buf_size (Vptr buf_b buf_ofs))
            else 
              (memory_block Tsh computed_size (Vptr buf_b buf_ofs)*
               data_at Tsh (tarray tuchar size) (map Vint data) 
