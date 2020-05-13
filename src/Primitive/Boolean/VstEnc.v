@@ -67,6 +67,18 @@ Open Scope Z.
 
 Section Boolean_der_encode_primitive.
 
+Definition tags_enc_len td :=  
+  match evalErrW (Exec.der_write_tags td) [] with 
+  | Some v => encoded v
+  | None => 0
+  end.
+
+Definition bool_enc_len td b := 
+  match evalErrW (bool_encoder td b) [] with
+  | Some v => encoded v
+  | None => 0
+  end.
+
 Definition bool_der_encode_spec : ident * funspec :=
   DECLARE _BOOLEAN_encode_der
     WITH res: val,  sptr_p : val, sptr_val : int, 
@@ -78,27 +90,15 @@ Definition bool_der_encode_spec : ident * funspec :=
          buf_p : val, buf_size : Z, computed_size : Z
     PRE [tptr enc_rval_s, tptr type_descriptor_s, tptr tvoid, tint, 
          tuint, tptr cb_type, tptr tvoid]
-    let tag_len := 
-        match evalErrW (Exec.der_write_tags td) [] with 
-        | Some v => encoded v
-        | None => 0
-        end in
-    let size := match evalErrW (bool_encoder td (bool_of_int sptr_val)) [] with
-                | Some v => encoded v
-                | None => 0
-                end in
       PROP (decoder_type td = BOOLEAN_t;
-            isptr(buf_p);
-            0 <= buf_size;
-            buf_size <= Int.max_unsigned;
-            0 <= computed_size;
-            computed_size + size  <= Int.max_unsigned;
-            if (buf_size <? computed_size + tag_len) then (buf_size = 0) else True;
-            if (buf_size <? computed_size + size) then (buf_size = 0) else True) 
+            isptr buf_p;
+            0 <= buf_size <= Int.max_unsigned;
+            0 <= computed_size <= Int.max_unsigned) 
       PARAMS (res; td_p; sptr_p; Vint (Int.repr tag_mode);
               Vint (Int.repr tag); cb_p; app_key_p)
       GLOBALS ()
-      SEP (if buf_size <? (computed_size + 2) + 1 (* this is used after dwt execution, so computed_size += 2 *)
+      SEP (if buf_size <? (computed_size + 2) + 1
+           (* this is used after dwt execution, so computed_size += 2 *)
            then emp 
            else memory_block Tsh 1 (offset_val (computed_size + 2) buf_p);
            data_at_ Tsh enc_rval_s res;
@@ -115,13 +115,10 @@ Definition bool_der_encode_spec : ident * funspec :=
           match evalErrW (bool_encoder td (bool_of_int sptr_val)) [] with 
                      | Some v => mk_enc_rval (encoded v) Vzero 
                      | None => mk_enc_rval (-1) sptr_p end in
-      let tags_len := match evalErrW (Exec.der_write_tags td) [] with
-          | Some v => encoded v
-          | None => 0 end in 
       let arr := match execErrW (bool_encoder td (bool_of_int sptr_val)) [] with 
          | Some res => res
          | None => [] end in
-      let size := if Zlength arr =? 0 then tags_len else Zlength arr in
+      let size := if Zlength arr =? 0 then tags_enc_len td else Zlength arr in
       SEP (if buf_size <? computed_size + 2 
            then emp 
            else data_at Tsh (tarray tuchar 2) (map Vubyte [1%byte; 1%byte]) 
@@ -132,12 +129,12 @@ Definition bool_der_encode_spec : ident * funspec :=
            if buf_size <? computed_size + size
            then data_at Tsh enc_key_s 
                         (mk_enc_key buf_p 0 (computed_size + size)) app_key_p
-           else (data_at Tsh (tarray tuchar (size - tags_len)) 
+           else (data_at Tsh (tarray tuchar (size - tags_enc_len td)) 
                          ([Vint 
                              (Int.zero_ext 8 
                                            (Int.repr (Byte.unsigned 
                                                         (last arr (Byte.zero)))))])
-                         (offset_val (computed_size + tags_len) buf_p) * 
+                         (offset_val (computed_size + tags_enc_len td) buf_p) * 
                  data_at Tsh enc_key_s 
                          (mk_enc_key buf_p buf_size (computed_size + size))    
                          app_key_p);
@@ -154,11 +151,11 @@ Theorem bool_der_encode : semax_body Vprog Gprog
                                      bool_der_encode_spec.
 Proof.
   start_function; rename H into DT; rename H0 into Bf_ptr.
-    rename H1 into Bsz; rename H2 into Bsmu; rename H3 into Csz; 
-      rename H4 into Csmu; rename H5 into BsDWT; rename H6 into BsR.
-  rewrite eval_boolean_enc in Csmu by assumption; unfold encoded in Csmu.
+    rename H1 into Bsz; rename H2 into Bsmu. (* rename H3 into Csz; *)
+    (*  rename H into Csmu; rename H5 into BsDWT; rename H6 into BsR. *)
+ (* rewrite eval_boolean_enc in Csmu by assumption; unfold encoded in Csmu.
   rewrite Exec.eval_dwt_boolean in BsDWT by assumption; unfold encoded in BsDWT.
-  rewrite eval_boolean_enc in BsR by assumption; unfold encoded in BsR.
+  rewrite eval_boolean_enc in BsR by assumption; unfold encoded in BsR. *)
   forward.
   forward_call (td_p, td, 1, tag_mode, 0, tag, cb_p, app_key_p, buf_p, buf_size, 
                 computed_size).
@@ -290,9 +287,10 @@ Proof.
                         func_ptr' callback cb_p]) in (Value of Frame).
       destruct (buf_size <? computed_size + 2) eqn:K; 
         cbn; entailer!.
-      cbn in *.
-      replace (computed_size + 3) with (computed_size + 2 + 1) in BsR by lia.
-      repeat split; try lia; assumption.
+      admit.
+     (* cbn in *.
+      replace (computed_size + 3) with (computed_size + 2 + 1) in BsR by lia. *)
+      repeat split; try lia; try assumption; admit.
       thaw L.
       forward_if; [congruence|].
       ** (* cb() >= 0 *)
@@ -356,6 +354,7 @@ Proof.
       repeat forward.
       rewrite eval_boolean_enc by assumption.
       rewrite exec_boolean_enc by assumption.
+      unfold tags_enc_len.
       rewrite Exec.eval_dwt_boolean by assumption.
       unfold_data_at (data_at _ _ _ res); unfold_data_at_ v_erval; 
         unfold_data_at (data_at _ _ _ v_erval).
@@ -363,6 +362,6 @@ Proof.
       destruct cb_p; intuition.
       replace (computed_size + 3) with (computed_size + 2 + 1) by lia.
       entailer!.
-Qed.
+Admitted.
 
 End Boolean_der_encode_primitive.
