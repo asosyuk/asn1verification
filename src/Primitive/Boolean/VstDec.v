@@ -63,7 +63,6 @@ Definition bool_ber_decode_spec : ident * funspec :=
                     data_at Ews (tarray tint 1) ls v 
                   end).
 
-
 Definition Gprog := ltac:(with_library prog [(_calloc, calloc_spec);
                                               ber_check_tags_spec; 
                                               bool_ber_decode_spec]).
@@ -97,19 +96,21 @@ Definition if_post1  bv_p v__res__1 v_tmp_error v_length v_rval
             data_at Ews (tarray tint 1) (map Vint ls) p 
        else data_at_ Tsh asn_dec_rval_s res_p * data_at_ Ews tint bv_p
        ).
+
 Ltac forward_empty_loop :=
       match goal with
       | [ _ : _ |- semax _ ?Pre (Ssequence (Sloop Sskip Sbreak) _) _ ] =>
           forward_loop Pre break: Pre; try forward ; try entailer! 
       end. 
 
+Ltac rewrite_if_b := try rewrite if_true in * by (reflexivity || assumption)
+  ; try rewrite if_false in * by (reflexivity || assumption)).
+
 Theorem bool_der_encode : semax_body Vprog Gprog 
            (normalize_function f_BOOLEAN_decode_ber composites) 
            bool_ber_decode_spec.
 Proof.
   start_function.
-  break_if. 
-  - (* bv = nullval *)
   rename H0 into DT.
   rename H1 into Size.
   rename H2 into Len.
@@ -121,36 +122,41 @@ Proof.
     cbn; nia.
     Intros p.
     repeat forward.
-    forward_if.
-    {
-      if_tac; break_let; 
-      cbn in H19; subst; entailer!. }
+    forward_if; break_let; subst; unfold fst; repeat rewrite_if_b.
+    { if_tac; cbn in H0; subst; entailer!. }
+    (* bv_p = nullval *)
     -- (* malloc returned null *)
-      unfold abbreviate in POSTCONDITION.
-      unfold fst in *; rewrite H3 in *. 
-      rewrite if_true in * by reflexivity.
       repeat forward.
       entailer!.
-      Exists nullval (map Vint (snd p)).
-      rewrite if_true by assumption.
+      Exists nullval (map Vint l).
+      repeat rewrite_if_b.
       entailer!.
     -- (* maloc returned non-null value *)
       forward.
       unfold if_post1.
-      break_let.
       Exists v.
-      Exists (snd p).
-      rewrite if_false by assumption.
-      repeat rewrite if_true by assumption.
+      Exists l.
+      repeat rewrite_if_b.
+       rewrite if_false in * by (reflexivity || assumption).
+      rewrite_if_b.
+       rewrite if_false in * by assumption.
+      rewrite if_true by reflexivity.
+      rewrite_if_b.
       entailer!.
-  * (* after the first if *)
-    unfold if_post1.
+  * (* bv_p <> nullval *)
+    rewrite if_false in * by assumption.
+    forward.
+    Exists bv_p (@nil int).
+    repeat rewrite if_false by assumption.
+    entailer!.
+  * unfold if_post1.
     Intros p ls.
     forward_empty_loop.
     forward_call (ctx_p, ctx, td_p, td, nullval, nullval, buf_p, buf,
                   v__res__1, size, tag_mode, 0, v_length, nullval, 0).
-    rewrite if_true in * by assumption.
-    inversion H0.
+    break_if.
+    ** 
+    inversion H0. 
     pose proof Exec.ber_check_tags_bool_res td buf DT as BCT.
     inversion BCT as [T | T]; rewrite T in *;
         unfold mk_dec_rval, tag_length, tag_consumed.
@@ -229,29 +235,11 @@ Proof.
       rewrite Z.
       simpl.
       entailer!. }
-  - (* bv <> nullval *)
-    rename H0 into DT.
-    rename H1 into Size.
-    rename H2 into Len.
-    repeat forward.
-    forward_if (if_post1 bv_p v__res__1 v_tmp_error v_length v_rval res_p ctx 
-                         ctx_p td_p bv_pp buf buf_p size tag_mode); try congruence.
-    forward. 
-    unfold if_post1.
-    Exists bv_p (@nil int).
-    repeat rewrite if_false by assumption.
-    entailer!.
-    * (* after the first if *)
-      unfold if_post1.
-      Intros p ls.
-      forward_empty_loop.
-      forward_call (ctx_p, ctx, td_p, td, nullval, nullval, buf_p, buf,
-                    v__res__1, size, tag_mode, 0, v_length, nullval, 0). 
+  ** (* bv <> nullval *)
       pose proof Exec.ber_check_tags_bool_res td buf DT as BCT.
       inversion BCT as [T | T]; rewrite T in *;
         unfold mk_dec_rval, tag_length, tag_consumed.
       2: { (* If ber_check_tags failed *)
-        rewrite if_false by assumption.
         normalize;
           repeat forward.
         all: forward_if; [|discriminate];
@@ -259,25 +247,21 @@ Proof.
         unfold bool_decoder; rewrite T; 
           destruct buf;  entailer!. 
         simpl.
-        rewrite if_false in * by assumption.
         inversion H0.
         subst.
         entailer!.
         simpl. 
         entailer!.
         Exists bv_p.
-        
         Exists [default_val tint].
-
-        rewrite if_false in * by assumption.
         inversion H0.
         subst.
         entailer!.
          erewrite data_at_singleton_array_eq with (t := tint) (v := Vundef).
+         rewrite if_false in * by assumption.
          entailer!.
          reflexivity.
-        Exists bv_p.
-        
+        Exists bv_p. 
         Exists [default_val tint].
          rewrite if_false in * by assumption.
         inversion H0.
@@ -324,7 +308,6 @@ Proof.
       entailer!.
       simpl. normalize.
       rep_omega.
-      rewrite if_false in * by assumption.
       Intros.
       inversion H0; subst.
       repeat forward.
@@ -341,260 +324,8 @@ Proof.
           as Z by (erewrite Z.ltb_ge; nia).
       rewrite Z.
       simpl.
-      rewrite if_false by eassumption.
+      rewrite if_false in * by assumption.
       entailer!.
 Admitted.
 
-(*
-Theorem bool_der_encode : semax_body Vprog Gprog 
-           (normalize_function f_BOOLEAN_decode_ber composites) 
-           bool_ber_decode_spec.
-Proof.
-  start_function.
-  rename H0 into DT.
-  rename H1 into Size.
-  rename H2 into Len.
-  repeat forward.
-  forward_if (if_post1 bv_p v__res__1 v_tmp_error v_length v_rval res_p ctx 
-                       ctx_p td_p bv_pp buf buf_p size tag_mode).
-  * (* _st = NULL *)
-    forward_call (1, sizeof tint).
-    cbn; nia.
-    Intros p.
-    forward.
-    forward.
-    forward_if.
-    {
-      if_tac; break_let. 
-      cbn in H0; subst; entailer!.
-      eapply denote_tc_test_eq_split; entailer!.
-    }
-    - (* malloc returned null *)
-      unfold fst in *; rewrite H3.
-      rewrite if_true by reflexivity.
-      repeat forward.
-      entailer!.
-      if_tac; try congruence.
-      Exists (fst (fst p)) (snd (fst p)) (snd p).
-      rewrite if_true by assumption.
-      entailer!.
-      unfold fst.
-      rewrite H3.
-      entailer!.
-    - (* maloc returned non-null value *)
-      forward.
-      unfold if_post1.
-      break_let.
-      Exists v.
-      Exists t.
-      Exists (snd p).
-      rewrite if_false by assumption.
-      repeat rewrite if_true by assumption.
-      entailer!.
-      entailer!.
-      (* if_tac; try congruence.
-      entailer!. *)
-  * (* _st <> NULL *)
-    forward.
-    unfold if_post1.
-    Exists bv_p (tptr tvoid) buf.
-    repeat rewrite if_false by assumption.
-    entailer!.
-    
-  * (* after the first if *)
-    unfold if_post1.
-<<<<<<< HEAD
-    Intros p t ls.
-    forward_empty_loop.
-    forward_call (ctx_p, ctx, td_p, td, nullval, nullval, buf_p, buf,
-                  v__res__1, size, tag_mode, 0, v_length, nullval, 0). 
-    pose proof Exec.ber_check_tags_bool_res td buf DT as BCT.
-    inversion BCT as [T | T]; rewrite T in *;
-        unfold construct_dec_rval, tag_length, tag_consumed.
-=======
-    Intros p.
-    forward_loop 
-      (PROP ()
-       LOCAL (temp _st (if eq_dec bv_p nullval 
-                        then fst (fst p) else bv_p);
-              lvar __res__1 (Tstruct _asn_dec_rval_s noattr) v__res__1;
-              lvar _tmp_error (Tstruct _asn_dec_rval_s noattr)
-                v_tmp_error; lvar _length tint v_length;
-              temp __res res_p; temp _opt_codec_ctx ctx_p;
-              lvar _rval (Tstruct _asn_dec_rval_s noattr) v_rval;
-              temp _td td_p; temp _bool_value bv_pp;
-              temp _buf_ptr buf_p; temp _size (Vint (Int.repr size));
-              temp _tag_mode (Vint (Int.repr tag_mode)))
-       SEP (if eq_dec (fst (fst p)) nullval
-            then emp
-            else malloc_token Ews (snd (fst p)) (fst (fst p)) * 
-                 data_at Ews (tarray tschar 1) (map Vbyte (snd p)) 
-                         (fst (fst p));
-            data_at_ Tsh (Tstruct _asn_dec_rval_s noattr) v__res__1;
-            data_at_ Tsh (Tstruct _asn_dec_rval_s noattr) v_tmp_error;
-            data_at_ Tsh tint v_length;
-            data_at_ Tsh (Tstruct _asn_dec_rval_s noattr) v_rval;
-            valid_pointer bv_p; data_at Tsh asn_codec_ctx_s ctx ctx_p;
-            data_at_ Tsh type_descriptor_s td_p;
-            data_at Tsh (tarray tuchar (Zlength buf)) 
-              (map Vbyte buf) buf_p;
-            data_at Tsh (tptr tvoid) (if eq_dec bv_p nullval 
-                                      then fst (fst p) else bv_p) bv_pp;
-            data_at_ Tsh asn_dec_rval_s res_p)) 
-      break: 
-      (PROP ()
-       LOCAL (temp _st (if eq_dec bv_p nullval 
-                        then fst (fst p) else bv_p);
-              lvar __res__1 (Tstruct _asn_dec_rval_s noattr) v__res__1;
-              lvar _tmp_error (Tstruct _asn_dec_rval_s noattr)
-                v_tmp_error; lvar _length tint v_length;
-              temp __res res_p; temp _opt_codec_ctx ctx_p;
-              lvar _rval (Tstruct _asn_dec_rval_s noattr) v_rval;
-              temp _td td_p; temp _bool_value bv_pp;
-              temp _buf_ptr buf_p; temp _size (Vint (Int.repr size));
-              temp _tag_mode (Vint (Int.repr tag_mode)))
-       SEP (if eq_dec (fst (fst p)) nullval
-            then emp
-            else malloc_token Ews (snd (fst p)) (fst (fst p)) * 
-                 data_at Ews (tarray tschar 1) (map Vbyte (snd p)) 
-                         (fst (fst p));
-            data_at_ Tsh (Tstruct _asn_dec_rval_s noattr) v__res__1;
-            data_at_ Tsh (Tstruct _asn_dec_rval_s noattr) v_tmp_error;
-            data_at_ Tsh tint v_length;
-            data_at_ Tsh (Tstruct _asn_dec_rval_s noattr) v_rval;
-            valid_pointer bv_p; data_at Tsh asn_codec_ctx_s ctx ctx_p;
-            data_at_ Tsh type_descriptor_s td_p;
-            data_at Tsh (tarray tuchar (Zlength buf)) 
-              (map Vbyte buf) buf_p;
-            data_at Tsh (tptr tvoid) (if eq_dec bv_p nullval 
-                                      then fst (fst p) else bv_p) bv_pp;
-            data_at_ Tsh asn_dec_rval_s res_p)).
-    - (* pre-condition = invariant *)
-      entailer!.
-    - (* invariant step to post condition *)
-      forward.
-      entailer!.
-    - (* after the loop *)
-      forward_call (ctx_p, ctx, td_p, td, nullval, nullval, buf_p, buf,
-                    v__res__1, size, tag_mode, 0, v_length, nullval, 0). 
-      pose proof Exec.ber_check_tags_bool_res td buf DT as BCT.
-      inversion BCT as [T | T]; rewrite T in *;
-        unfold mk_dec_rval, tag_length, tag_consumed.
->>>>>>> Refactor callbacks; refactor dwt and vst enc; [skip ci]
-      2: { (* If ber_check_tags failed *)
-        break_if.
-        (* p <> nullval *)
-        -  normalize;
-        repeat forward.
-        all: forward_if; [|discriminate];
-          repeat forward.
-        Exists p t ls.
-        rewrite if_false by assumption.
-        unfold bool_decoder; rewrite T; 
-          destruct buf;  entailer!. 
-        simpl.
-        entailer!.
-        - (* bv_p <> nullval *)
-          Intros.
-          repeat forward.
-        all: forward_if; [|discriminate];
-          repeat forward.
-        unfold bool_decoder. rewrite T.
-        simpl.
-        destruct buf; inversion H0; entailer!.
-      }
-      (* If ber_check_tags succeded *)
-      clear BCT; rename T into BCT; cbn in Size; subst.
-      normalize.
-      repeat forward.
-      forward_if; [congruence|].
-      forward_empty_loop.
-      repeat forward.
-      forward_if.
-      (* RW_MORE case *) admit.
-      forward.
-      forward_if True.
-      (* if length <> 1 *)
-      (* Since we're not yet working with real type_descriptors we're assuming 
-         that if ber_check_tags succedes, then length = 1 *)
-      congruence.
-
-      forward; entailer!.
-      (* if length = 1 *)
-      cbn -[PROPx LOCALx SEPx abbreviate eq_dec nullval CompSpecs].
-      rewrite data_at_isptr with (p0 := buf_p).
-      normalize.
-      rewrite sem_add_pi_ptr.
-      2: assumption.
-      2: cbn; lia.
-      cbn -[PROPx LOCALx SEPx abbreviate eq_dec nullval CompSpecs].
-      assert_PROP (offset_val 2 buf_p = 
-                   field_address (tarray tuchar (Zlength buf)) 
-                                 [ArraySubsc 2] buf_p).
-      entailer!.
-      rewrite field_address_offset;
-      auto with field_compatible.
-      forward.
-      entailer!.
-      admit.
-      break_if. 
-      - Intros.
-        destruct ls.
-        simpl.
-        admit. 
-        assert (data_at Ews (tarray tuchar 1) (map Vubyte (i :: ls)) p
-             = data_at Ews tint (Vint (Int.repr (Byte.unsigned i))) p) as D by admit.
-        rewrite D.
-        repeat forward.
-        forward_empty_loop.
-        repeat forward.
-        Exists p t ls.
-        rewrite if_false by assumption.
-        entailer!.
-        unfold bool_decoder; rewrite BCT; 
-          destruct buf; simpl; entailer!.
-        replace  ((Zlength (i0 :: buf) - 2 <? 1) || false)%bool with false.
-        destruct buf.
-        simpl.
-        simpl in H2.
-        nia.
-        destruct buf.
-        simpl.
-        simpl in H2.
-        nia.
-        simpl.
-        entailer!.
-        cbn.
-        entailer!.
-        (* malloc precondition + tint tuchar issue *)
-        admit.
-        admit.
-      - (* bv_p <> nullval *)
-        Intros.
-        inversion H0; subst.
-        forward.
-         repeat forward.
-        forward_empty_loop.
-        repeat forward.
-        entailer!.
-         unfold bool_decoder; rewrite BCT; 
-          destruct buf; simpl; entailer!.
-          replace  ((Zlength (i :: buf) - 2 <? 1) || false)%bool with false.
-           destruct buf.
-        simpl.
-        simpl in H2.
-        nia.
-        destruct buf.
-        simpl.
-        simpl in H2.
-        nia.
-        simpl.
-        entailer!.
-        cbn.
-        entailer!.
-        admit.
-        admit.
-Admitted.
-
-*) 
 End Boolean_ber_decode.
