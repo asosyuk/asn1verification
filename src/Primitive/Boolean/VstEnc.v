@@ -4,8 +4,8 @@ Require Import VST.floyd.proofauto Psatz.
 Require Import Clight.BOOLEAN.
 Require Import Core.Notations. 
 
-Definition new_cs := composites ++ (match find_cs 
-                                            asn_application._overrun_encoder_key 
+Definition composites := composites ++ (match find_cs 
+                                            asn_application._overrun_encoder_key
                                             asn_application.composites with
                       | Some r => [r]
                       | None => []
@@ -13,38 +13,22 @@ Definition new_cs := composites ++ (match find_cs
 
 Definition Vprog : varspecs. 
 Proof.
-  set (cs := new_cs).
+  set (cs := composites).
   set (gd := global_definitions).
   set (pi := public_idents).
-  unfold new_cs in cs.
-  simpl (composites ++
-           match
-             find_cs
-               asn_application._overrun_encoder_key
-               asn_application.composites
-           with
-           | Some r => [r]
-           | None => []
-           end) in cs.
+  unfold composites in cs.
+  simpl in cs.
   set (prog := Clightdefs.mkprogram cs gd pi _main Logic.I).
   mk_varspecs prog. 
 Defined.
 
 Instance CompSpecs : compspecs. 
 Proof.
-  set (cs := new_cs).
+  set (cs := composites).
   set (gd := global_definitions).
   set (pi := public_idents).
-  unfold new_cs in cs.
-  simpl (composites ++
-           match
-             find_cs
-               asn_application._overrun_encoder_key
-               asn_application.composites
-           with
-           | Some r => [r]
-           | None => []
-           end) in cs.
+  unfold composites in cs.
+  simpl in cs.
   set (prog := Clightdefs.mkprogram cs gd pi _main Logic.I).
   make_compspecs prog.
 Defined.
@@ -65,7 +49,7 @@ Proof. make_cs_preserve CompSpecs Overrun.CompSpecs. Defined.
 
 Open Scope Z.
 
-Section Boolean_der_encode_primitive.
+Section Boolean_der_encode.
 
 Definition tags_enc_len td :=  
   match evalErrW (Exec.der_write_tags td) [] with 
@@ -81,10 +65,10 @@ Definition bool_enc_len td b :=
 
 Definition bool_der_encode_spec : ident * funspec :=
   DECLARE _BOOLEAN_encode_der
-    WITH res: val,  sptr_p : val, sptr_val : int, 
+    WITH gv : globals,
+         res: val,  sptr_p : val, sptr_val : int, 
          td_p : val, td : TYPE_descriptor,
          tag_mode : Z, tag : Z,
-         cb_p : val, 
          app_key_p : val,
          (* overrun callback destination buffer *)
          buf_p : val, buf_size : Z, computed_size : Z
@@ -97,16 +81,15 @@ Definition bool_der_encode_spec : ident * funspec :=
             0 <= computed_size + 3 <= Int.max_unsigned;
             isptr buf_p) 
       PARAMS (res; td_p; sptr_p; Vint (Int.repr tag_mode);
-              Vint (Int.repr tag); cb_p; app_key_p)
-      GLOBALS ()
+              Vint (Int.repr tag); (gv cbi); app_key_p)
+      GLOBALS (gv)
       SEP (data_at_ Tsh enc_rval_s res;
            data_at_ Tsh type_descriptor_s td_p; 
            data_at Tsh tint (Vint sptr_val) sptr_p;
            data_at Tsh enc_key_s (mk_enc_key buf_p buf_size computed_size) 
                    app_key_p;
-           valid_pointer cb_p;          
-           func_ptr' callback cb_p;
-           memory_block Tsh buf_size buf_p)
+           memory_block Tsh buf_size buf_p;
+           valid_pointer (gv cbi))
     POST [tvoid]
       PROP ()
       LOCAL ()
@@ -115,13 +98,12 @@ Definition bool_der_encode_spec : ident * funspec :=
                      | Some v => mk_enc_rval (encoded v) Vzero 
                      | None => mk_enc_rval (-1) sptr_p end in
       let arr := match execErrW (bool_encoder td (bool_of_int sptr_val)) [] with 
-         | Some res => res
-         | None => [] end in
+                 | Some res => res 
+                 | None => [] end in
       let size := Zlength arr in
       SEP (data_at_ Tsh type_descriptor_s td_p; 
            data_at Tsh tint (Vint sptr_val) sptr_p;
-           valid_pointer cb_p; 
-           func_ptr' callback cb_p;
+           func_ptr' callback (gv cbi);
            data_at Tsh enc_rval_s res_val res;
            if buf_size <? computed_size + size
            then (data_at Tsh enc_key_s 
@@ -134,26 +116,25 @@ Definition bool_der_encode_spec : ident * funspec :=
                               (offset_val (computed_size + size) buf_p) *
                  data_at Tsh enc_key_s 
                          (mk_enc_key buf_p buf_size (computed_size + size))    
-                         app_key_p)).
+                         app_key_p);
+           valid_pointer (gv cbi)).
 
 Definition Gprog := ltac:(with_library prog [der_write_tags_spec; 
                                              callback_overrun_spec; 
                                              bool_der_encode_spec]).
 
+(*
 Theorem bool_der_encode : semax_body Vprog Gprog 
                                      (normalize_function f_BOOLEAN_encode_der
                                                          composites)
                                      bool_der_encode_spec.
 Proof.
-  start_function; rename H into DT; rename H0 into Bf_ptr.
-    rename H1 into Bsz; rename H2 into Bsmu. (* rename H3 into Csz; *)
-    (*  rename H into Csmu; rename H5 into BsDWT; rename H6 into BsR. *)
- (* rewrite eval_boolean_enc in Csmu by assumption; unfold encoded in Csmu.
-  rewrite Exec.eval_dwt_boolean in BsDWT by assumption; unfold encoded in BsDWT.
-  rewrite eval_boolean_enc in BsR by assumption; unfold encoded in BsR. *)
+  start_function. 
+  rename H into DT; rename H0 into Bf_ptr; 
+    rename H1 into Bsm; rename H2 into Bcsm; rename H3 into Bcsm3.
   forward.
-  forward_call (td_p, td, 1, tag_mode, 0, tag, cb_p, app_key_p, buf_p, buf_size, 
-                computed_size).
+  forward_call (gv, td_p, td, 1, tag_mode, 0, tag, app_key_p, buf_p, 
+                buf_size, computed_size).
   rewrite Exec.eval_dwt_boolean by assumption; 
     rewrite Exec.exec_dwt_boolean by assumption; unfold encoded.
   unfold_data_at_ v_erval; unfold_data_at (data_at _ _ _ v_erval).
@@ -166,46 +147,35 @@ Proof.
              lvar _bool_value tuchar v_bool_value;
              lvar _erval (Tstruct _asn_enc_rval_s noattr) v_erval; 
              temp __res res;
-             temp _cb cb_p; temp _app_key app_key_p)
+             temp _cb (gv cbi); temp _app_key app_key_p)
       SEP (if buf_size <? computed_size + 2 + 1
            then data_at Tsh enc_key_s (mk_enc_key buf_p 0 (computed_size + 2 + 1)) 
-                        app_key_p
+                        app_key_p 
            else data_at Tsh (tarray tuchar 1) 
-                        ([Vint (Int.zero_ext 8 (Int.repr (Byte.unsigned 
-                                                            (byte_of_bool 
-                                                               (bool_of_int 
-                                                                  sptr_val)))))]) 
-                        (offset_val (computed_size + 2) buf_p) *
-            data_at Tsh enc_key_s (mk_enc_key buf_p buf_size 
-                                              (computed_size + 2 + 1)) app_key_p;
-           let b_v := match execErrW (bool_encoder td (bool_of_int sptr_val)) 
-                                     [] with 
-                      | Some v => last v (Byte.repr (-1)) 
-                      | None => (Byte.repr (-1)) end in
-           match (cb_p) with 
+                        (map Vubyte [byte_of_bool (bool_of_int sptr_val)]) 
+                        (offset_val (computed_size + 2) buf_p) * 
+                data_at Tsh enc_key_s (mk_enc_key buf_p buf_size 
+                                                  (computed_size + 2 + 1)) app_key_p; 
+           match (gv cbi) with
            | Vint _ => data_at_ Tsh tuchar v_bool_value
-           | _ => data_at Tsh tuchar (Vint (Int.zero_ext 8 (Int.repr (Byte.unsigned b_v)))) v_bool_value 
+           | _ => data_at Tsh tuchar 
+                         (Vubyte (byte_of_bool (bool_of_int sptr_val))) 
+                         v_bool_value
            end;
-           data_at_ Tsh type_descriptor_s td_p;
-           func_ptr' callback cb_p;
-           field_at Tsh (Tstruct _asn_enc_rval_s noattr)
-                    (DOT _encoded) (Vint (Int.repr 2)) v_erval;
-           field_at Tsh (Tstruct _asn_enc_rval_s noattr)
-                    (DOT _failed_type)
-                    (default_val
-                       (tptr (Tstruct _asn_TYPE_descriptor_s noattr)))
-                    v_erval;
-           field_at Tsh (Tstruct _asn_enc_rval_s noattr)
-                    (DOT _structure_ptr) (default_val (tptr tvoid))
-                    v_erval;
-           (if buf_size <? computed_size + 2 
-                        then emp
-                        else data_at Tsh (tarray tuchar 2) 
-                                     (map Vubyte [1%byte; 1%byte]) 
-                                     (offset_val computed_size buf_p));
-           data_at_ Tsh enc_rval_s res;
-           data_at Tsh tint (Vint sptr_val) sptr_p;
-           valid_pointer cb_p)).
+           data_at_ Tsh type_descriptor_s td_p; 
+           func_ptr' callback (gv cbi); 
+           data_at_ Tsh tuchar v_bool_value; 
+           field_at Tsh (Tstruct _asn_enc_rval_s noattr) (DOT _encoded) 
+                    (Vint (Int.repr 2)) v_erval; 
+           field_at Tsh (Tstruct _asn_enc_rval_s noattr) (DOT _failed_type) 
+                    (default_val (tptr (Tstruct _asn_TYPE_descriptor_s noattr))) 
+                    v_erval; 
+           field_at Tsh (Tstruct _asn_enc_rval_s noattr) (DOT _structure_ptr) 
+                    (default_val (tptr tvoid)) v_erval; 
+           data_at_ Tsh enc_rval_s res; 
+           data_at Tsh tint (Vint sptr_val) sptr_p; 
+           memory_block Tsh buf_size buf_p;
+           valid_pointer (gv cbi))).
   * (* if(cb) = true *)
     forward.
     (* bool_value = *st ? 0xff : 0; /* 0xff mandated by DER */ *)
@@ -215,32 +185,31 @@ Proof.
               temp _st sptr_p; 
               lvar _bool_value tuchar v_bool_value; 
               lvar _erval (Tstruct _asn_enc_rval_s noattr) v_erval; 
-              temp __res res; temp _cb cb_p; 
+              temp __res res; temp _cb (gv cbi); 
               temp _app_key app_key_p)
-        SEP( memory_block Tsh buf_size buf_p;
-            data_at_ Tsh tuchar v_bool_value;
-            if buf_size <? computed_size + 2 
-            then data_at Tsh enc_key_s (mk_enc_key buf_p 0 (computed_size + 2)) 
+        SEP(if buf_size <? computed_size + 2 
+            then data_at Tsh enc_key_s 
+                         (mk_enc_key buf_p 0 (computed_size + 2)) 
                          app_key_p 
             else data_at Tsh (tarray tuchar 2) (map Vubyte [1%byte; 1%byte]) 
                          (offset_val computed_size buf_p) * 
-                 data_at Tsh enc_key_s (mk_enc_key buf_p buf_size 
-                                                   (computed_size + 2)) 
-                         app_key_p;
+                 data_at Tsh enc_key_s 
+                         (mk_enc_key buf_p buf_size (computed_size + 2)) 
+                         app_key_p; 
+            data_at_ Tsh tuchar v_bool_value;
             data_at_ Tsh type_descriptor_s td_p; 
-            func_ptr' callback cb_p;
-            field_at Tsh (Tstruct _asn_enc_rval_s noattr)
-                     (DOT _encoded) (Vint (Int.repr 2)) v_erval;
-            field_at Tsh (Tstruct _asn_enc_rval_s noattr)
-                     (DOT _failed_type)
-                     (default_val
-                        (tptr (Tstruct _asn_TYPE_descriptor_s noattr)))
-                     v_erval;
-            field_at Tsh (Tstruct _asn_enc_rval_s noattr)
-                     (DOT _structure_ptr) (default_val (tptr tvoid))
-                     v_erval; data_at_ Tsh enc_rval_s res;
-            data_at Tsh tint (Vint sptr_val) sptr_p;
-            valid_pointer cb_p)).
+            func_ptr' callback (gv cbi); 
+            field_at Tsh (Tstruct _asn_enc_rval_s noattr) (DOT _encoded) 
+                     (Vint (Int.repr 2)) v_erval; 
+            field_at Tsh (Tstruct _asn_enc_rval_s noattr) (DOT _failed_type) 
+                     (default_val (tptr (Tstruct _asn_TYPE_descriptor_s noattr))) 
+                     v_erval; 
+            field_at Tsh (Tstruct _asn_enc_rval_s noattr) (DOT _structure_ptr) 
+                     (default_val (tptr tvoid)) v_erval; 
+            data_at_ Tsh enc_rval_s res; 
+            data_at Tsh tint (Vint sptr_val) sptr_p; 
+            memory_block Tsh buf_size buf_p; 
+            valid_pointer (gv cbi))).
     - (* if(b) = true *)
       forward.
       entailer!.
@@ -250,14 +219,14 @@ Proof.
       forward.
       entailer!.
     - forward.
-      deadvars!.
-      rewrite <-data_at_tuchar_singleton_array_eq.
       freeze L := (data_at Tsh tint (Vint sptr_val) sptr_p)
                   (data_at_ Tsh enc_rval_s res)
                   (data_at_ Tsh type_descriptor_s td_p)
-                  (valid_pointer cb_p).
+                  (valid_pointer (gv cbi)).
+      rewrite <-data_at_tuchar_singleton_array_eq.
       unfold isptr in H4.
       destruct buf_p; intuition.
+      deadvars!.
       forward_call ([(Int.zero_ext 8 
                                    (Int.repr (Byte.unsigned (byte_of_bool 
                                                                (bool_of_int 
@@ -276,15 +245,17 @@ Proof.
                                  (DOT _structure_ptr) (default_val (tptr tvoid)) 
                                  v_erval;
                         if buf_size <? computed_size + 2 
-                        then emp
+                        then data_at Tsh enc_key_s 
+                                     (mk_enc_key (Vptr b i) 0 
+                                                 (computed_size + 2)) app_key_p 
                         else data_at Tsh (tarray tuchar 2) 
                                      (map Vubyte [1%byte; 1%byte]) 
-                                     (offset_val computed_size (Vptr b i));
-                        func_ptr' callback cb_p]) in (Value of Frame).
-      destruct (buf_size <? computed_size + 2) eqn:K; 
+                                     (offset_val computed_size (Vptr b i)); 
+                        func_ptr' callback (gv cbi)]) in (Value of Frame).
+      destruct (buf_size <? computed_size + 2) eqn:K;
         cbn; entailer!.
       admit.
-     (* cbn in *. *)
+      (* cbn in *. *)
       replace (computed_size + 3) with (computed_size + 2 + 1) in * by lia.
       repeat split; try lia; try assumption; admit.
       thaw L.
@@ -339,7 +310,6 @@ Proof.
              field_at Tsh (Tstruct _asn_enc_rval_s noattr) (DOT _structure_ptr) 
                       (default_val (tptr tvoid)) v_erval; 
              if buf_size <? computed_size + 2 
-             then emp 
              else data_at Tsh (tarray tuchar 2) (map Vubyte [1%byte; 1%byte]) 
                           (offset_val computed_size buf_p); 
              data_at_ Tsh enc_rval_s res; 
@@ -360,4 +330,5 @@ Proof.
       entailer!.
 Admitted.
 
-End Boolean_der_encode_primitive.
+*)
+End Boolean_der_encode.

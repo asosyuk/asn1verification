@@ -32,7 +32,7 @@ Definition callback  : funspec :=
            data_at Tsh enc_key_s 
                    (mk_enc_key (Vptr buf_b buf_ofs) buf_size computed_size)
                    key_p;
-            memory_block Tsh buf_size  (Vptr buf_b buf_ofs))
+           memory_block Tsh buf_size  (Vptr buf_b buf_ofs))
      POST [tint]
       PROP ()
       LOCAL (temp ret_temp Vzero)
@@ -44,7 +44,7 @@ Definition callback  : funspec :=
                          (Vptr buf_b buf_ofs) 0 (computed_size + size)) key_p *
                 memory_block Tsh buf_size (Vptr buf_b buf_ofs))
            else 
-             (memory_block Tsh computed_size (Vptr buf_b buf_ofs)*
+             (memory_block Tsh computed_size (Vptr buf_b buf_ofs) *
               data_at Tsh (tarray tuchar size) (map Vint data) 
                       (offset_val computed_size (Vptr buf_b buf_ofs)) * 
               memory_block Tsh (buf_size - computed_size - len data)

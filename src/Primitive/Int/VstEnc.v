@@ -1,97 +1,39 @@
-(* VST specification of as *)
-Require Import Core.Core Lib.Lib VstLib Int.Exec.
+Require Import Core.Core Lib.Lib Core.StructNormalizer 
+        VstLib Int.Exec Lib.Callback.Dummy Lib.DWT.Vst.
 Require Import VST.floyd.proofauto.
-Require Import Clight.asn_codecs_prim.
+Require Import Clight.dummy Clight.INTEGER.
 
-Definition Vprog : varspecs. mk_varspecs prog. Defined.
-Instance CompSpecs : compspecs. make_compspecs prog. Defined.
+Instance CompSpecs : compspecs. Proof. make_compspecs prog. Defined.
+Definition Vprog : varspecs. Proof. mk_varspecs prog. Defined.
 
-Open Scope Z.
+Section Integer_der_encode.
 
-Section PrimitiveParser.
-
-(* Decoding fails : 
-   1) when calloc fails to allocate memory for the output structure sptr (FAIL) SEP spec
-   2) if ber_check_tags return FAIL (when?) or MORE (?) - executable spec
-   3) if not enough data according to length read (MORE) - executable spec
-   4) expected length doesn't fit into size (FAIL) ?
-
-        st->size = (int)length;
-	/* The following better be optimized away. */
-	if(sizeof(st->size) != sizeof(length)
-			&& (ber_tlv_len_t)st->size != length) {
-		st->size = 0;
-		ASN__DECODE_FAILED;
-	}
-
-   5) malloc buf allocation fails (FAIL) SEP spec
- *)
-
-(*
-Definition _ber_decode_primitive_spec : ident * funspec :=
-  DECLARE _ber_decode_primitive
-    WITH (* pointer to the decoded structure *)
-         sptr_b : block, sptr_ofs : ptrofs,
-         (* double pointer to the DEF table for the type decoded *)
-         td_b : block, td_ofs : ptrofs,
-         td'_b : block, td'_ofs : ptrofs,
-         (* pointer to  the input buffer *)
-         buf_b : block, buf_ofs : ptrofs,
-         (* pointer to the return struct dec_rval *)                         
-         res_b : block, res_ofs : ptrofs,
-         (* codec context: stores max_stack_size for the decoder routines *)
-         ctx : val,
-         (* memory permissions for each pointer *)
-         sh_sptr : share, sh_td : share, sh_buf : share, sh_td' : share,
-         sh_res : share,                                                         
-         (* input *)
-         buf : list byte,
-         td : TYPE_descriptor,
-         size : int,
-         tag_mode : int  
-    PRE  [         
- (* added by clightgen - since returning structs is not supported *) 
-          __res OF (tptr (Tstruct _asn_dec_rval_s noattr)),
-          _opt_codec_ctx OF (tptr (Tstruct _asn_codec_ctx_s noattr)),
-          _td OF (tptr (Tstruct _asn_TYPE_descriptor_s noattr)),
-          _sptr OF (tptr (tptr tvoid)),
-          _buf_ptr OF (tptr tvoid),
-          _size OF tuint,
-          _tag_mode OF tint ]
-    PROP ( writable_share sh_sptr; 
-           writable_share sh_res; 
-           readable_share sh_td;
-           readable_share sh_buf )
-    LOCAL ( temp _opt_codec_ctx ctx;
-            temp _td (Vptr td_b td_ofs);
-            temp _sptr (Vptr sptr_b sptr_ofs);
-            temp _buf_ptr (Vptr buf_b buf_ofs);
-            temp _size (Vint size);
-            temp _tag_mode (Vint tag_mode))        
-    SEP ((* td points to td with readable permission *)
-           data_at sh_td (tptr (Tstruct _asn_TYPE_descriptor_s noattr)) 
-                   (Vptr td'_b td'_ofs) (Vptr td_b td_ofs);
-           data_at sh_td' (Tstruct _asn_TYPE_descriptor_s noattr) 
-                   (TYPE_descriptor_rep td) (Vptr td'_b td'_ofs) ; 
-           (* buf points to data ls *)
-           data_at sh_buf (tarray tschar (Zlength buf)) (map Vbyte buf) 
-                   (Vptr buf_b buf_ofs))
+Definition int_der_encode_spec : ident * funspec :=
+  DECLARE _INTEGER_encode_der
+    WITH res: val,  sptr_p : val, sptr_val : int, 
+         td_p : val, td : TYPE_descriptor,
+         tag_mode : Z, tag : Z,
+         cb_p : val, app_key_p : val
+    PRE [tptr enc_rval_s, tptr type_descriptor_s, tptr tvoid, tint, tuint, 
+          tptr cb_type, tptr tvoid]
+      PROP (decoder_type td = BOOLEAN_t)
+      PARAMS (res; td_p; sptr_p; Vint (Int.repr tag_mode);
+              Vint (Int.repr tag); cb_p; app_key_p)
+      GLOBALS ()
+      SEP ()
     POST [tvoid]
       PROP()
       LOCAL ()
-      SEP( (* Unchanged by the execution : *)
-           data_at sh_td (tptr (Tstruct _asn_TYPE_descriptor_s noattr)) 
-                   (Vptr td'_b td'_ofs) (Vptr td_b td_ofs);
-           data_at sh_td' (Tstruct _asn_TYPE_descriptor_s noattr) 
-                   (TYPE_descriptor_rep td) (Vptr td'_b td'_ofs) ; 
-           data_at sh_buf (tarray tschar (Zlength buf)) (map Vbyte buf) 
-                   (Vptr buf_b buf_ofs);
-           (* Changed after execution *)         
-           data_at sh_sptr (Tstruct _ASN__PRIMITIVE_TYPE_s noattr)
-                   (PRIMITIVE_TYPE_rep (int_prim_decoder td buf))
-                                       (Vptr sptr_b sptr_ofs); 
-           data_at sh_res (Tstruct _asn_dec_rval_s noattr)
-                   (dec_rval_rep (int_prim_decoder td buf)) (Vptr res_b res_ofs)).
+      SEP().
 
-*)
-End PrimitiveParser.
+Definition Gprog := ltac:(with_library prog [int_der_encode_spec]).
+
+Theorem int_der_encode : semax_body Vprog Gprog 
+                                     (normalize_function f_INTEGER_encode_der
+                                                         composites)
+                                     int_der_encode_spec.
+Proof.
+  Fail start_function. 
+Admitted.
+
+End Integer_der_encode.
