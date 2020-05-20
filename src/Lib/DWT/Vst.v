@@ -27,6 +27,7 @@ Proof.
   set (gd := global_definitions).
   set (pi := public_idents).
   unfold composites in cs.
+
   simpl in cs.
   set (prog := Clightdefs.mkprogram cs gd pi _main Logic.I).
   make_compspecs prog.

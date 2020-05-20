@@ -104,7 +104,7 @@ Ltac forward_empty_loop :=
       end. 
 
 Ltac rewrite_if_b := try rewrite if_true in * by (reflexivity || assumption)
-  ; try rewrite if_false in * by (reflexivity || assumption)).
+  ; try rewrite if_false in * by (reflexivity || assumption).
 
 Theorem bool_der_encode : semax_body Vprog Gprog 
            (normalize_function f_BOOLEAN_decode_ber composites) 
@@ -137,11 +137,6 @@ Proof.
       Exists v.
       Exists l.
       repeat rewrite_if_b.
-       rewrite if_false in * by (reflexivity || assumption).
-      rewrite_if_b.
-       rewrite if_false in * by assumption.
-      rewrite if_true by reflexivity.
-      rewrite_if_b.
       entailer!.
   * (* bv_p <> nullval *)
     rewrite if_false in * by assumption.
