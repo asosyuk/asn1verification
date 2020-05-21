@@ -1,5 +1,10 @@
 Require Import Core.
 
+Notation "x >> y" := (Z.shiftr x y) (at level 70) : Z_scope.
+Notation "x << y" := (Z.shiftl x y) (at level 70) : Z_scope.
+Infix "&" := Z.land (at level 70) : Z_scope.
+Infix "or" := Z.lor (at level 70): Z_scope.
+
 (* Notations for integers and ptrofs *)
 
 Delimit Scope ByteScope with byte.

@@ -1,4 +1,3 @@
-(*Require Import VST.floyd.proofauto.*)
 Require Import Core Int Notations.
 
 Ltac ints_to_Z :=
@@ -58,6 +57,7 @@ Ltac Zbool_to_Prop :=
         || rewrite Z.eqb_neq in * 
         || rewrite Z.ltb_ge in * 
         || rewrite Z.ltb_lt in *).
+
 
 (*Tactic Notation "forward_if" constr(postL) constr(postP) constr(postS) :=
   let l :=

@@ -1,7 +1,7 @@
 Require Import Core.Core Core.StructNormalizer VstLib Stdlib
         Boolean.Exec ErrorWithWriter BCT.Vst.
 Require Import VST.floyd.proofauto VST.floyd.library.
-Require Import Clight.BOOLEAN.
+Require Import Clight.BOOLEAN VstTactics.
 
 Definition Vprog : varspecs. mk_varspecs prog. Defined.
 Instance CompSpecs : compspecs. make_compspecs prog. Defined.
@@ -97,14 +97,7 @@ Definition if_post1  bv_p v__res__1 v_tmp_error v_length v_rval
        else data_at_ Tsh asn_dec_rval_s res_p * data_at_ Ews tint bv_p
        ).
 
-Ltac forward_empty_loop :=
-      match goal with
-      | [ _ : _ |- semax _ ?Pre (Ssequence (Sloop Sskip Sbreak) _) _ ] =>
-          forward_loop Pre break: Pre; try forward ; try entailer! 
-      end. 
 
-Ltac rewrite_if_b := try rewrite if_true in * by (reflexivity || assumption)
-  ; try rewrite if_false in * by (reflexivity || assumption).
 
 Theorem bool_der_encode : semax_body Vprog Gprog 
            (normalize_function f_BOOLEAN_decode_ber composites) 
