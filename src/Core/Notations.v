@@ -29,6 +29,7 @@ Delimit Scope IntScope with int.
 Infix "==" := Int.eq (at level 70) : IntScope.
 Notation "x ~= y" := (negb Int.eq x y) (at level 70) : IntScope.
 Notation "x >> y" := (Int.shru x y) (at level 70) : IntScope.
+Notation "x << y" := (Int.shl x y) (at level 70) : IntScope.
 Notation "0" := Int.zero : IntScope.
 Notation "1" := Int.one : IntScope.
 Infix "+" := Int.add : IntScope.
@@ -40,6 +41,9 @@ Notation "x <=u y" := (negb (Int.ltu y x)) (at level 70) : IntScope.
 Notation "x <= y" := (negb (Int.lt y x)) (at level 70) : IntScope.
 Infix "%" := Int.mods (at level 70) : IntScope.
 Infix "//" := Int.divs (at level 70) : IntScope.
+Infix "&" := Int.and (at level 70) : IntScope. 
+Infix "or" := Int.or (at level 70) : IntScope. 
+
 
 Delimit Scope Int64Scope with int64.
 Infix "==" := Int64.eq (at level 70) : Int64Scope.
