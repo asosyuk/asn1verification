@@ -84,7 +84,7 @@ Theorem int_der_encode : semax_body Vprog Gprog
                                                          composites)
                                      int_der_encode_spec.
 Proof.
-  start_function. 
+(*  start_function. 
   rename H into DT; rename H0 into SgtZ; rename H1 into SeqDl.
   replace (Tstruct _asn_enc_rval_s noattr) with enc_rval_s by reflexivity.
   replace (Tstruct _ASN__PRIMITIVE_TYPE_s noattr) with prim_type_s by reflexivity.
@@ -236,7 +236,7 @@ Lemma split_array_head_tale : forall {cs : compspecs} size data p t,
     forward.
     entailer!.
   * (* st->buf = null *)
-  
+  *)
 Admitted.
 
 End Integer_der_encode.
