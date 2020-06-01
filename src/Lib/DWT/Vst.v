@@ -48,7 +48,8 @@ Definition der_write_tags_spec : ident * funspec :=
        (* callback argument pointer *)
        app_p : val,
        (* overrun_encoder_key fields *)
-       buf_p : val, buf_size : Z, computed_size : Z
+       buf_b : block, buf_ofs : ptrofs, buf_size : Z, 
+       computed_size : Z, mem_size : Z
   PRE[tptr type_descriptor_s, tuint, tint, tint, tuint, 
       tptr cb_type, tptr tvoid]
     PROP()
@@ -56,7 +57,7 @@ Definition der_write_tags_spec : ident * funspec :=
            Vint (Int.repr last_tag_form); Vint (Int.repr tag); (gv cbi); app_p)
     GLOBALS(gv)
     SEP(data_at_ Tsh type_descriptor_s td_p ; 
-        data_at Tsh enc_key_s (mk_enc_key buf_p buf_size computed_size) app_p)
+        data_at Tsh enc_key_s (mk_enc_key (Vptr buf_b buf_ofs) buf_size computed_size) app_p)
     POST[tint]
       PROP()
       LOCAL(temp ret_temp 
@@ -64,7 +65,8 @@ Definition der_write_tags_spec : ident * funspec :=
                                   | Some w => encoded w
                                   | None => -1
                                   end))))
-      SEP(let res := evalErrW (der_write_tags td) [] in 
+      SEP(data_at_ Tsh type_descriptor_s td_p; 
+          let res := evalErrW (der_write_tags td) [] in 
           let size := match res with    
                       | Some v => encoded v 
                       | None => 0 end in
@@ -72,17 +74,22 @@ Definition der_write_tags_spec : ident * funspec :=
           let arr := match res_ with
                      | Some r => r
                      | None => [] end in
-          (if buf_size <? computed_size + size
-           then data_at Tsh enc_key_s 
-                   (mk_enc_key buf_p 0 (computed_size + size)) app_p
-           else 
-             (data_at Tsh (tarray tuchar size) (map Vubyte arr) 
-                      (offset_val computed_size buf_p) *
-              data_at Tsh enc_key_s 
-                      (mk_enc_key buf_p buf_size (computed_size + size)) 
-                      app_p));
-          data_at_ Tsh type_descriptor_s td_p; 
-          func_ptr' callback (gv cbi)).
+          if buf_size <? computed_size + size 
+          then 
+            (data_at Tsh enc_key_s
+                     (mk_enc_key 
+                        (Vptr buf_b buf_ofs) 0 (computed_size + size)) app_p *
+               memory_block Tsh mem_size (Vptr buf_b buf_ofs))
+          else 
+            (memory_block Tsh computed_size (Vptr buf_b buf_ofs) *
+             data_at Tsh (tarray tuchar size) (map Vbyte arr) 
+                     (offset_val computed_size (Vptr buf_b buf_ofs)) * 
+             memory_block Tsh (mem_size - computed_size - Zlength arr)
+                          (offset_val (computed_size + Zlength arr) 
+                                      (Vptr buf_b buf_ofs)) *
+             data_at Tsh enc_key_s 
+                     (mk_enc_key  (Vptr buf_b buf_ofs) buf_size 
+                                  (computed_size + size)) app_p)). 
 
 Definition Gprog := ltac:(with_library prog [der_write_tags_spec]).
 

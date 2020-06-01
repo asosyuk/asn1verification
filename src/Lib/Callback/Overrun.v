@@ -16,15 +16,21 @@ Definition callback  : funspec :=
          key_p : val, 
          (* overrun_encoder_key fields *)
          buf_b : block, buf_ofs : ptrofs, 
-         buf_size : Z, computed_size : Z
+         buf_size : Z, computed_size : Z, mem_size : Z
     PRE [tptr tvoid, tuint, tptr tvoid]
       PROP (size = Zlength data;
+            if buf_size <? computed_size + size
+            then buf_size = mem_size
+            else True;
             0 <= buf_size <= Int.max_unsigned;
+            0 <= mem_size <= Int.max_unsigned;
             0 <= computed_size <= Int.max_unsigned;
             0 <= size <= Int.max_unsigned;
             (* Implicit assumptions *)
             0 <= computed_size + size <= Int.max_unsigned;
+            0 <= mem_size - computed_size - len data;
             0 <= computed_size + size + Ptrofs.unsigned buf_ofs < Ptrofs.modulus;
+            0 <= mem_size + Ptrofs.unsigned buf_ofs < Ptrofs.modulus;
             0 <= Ptrofs.unsigned buf_ofs + buf_size < Ptrofs.modulus)
       PARAMS (data_p; Vint (Int.repr size); key_p)
       GLOBALS ()
@@ -32,7 +38,7 @@ Definition callback  : funspec :=
            data_at Tsh enc_key_s 
                    (mk_enc_key (Vptr buf_b buf_ofs) buf_size computed_size)
                    key_p;
-           memory_block Tsh buf_size  (Vptr buf_b buf_ofs))
+           memory_block Tsh mem_size  (Vptr buf_b buf_ofs))
      POST [tint]
       PROP ()
       LOCAL (temp ret_temp Vzero)
@@ -42,12 +48,13 @@ Definition callback  : funspec :=
              (data_at Tsh enc_key_s
                       (mk_enc_key 
                          (Vptr buf_b buf_ofs) 0 (computed_size + size)) key_p *
-                memory_block Tsh buf_size (Vptr buf_b buf_ofs))
+                memory_block Tsh mem_size (Vptr buf_b buf_ofs))
            else 
              (memory_block Tsh computed_size (Vptr buf_b buf_ofs) *
               data_at Tsh (tarray tuchar size) (map Vint data) 
                       (offset_val computed_size (Vptr buf_b buf_ofs)) * 
-              memory_block Tsh (buf_size - computed_size - len data)
+              memory_block Tsh (*buf_size - computed_size - len data*)
+                           (mem_size - computed_size - len data)
                            (offset_val (computed_size + len data) 
                                        (Vptr buf_b buf_ofs)) *
               data_at Tsh enc_key_s 
@@ -61,8 +68,8 @@ Definition Vprog : varspecs. mk_varspecs prog. Defined.
 Definition Gprog := ltac:(with_library prog [callback_overrun_spec; 
                                              (_memcpy, memcpy_spec)]).
 
-Theorem bool_der_encode : semax_body Vprog Gprog f_overrun_encoder_cb 
-                                     callback_overrun_spec.
+Theorem overrun_callback : semax_body Vprog Gprog f_overrun_encoder_cb 
+                                      callback_overrun_spec.
 Proof.
   start_function.
   remember  (Vptr buf_b buf_ofs) as buf_p.
@@ -100,14 +107,14 @@ Proof.
                  data_at Tsh enc_key_s 
                          (mk_enc_key buf_p buf_size (computed_size)) key_p; 
        (memory_block Tsh computed_size buf_p) ;
-                memory_block Tsh (buf_size - computed_size - len data)
+                memory_block Tsh (mem_size - computed_size - len data)
                              (offset_val (computed_size + len data) buf_p))) ;
       repeat (forward || entailer! || nia). 
     forward_call (Tsh, Tsh, offset_val computed_size buf_p, data_p, size, data);
       entailer!.
     cbn; entailer!.
-    replace buf_size with ((computed_size + len data)
-                           + (buf_size - computed_size - len data)) at 1 by nia.
+    replace mem_size with ((computed_size + len data)
+                           + (mem_size - computed_size - len data)) at 1 by nia.
     unfold offset_val.
     replace buf_ofs with (Ptrofs.repr (Ptrofs.unsigned buf_ofs)).
     erewrite memory_block_split.
