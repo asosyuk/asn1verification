@@ -9,7 +9,7 @@ Definition Vprog : varspecs. Proof. mk_varspecs prog. Defined.
 
 Open Scope IntScope.
 
-Fixpoint byte_length'_loop n z i l :=
+(* Fixpoint byte_length'_loop n z i l :=
   match n with
   | O => l
   | S n => if z >> i == 0
@@ -45,7 +45,7 @@ Definition ber_tlv_tag_serialize' (tag size : int): list int * int :=
             if (size - 1 <u required_size)
             then ([buf0], required_size + 1)
             else
-            (buf0 :: (serialize_tag' tag), required_size + 1).
+            (buf0 :: (serialize_tag' tag), required_size + 1). *)
 
 Definition ber_tlv_tag_serialize_spec' : ident * funspec :=
   DECLARE _ber_tlv_tag_serialize
@@ -63,7 +63,7 @@ Definition ber_tlv_tag_serialize_spec' : ident * funspec :=
     SEP(if eq_dec ls [] 
         then data_at Tsh (tarray tuchar buf_size)
                      (default_val (tarray tuchar buf_size)) bufp 
-        else data_at Tsh (tarray tuchar buf_size)
+         else data_at Tsh (tarray tuchar buf_size)
                      (map (fun x => Vint (Int.zero_ext 8 x)) ls ++
                           sublist (len ls) buf_size 
                           (default_val (tarray tuchar buf_size)))
@@ -245,20 +245,25 @@ Proof.
             admit.
              normalize; try rewrite H1 in *. 
              1-4: admit.
-           eapply ltu_false_inv in H3.
-           rewrite e in H3.
-           replace (Int.unsigned 0) with 0%Z in * by auto with ints.
+
+           
+           
+           
+          (* eapply ltu_false_inv in H2.
+           rewrite e in H2.
+           replace (Int.unsigned 0) with 0%Z in * by auto with ints. *)
            admit.
      ++ repeat forward.
-       forward_loop 
-      (EX i j : int, 
+        forward_loop 
+      (EX i: int, EX n : nat,
           PROP ()
-          LOCAL ( temp _tval (Vint (tag >> Int.repr 2));
-            temp _i (Vint i);
-                 temp _required_size (Vint j);
+          LOCAL (temp _tval (Vint (tag >> Int.repr 2));
+                 temp _i (Vint i);
+                 temp _required_size 
+                      (Vint (byte_length'_loop n tval i 1))%int;
                 temp _size (Vint (size - 1));
                 temp _buf__1 (offset_val 1 bufp))
-          SEP ( (data_at Tsh (tarray tuchar buf_size)
+          SEP ((data_at Tsh (tarray tuchar buf_size)
     (upd_Znth 0 (default_val (tarray tuchar buf_size))
        (Vint
           (Int.zero_ext 8
@@ -268,7 +273,7 @@ Proof.
       break: (EX i j : int, 
                  PROP (((tag >> Int.repr 2) >> i == 0)%int = true 
                        \/ Int.unsigned i >= 8 * sizeof tuint)
-                 LOCAL (temp _required_size (Vint j);
+                 LOCAL (temp _required_size (Vint (byte_length' tval));
                        temp _tval (Vint (tag >> Int.repr 2));
                        temp _i (Vint i);
                        temp _size (Vint (size - 1));
@@ -282,18 +287,18 @@ Proof.
                      (Int.repr 31))))) bufp))).
          * (* Pre implies Inv *)
            Exists (Int.repr 7).
-           Exists 1.
+           Exists 0%nat.
            entailer!.
          * (* Inv exec fn Post *)
-           Intros i j.
+           Intros i m.
            forward_if; repeat forward.
            forward_if;
            repeat forward.
-           2-3: try (Exists i; Exists j; entailer!).
            Exists (i + Int.repr 7).
-           Exists (j + 1).
+           Exists (S m)%nat.
            entailer!.
-           rewrite H2. auto.
+           simpl.
+          all:  admit.
         * Intros i j.
            forward_if.
           **
