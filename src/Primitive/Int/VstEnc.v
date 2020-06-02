@@ -64,7 +64,7 @@ Definition int_der_encode_spec : ident * funspec :=
     PRE [tptr enc_rval_s, tptr type_descriptor_s, tptr tvoid, tint, tuint, 
           tptr cb_type, tptr tvoid]
       PROP (decoder_type td = BOOLEAN_t;
-            0 < size <= Int.max_unsigned;
+            1 < size <= Int.max_unsigned;
             size = Zlength data;
             Forall (fun x => Int.unsigned (Int.repr (Byte.signed x)) <= 
                           Byte.max_unsigned) data;
@@ -82,7 +82,7 @@ Definition int_der_encode_spec : ident * funspec :=
            valid_pointer (Vptr buf_b buf_ofs);
            if Val.eq (Vptr buf_b buf_ofs) nullval 
            then emp
-           else data_at Tsh (tarray tuchar size) (map Vbyte data) (Vptr buf_b buf_ofs);
+           else data_at Tsh (tarray tuchar size) (map Vubyte data) (Vptr buf_b buf_ofs);
            field_at Tsh prim_type_s (DOT _buf) (Vptr buf_b buf_ofs) sptr_p;
            field_at Tsh prim_type_s (DOT _size) (Vint (Int.repr size)) sptr_p;
            (* Callback *)
@@ -97,7 +97,7 @@ Definition int_der_encode_spec : ident * funspec :=
            if Val.eq (Vptr buf_b buf_ofs) nullval 
            then emp
            else data_at Tsh (tarray tuchar size) 
-                        (map Vbyte (int_enc_res td data)) (Vptr buf_b buf_ofs);
+                        (map Vubyte (int_enc_res td data)) (Vptr buf_b buf_ofs);
            data_at Tsh prim_type_s (mk_prim_type_s (Vptr buf_b buf_ofs) size) sptr_p;
            (* Result *)
            data_at Tsh enc_rval_s (int_enc_rval td data sptr_p) res_p;
@@ -148,7 +148,7 @@ Proof.
             valid_pointer buf_p;
             if Val.eq buf_p nullval
             then emp
-            else data_at Tsh (tarray tuchar size) (map Vbyte data) buf_p;
+            else data_at Tsh (tarray tuchar size) (map Vubyte data) buf_p;
             field_at Tsh prim_type_s (DOT _buf) buf_p sptr_p;
             field_at Tsh prim_type_s (DOT _size) (Vint (Int.repr size)) sptr_p; 
             (* Result *)
@@ -163,7 +163,7 @@ Proof.
     repeat forward.
     normalize.
     forward_loop (EX z : Z, 
-               PROP (0 <= z < Zlength data)
+               PROP (0 < z + 1 < Zlength data)
                LOCAL (temp 
                         _end1 
                         (Vptr buf_b
@@ -185,12 +185,12 @@ Proof.
                     data_at_ Tsh enc_rval_s v_rval;
                     data_at_ Tsh enc_rval_s res_p; data_at_ Tsh type_descriptor_s td_p;
                     data_at_ Tsh enc_key_s app_key_p; valid_pointer (Vptr buf_b buf_ofs);
-                    data_at Tsh (tarray tuchar size) (map Vbyte data) (Vptr buf_b buf_ofs);
+                    data_at Tsh (tarray tuchar size) (map Vubyte data) (Vptr buf_b buf_ofs);
                     field_at Tsh prim_type_s (DOT _buf) (Vptr buf_b buf_ofs) sptr_p;
                     field_at Tsh prim_type_s (DOT _size) (Vint (Int.repr size)) sptr_p; 
                     valid_pointer cb_p))%assert
       continue: (EX z : Z, 
-               PROP (0 <= z < Zlength data)
+               PROP (0 < z + 1 < Zlength data)
                LOCAL (temp 
                         _end1 
                         (Vptr buf_b
@@ -212,7 +212,7 @@ Proof.
                     data_at_ Tsh enc_rval_s v_rval;
                     data_at_ Tsh enc_rval_s res_p; data_at_ Tsh type_descriptor_s td_p;
                     data_at_ Tsh enc_key_s app_key_p; valid_pointer (Vptr buf_b buf_ofs);
-                    data_at Tsh (tarray tuchar size) (map Vbyte data) (Vptr buf_b buf_ofs);
+                    data_at Tsh (tarray tuchar size) (map Vubyte data) (Vptr buf_b buf_ofs);
                     field_at Tsh prim_type_s (DOT _buf) (Vptr buf_b buf_ofs) sptr_p;
                     field_at Tsh prim_type_s (DOT _size) (Vint (Int.repr size)) sptr_p; 
                     valid_pointer cb_p))%assert
@@ -237,7 +237,7 @@ Proof.
                   data_at_ Tsh enc_rval_s v_rval;
                   data_at_ Tsh enc_rval_s res_p; data_at_ Tsh type_descriptor_s td_p;
                   data_at_ Tsh enc_key_s app_key_p; valid_pointer (Vptr buf_b buf_ofs);
-                  data_at Tsh (tarray tuchar size) (map Vbyte data) (Vptr buf_b buf_ofs);
+                  data_at Tsh (tarray tuchar size) (map Vubyte data) (Vptr buf_b buf_ofs);
                   field_at Tsh prim_type_s (DOT _buf) (Vptr buf_b buf_ofs) sptr_p;
                   field_at Tsh prim_type_s (DOT _size) (Vint (Int.repr size)) sptr_p; 
                   valid_pointer cb_p)).
@@ -250,11 +250,14 @@ Proof.
       unfold test_order_ptrs.
       admit.
       unfold tarray.
-      rewrite split3_data_at_Tarray_tuchar with (n1 := z + 1) (p := (Vptr buf_b buf_ofs)).
+      rewrite split3_data_at_Tarray_tuchar with (n1 := z + 1) 
+                                                (p := (Vptr buf_b buf_ofs));
+          [|lia | rewrite H1; rewrite Zlength_map; lia | 
+           rewrite Zlength_map; symmetry; assumption].
       fold_types.
       normalize.
       replace (z + 1 - 1) with z by lia.
-      rewrite sublist_len_1 with (i := z).
+      repeat rewrite sublist_len_1 by (rewrite Zlength_map; lia).
       assert (field_address0 (tarray tuchar (z + 1)) 
                              (SUB z) (Vptr buf_b buf_ofs) =
               offset_val z (Vptr buf_b buf_ofs)). 
@@ -279,7 +282,11 @@ Proof.
                       (p := offset_val z (Vptr buf_b buf_ofs)).
       forward.
       entailer!.
-      apply Forall_Znth; [lia | assumption].
+      {
+        cbn; pose proof Byte.unsigned_range_2 (Znth z data); cbn in H1; inversion H1.
+        pose proof unsigned_repr_le (Byte.unsigned (Znth z data)) H31.
+        lia.
+      }
       autorewrite with sublist norm.
       forward_if (
           PROP ( ) 
@@ -314,7 +321,85 @@ Proof.
                field_at Tsh prim_type_s (DOT _buf) (Vptr buf_b buf_ofs) sptr_p;
                field_at Tsh prim_type_s (DOT _size) (Vint (Int.repr size)) sptr_p; 
                valid_pointer cb_p)).
-      admit.
+
+      {
+        assert (field_compatible0 (tarray tuchar size) (SUB (z + 1)) (Vptr buf_b buf_ofs)).
+        { unfold field_compatible0. 
+          repeat split; [idtac | 
+                         constructor 2; econstructor 1; cbn | 
+                         lia | 
+                         lia ]. 
+          cbn.
+          rewrite Zmax0r by lia.
+          unfold Ptrofs.modulus, two_power_nat; cbn; 
+            unfold Ptrofs.max_unsigned, Ptrofs.modulus, two_power_nat in H6; cbn in H6; 
+              lia.
+          reflexivity. 
+          cbn; unfold Z.divide; exists (Ptrofs.unsigned buf_ofs + i); lia.
+        }
+        assert (field_compatible (tarray tuchar size) (SUB (z + 1)) (Vptr buf_b buf_ofs)).
+        { unfold field_compatible. 
+          repeat split; [idtac | 
+                         constructor 2; econstructor 1; cbn | 
+                         lia | 
+                         lia ]. 
+          cbn.
+          rewrite Zmax0r by lia.
+          unfold Ptrofs.modulus, two_power_nat; cbn; 
+            unfold Ptrofs.max_unsigned, Ptrofs.modulus, two_power_nat in H6; cbn in H6; 
+              lia.
+          reflexivity. 
+          cbn; unfold Z.divide; exists (Ptrofs.unsigned buf_ofs + i); lia.
+        }
+        assert (field_address0 (tarray tuchar (size)) 
+                               (SUB (z + 1)) (Vptr buf_b buf_ofs) =
+                offset_val (nested_field_offset (tarray tuchar size) (SUB (z + 1))) 
+                           (Vptr buf_b buf_ofs)). 
+        rewrite field_compatible0_field_address0 by assumption.
+        cbn; replace (0 + 1 * (z + 1)) with (z + 1) by lia; reflexivity.
+        rewrite H12.
+
+        rewrite <-field_address_offset in H12 by assumption.
+        rewrite data_at_tuchar_singleton_array_eq with (v := Vubyte (Znth (z + 1) data)).
+
+        assert_PROP (Vptr buf_b (Ptrofs.add (Ptrofs.add buf_ofs (Ptrofs.repr z)) 
+                                            (Ptrofs.mul (Ptrofs.repr 1) 
+                                                        (Ptrofs.of_ints (Int.repr 1)))) =
+                     field_address (tarray tuchar size) (SUB (z + 1)) 
+                                    (Vptr buf_b buf_ofs)).
+        entailer!.
+        rewrite <-H12.
+        rewrite field_address_offset in H12 by assumption.
+        rewrite H12.
+        cbn.
+        replace (0 + 1 * (z + 1)) with (z + 1) by lia.
+        reflexivity.
+        subst.
+        replace (offset_val (nested_field_offset (tarray tuchar (Zlength data)) (SUB (z + 1)))
+          (Vptr buf_b buf_ofs)) with (Vptr buf_b
+          (Ptrofs.add (Ptrofs.add buf_ofs (Ptrofs.repr z))
+             (Ptrofs.mul (Ptrofs.repr 1) (Ptrofs.of_ints (Int.repr 1))))).
+        forward.
+
+        rewrite field_compatible_field_address.
+        cbn.
+        reflexivity.
+
+
+        entailer!.
+        clear - H10.
+        unfold field_address.
+        rewrite data_at_tuchar_singleton_array_eq with 
+            (v := Znth (z + 1) (map Vubyte data)).
+        
+        normalize.
+        
+        entailer!.
+
+        forward.
+
+}
+      
     - (* break postcondition check *)
     
   * (* postcondition check *)
