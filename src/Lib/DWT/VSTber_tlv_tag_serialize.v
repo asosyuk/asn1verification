@@ -310,57 +310,84 @@ Proof.
            entailer!.
            admit. (* do we assume that buf + 1 is not null? *)
            forward.
-           forward_loop  (EX i v: Z, 
+           remember (default_val (tarray tuchar buf_size)) as default_list.
+           remember (Int.zero_ext 8 (((tag & Int.repr 3) << Int.repr 6) or Int.repr 31)) as e0.
+(*
+           Fixpoint serialize_tag_loop  n i tval :=
+             match n with
+             | O => []
+             | S n => (Int.repr 128 or (tval >> i & Int.repr 127)) 
+                       :: serialize_tag_loop n (i - Int.repr 7) tval
+             end. 
+           Definition serialize_tag tval :=
+             let s := byte_length' tval in 
+             let n := Z.to_nat (Int.unsigned (s - 1)) in
+             serialize_tag_loop n (s * Int.repr  7 - Int.repr 7) tval. *)
+
+(* [Vint (Int.repr 128 or ((tval >> (i - Int.repr (v*7))) & (Int.repr 127)))] *)
+           forward_loop  (EX i : int, EX v : Z, EX ls : list val, 
                              PROP ()
                              LOCAL ( temp _tval (Vint (tag >> Int.repr 2));
-                                     temp _i (Vint (Int.repr i));
+                                     temp _i (Vint i);
                                      temp _required_size (Vint (byte_length' tval));
                                      temp _size (Vint (size - 1));
-                                     temp _buf__1 (offset_val v bufp);
+                                     temp _buf__1 (offset_val (v + 1) bufp);
                                      temp _end
-       (force_val
-          (sem_binary_operation' Osub (tptr tuchar) tint
-             (eval_binop Oadd (tptr tuchar) tuint (offset_val v bufp) (Vint (byte_length' tval))) (Vint (Int.repr 1)))))
-          SEP (data_at Tsh (tarray tuchar (buf_size - v))
-                       (default_val (tarray tuchar (buf_size - v))) (offset_val v bufp)))
-          break:(EX i: Z, 
-                                PROP ()
-                                LOCAL ( temp _tval (Vint (tag >> Int.repr 2));
-                                        temp _i (Vint (Int.repr i));
-                                        temp _required_size (Vint (byte_length' tval));
-                                        temp _size (Vint size);
-                                        temp _buf__1 (offset_val i bufp))
-          SEP (data_at Tsh (tarray tuchar buf_size)
+       (force_val (sem_binary_operation' Osub (tptr tuchar) tint
+             (eval_binop Oadd (tptr tuchar) tuint (offset_val 1 bufp) 
+                         (Vint (byte_length' tval))) (Vint (Int.repr 1)))))
+          SEP (data_at Tsh (tarray tuchar 1) [Vint e0] bufp;
+               data_at Tsh (tarray tuchar v) (ls)
+                        (offset_val 1 bufp);
+                        data_at Tsh (tarray tuchar (buf_size - v)) 
+                        (skipn (Z.to_nat v) default_list) (offset_val (v + 1) bufp)))
+          break:(EX i: Z, PROP ()
+                          LOCAL ( temp _tval (Vint (tag >> Int.repr 2));
+                                  temp _i (Vint (Int.repr i));
+                                  temp _required_size (Vint (byte_length' tval));
+                                  temp _size (Vint size);
+                                  temp _buf__1 (offset_val i bufp))
+                          SEP (data_at Tsh (tarray tuchar buf_size)
                        (default_val (tarray tuchar buf_size)) (offset_val i bufp))).
-          *** Exists (Int.unsigned i - 7)%Z.
-              Exists 1%Z.
+          *** Exists (i - Int.repr 7).
+              Exists 0%Z.
+              Exists (@nil val).
               entailer!.
+              erewrite data_at_tuchar_zero_array_eq.
+              entailer!.
+              all: admit.
+              (* Search upd_Znth.
               erewrite upd_Znth_unfold.
               erewrite sublist_nil.
               erewrite app_nil_l.
-              replace (len (default_val (tarray tuchar buf_size))) with buf_size
-             by eassumption. 
-               erewrite split2_data_at_Tarray_app with (mid := 1%Z).
-               simpl.
-               
+              assert (forall (a : val) ls, a :: ls = [a] ++ ls) as LS.
+              { intros.
+                destruct ls; econstructor. }
+              erewrite <- LS.
+              simpl.
               admit.
-          *** Intros x y.
+              admit. *)
+          *** Intros j v ls.
               forward_if.
               admit.
               unfold tarray. 
-              erewrite split2_data_at_Tarray_tuchar with (n1 := 1%Z). 
+              erewrite split2_data_at_Tarray_tuchar with (n0 := (buf_size - v)%Z)  (n1 := 1%Z).
+               erewrite sublist_one.
+              erewrite data_at_tuchar_singleton_array_eq at 1.
+              erewrite data_at_tuchar_singleton_array_eq at 1.
               Intros.
-              erewrite sublist_one.
-              erewrite data_at_tuchar_singleton_array_eq.
               forward.
               entailer!.
               admit.
               repeat forward.
-              Exists (x - 7)%Z.
-              Exists (y + 1)%Z.
+              
+              Exists (j - Int.repr 7).
+              Exists (v + 1)%Z.
+              Exists (ls ++ [Vint (Int.repr 128 or ((tval >> j) & (Int.repr 127)))]).
               entailer!.
               all: try nia.
-              all: admit.
+              1-4: admit.
+              forward.
           *** Intro x.
               unfold tarray. 
               erewrite split2_data_at_Tarray_tuchar with (n1 := 1%Z). 
