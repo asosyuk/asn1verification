@@ -321,7 +321,6 @@ Proof.
                field_at Tsh prim_type_s (DOT _buf) (Vptr buf_b buf_ofs) sptr_p;
                field_at Tsh prim_type_s (DOT _size) (Vint (Int.repr size)) sptr_p; 
                valid_pointer cb_p)).
-
       {
         assert (field_compatible0 (tarray tuchar size) (SUB (z + 1)) (Vptr buf_b buf_ofs)).
         { unfold field_compatible0. 
@@ -356,11 +355,23 @@ Proof.
                 offset_val (nested_field_offset (tarray tuchar size) (SUB (z + 1))) 
                            (Vptr buf_b buf_ofs)). 
         rewrite field_compatible0_field_address0 by assumption.
-        cbn; replace (0 + 1 * (z + 1)) with (z + 1) by lia; reflexivity.
-        rewrite H12.
-
+        reflexivity.
         rewrite <-field_address_offset in H12 by assumption.
-        rewrite data_at_tuchar_singleton_array_eq with (v := Vubyte (Znth (z + 1) data)).
+        rewrite H12.
+        assert ((data_at Tsh (tarray tuchar 1) [Vubyte (Znth (z + 1) data)]
+                         (field_address (tarray tuchar size) (SUB (z + 1)) 
+                                        (Vptr buf_b buf_ofs))) =
+                (data_at Tsh (nested_field_type (tarray tuchar size) (SUB (z + 1))) 
+                              (Vubyte (Znth (z + 1) data))
+                              (field_address (tarray tuchar size) 
+                                             (SUB (z + 1)) (Vptr buf_b buf_ofs)))) as T.
+        cbn.
+        rewrite data_at_tuchar_singleton_array_eq.
+        reflexivity.
+        rewrite T.
+        rewrite <-field_at_data_at with (p := (Vptr buf_b buf_ofs))
+                                       (t := tarray tuchar size) 
+                                       (gfs := [ArraySubsc (z + 1)]).
 
         assert_PROP (Vptr buf_b (Ptrofs.add (Ptrofs.add buf_ofs (Ptrofs.repr z)) 
                                             (Ptrofs.mul (Ptrofs.repr 1) 
@@ -374,33 +385,23 @@ Proof.
         cbn.
         replace (0 + 1 * (z + 1)) with (z + 1) by lia.
         reflexivity.
-        subst.
-        replace (offset_val (nested_field_offset (tarray tuchar (Zlength data)) (SUB (z + 1)))
-          (Vptr buf_b buf_ofs)) with (Vptr buf_b
-          (Ptrofs.add (Ptrofs.add buf_ofs (Ptrofs.repr z))
-             (Ptrofs.mul (Ptrofs.repr 1) (Ptrofs.of_ints (Int.repr 1))))).
         forward.
-
-        rewrite field_compatible_field_address.
-        cbn.
-        reflexivity.
-
-
         entailer!.
-        clear - H10.
-        unfold field_address.
-        rewrite data_at_tuchar_singleton_array_eq with 
-            (v := Znth (z + 1) (map Vubyte data)).
-        
-        normalize.
-        
-        entailer!.
-
+        pose proof Byte.unsigned_range_2 (Znth (z + 1) data).
+        inversion H1.
+        assumption.
+        forward_if.
         forward.
-
-}
-      
+        Exists z.
+        entailer!.
+        (* TODO Need to revert back to original form *)
+        (*rewrite <-split3_data_at_Tarray_tuchar with (n1 := z + 1) 
+                                                  (p := (Vptr buf_b buf_ofs)).*)
+        admit. (* This admit can be proved by doing todo *)
     - (* break postcondition check *)
+      forward.
+      admit.
+    }
     
   * (* postcondition check *)
     forward.
