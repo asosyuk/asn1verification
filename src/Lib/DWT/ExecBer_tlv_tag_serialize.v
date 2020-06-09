@@ -39,25 +39,28 @@ Definition ber_tlv_tag_serialize (tag size : Z): list byte * Z :=
 
 Open Scope IntScope.
 
-Definition byte_length' z :=
-  let fix byte_length' n z i l :=
-      match n with
-      | O => l
-      | S n => if z >> Int.repr i == 0
-               then l 
-               else byte_length' n z (i + 7)%Z (l + 1)
-      end in byte_length' 4%nat z 7 1.
+Fixpoint byte_length'_loop n z i l :=
+  match n with
+  | O => l
+  | S n => if z >> i == 0
+          then l 
+          else byte_length'_loop n z (i + Int.repr 7) (l + 1)
+  end.
+
+Definition byte_length' z := byte_length'_loop 4%nat z (Int.repr 7) 1.
+
+Fixpoint serialize_tag_loop  n i tval :=
+  match n with
+  | O => []
+  | S n => (Int.repr 128 or (tval >> i & Int.repr 127)) 
+            :: serialize_tag_loop n (i - Int.repr 7) tval
+  end. 
 
 Definition serialize_tag' tval :=
-let fix serialize_tag' n i tval :=
-  match n with
-  | O => [tval & Int.repr 127]
-  | S n => (Int.repr 128 or (tval >> i & Int.repr 127)) 
-            :: serialize_tag' n (i - Int.repr 7) tval
-  end in 
- let s := byte_length' tval in 
- let n := Z.to_nat (Int.unsigned (s - 1)) in
- serialize_tag' n (s * Int.repr  7 - Int.repr 7) tval.
+  let s := byte_length' tval in 
+  let n := Z.to_nat (Int.unsigned (s - 1)) in
+  serialize_tag_loop n (s * Int.repr  7 - Int.repr 7) tval
+                     ++[(tval >> Int.repr 2) & Int.repr 127]. 
 
 Definition ber_tlv_tag_serialize' (tag size : int): list int * int :=
   let tclass := tag & Int.repr 3 in 
