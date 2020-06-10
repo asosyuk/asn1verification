@@ -36,9 +36,27 @@ Lemma data_at_app3 : forall (cs : compspecs) sh ls1 ls2 ls3 b ofs j1 j2 j3,
     data_at sh (tarray tuchar j3) ls2 (Vptr b (ofs + (Ptrofs.repr (j1 + j2)))%ptrofs))%logic.
 Admitted.
 
+Lemma aux : forall tag size, let (ls, z) := ber_tlv_tag_serialize' tag size in
+                        (len ls <= Int.unsigned z)%Z.
+Proof.
+  intros.
+  break_let.
+  unfold ber_tlv_tag_serialize' in *.
+  repeat break_if; inversion Heqp.
+  admit.
+  cbn.
+  auto with ints.
+  admit.
+  cbn.
+  admit.
+  cbn.
+  admit.
+Admitted.
+  
+
 Definition ber_tlv_tag_serialize_spec' : ident * funspec :=
   DECLARE _ber_tlv_tag_serialize
-  WITH tag: int, buf_b : block, buf_ofs : ptrofs, size : int, buf_size : Z
+  WITH tag : int, buf_b : block, buf_ofs : ptrofs, size : int, buf_size : Z
   PRE[tuint, tptr tvoid, tuint]
     PROP((32 <= buf_size)%Z)
     PARAMS(Vint tag; (Vptr buf_b buf_ofs); Vint size)
@@ -55,8 +73,8 @@ Definition ber_tlv_tag_serialize_spec' : ident * funspec :=
                          (default_val (tarray tuchar buf_size))
                          (Vptr buf_b buf_ofs) 
         else data_at Tsh (tarray tuchar buf_size)
-                         (map (fun x => Vint (Int.zero_ext 8 x)) ls ++
-                          sublist (len ls) buf_size (default_val (tarray tuchar buf_size)))
+                         (map (fun x => Vint (Int.zero_ext 8 x)) ls ++ sublist (len ls) buf_size 
+                             (default_val (tarray tuchar buf_size)))
                          (Vptr buf_b buf_ofs)).
     (* SEP(if eq_dec ls [] 
         then data_at Tsh (tarray tuchar buf_size)
@@ -68,7 +86,9 @@ Definition ber_tlv_tag_serialize_spec' : ident * funspec :=
                   (Vptr buf_b buf_ofs) *
           data_at Tsh (tarray tuchar (buf_size - len ls))
                   (default_val (tarray tuchar (buf_size - len ls))) 
-                  (Vptr buf_b (buf_ofs + Ptrofs.repr (len ls))%ptrofs)).  *)
+                  (Vptr buf_b (buf_ofs + Ptrofs.repr (len ls))%ptrofs)).
+
+     (fun x => Vint (Int.zero_ext 8 x)) *)
 
 Definition Gprog' := ltac:(with_library prog [ber_tlv_tag_serialize_spec']).
 
@@ -334,9 +354,11 @@ Proof.
                               temp _buf__1 (offset_val (len ls + 1) (Vptr buf_b buf_ofs)))
 
                        SEP (data_at Tsh (tarray tuchar 1) [Vint e1] (Vptr buf_b buf_ofs);
-                            data_at Tsh (tarray tuchar (len ls)) (map Vint ls)
+                            data_at Tsh (tarray tuchar (len ls)) 
+                                    (map (fun x : int => Vint (Int.zero_ext 8 x)) ls)
                                     (offset_val 1 (Vptr buf_b buf_ofs));
-                            data_at Tsh (tarray tuchar (buf_size - (Zlength ls))) 
+                            data_at Tsh (tarray tuchar 
+                                                (len (sublist (len ls + 1) buf_size default_list))) 
                                     (sublist (len ls + 1) buf_size default_list) 
                                     (offset_val ((Zlength ls) + 1) (Vptr buf_b buf_ofs)))).
           *** Exists (i - Int.repr 7).
@@ -390,8 +412,8 @@ Proof.
           *** Intros i0 ls.
               unfold offset_val.
               erewrite split_non_empty_list
-                with (ls' := (sublist (len ls + 1 + 1) buf_size default_list))
-                     (j2 := (buf_size - len ls - 1 - 1)%Z)
+                with (ls' := sublist (len ls + 1 + 1) buf_size default_list)
+                     (j2 := len (sublist (len ls + 1 + 1) buf_size default_list))
                      (ofs := (buf_ofs + Ptrofs.repr (len ls + 1))%ptrofs).
               Intros.
               forward.
@@ -399,27 +421,72 @@ Proof.
               unfold abbreviate. 
               break_let.
               forward.
-               unfold ber_tlv_tag_serialize' in *; rewrite C in *;
-              rewrite_if_b.
-               rewrite H2 in *.
-               inversion Heqp.
+              unfold ber_tlv_tag_serialize' in *; rewrite C in *;
                 rewrite_if_b.
-                rewrite if_false by congruence.               
-               unfold serialize_tag'.
-               rewrite <- H3.
-               clear H3.
-               entailer!.
-               remember (default_val (tarray tuchar buf_size)) as default_list.
-               remember (Int.zero_ext 8 (((tag & Int.repr 3) << Int.repr 6) or Int.repr 31)) as e1.
-               remember (Int.zero_ext 8 ((tag >> Int.repr 2) & Int.repr 127)) as e_n.
-               unfold offset_val.
-               simpl.
-               erewrite <- data_at_tuchar_singleton_array_eq.
-               erewrite <- data_at_app2.
-               replace (1 + len ls)%Z with (len ls + 1)%Z by nia.
-                erewrite <- data_at_app2.
-                replace (buf_ofs + Ptrofs.repr (len ls + 1) + 1)%ptrofs
-                        with (buf_ofs + Ptrofs.repr (len ls + 1 + 1))%ptrofs.
-                erewrite <- data_at_app2.
-                autorewrite with sublist norm.
+              rewrite H2 in *.
+              inversion Heqp.
+              rewrite_if_b.
+              rewrite if_false by congruence.               
+              unfold serialize_tag'.
+              rewrite <- H3.
+              clear H3.
+              entailer!.
+              remember (default_val (tarray tuchar buf_size)) as default_list.
+              remember (Int.zero_ext 8 (((tag & Int.repr 3) << Int.repr 6) or Int.repr 31)) as e1.
+              remember (Int.zero_ext 8 ((tag >> Int.repr 2) & Int.repr 127)) as e_n.
+              unfold offset_val.
+              simpl.
+              erewrite <- data_at_tuchar_singleton_array_eq.
+              erewrite <- data_at_app2.
+              replace (1 + len ls)%Z with (len ls + 1)%Z by nia.
+              erewrite <- data_at_app2.
+              replace (buf_ofs + Ptrofs.repr (len ls + 1) + 1)%ptrofs
+                with (buf_ofs + Ptrofs.repr (len ls + 1 + 1))%ptrofs.
+              erewrite <- data_at_app2.
+              replace (len ls + 1 + 1 + (buf_size - len ls - 1 - 1))%Z with buf_size.
+              assert (((([Vint e1] ++
+                         map (fun x : int => Vint (Int.zero_ext 8 x)) ls) ++ 
+                        [Vint e_n]) ++
+                        sublist (len ls + 1 + 1) buf_size default_list) =
+                       (Vint e1
+         :: map (fun x : int => Vint (Int.zero_ext 8 x))
+              (ls ++ [(tag >> Int.repr 2) & Int.repr 127]) ++
+            sublist
+              (len
+                 ((((tag & Int.repr 3) << Int.repr 6) or Int.repr 31)
+                  :: ls ++ [(tag >> Int.repr 2) & Int.repr 127])) buf_size default_list)).
+              replace  (len
+                 ((((tag & Int.repr 3) << Int.repr 6) or Int.repr 31)
+                  :: ls ++ [(tag >> Int.repr 2) & Int.repr 127])) with (len ls + 1 + 1)%Z by
+              (autorewrite with sublist list norm;
+              nia).
+              repeat erewrite map_app.
+              subst.
+              reflexivity.
+              subst.
+              entailer!.
+              all : (autorewrite with sublist list norm;
+                     try nia; auto).
+               all: pose proof (Zlength_nonneg ls); try nia;
+                subst; try setoid_rewrite LB; try nia.    
+              setoid_rewrite H12.
+              admit.
+              admit.
+              erewrite sublist_split with (mid := (len ls + 1 + 1)%Z).
+              erewrite sublist_one.
+              reflexivity.
+              all: pose proof (Zlength_nonneg ls); try nia;
+                subst; try setoid_rewrite LB; try nia.     
+              admit.
+              subst.
+              auto.
+              nia.
+              erewrite Zlength_sublist_correct.
+              nia.
+              admit.
+              nia.
+              erewrite Zlength_sublist_correct.
+              nia.
+              admit.
+              nia.
 Admitted.
