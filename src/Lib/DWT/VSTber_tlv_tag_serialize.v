@@ -9,6 +9,33 @@ Definition Vprog : varspecs. Proof. mk_varspecs prog. Defined.
 
 Open Scope IntScope.
 
+Proposition split_non_empty_list (cs : compspecs) i ls' ls sh b ofs j1 j2:
+      ls = i::ls' -> 
+      j1 = Zlength ls ->
+      j2 = Zlength ls' ->
+      data_at sh (tarray tuchar j1) ls (Vptr b ofs) =
+     (data_at sh tuchar i (Vptr b ofs) *
+      data_at sh (tarray tuchar j2) ls' (Vptr b (ofs + 1)%ptrofs))%logic.
+Admitted.
+
+Lemma data_at_app2 : forall (cs : compspecs) sh ls1 ls2 b ofs j1 j2,
+    j1 = Zlength ls1 ->
+    j2 = Zlength ls2 ->
+    data_at sh (tarray tuchar (j1 + j2)) (ls1 ++ ls2) (Vptr b ofs) =
+   (data_at sh (tarray tuchar j1) ls1 (Vptr b ofs) *
+    data_at sh (tarray tuchar j2) ls2 (Vptr b (ofs + (Ptrofs.repr j1))%ptrofs))%logic.
+Admitted.
+
+Lemma data_at_app3 : forall (cs : compspecs) sh ls1 ls2 ls3 b ofs j1 j2 j3,
+    Zlength ls1 = j1 ->
+    Zlength ls2 = j2 ->
+    Zlength ls3 = j3 ->
+    data_at sh (tarray tuchar (j1 + j2 + j3)) (ls1 ++ ls2 ++ ls3) (Vptr b ofs) =
+   (data_at sh (tarray tuchar j1) ls1 (Vptr b ofs) *
+    data_at sh (tarray tuchar j2) ls2 (Vptr b (ofs + (Ptrofs.repr j1))%ptrofs) *
+    data_at sh (tarray tuchar j3) ls2 (Vptr b (ofs + (Ptrofs.repr (j1 + j2)))%ptrofs))%logic.
+Admitted.
+
 Definition ber_tlv_tag_serialize_spec' : ident * funspec :=
   DECLARE _ber_tlv_tag_serialize
   WITH tag: int, buf_b : block, buf_ofs : ptrofs, size : int, buf_size : Z
@@ -53,8 +80,11 @@ Theorem ber_tlv_tag_serialize_correct' :
 Proof.
   start_function.
   remember (tag >> Int.repr 2) as tval.
-  assert (len (default_val (tarray tuchar buf_size)) = buf_size) as LB.
-  {  unfold default_val;
+  remember (Int.zero_ext 8 (((tag & Int.repr 3) << Int.repr 6) or tval)) as e0. 
+  remember (default_val (tarray tuchar buf_size)) as default_list.
+  remember (Int.zero_ext 8 (((tag & Int.repr 3) << Int.repr 6) or Int.repr 31)) as e1.
+  assert (len default_list = buf_size) as LB.
+  {  subst; unfold default_val;
         simpl;
         try erewrite Zlength_list_repeat;
         try nia; auto. }
@@ -65,9 +95,7 @@ Proof.
     break_if;
     autorewrite with norm in *; try nia.
     auto.  }
-  - remember (Int.zero_ext 8 (Int.or (Int.shl ((tag & Int.repr 3)) (Int.repr 6)) 
-                                (tag >> Int.repr 2)%int)) as e0.
-    forward_if (
+  - forward_if (
        PROP()
        LOCAL()
        SEP(if eq_dec size 0 
@@ -75,10 +103,6 @@ Proof.
            else data_at Tsh (tarray tuchar buf_size)
                         (upd_Znth 0 (default_val (tarray tuchar buf_size))
                                   (Vint e0)) (Vptr buf_b buf_ofs))).
-        (* (data_at Tsh (tarray tuchar buf_size) [Vint e0] (Vptr buf_b buf_ofs) *
-          data_at Tsh (tarray tuchar (buf_size - 1))
-                  (default_val (tarray tuchar (buf_size - 1))) 
-                  (Vptr buf_b (buf_ofs + 1)%ptrofs)))). *)
     + forward. 
       rewrite_if_b.
       entailer!.
@@ -101,12 +125,12 @@ Proof.
         entailer!.
         nia.
   - (* 30 < tag *)
-    remember (Int.zero_ext 8 (((tag & Int.repr 3) << Int.repr 6) or Int.repr 31)) as e0. 
     assert (((tag >> Int.repr 2) <=u Int.repr 30) = false) as C.
+    
     { unfold Int.ltu.
       break_if;
         autorewrite with norm in *; try nia.
-      auto.  }
+      auto.  }   
     forward_if (
        PROP()
        LOCAL(if eq_dec size 0 
@@ -121,9 +145,8 @@ Proof.
                      (default_val (tarray tuchar buf_size)) (Vptr buf_b buf_ofs)  
            else data_at Tsh (tarray tuchar buf_size)
                         (upd_Znth 0 (default_val (tarray tuchar buf_size))
-                                  (Vint e0)) (Vptr buf_b buf_ofs))).
-    + remember (default_val (tarray tuchar buf_size)) as default_list.
-      rewrite <- LB.
+                                  (Vint e1)) (Vptr buf_b buf_ofs))).
+    + rewrite <- LB.     
       erewrite split_data_at_sublist_tuchar with (j := 1%Z).
       erewrite sublist_one.
       erewrite data_at_tuchar_singleton_array_eq.
@@ -134,21 +157,13 @@ Proof.
       erewrite upd_Znth_unfold.
       erewrite sublist_nil.
       erewrite app_nil_l.
-      assert (forall (cs : compspecs) i ls' ls sh b ofs z,
-      ls = i::ls'  -> 
-      z = Zlength ls' ->
-      (Ptrofs.unsigned ofs + Zlength ls < Ptrofs.modulus)%Z -> 
-      data_at sh (tarray tuchar (Zlength ls)) ls (Vptr b ofs) =
-      (data_at sh tuchar i (Vptr b ofs) *
-      data_at sh (tarray tuchar z) ls'
-              (Vptr b (Ptrofs.add ofs Ptrofs.one))))%logic as SP by admit.
-       remember (default_val (tarray tuchar buf_size)) as default_list.
-       remember (Int.zero_ext 8 (((tag & Int.repr 3) << Int.repr 6) or Int.repr 31)) as e0.
-      erewrite <- SP  with (ls :=  ([Vint e0] ++ sublist 1 (len default_list) default_list)).
-      replace  buf_size with (len ([Vint e0] ++ sublist 1 (len default_list) default_list)).
+      remember (default_val (tarray tuchar buf_size)) as default_list.
+      remember (Int.zero_ext 8 (((tag & Int.repr 3) << Int.repr 6) or Int.repr 31)) as e1.     
+      erewrite <- split_non_empty_list with
+          (j1 := buf_size)
+          (ls :=  ([Vint e1] ++ sublist 1 (len default_list) default_list)).
       entailer!.
-      admit.
-      admit.
+      reflexivity.
       all: try nia;
         unfold default_val;
         simpl;
@@ -229,12 +244,7 @@ Proof.
                  temp _size (Vint (size - 1));
                  temp _buf__1  (offset_val 1 (Vptr buf_b buf_ofs)))
            SEP ((data_at Tsh (tarray tuchar buf_size)
-    (upd_Znth 0 (default_val (tarray tuchar buf_size))
-       (Vint
-          (Int.zero_ext 8
-             (Int.or (Int.shl 
-                        ((tag & Int.repr 3)) (Int.repr 6)) 
-                     (Int.repr 31))))) (Vptr buf_b buf_ofs))))
+    (upd_Znth 0 (default_val (tarray tuchar buf_size)) (Vint e1)) (Vptr buf_b buf_ofs))))
       break: (EX i: int, 
                  PROP (((tag >> Int.repr 2) >> i == 0)%int = true 
                        \/ Int.unsigned i >= 8 * sizeof tuint)
@@ -245,11 +255,7 @@ Proof.
                        temp _buf__1  (offset_val 1 (Vptr buf_b buf_ofs)))
                   SEP ((data_at Tsh (tarray tuchar buf_size)
     (upd_Znth 0 (default_val (tarray tuchar buf_size))
-       (Vint
-          (Int.zero_ext 8
-             (Int.or (Int.shl 
-                        ((tag & Int.repr 3)) (Int.repr 6)) 
-                     (Int.repr 31))))) (Vptr buf_b buf_ofs)))).
+       (Vint e1)) (Vptr buf_b buf_ofs)))).
          * (* Pre implies Inv *)
            Exists (Int.repr 7).
            Exists 1.
@@ -295,7 +301,6 @@ Proof.
            nia.
            forward.
            forward.
-           remember (default_val (tarray tuchar buf_size)) as default_list.
            forward_loop (
                EX i : int, EX v : Z, EX ls : list int, 
                            PROP ()
@@ -308,12 +313,12 @@ Proof.
           (force_val (sem_binary_operation' Osub (tptr tuchar) tint
              (eval_binop Oadd (tptr tuchar) tuint (offset_val 1 (Vptr buf_b buf_ofs)) 
                          (Vint (byte_length' tval))) (Vint (Int.repr 1)))))
-          SEP (data_at Tsh (tarray tuchar 1) [Vint e0] (Vptr buf_b buf_ofs);
+          SEP (data_at Tsh (tarray tuchar 1) [Vint e1] (Vptr buf_b buf_ofs);
                data_at Tsh (tarray tuchar v) (map Vint ls)
                         (offset_val 1 (Vptr buf_b buf_ofs));
-               data_at Tsh (tarray tuchar (buf_size - v)) 
-                        (skipn (Z.to_nat v) default_list) 
-                        (offset_val (v + 1) (Vptr buf_b buf_ofs))))
+               data_at Tsh (tarray tuchar (buf_size - v - 1)) 
+                                    (sublist (v + 1) buf_size default_list) 
+                                    (offset_val (v + 1) (Vptr buf_b buf_ofs))))
 
           break: (EX i: int, EX ls : list int,
 
@@ -328,11 +333,11 @@ Proof.
                               temp _size (Vint (size - 1));
                               temp _buf__1 (offset_val (len ls + 1) (Vptr buf_b buf_ofs)))
 
-                       SEP (data_at Tsh (tarray tuchar 1) [Vint e0] (Vptr buf_b buf_ofs);
+                       SEP (data_at Tsh (tarray tuchar 1) [Vint e1] (Vptr buf_b buf_ofs);
                             data_at Tsh (tarray tuchar (len ls)) (map Vint ls)
                                     (offset_val 1 (Vptr buf_b buf_ofs));
                             data_at Tsh (tarray tuchar (buf_size - (Zlength ls))) 
-                                    (sublist (len ls) buf_size default_list) 
+                                    (sublist (len ls + 1) buf_size default_list) 
                                     (offset_val ((Zlength ls) + 1) (Vptr buf_b buf_ofs)))).
           *** Exists (i - Int.repr 7).
               Exists 0%Z.
@@ -340,12 +345,23 @@ Proof.
               entailer!.
               erewrite data_at_tuchar_zero_array_eq.
               entailer!.
-              all: admit.
+              erewrite <- data_at_app2.
+              erewrite upd_Znth_unfold.
+              erewrite sublist_nil.
+              erewrite app_nil_l.
+              replace (len (default_val (tarray tuchar buf_size))) with buf_size.
+              entailer!.
+              replace (1 + (buf_size - 1))%Z with buf_size by nia.
+              entailer!.
+              nia.
+              reflexivity.
+              autorewrite with sublist norm; auto.
+              cbn; auto.
           *** Intros j v ls.
               forward_if.
               admit.
               unfold tarray. 
-              erewrite split2_data_at_Tarray_tuchar with (n0 := (buf_size - v)%Z)  (n1 := 1%Z).
+              erewrite split2_data_at_Tarray_tuchar with (n0 := (buf_size - v - 1)%Z)  (n1 := 1%Z).
                erewrite sublist_one.
               erewrite data_at_tuchar_singleton_array_eq at 1.
               erewrite data_at_tuchar_singleton_array_eq at 1.
@@ -372,38 +388,13 @@ Proof.
               entailer!.
               admit.
           *** Intros i0 ls.
-              unfold tarray. 
-              erewrite split2_data_at_Tarray_tuchar with (n0 := (buf_size - (len ls))%Z) 
-                                                         (n1 := 1%Z).
-              erewrite sublist_one.
-              erewrite data_at_tuchar_singleton_array_eq at 1.
-              erewrite data_at_tuchar_singleton_array_eq at 1.
+              unfold offset_val.
+              erewrite split_non_empty_list
+                with (ls' := (sublist (len ls + 1 + 1) buf_size default_list))
+                     (j2 := (buf_size - len ls - 1 - 1)%Z)
+                     (ofs := (buf_ofs + Ptrofs.repr (len ls + 1))%ptrofs).
               Intros.
               forward.
-              erewrite <- data_at_tuchar_singleton_array_eq at 1.
-              erewrite <- data_at_tuchar_singleton_array_eq at 1.
-              assert ((field_address0 (Tarray tuchar (buf_size - len ls) noattr) (SUB 1)
-          (offset_val (len ls + 1) (Vptr buf_b buf_ofs))) = offset_val 1 (offset_val (len ls + 1) (Vptr buf_b buf_ofs))).
-              { 
-                rewrite field_address0_offset.
-                simpl.
-                reflexivity.
-                econstructor.
-                easy.
-                repeat split.
-                simpl; autorewrite with norm.
-                admit.
-                                constructor.
-                intros.
-                repeat econstructor.
-                simpl; autorewrite with norm.
-                reflexivity.
-                all: try nia || auto with zarith.
-                autorewrite with sublist.
-                simpl.
-                admit.
-              }
-              rewrite H4.
               unfold POSTCONDITION.
               unfold abbreviate. 
               break_let.
@@ -413,138 +404,22 @@ Proof.
                rewrite H2 in *.
                inversion Heqp.
                 rewrite_if_b.
-                rewrite if_false by congruence.
-               
-               all: try nia.
-               remember ((((tag & Int.repr 3) << Int.repr 6) or Int.repr 31)) as e0.   
+                rewrite if_false by congruence.               
                unfold serialize_tag'.
                rewrite <- H3.
                clear H3.
                entailer!.
                remember (default_val (tarray tuchar buf_size)) as default_list.
-               remember (Int.zero_ext 8 (((tag & Int.repr 3) << Int.repr 6) or Int.repr 31)) as e0.
+               remember (Int.zero_ext 8 (((tag & Int.repr 3) << Int.repr 6) or Int.repr 31)) as e1.
                remember (Int.zero_ext 8 ((tag >> Int.repr 2) & Int.repr 127)) as e_n.
                unfold offset_val.
                simpl.
- assert (forall (cs : compspecs) sh ls1 ls2 b ofs j1 j2,
-    Zlength ls1 = j1 ->
-    Zlength ls2 = j2 ->
-    data_at sh (tarray tuchar (j1 + j2)) (ls1 ++ ls2) (Vptr b ofs) =
-    (data_at sh (tarray tuchar j1) ls1 (Vptr b ofs) *
-     data_at sh (tarray tuchar j2) ls2
-             (Vptr b (Ptrofs.add ofs (Ptrofs.repr j1))))%logic) as SP by admit.
- unfold tarray in *.
-               erewrite <- SP.
+               erewrite <- data_at_tuchar_singleton_array_eq.
+               erewrite <- data_at_app2.
                replace (1 + len ls)%Z with (len ls + 1)%Z by nia.
-               erewrite <- SP.
-                erewrite <- SP.
-                normalize.
-                autorewrite with norm.
-             (*  replace (Vint e_n) with (Znth 0 (Vint e_n :: skipn (length ls - 1)%nat default_list)).
-               erewrite <- sublist_one with (hi := 1%Z).
-            
-               replace (skipn (Datatypes.length ls) default_list) with 
-                 (Vint e_n :: skipn (length ls - 1)%nat default_list) at 1.  
-               replace (buf_size - len ls - 1)%Z with ((buf_size - len ls) - 1)%Z by nia.
-               rewrite sepcon_assoc.
-               unfold tarray.
-               erewrite <- split2_data_at_Tarray_tuchar.
-               replace (len ((((tag & Int.repr 3) << Int.repr 6) or Int.repr 31) :: ls)) with
-                   (len ls + 1)%Z.
-               replace (map (fun x : int => Vint (Int.zero_ext 8 x)) ls) with (map Vint ls).
-               replace (Vint e0 :: map Vint ls) with ([Vint e0] ++ (map Vint ls)).
-               unfold offset_val.
-               break_match.
-               admit.
-               admit.
-               admit.
-               admit.
-               admit.
-               pose proof combine_data_at_sublist_tuchar.
-               unfold tarray in *.
-               replace (data_at Tsh (Tarray tuchar buf_size noattr)
-        (([Vint e0]
-           ++ map Vint ls) 
-           ++ sublist (len ls + 1) buf_size default_list) 
-        (Vptr b i1))
-              with
-                (data_at Tsh (Tarray tuchar
-                (len (([Vint e0] ++ map Vint ls) 
-                        ++ sublist (len ls + 1) buf_size default_list))
-                noattr)
-                         (([Vint e0] ++ 
-                                     map Vint ls)
-                            ++ sublist (len ls + 1) buf_size default_list) 
-                         (Vptr b i1)).
-                erewrite H16 with (j := 1%Z).
-                replace (len (([Vint e0] ++ map Vint ls) ++ sublist (len ls + 1) buf_size default_list) - 1)%Z
-               with (len ((map Vint ls) ++ sublist (len ls + 1) buf_size default_list)).
-                instantiate (2 := [Vint e0]).
-                 instantiate (1 :=  (map Vint ls) ++ sublist (len ls + 1) buf_size default_list).
-                 replace  (data_at Tsh
-         (Tarray tuchar
-            (len (([Vint e0] ++ map Vint ls) ++ sublist (len ls + 1) buf_size default_list) - 1)
-            noattr) (map Vint ls ++ sublist (len ls + 1) buf_size default_list)
-         (Vptr b (i1 + Ptrofs.repr 1)%ptrofs))%logic
-                          with 
-
- (data_at Tsh
-         (Tarray tuchar
-            (len ((map Vint ls) ++ sublist (len ls + 1) buf_size default_list))
-            noattr) (map Vint ls ++ sublist (len ls + 1) buf_size default_list)
-         (Vptr b (i1 + Ptrofs.repr 1)%ptrofs))%logic.
-                  erewrite H16 with (j := len ls) (ls1 :=  (map Vint ls))
-                                    (ls2 := (Vint e_n :: skipn (Datatypes.length ls - 1) default_list)).
-                  entailer!.
-
-
-                 replace  (data_at Tsh
-         (Tarray tuchar
-            (len (([Vint e0] ++ map Vint ls) ++ sublist (len ls + 1) buf_size default_list) - 1)
-            noattr) [Vint e0] (Vptr b (i1 + Ptrofs.repr 1))) with
-( data_at Tsh
-         (Tarray tuchar
-            (len (map Vint ls) ++ sublist (len ls + 1) buf_size default_list))
-            noattr) [Vint e0] (Vptr b (i1 + Ptrofs.repr 1)).
-               autorewrite with sublist.
-                erewrite H16.
- (ls := [Vint e0]).
-                
-                
-
-               replace buf_size with
-                   (len (([Vint e0] ++ map Vint ls) ++ sublist (len ls + 1) buf_size default_list))
-                   at 2.
-               erewrite H16.
-               replace (len ls) with (len (Vint e0:: map Vint ls) - 1)%Z.
-               erewrite <- H16.
-                erewrite <- H16.
-               replace (len ls) with (len (e0::ls) - 1)%Z.
-               replace  (data_at Tsh (Tarray tuchar 1 noattr) [Vint e0] (Vptr b i1) *
-   data_at Tsh (Tarray tuchar (len (e0 :: ls) - 1) noattr) (map Vint ls)
-     (Vptr b (i1 + Ptrofs.repr 1)%ptrofs))%logic with
-                    (data_at Tsh (Tarray tuchar (len (e0 :: ls)) noattr) (Vint e0:: (map Vint ls)) (Vptr b i1)). admit.
-               erewrite H16.
-
-               replace buf_size with
-                   (len (([Vint e0] ++ map Vint ls) ++ sublist (len ls + 1) buf_size default_list))
-                   at 2.
-               erewrite H16.
-               
-
-               assert (forall (cs : compspecs) sh ls ls1 ls2 b ofs j,
-                           (Ptrofs.unsigned ofs + Zlength ls < Ptrofs.modulus)%Z ->
-                           0 <= j <= Zlength ls ->
-                           ls = ls1 ++ ls2 ->
-                           data_at sh (tarray tuchar (Zlength ls)) ls (Vptr b ofs) =
-                           (data_at sh (tarray tuchar j) ls1 (Vptr b ofs) *
-                            data_at sh (tarray tuchar (Zlength ls - j)) ls2
-                                    (Vptr b (ofs + (Ptrofs.repr j))%ptrofs)))%logic.
-               { intros.
-                  erewrite  split_data_at_sublist_tuchar.
-               
-               erewrite <- split_data_at_sublist_tuchar.
-               Search data_at sublist.
-               
-               all: admit. *)
+                erewrite <- data_at_app2.
+                replace (buf_ofs + Ptrofs.repr (len ls + 1) + 1)%ptrofs
+                        with (buf_ofs + Ptrofs.repr (len ls + 1 + 1))%ptrofs.
+                erewrite <- data_at_app2.
+                autorewrite with sublist norm.
 Admitted.
