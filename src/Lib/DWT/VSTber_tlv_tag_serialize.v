@@ -9,51 +9,6 @@ Definition Vprog : varspecs. Proof. mk_varspecs prog. Defined.
 
 Open Scope IntScope.
 
-Proposition split_non_empty_list (cs : compspecs) i ls' ls sh b ofs j1 j2:
-      ls = i::ls' -> 
-      j1 = Zlength ls ->
-      j2 = Zlength ls' ->
-      data_at sh (tarray tuchar j1) ls (Vptr b ofs) =
-     (data_at sh tuchar i (Vptr b ofs) *
-      data_at sh (tarray tuchar j2) ls' (Vptr b (ofs + 1)%ptrofs))%logic.
-Admitted.
-
-Lemma data_at_app2 : forall (cs : compspecs) sh ls1 ls2 b ofs j1 j2,
-    j1 = Zlength ls1 ->
-    j2 = Zlength ls2 ->
-    data_at sh (tarray tuchar (j1 + j2)) (ls1 ++ ls2) (Vptr b ofs) =
-   (data_at sh (tarray tuchar j1) ls1 (Vptr b ofs) *
-    data_at sh (tarray tuchar j2) ls2 (Vptr b (ofs + (Ptrofs.repr j1))%ptrofs))%logic.
-Admitted.
-
-Lemma data_at_app3 : forall (cs : compspecs) sh ls1 ls2 ls3 b ofs j1 j2 j3,
-    Zlength ls1 = j1 ->
-    Zlength ls2 = j2 ->
-    Zlength ls3 = j3 ->
-    data_at sh (tarray tuchar (j1 + j2 + j3)) (ls1 ++ ls2 ++ ls3) (Vptr b ofs) =
-   (data_at sh (tarray tuchar j1) ls1 (Vptr b ofs) *
-    data_at sh (tarray tuchar j2) ls2 (Vptr b (ofs + (Ptrofs.repr j1))%ptrofs) *
-    data_at sh (tarray tuchar j3) ls2 (Vptr b (ofs + (Ptrofs.repr (j1 + j2)))%ptrofs))%logic.
-Admitted.
-
-Lemma aux : forall tag size, let (ls, z) := ber_tlv_tag_serialize' tag size in
-                        (len ls <= Int.unsigned z)%Z.
-Proof.
-  intros.
-  break_let.
-  unfold ber_tlv_tag_serialize' in *.
-  repeat break_if; inversion Heqp.
-  admit.
-  cbn.
-  auto with ints.
-  admit.
-  cbn.
-  admit.
-  cbn.
-  admit.
-Admitted.
-  
-
 Definition ber_tlv_tag_serialize_spec' : ident * funspec :=
   DECLARE _ber_tlv_tag_serialize
   WITH tag : int, buf_b : block, buf_ofs : ptrofs, size : int, buf_size : Z
@@ -357,8 +312,7 @@ Proof.
                             data_at Tsh (tarray tuchar (len ls)) 
                                     (map (fun x : int => Vint (Int.zero_ext 8 x)) ls)
                                     (offset_val 1 (Vptr buf_b buf_ofs));
-                            data_at Tsh (tarray tuchar 
-                                                (len (sublist (len ls + 1) buf_size default_list))) 
+                            data_at Tsh (tarray tuchar buf_size) 
                                     (sublist (len ls + 1) buf_size default_list) 
                                     (offset_val ((Zlength ls) + 1) (Vptr buf_b buf_ofs)))).
           *** Exists (i - Int.repr 7).
@@ -413,7 +367,7 @@ Proof.
               unfold offset_val.
               erewrite split_non_empty_list
                 with (ls' := sublist (len ls + 1 + 1) buf_size default_list)
-                     (j2 := len (sublist (len ls + 1 + 1) buf_size default_list))
+                     (j2 := (buf_size - (len ls + 1 + 1))%Z)
                      (ofs := (buf_ofs + Ptrofs.repr (len ls + 1))%ptrofs).
               Intros.
               forward.
@@ -443,7 +397,8 @@ Proof.
               replace (buf_ofs + Ptrofs.repr (len ls + 1) + 1)%ptrofs
                 with (buf_ofs + Ptrofs.repr (len ls + 1 + 1))%ptrofs.
               erewrite <- data_at_app2.
-              replace (len ls + 1 + 1 + (buf_size - len ls - 1 - 1))%Z with buf_size.
+              replace ((len ls + 1 + 1 + (buf_size - (len ls + 1 + 1))))%Z
+                with buf_size.
               assert (((([Vint e1] ++
                          map (fun x : int => Vint (Int.zero_ext 8 x)) ls) ++ 
                         [Vint e_n]) ++
@@ -465,28 +420,27 @@ Proof.
               reflexivity.
               subst.
               entailer!.
+              nia.
               all : (autorewrite with sublist list norm;
                      try nia; auto).
-               all: pose proof (Zlength_nonneg ls); try nia;
-                subst; try setoid_rewrite LB; try nia.    
-              setoid_rewrite H12.
+                erewrite Zlength_sublist_correct.
+              nia.
               admit.
+              subst; try setoid_rewrite LB; try nia. 
               admit.
+             (*  all: pose proof (Zlength_nonneg ls); try nia;
+                subst; try setoid_rewrite LB; try nia.   *)
               erewrite sublist_split with (mid := (len ls + 1 + 1)%Z).
               erewrite sublist_one.
               reflexivity.
               all: pose proof (Zlength_nonneg ls); try nia;
                 subst; try setoid_rewrite LB; try nia.     
               admit.
-              subst.
-              auto.
-              nia.
+              admit.
+              admit.
               erewrite Zlength_sublist_correct.
               nia.
               admit.
-              nia.
-              erewrite Zlength_sublist_correct.
-              nia.
               admit.
-              nia.
 Admitted.
+

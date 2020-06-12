@@ -56,7 +56,8 @@ Ltac Zbool_to_Prop :=
         || rewrite Z.eqb_eq in * 
         || rewrite Z.eqb_neq in * 
         || rewrite Z.ltb_ge in * 
-        || rewrite Z.ltb_lt in *).
+        || rewrite Z.ltb_lt in *
+        || rewrite Z.geb_le in *).
 
 
 (*Tactic Notation "forward_if" constr(postL) constr(postP) constr(postS) :=
