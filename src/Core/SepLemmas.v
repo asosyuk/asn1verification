@@ -126,22 +126,24 @@ Qed.
 
 Arguments valid_pointer p : simpl never.
 
-Proposition split_non_empty_list (cs : compspecs) i ls' ls sh b ofs:
-      ls = i::ls'  -> Ptrofs.unsigned ofs + Zlength ls < Ptrofs.modulus -> 
-      data_at sh (tarray tschar (Zlength ls)) ls (Vptr b ofs) =
-      data_at sh tschar i (Vptr b ofs) *
-      data_at sh (tarray tschar (Zlength ls')) ls'
-              (Vptr b (Ptrofs.add ofs Ptrofs.one)).
+Proposition split_non_empty_list (cs : compspecs) i ls' ls sh b ofs j1 j2:
+      ls = i::ls' -> 
+      (Ptrofs.unsigned ofs + Zlength ls < Ptrofs.modulus)%Z ->
+      j1 = Zlength ls ->
+      j2 = Zlength ls' ->
+      data_at sh (tarray tuchar j1) ls (Vptr b ofs) =
+     (data_at sh tuchar i (Vptr b ofs) *
+      data_at sh (tarray tuchar j2) ls' (Vptr b (ofs + 1)%ptrofs))%logic.
 Proof.
-  intros LEN MOD.
+  intros LEN MOD J1 J2.
   rewrite LEN.
   replace (i::ls') with ([i] ++ ls') by reflexivity.
-  rewrite split2_data_at_Tarray_app with (mid := 1).
-  pose proof data_at_singleton_array_eq sh tschar i 
+  rewrite split2_data_at_Tarray_app with (mid := 1%Z).
+  pose proof data_at_singleton_array_eq sh tuchar i 
        [i] (Vptr b ofs)  as T1; rewrite T1; clear T1.
 
-  assert (Vptr b (Ptrofs.add ofs Ptrofs.one) =
-          field_address0 (tarray tschar (Zlength (app [i] ls'))) [ArraySubsc 1]
+  assert (Vptr b (ofs + 1)%ptrofs =
+          field_address0 (tarray tuchar (Zlength (app [i] ls'))) [ArraySubsc 1]
                          (Vptr b ofs))
     as J.
   { 
@@ -162,13 +164,20 @@ Proof.
     autorewrite with sublist.
     simpl.
     pose proof (Zlength_nonneg ls').
-    admit.
+    assert (1 <= 1 + len ls')%Z by nia.
+    eassumption.
   }
   rewrite J.
-  replace (Zlength (app [i] ls') - 1) with (Zlength ls').
+  subst.
+  replace (Zlength (i :: ls') - 1)%Z with (Zlength ls').
   reflexivity.
   all: try autorewrite with sublist; auto.
-Admitted.
+  nia.
+  subst.
+  try autorewrite with sublist.
+  assert (len ls' = (Z.succ (len ls') - 1)%Z) by nia.
+  eassumption.
+Qed.
 
 Proposition split_non_empty_list_tuchar (cs : compspecs) i ls' ls sh b ofs:
       ls = i::ls'  -> Ptrofs.unsigned ofs + Zlength ls < Ptrofs.modulus -> 
@@ -216,6 +225,33 @@ Proof.
   all: try autorewrite with sublist; auto.
 Qed.
 
+
+Lemma data_at_app : forall (cs : compspecs) sh ls1 ls2 b ofs j1 j2,
+    j1 = Zlength ls1 ->
+    j2 = Zlength ls2 ->
+    Ptrofs.unsigned ofs + (len ls1 + len ls2) < Ptrofs.modulus ->
+    data_at sh (tarray tuchar (j1 + j2)) (ls1 ++ ls2) (Vptr b ofs) =
+   (data_at sh (tarray tuchar j1) ls1 (Vptr b ofs) *
+    data_at sh (tarray tuchar j2) ls2 (Vptr b (ofs + (Ptrofs.repr j1))%ptrofs))%logic.
+Proof.
+intros until j2.
+intros J1 J2 Ptr.
+assert (ls1 = sublist 0 (len ls1) (ls1 ++ ls2)) by (autorewrite with sublist; auto).
+assert (ls2 = sublist (len ls1) (len (ls1 ++ ls2)) (ls1 ++ ls2)) 
+  by (autorewrite with sublist; auto).
+subst.
+replace (len ls1 + len ls2)%Z with (len (ls1 ++ ls2)). 
+erewrite combine_data_at_sublist_tuchar with (j := (len ls1))
+                                             (ls1 := ls1)
+                                             (ls2 := ls2)
+                                             (ls := ls1 ++ ls2).
+replace (len (ls1 ++ ls2) - len ls1)%Z with (len ls2).
+auto.
+all: autorewrite with sublist list; auto.
+pose proof (Zlength_nonneg ls2); 
+  pose proof (Zlength_nonneg ls1);
+  try nia.
+Qed.
 
 Lemma typed_true_ptr_ge : forall b ptr1 ptr2, 
     typed_true tint (force_val (sem_cmp_pp Cge (Vptr b ptr1) (Vptr b ptr2))) ->
