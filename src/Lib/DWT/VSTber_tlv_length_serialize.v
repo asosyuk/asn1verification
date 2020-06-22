@@ -1,8 +1,8 @@
-Require Import Core.Core  Core.VstTactics Core.StructNormalizer VstLib DWT.Exec 
+Require Import Core.Core Core.VstTactics Core.StructNormalizer VstLib DWT.Exec 
         ErrorWithWriter.
 Require Import VST.floyd.proofauto.
 Require Import Clight.ber_tlv_length.
-Require Import Core.Notations Core.SepLemmas ExecBer_tlv_length_serialize. 
+Require Import Core.Notations Core.SepLemmas Core.Tactics ExecBer_tlv_length_serialize. 
 
 Instance CompSpecs : compspecs. Proof. make_compspecs prog. Defined.
 Definition Vprog : varspecs. Proof. mk_varspecs prog. Defined.
@@ -101,16 +101,17 @@ Proof.
        try nia.
   -  assert ((127 >=? Int.signed length)%Z = false) as C.
      { erewrite Z.geb_leb.
-       Require Import Core.Tactics.
+       
        Zbool_to_Prop.
        nia. }
      repeat forward.
      forward_loop 
-      (EX i: int, 
-          PROP ()
+      (EX i : int, EX n : Z,
+          PROP (i = Int.repr (n * 8);
+                (n * 8)%Z = 8 \/ (n * 8)%Z = 16)
           LOCAL (temp _len (Vint length);
                  temp _i (Vint i);
-                 temp _required_size (Vint (required_size_loop length (Int.repr 40 - i) 1));
+                 temp _required_size (Vint (Int.repr n));
                  temp _size (Vint size);
                  temp _buf (Vptr buf_b buf_ofs))
            SEP (data_at Tsh (tarray tuchar buf_size)
@@ -128,22 +129,38 @@ Proof.
                          (Vptr buf_b buf_ofs))).
      + (* Pre implies Inv *)
        Exists (Int.repr 8).
+       Exists 1%Z.
        entailer!.
      + (* Inv exec fn Break *)
-       Intros i.
+       Intros i n.
        forward_if; repeat forward.
        forward_if;
          repeat forward.
+       entailer!.
+       unfold Int.iwordsize.
+       normalize.
+       cbn.
+       (* why unsigned here?? *)
        admit.
+     (* entailer!.
+       admit. *)
        Exists (i + Int.repr 8).
+       Exists (n + 1)%Z.
        entailer!.
+       f_equal.
+       split.
+       f_equal. nia.
        admit.
-       Exists i.
-       entailer!.
-       admit. (* need to replace j *)
        Exists i.
        entailer!.
        unfold required_size.
+       cbn.
+       inversion H3.
+       assert (n = 1%Z) by admit.
+       subst.
+       admit.
+       assert (n = 2%Z) by admit.
+       subst.
        admit.
      + Intro i.
        forward_if.

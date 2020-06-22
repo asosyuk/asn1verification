@@ -3,16 +3,27 @@ Require Import Core.Core Core.Notations.
 
 Open Scope IntScope.
 
-Program Fixpoint required_size_loop v i l {measure (Z.to_nat (Int.unsigned (Int.repr 32 - i)))}:=
-  if (i <u Int.repr 32) 
-  then if (v >> i) == 0
-       then l
-       else required_size_loop v (i + Int.repr 8) (l + 1)
-  else l.
-Obligation 1.
-Admitted.
+Fixpoint required_size_loop n z i l :=
+  match n with
+  | O => l
+  | S n => if z >> i == 0
+          then l 
+          else required_size_loop n z (i + Int.repr 8) (l + 1)
+  end.
 
-Definition required_size v := required_size_loop v (Int.repr 8) 1.
+Definition required_size z := required_size_loop 4%nat z (Int.repr 8) 1. 
+
+(* Fixpoint required_size_loop n l :=
+  match n with
+  | O => 1
+  | S m => 
+    let s := Int.repr (Z.of_nat n) in
+    if (l >> s * Int.repr 8)%int == 0
+    then required_size_loop m l
+    else s
+  end.
+
+Definition required_size l := required_size_loop 4%nat l. *)
 
 Fixpoint serialize_length_loop i n l :=
   match n with
