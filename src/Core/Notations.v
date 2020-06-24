@@ -28,7 +28,7 @@ Infix "&" := Byte.and (at level 70) : ByteScope.
 Delimit Scope IntScope with int.
 Infix "==" := Int.eq (at level 70) : IntScope.
 Notation "x ~= y" := (negb Int.eq x y) (at level 70) : IntScope.
-Notation "x >> y" := (Int.shru x y) (at level 70) : IntScope.
+Notation "x >> y" := (Int.shr x y) (at level 70) : IntScope.
 Notation "x << y" := (Int.shl x y) (at level 70) : IntScope.
 Notation "0" := Int.zero : IntScope.
 Notation "1" := Int.one : IntScope.

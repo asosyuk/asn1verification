@@ -36,6 +36,7 @@ Definition der_tlv_length_serialize_spec : ident * funspec :=
 
 Definition Gprog := ltac:(with_library prog [der_tlv_length_serialize_spec]).
 
+
 Theorem ber_tlv_length_serialize_correct' : 
   semax_body Vprog Gprog (normalize_function f_der_tlv_length_serialize composites)
              der_tlv_length_serialize_spec.
@@ -106,33 +107,37 @@ Proof.
        nia. }
      repeat forward.
      forward_loop 
-      (EX i : int, EX n : Z,
-          PROP (i = Int.repr (n * 8);
-                (n * 8)%Z = 8 \/ (n * 8)%Z = 16)
+      (EX i: int,
+          PROP (forall j, 0 <= Int.unsigned j < Int.unsigned i 
+                     -> length >> (j * Int.repr 8)%int == 0 = false)
           LOCAL (temp _len (Vint length);
-                 temp _i (Vint i);
-                 temp _required_size (Vint (Int.repr n));
+                 temp _i (Vint (i* Int.repr 8)%int);
+                 temp _required_size (Vint i);
                  temp _size (Vint size);
                  temp _buf (Vptr buf_b buf_ofs))
            SEP (data_at Tsh (tarray tuchar buf_size)
                          (default_val (tarray tuchar buf_size))
                          (Vptr buf_b buf_ofs)))
-      break: (EX i: int, 
+      break: (EX i: int,
                  PROP ()
                  LOCAL (temp _required_size (Vint (required_size length));
                        temp _len (Vint length);
-                       temp _i (Vint i);
+                       temp _i  (Vint (i * Int.repr 8)%int);
                        temp _size (Vint size);
                        temp _buf  (Vptr buf_b buf_ofs))
                   SEP (data_at Tsh (tarray tuchar buf_size)
                          (default_val (tarray tuchar buf_size))
                          (Vptr buf_b buf_ofs))).
      + (* Pre implies Inv *)
-       Exists (Int.repr 8).
-       Exists 1%Z.
+       Exists 1.
        entailer!.
+       intros.
+       assert (j = 0) as J by admit.
+       rewrite J.
+       replace (0 * Int.repr 8) with 0 by auto with ints.
+       admit.
      + (* Inv exec fn Break *)
-       Intros i n.
+       Intros i.
        forward_if; repeat forward.
        forward_if;
          repeat forward.
@@ -142,27 +147,39 @@ Proof.
        cbn.
        (* why unsigned here?? *)
        admit.
-     (* entailer!.
-       admit. *)
-       Exists (i + Int.repr 8).
-       Exists (n + 1)%Z.
+       Exists (i + 1).
        entailer!.
-       f_equal.
        split.
-       f_equal. nia.
-       admit.
+       admit. (* true *)
+       f_equal.
+       admit. (* true *)
        Exists i.
        entailer!.
-       unfold required_size.
-       cbn.
-       inversion H3.
-       assert (n = 1%Z) by admit.
-       subst.
-       admit.
-       assert (n = 2%Z) by admit.
-       subst.
-       admit.
-     + Intro i.
+       assert (required_size_spec:
+         forall length i : int,
+           i = 1 \/ i = Int.repr 2 \/ i = Int.repr 3 \/ i = Int.repr 4 ->
+           (forall j : int,            
+               0 <= Int.unsigned j < Int.unsigned i -> ((length >> j * Int.repr 8) == 0) = false) ->
+           Int.shr length (i * Int.repr 8) = 0 -> Vint (required_size length) = Vint i).
+       { intros l n N B SH.
+         unfold required_size.
+         cbn.
+         repeat break_or_hyp.
+         break_if; auto.
+         admit. (* contradiction *)
+         break_if.
+         admit. (* contradiction *)
+         break_if. auto. 
+         Search Int.eq false  (_ <> _).
+         eapply int_eq_false_e in Heqb0.
+         autorewrite with norm in *.
+         cbn in *.
+         rewrite SH in Heqb0.
+         congruence.
+         
+       Exists i n.
+       entailer!.
+     + Intros i n.
        forward_if.
        unfold POSTCONDITION.
        unfold abbreviate. 
@@ -172,6 +189,18 @@ Proof.
        inversion Heqp.
          rewrite_if_b.
        entailer!. (* fix spec *)
+       break_if.
+       inversion Heqp.
+       admit.
+       inversion Heqp.
+       admit.
+       break_if.
+       inversion Heqp.
+       entailer!.
+        inversion Heqp.
+        admit.
+        
+        
 
        rewrite H2 in *.
        inversion Heqp.
