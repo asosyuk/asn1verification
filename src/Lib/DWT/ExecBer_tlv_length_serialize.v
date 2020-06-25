@@ -3,57 +3,81 @@ Require Import Core.Core Core.Notations.
 
 Open Scope IntScope.
 
-Fixpoint required_size_loop n z i l :=
+Fixpoint required_size_loop n z l :=
   match n with
   | O => l
-  | S n => if z >> i == 0
+  | S n => if z >> (l * Int.repr 8) == 0
           then l 
-          else required_size_loop n z (i + Int.repr 8) (l + 1)
+          else required_size_loop n z (l + 1)
   end.
 
-Definition required_size z := required_size_loop 4%nat z (Int.repr 8) 1. 
+Definition required_size z := required_size_loop 4%nat z 1. 
 
-
-Eval cbv in (required_size_loop 4%nat (Int.repr Int.max_unsigned) 
-                                (Int.repr (3 * 8))
-                                (Int.repr 0) + Int.repr 3).
-Eval cbv in (required_size_loop 4%nat (Int.repr Int.max_unsigned) (Int.repr 8)
-                                (Int.repr 1)).
-
-(* Lemma requried_size_succ : forall n l i j,
-    required_size_loop n l ((j + 1) * (Int.repr 8)) i + j =
-    required_size_loop n l (Int.repr 8) i.
-Proof.
-  induction n.
-  intros.
-  simpl. auto.
-  admit.
-  intros.
-  simpl.
-  rewrite IHn.
-  replace (j * Int.repr 8 + Int.repr 8) with ((j + 1) * Int.repr 8).
-Admitted. *)
-
-Lemma requried_size_inc : forall n l i j, required_size_loop n l j (i + 1)%int =
+(* Lemma requried_size_inc : forall n l i j, required_size_loop n l j (i + 1)%int =
                                      required_size_loop n l j i + 1.
 Proof.
   induction n; intros; simpl; auto.
   rewrite IHn.
   break_if; auto.
+Qed. *)
+
+Lemma required_size_spec:
+         forall l i : int,
+           i = 1 \/ i = Int.repr 2 \/ i = Int.repr 3 \/ i = Int.repr 4 ->
+           (forall j : int, 0 <= Int.unsigned j < Int.unsigned i -> 
+               (l >> j * Int.repr 8) == 0 = false) ->
+                 l >> (i * Int.repr 8) = 0 -> 
+           required_size l = i.
+Proof.
+  intros l i N B SH.
+  repeat break_or_hyp.
+  * unfold required_size;
+      cbn;
+      rewrite SH;
+      replace (0 == 0) with true by reflexivity;
+      auto.
+  * unfold required_size;
+      cbn.
+    erewrite B.
+    replace (1 + 1) with (Int.repr 2) by auto with ints.
+    rewrite SH;
+      replace (0 == 0) with true by reflexivity;
+      auto.
+    normalize.
+    replace (Int.unsigned 1) with 1%Z by auto with ints.
+    nia.
+  * unfold required_size;
+      cbn.
+    erewrite B.
+    erewrite B.
+    replace (1 + 1 + 1) with (Int.repr 3) by auto with ints.
+    rewrite SH.
+    replace (0 == 0) with true by reflexivity;
+      auto.
+    normalize.
+    replace (Int.unsigned (1 + 1)) with 2%Z by auto with ints.
+    nia.
+    normalize.
+    replace (Int.unsigned (1)) with 1%Z by auto with ints.
+    nia.
+  * unfold required_size;
+      cbn.
+    erewrite B.
+    erewrite B.
+    erewrite B.
+    replace (1 + 1 + 1 + 1) with (Int.repr 4) by auto with ints.
+    rewrite SH.
+    replace (0 == 0) with true by reflexivity;
+      auto.
+    all: normalize.
+    replace (Int.unsigned (1 + 1 + 1)) with 3%Z by auto with ints.
+    nia.
+    replace (Int.unsigned (1 + 1)) with 2%Z by auto with ints.
+    nia.
+    replace (Int.unsigned (1)) with 1%Z by auto with ints.
+    nia.
 Qed.
 
-Lemma requried_size_succ : forall n l,
-    let j := Int.repr (Z.of_nat n) in
-    required_size_loop n l (j * (Int.repr 8)) j =
-    required_size_loop n l (Int.repr 8) 0.
-Proof.
-  induction n.
-  intros.
-  simpl. auto.
-  intros.
-  simpl.
-  replace (j * Int.repr 8 + Int.repr 8) with ((j + 1) * Int.repr 8).
-Admitted.
 
 (* Fixpoint required_size_loop n l :=
   match n with
