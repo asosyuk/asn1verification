@@ -108,7 +108,8 @@ Proof.
      repeat forward.
      forward_loop 
       (EX i: int,
-          PROP (forall j, 0 <= Int.unsigned j < Int.unsigned i 
+          PROP ((0 <= Int.unsigned i)%Z;
+              forall j, 0 <= Int.unsigned j < Int.unsigned i 
                      -> length >> (j * Int.repr 8)%int == 0 = false)
           LOCAL (temp _len (Vint length);
                  temp _i (Vint (i* Int.repr 8)%int);
@@ -118,68 +119,74 @@ Proof.
            SEP (data_at Tsh (tarray tuchar buf_size)
                          (default_val (tarray tuchar buf_size))
                          (Vptr buf_b buf_ofs)))
-      break: (EX i: int,
-                 PROP ()
-                 LOCAL (temp _required_size (Vint (required_size length));
-                       temp _len (Vint length);
-                       temp _i  (Vint (i * Int.repr 8)%int);
-                       temp _size (Vint size);
-                       temp _buf  (Vptr buf_b buf_ofs))
-                  SEP (data_at Tsh (tarray tuchar buf_size)
-                         (default_val (tarray tuchar buf_size))
-                         (Vptr buf_b buf_ofs))).
+      break: (PROP ()
+              LOCAL (temp _required_size (Vint (required_size length));
+                     temp _len (Vint length);
+                     temp _i  (Vint ((required_size length) * Int.repr 8)%int);
+                     temp _size (Vint size);
+                     temp _buf  (Vptr buf_b buf_ofs))
+              SEP (data_at Tsh (tarray tuchar buf_size)
+                           (default_val (tarray tuchar buf_size))
+                           (Vptr buf_b buf_ofs))).
      + (* Pre implies Inv *)
-       Exists 1.
+       Exists (Int.repr 1).
        entailer!.
        intros.
-       assert (j = 0) as J by admit.
-       rewrite J.
+       autorewrite with norm in *.
+       assert (Int.unsigned j = 0%Z) as J by nia.
+       assert (j = 0).
+       eapply unsigned_eq_eq.
+       normalize.
+       subst.
        replace (0 * Int.repr 8) with 0 by auto with ints.
-       admit.
+       erewrite Int.shr_zero.
+       erewrite Int.signed_eq.
+       destruct zeq.
+       rewrite e in *.
+       replace (Int.signed 0) with 0%Z in * by auto with ints.
+       nia.
+       auto.
      + (* Inv exec fn Break *)
        Intros i.
+       assert (Int.unsigned (i * Int.repr 8)%int < 8 * 4)%Z by admit.
        forward_if; repeat forward.
        forward_if;
          repeat forward.
-       entailer!.
-       unfold Int.iwordsize.
-       normalize.
-       cbn.
-       (* why unsigned here?? *)
-       admit.
        Exists (i + 1).
        entailer!.
        split.
-       admit. (* true *)
+       intros.
+       destruct (zeq (Int.unsigned j) (Int.unsigned i)).
+       assert (i = j).
+       eapply unsigned_eq_eq. nia.
+       subst.
+       eapply Int.eq_false.
+       eassumption.
+       eapply H3.
+       replace (Int.unsigned (i + 1)) with (Int.unsigned i + 1)%Z in *.
+       nia.
+       admit. (* need unsigned i < 32 *)
        f_equal.
-       admit. (* true *)
-       Exists i.
+       erewrite Int.mul_add_distr_l.
+       auto with ints.
        entailer!.
-       assert (required_size_spec:
-         forall length i : int,
-           i = 1 \/ i = Int.repr 2 \/ i = Int.repr 3 \/ i = Int.repr 4 ->
-           (forall j : int,            
-               0 <= Int.unsigned j < Int.unsigned i -> ((length >> j * Int.repr 8) == 0) = false) ->
-           Int.shr length (i * Int.repr 8) = 0 -> Vint (required_size length) = Vint i).
-       { intros l n N B SH.
-         unfold required_size.
-         cbn.
-         repeat break_or_hyp.
-         break_if; auto.
-         admit. (* contradiction *)
-         break_if.
-         admit. (* contradiction *)
-         break_if. auto. 
-         Search Int.eq false  (_ <> _).
-         eapply int_eq_false_e in Heqb0.
-         autorewrite with norm in *.
-         cbn in *.
-         rewrite SH in Heqb0.
-         congruence.
-         
-       Exists i n.
+       assert (required_size length = i) as R.
+       eapply required_size_spec.
+       admit. (* from unsigned i < 32 *)
+       eassumption.
+       eassumption.
+       subst.
+       intuition.
        entailer!.
-     + Intros i n.
+       assert (required_size length = i) as R.
+       assert (i = Int.repr 4) by admit.
+       subst.
+       eapply required_size_spec.
+       auto.
+       eassumption.
+       admit. (* add lemma forall l, l >> 32 = 0 *)
+       subst. intuition.
+     + Intros.
        forward_if.
        unfold POSTCONDITION.
        unfold abbreviate. 
@@ -188,52 +195,45 @@ Proof.
        unfold ber_tlv_length_serialize in *; rewrite C in *.
        inversion Heqp.
          rewrite_if_b.
-       entailer!. (* fix spec *)
-       break_if.
-       inversion Heqp.
-       admit.
-       inversion Heqp.
-       admit.
-       break_if.
-       inversion Heqp.
+       entailer!. 
+       repeat break_if; try congruence; try
+       inversion Heqp; try eassumption; auto.
+       break_if; try
        entailer!.
-        inversion Heqp.
-        admit.
-        
-        
-
-       rewrite H2 in *.
+       break_if.
+       congruence.
        inversion Heqp.
-       reflexivity.
-       rewrite H2 in *.
-       simpl in Heqp.
-       inversion Heqp.
-       rewrite if_true by congruence.
-       entailer!.
+       congruence.
        erewrite <- Heqdefault_list.
        rewrite  <- LB.     
        erewrite split_data_at_sublist_tuchar with (j := 1%Z).
        erewrite sublist_one.
-       erewrite data_at_tuchar_singleton_array_eq. 
+       erewrite data_at_tuchar_singleton_array_eq.
+       all: try nia.
        Intros.
        repeat forward.
        entailer!.
-       admit.
+       admit. (* add lemmas *)
        normalize.
-       remember (Int.zero_ext 8 (Int.zero_ext 8 (Int.repr 128 or required_size length))) as e0.
+       remember (Int.zero_ext 8
+                              (Int.zero_ext 8
+                                            (Int.repr 128 or required_size length))) as e0.
        remember (required_size length) as r.
        remember length as l.
       forward_loop 
     (EX v : Z, EX ls : list int,
-    (PROP (ls = serialize_length_loop (i - Int.repr 8)
-                                         (Z.to_nat v) l)
+    (PROP (ls = 
+           serialize_length_loop
+             ((r * Int.repr 8)%int - Int.repr 8)
+             (Z.to_nat v) l)
      LOCAL (temp _buf (Vptr buf_b (buf_ofs + Ptrofs.repr 1 + Ptrofs.repr v)%ptrofs);
-            temp _i (Vint (i - Int.repr ((v + 1) * 8)%Z)); 
+            temp _i (Vint ((r * Int.repr 8)%int - Int.repr ((v + 1) * 8)%Z)); 
             temp _end (Vptr buf_b (buf_ofs + Ptrofs.repr (1 + Int.unsigned r))%ptrofs);
             temp _t'1 (Vptr buf_b buf_ofs); temp _required_size (Vint r);
             temp _len (Vint length); temp _size (Vint size))
      SEP (data_at Tsh tuchar (Vint e0) (Vptr buf_b buf_ofs);
-          data_at Tsh (tarray tuchar v) (map (fun x : int => Vint (Int.zero_ext 8 (Int.zero_ext 8 x))) ls)
+          data_at Tsh (tarray tuchar v) 
+                  (map (fun x : int => Vint (Int.zero_ext 8 (Int.zero_ext 8 x))) ls)
                         (offset_val 1 (Vptr buf_b buf_ofs));
           data_at Tsh (tarray tuchar (len default_list - v - 1))
                   (sublist (v + 1) (len default_list) default_list) 
@@ -250,7 +250,8 @@ Proof.
             temp _required_size (Vint r); 
             temp _len (Vint length); temp _size (Vint size))
      SEP (data_at Tsh tuchar (Vint e0) (Vptr buf_b buf_ofs);
-          data_at Tsh (tarray tuchar (len ls)) (map (fun x : int => Vint (Int.zero_ext 8 (Int.zero_ext 8 x))) ls)
+          data_at Tsh (tarray tuchar (len ls)) (map (fun x : int => 
+                           Vint (Int.zero_ext 8 (Int.zero_ext 8 x))) ls)
                         (offset_val 1 (Vptr buf_b buf_ofs));
           data_at Tsh (tarray tuchar (len default_list - (len ls) - 1))
                   (sublist (len ls + 1) (len default_list) default_list) 
@@ -263,7 +264,9 @@ Proof.
         cbn; auto.
       * Intros v ls.
         forward_if.
+        entailer!.
         admit.
+        ++
         erewrite split_non_empty_list with 
             (j2 := (len default_list - (v + 1) - 1)%Z)
             (ls' := (sublist (v + 1 + 1) (len default_list) default_list)).
@@ -274,18 +277,24 @@ Proof.
         repeat forward.
         entailer!.
         admit.
-        remember (Int.zero_ext 8 (Int.zero_ext 8 (Int.shr length (i - Int.repr ((v + 1) * 8)))))
+        remember (Int.zero_ext 8
+                               (Int.zero_ext 8 
+                                             (Int.shr length
+                                                      ((r * Int.repr 8)%int 
+                                                       - Int.repr ((v + 1) * 8)))))
           as e_v.
         Exists (v + 1)%Z (ls ++ [e_v]).
         entailer!.
         split.
-        replace (Z.to_nat (v + 1)) with (S (Z.to_nat v))%nat.
+        replace (Z.to_nat (v + 1)) with (S (Z.to_nat (v)))%nat.
         simpl.
-        admit. (* true *)
+        admit. (* true, need lemma *)
+        erewrite <- Z2Nat.inj_succ.
+        nia.
         admit.
         admit.
-        remember (serialize_length_loop (i - Int.repr 8) (Z.to_nat v) length) as ls.
-        remember (Int.zero_ext 8 (Int.zero_ext 8 (Int.shr length (i - Int.repr ((v + 1) * 8)))))
+        remember (serialize_length_loop ((required_size length * Int.repr 8)%int - Int.repr 8) (Z.to_nat v) length) as ls.
+        remember (Int.zero_ext 8 (Int.zero_ext 8 (Int.shr length ((required_size length * Int.repr 8)%int  - Int.repr ((v + 1) * 8)))))
                  as e_v.
         unfold offset_val.
         simpl.
@@ -300,21 +309,20 @@ Proof.
         erewrite <- data_at_app.
         erewrite <- data_at_app.
         erewrite <- data_at_app.
-         assert ((map Vint ls ++ [Vint e_v]) = (map Vint (ls ++ [e_v]))) by admit.
-         admit.
+        assert ((map Vint ls ++ [Vint e_v]) = (map Vint (ls ++ [e_v]))) by admit.
+        admit.
         1-16: admit.
+        ++
         repeat forward.
-        Exists (ls) (i - Int.repr ((v + 1) * 8)).
+        Exists ls (((required_size length) * Int.repr 8) - Int.repr ((v + 1) * 8)).
         entailer!.
         split.
-        assert (i = required_size length) by admit.
         assert (Z.to_nat v = (Z.to_nat (Int.unsigned (required_size length)))) by admit.
         setoid_rewrite H3.
-        setoid_rewrite H13.
         admit.
         normalize.
         admit.
-        remember (serialize_length_loop (i - Int.repr 8) (Z.to_nat v) length) as ls.
+        remember (serialize_length_loop ((required_size length) * Int.repr 8 - Int.repr 8) (Z.to_nat v) length) as ls.
         replace v with (len ls).
         entailer!.
         admit.
@@ -325,7 +333,7 @@ Proof.
         forward.
         unfold ber_tlv_length_serialize in *.
         rewrite C in *.
-        replace (size <=u required_size length) with false in * by admit.
+        rewrite H2 in Heqp.
         inversion Heqp.
         unfold serialize_length.
         rewrite if_false by congruence.
@@ -337,9 +345,9 @@ Proof.
         erewrite <- data_at_app.
         setoid_rewrite <- H3.
         replace (len ls + 1 + (len (default_val (tarray tuchar buf_size)) - len ls - 1))%Z
-   with buf_size.
+          with buf_size.
         replace (len ((Int.repr 128 or required_size length) :: ls)) with 
-                     (len ls + 1)%Z by
+            (len ls + 1)%Z by
             (autorewrite with sublist list norm;
              nia).
         replace  (len (default_val (tarray tuchar buf_size))) with buf_size.
@@ -347,13 +355,12 @@ Proof.
          all : (autorewrite with sublist list norm;
                      try nia; auto).
                 erewrite Zlength_sublist_correct.
-                
-              nia.
-              setoid_rewrite LB; try nia. 
-              admit.
-               setoid_rewrite LB; try nia. 
-               admit.
-               admit.
+        nia.
+        setoid_rewrite LB; try nia. 
+        admit.
+        setoid_rewrite LB; try nia. 
+        admit.
+        admit. 
      Admitted.
          
         

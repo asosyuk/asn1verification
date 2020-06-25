@@ -31,19 +31,7 @@ Definition ber_tlv_tag_serialize_spec' : ident * funspec :=
                          (map (fun x => Vint (Int.zero_ext 8 x)) ls ++ sublist (len ls) buf_size 
                              (default_val (tarray tuchar buf_size)))
                          (Vptr buf_b buf_ofs)).
-    (* SEP(if eq_dec ls [] 
-        then data_at Tsh (tarray tuchar buf_size)
-                     (default_val (tarray tuchar buf_size))
-                     (Vptr buf_b buf_ofs) 
-        else
-          data_at Tsh (tarray tuchar buf_size)
-                  (map (fun x => Vint (Int.zero_ext 8 x)) ls) 
-                  (Vptr buf_b buf_ofs) *
-          data_at Tsh (tarray tuchar (buf_size - len ls))
-                  (default_val (tarray tuchar (buf_size - len ls))) 
-                  (Vptr buf_b (buf_ofs + Ptrofs.repr (len ls))%ptrofs)).
 
-     (fun x => Vint (Int.zero_ext 8 x)) *)
 
 Definition Gprog' := ltac:(with_library prog [ber_tlv_tag_serialize_spec']).
 
@@ -64,7 +52,7 @@ Proof.
         try nia; auto. }
   repeat forward.
   forward_if.
-  assert (((tag >> Int.repr 2) <=u Int.repr 30) = true) as C.
+  assert (((Int.shru tag (Int.repr 2)) <=u Int.repr 30) = true) as C.
   { unfold Int.ltu.
     break_if;
     autorewrite with norm in *; try nia.

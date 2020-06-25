@@ -1,4 +1,4 @@
-Require Import Core.Core Lib.Lib Core.StructNormalizer 
+(* Require Import Core.Core Lib.Lib Core.StructNormalizer 
         VstLib Int.Exec Lib.Callback.Dummy Lib.DWT.Vst.
 Require Import VST.floyd.proofauto.
 Require Import Clight.dummy Clight.INTEGER.
@@ -240,3 +240,4 @@ Lemma split_array_head_tale : forall {cs : compspecs} size data p t,
 Admitted.
 
 End Integer_der_encode.
+*)

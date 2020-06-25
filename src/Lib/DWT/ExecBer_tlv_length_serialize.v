@@ -8,10 +8,10 @@ Fixpoint required_size_loop n z l :=
   | O => l
   | S n => if z >> (l * Int.repr 8) == 0
           then l 
-          else required_size_loop n z (l + 1)
+          else required_size_loop n z (l + Int.repr 1)
   end.
 
-Definition required_size z := required_size_loop 4%nat z 1. 
+Definition required_size z := required_size_loop 4%nat z (Int.repr 1). 
 
 (* Lemma requried_size_inc : forall n l i j, required_size_loop n l j (i + 1)%int =
                                      required_size_loop n l j i + 1.
@@ -23,7 +23,7 @@ Qed. *)
 
 Lemma required_size_spec:
          forall l i : int,
-           i = 1 \/ i = Int.repr 2 \/ i = Int.repr 3 \/ i = Int.repr 4 ->
+           i = Int.repr 1 \/ i = Int.repr 2 \/ i = Int.repr 3 \/ i = Int.repr 4 ->
            (forall j : int, 0 <= Int.unsigned j < Int.unsigned i -> 
                (l >> j * Int.repr 8) == 0 = false) ->
                  l >> (i * Int.repr 8) = 0 -> 
@@ -38,46 +38,38 @@ Proof.
       auto.
   * unfold required_size;
       cbn.
-    erewrite B.
-    replace (1 + 1) with (Int.repr 2) by auto with ints.
+    do 1 erewrite B.
+    autorewrite with norm in *.
+    cbn in *.
     rewrite SH;
       replace (0 == 0) with true by reflexivity;
       auto.
     normalize.
-    replace (Int.unsigned 1) with 1%Z by auto with ints.
     nia.
   * unfold required_size;
       cbn.
     erewrite B.
     erewrite B.
-    replace (1 + 1 + 1) with (Int.repr 3) by auto with ints.
-    rewrite SH.
-    replace (0 == 0) with true by reflexivity;
+     autorewrite with norm in *;
+    cbn in *;
+    rewrite SH;
+      replace (0 == 0) with true by reflexivity;
       auto.
-    normalize.
-    replace (Int.unsigned (1 + 1)) with 2%Z by auto with ints.
-    nia.
-    normalize.
-    replace (Int.unsigned (1)) with 1%Z by auto with ints.
+    all: normalize;
     nia.
   * unfold required_size;
       cbn.
     erewrite B.
     erewrite B.
     erewrite B.
-    replace (1 + 1 + 1 + 1) with (Int.repr 4) by auto with ints.
-    rewrite SH.
-    replace (0 == 0) with true by reflexivity;
+     autorewrite with norm in *;
+    cbn in *;
+    rewrite SH;
+      replace (0 == 0) with true by reflexivity;
       auto.
-    all: normalize.
-    replace (Int.unsigned (1 + 1 + 1)) with 3%Z by auto with ints.
-    nia.
-    replace (Int.unsigned (1 + 1)) with 2%Z by auto with ints.
-    nia.
-    replace (Int.unsigned (1)) with 1%Z by auto with ints.
+    all: normalize;
     nia.
 Qed.
-
 
 (* Fixpoint required_size_loop n l :=
   match n with

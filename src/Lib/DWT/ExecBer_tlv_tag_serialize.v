@@ -42,7 +42,7 @@ Open Scope IntScope.
 Fixpoint byte_length'_loop n z i l :=
   match n with
   | O => l
-  | S n => if z >> i == 0
+  | S n => if Int.shru z i == 0
           then l 
           else byte_length'_loop n z (i + Int.repr 7) (l + 1)
   end.
@@ -52,7 +52,7 @@ Definition byte_length' z := byte_length'_loop 4%nat z (Int.repr 7) 1.
 Fixpoint serialize_tag_loop  n i tval :=
   match n with
   | O => []
-  | S n => (Int.repr 128 or (tval >> i & Int.repr 127)) 
+  | S n => (Int.repr 128 or (Int.shru  tval (i & Int.repr 127))) 
             :: serialize_tag_loop n (i - Int.repr 7) tval
   end. 
 
@@ -64,7 +64,7 @@ Definition serialize_tag' tval :=
 
 Definition ber_tlv_tag_serialize' (tag size : int): list int * int :=
   let tclass := tag & Int.repr 3 in 
-  let tval := tag >> Int.repr 2 in
+  let tval := Int.shru tag (Int.repr 2) in
   if tval <=u Int.repr 30 then
     if eq_dec size 0 
     then ([], 1)
