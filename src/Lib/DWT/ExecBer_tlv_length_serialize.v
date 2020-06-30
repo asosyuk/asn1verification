@@ -6,37 +6,29 @@ Open Scope IntScope.
 Fixpoint required_size_loop n z l :=
   match n with
   | O => l
-  | S n => if z >> (l * Int.repr 8) == 0
+  | S n => if z >> (Int.repr l) * (Int.repr 8) == 0
           then l 
-          else required_size_loop n z (l + Int.repr 1)
+          else required_size_loop n z (l + 1)%Z
   end.
 
-Definition required_size z := required_size_loop 4%nat z (Int.repr 1). 
-
-(* Lemma requried_size_inc : forall n l i j, required_size_loop n l j (i + 1)%int =
-                                     required_size_loop n l j i + 1.
-Proof.
-  induction n; intros; simpl; auto.
-  rewrite IHn.
-  break_if; auto.
-Qed. *)
+Definition required_size z := required_size_loop 3%nat z 1%Z. 
 
 Lemma required_size_spec:
-         forall l i : int,
-           i = Int.repr 1 \/ i = Int.repr 2 \/ i = Int.repr 3 \/ i = Int.repr 4 ->
-           (forall j : int, 0 <= Int.unsigned j < Int.unsigned i -> 
-               (l >> j * Int.repr 8) == 0 = false) ->
-                 l >> (i * Int.repr 8) = 0 -> 
+         forall l : int, forall i : Z,
+           i = 1%Z \/ i = 2 \/ i = 3 \/ i = 4 ->
+           (forall j : Z, 0 <= j < i -> 
+               (l >> (Int.repr j) * (Int.repr 8)) == 0 = false) ->
+                 l >> (Int.repr i) * (Int.repr 8) = 0 -> 
            required_size l = i.
 Proof.
   intros l i N B SH.
   repeat break_or_hyp.
-  * unfold required_size;
-      cbn;
-      rewrite SH;
+  * unfold required_size.
+      cbn in *.
+      rewrite SH.
       replace (0 == 0) with true by reflexivity;
       auto.
-  * unfold required_size;
+  * unfold required_size.
       cbn.
     do 1 erewrite B.
     autorewrite with norm in *.
@@ -62,45 +54,68 @@ Proof.
     erewrite B.
     erewrite B.
     erewrite B.
-     autorewrite with norm in *;
+    all: nia.
+ (*    autorewrite with norm in *;
     cbn in *;
     rewrite SH;
       replace (0 == 0) with true by reflexivity;
       auto.
     all: normalize;
-    nia.
+    nia. *)
 Qed.
-
-(* Fixpoint required_size_loop n l :=
-  match n with
-  | O => 1
-  | S m => 
-    let s := Int.repr (Z.of_nat n) in
-    if (l >> s * Int.repr 8)%int == 0
-    then required_size_loop m l
-    else s
-  end.
-
-Definition required_size l := required_size_loop 4%nat l. *)
 
 Fixpoint serialize_length_loop i n l :=
   match n with
   | O => []
-  | S n => (l >> i) :: serialize_length_loop (i - Int.repr 8) n l 
+  | S n => 
+    Int.zero_ext 8 (l >> i) :: serialize_length_loop (i - Int.repr 8) n l 
   end. 
 
 Definition serialize_length l := 
   let s := required_size l in
-  let n := Z.to_nat (Int.unsigned s) in
-  (Int.repr 128 or s) :: serialize_length_loop ((s - 1) * Int.repr 8) n l.
- 
-Definition ber_tlv_length_serialize len size : list int * int :=
+  let n := Z.to_nat s in
+  (Int.repr 128 or (Int.repr s)) :: serialize_length_loop (Int.repr ((s - 1) * 8)) n l.
+
+Fixpoint serialize_length_loop_app s n l :=
+  match n with
+  | O => []
+  | S n => 
+     serialize_length_loop_app (s + 1)%Z n l 
+                               ++ [Int.zero_ext 8 (l >> Int.repr (s * 8))]
+  end. 
+
+Definition serialize_length_app l := 
+  let s := required_size l in
+  let n := Z.to_nat s in
+  (Int.repr 128 or (Int.repr s)) :: serialize_length_loop_app 0%Z n l.
+
+Lemma loop_len_req_size : forall n l i, 
+    len (serialize_length_loop_app i n l) = Z.of_nat n.
+        induction n; intros.
+          - reflexivity.
+          - simpl.
+            erewrite Zlength_app.
+            erewrite IHn.
+            cbn.
+            nia.
+Qed.
+           
+Open Scope Z.
+
+Definition ber_tlv_length_serialize len size : list int * Z :=
    if (127 >=? Int.signed len)%Z then
-    if eq_dec size 0 
-    then ([], 1)
-    else ([len], 1) 
+    if eq_dec size 0%int 
+    then ([], 1%Z)
+    else ([Int.zero_ext 8 len], 1%Z) 
   else let r := required_size len in 
-       if (r <u size) 
-       then (serialize_length len, r + 1) 
+       if (r <? Int.unsigned size)%Z 
+       then (serialize_length_app len, (r + 1)%Z) 
        else ([], r + 1).
 
+Lemma req_size_32 : forall l, 0 <= required_size l <= 4.
+Proof.
+  intros.
+  unfold required_size.
+  cbn.
+  repeat break_if; autorewrite with norm; nia.
+Qed.
