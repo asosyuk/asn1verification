@@ -87,7 +87,7 @@ Fixpoint serialize_length_loop_app s n l :=
 Definition serialize_length_app l := 
   let s := required_size l in
   let n := Z.to_nat s in
-  (Int.repr 128 or (Int.repr s)) :: serialize_length_loop_app 0%Z n l.
+  (Int.zero_ext 8 (Int.repr 128 or (Int.repr s))) :: serialize_length_loop_app 0%Z n l.
 
 Lemma loop_len_req_size : forall n l i, 
     len (serialize_length_loop_app i n l) = Z.of_nat n.
@@ -118,4 +118,23 @@ Proof.
   unfold required_size.
   cbn.
   repeat break_if; autorewrite with norm; nia.
+Qed.
+
+Lemma shr_lt_zero_32: 
+  forall x, Int.shr x (Int.repr (Int.zwordsize)) 
+       = if Int.lt x Int.zero then Int.mone else Int.zero.
+Proof.
+  intros. apply Int.same_bits_eq; intros.
+  rewrite Int.bits_shr; auto.
+  rewrite Int.unsigned_repr.
+  transitivity (Int.testbit x (Int.zwordsize - 1)).
+  f_equal. destruct (zlt (i + (Int.zwordsize)) Int.zwordsize); try omega.
+  rewrite Int.sign_bit_of_unsigned.
+  unfold Int.lt. rewrite Int.signed_zero. unfold Int.signed.
+  destruct (zlt (Int.unsigned x) Int.half_modulus).
+  rewrite zlt_false. rewrite Int.bits_zero; auto.
+  generalize (Int.unsigned_range x); omega.
+  rewrite zlt_true. rewrite Int.bits_mone; auto.
+  generalize (Int.unsigned_range x); omega.
+  generalize Int.wordsize_max_unsigned; omega. 
 Qed.
