@@ -253,6 +253,35 @@ pose proof (Zlength_nonneg ls2);
   try nia.
 Qed.
 
+Lemma data_at_app_gen : forall (cs : compspecs) sh ls1 ls2 ls b ofs j1 j2 j,
+    j1 = Zlength ls1 ->
+    j2 = Zlength ls2 ->
+    j = j1 + j2 ->
+    ls = ls1 ++ ls2 ->
+    Ptrofs.unsigned ofs + (len ls1 + len ls2) < Ptrofs.modulus ->
+    data_at sh (tarray tuchar j) ls (Vptr b ofs) =
+   (data_at sh (tarray tuchar j1) ls1 (Vptr b ofs) *
+    data_at sh (tarray tuchar j2) ls2 (Vptr b (ofs + (Ptrofs.repr j1))%ptrofs))%logic.
+Proof.
+intros until j.
+intros J1 J2 J LS Ptr.
+assert (ls1 = sublist 0 (len ls1) (ls1 ++ ls2)) by (autorewrite with sublist; auto).
+assert (ls2 = sublist (len ls1) (len (ls1 ++ ls2)) (ls1 ++ ls2)) 
+  by (autorewrite with sublist; auto).
+subst.
+replace (len ls1 + len ls2)%Z with (len (ls1 ++ ls2)). 
+erewrite combine_data_at_sublist_tuchar with (j := (len ls1))
+                                             (ls1 := ls1)
+                                             (ls2 := ls2)
+                                             (ls := ls1 ++ ls2).
+replace (len (ls1 ++ ls2) - len ls1)%Z with (len ls2).
+auto.
+all: autorewrite with sublist list; auto.
+pose proof (Zlength_nonneg ls2); 
+  pose proof (Zlength_nonneg ls1);
+  try nia.
+Qed.
+
 Lemma typed_true_ptr_ge : forall b ptr1 ptr2, 
     typed_true tint (force_val (sem_cmp_pp Cge (Vptr b ptr1) (Vptr b ptr2))) ->
     Ptrofs.unsigned ptr1 >=? Ptrofs.unsigned ptr2 = true.

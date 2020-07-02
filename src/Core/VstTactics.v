@@ -7,5 +7,5 @@ Ltac forward_empty_loop :=
       end. 
 
 Ltac rewrite_if_b := 
-  try rewrite if_true in * by (reflexivity || assumption); 
-  try rewrite if_false in * by (reflexivity || assumption).
+  try rewrite if_true in * by (reflexivity || assumption || congruence); 
+  try rewrite if_false in * by (reflexivity || assumption || congruence).

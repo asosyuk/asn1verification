@@ -276,6 +276,7 @@ Proof.
         eapply sepcon_valid_pointer2.
         eapply data_at_valid_ptr; auto.
         apply valid_pointer_weak.
+        entailer!.
         apply derives_trans 
           with (Q := valid_pointer 
                        (Vptr buf_b (buf_ofs
@@ -292,7 +293,41 @@ Proof.
         setoid_rewrite LB. 
         nia.
         eapply sepcon_valid_pointer2.
-        admit.
+        remember (default_val (tarray tuchar size)) as default_list.
+        remember (required_size l) as r.
+        erewrite data_at_app_gen
+          with (j1 := 1 + r - (v + 1))
+               (j2 := len default_list - (1 + r))
+               (ls1 := sublist (v + 1) (1 + r) default_list)
+               (ls2 := sublist (1 + r) (len default_list) default_list). 
+        assert ((buf_ofs + Ptrofs.repr (1 + v) + Ptrofs.repr (1 + r - (v + 1)))%ptrofs =
+        (buf_ofs + Ptrofs.repr (1 + r))%ptrofs) as PTR.
+        {  ptrofs_compute_add_mul; try rep_omega.
+           f_equal.
+           rep_omega. }
+        rewrite PTR.
+        entailer!.
+        assert (sizeof (tarray tuchar (len (default_val (tarray tuchar size))
+                                       - (1 + required_size l))) > 0).
+        { simpl.
+          erewrite Zmax0r.
+          setoid_rewrite LB in H14.
+          setoid_rewrite LB. 
+          nia.
+          setoid_rewrite LB in H14.
+          setoid_rewrite LB. 
+          nia. }
+        entailer!.
+        eapply sepcon_valid_pointer2.
+        eapply data_at_valid_ptr; auto.
+        1-5:  replace (Int.unsigned 0%int) with 0%Z in H4 by auto with ints.
+        4: erewrite sublist_split with (mid := (1 + r)); auto; nia.
+        1-3: 
+          try erewrite Zlength_sublist_correct;
+          try nia;  rewrite LB; try nia.
+        repeat erewrite Zlength_sublist_correct;
+          try nia;  try rewrite LB; try nia.
+        ptrofs_compute_add_mul; try rep_omega.
         apply valid_pointer_weak.
         ++
         erewrite split_non_empty_list with 
@@ -493,6 +528,6 @@ Proof.
         nia.
         rep_omega.
         * nia.
-Admitted.
+Qed.
          
         
