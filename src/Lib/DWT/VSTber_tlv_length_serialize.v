@@ -134,7 +134,6 @@ Proof.
        forward_if; repeat forward.
        forward_if;
          repeat forward.
-       assert (i * 8 < 8 * 4) by nia.
        Exists (i + 1).
        entailer!.
        split.
@@ -228,7 +227,7 @@ Proof.
     (EX ls : list int, EX j : int,          
     (PROP (let r := required_size l in
            let n :=  (Z.to_nat r) in
-         ls = serialize_length_loop_app 0  n l)
+         ls = serialize_length_loop_app 0 n l)
      LOCAL (temp _buf (Vptr buf_b (buf_ofs + Ptrofs.repr 1
                                    + Ptrofs.repr (len ls))%ptrofs);
             temp _i (Vint j);
@@ -480,7 +479,6 @@ Proof.
         rewrite C in *.
         rewrite Int.unsigned_repr_eq in Heqp.
         rewrite Zmod_small in Heqp.
-        Search (_ < _) true.
         erewrite <- Z.ltb_lt in H3.
         rewrite H3 in Heqp.
         inversion Heqp.
