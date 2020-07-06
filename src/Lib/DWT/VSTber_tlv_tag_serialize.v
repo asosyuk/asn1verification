@@ -13,29 +13,33 @@ Open Scope Z.
 
 Definition ber_tlv_tag_serialize_spec : ident * funspec :=
   DECLARE _ber_tlv_tag_serialize
-  WITH tag : int, buf_b : block, buf_ofs : ptrofs, size : Z
+  WITH tag : int, buf_b : block, buf_ofs : ptrofs, size : Z, buf_size : Z
   PRE[tuint, tptr tvoid, tuint]
-    PROP(32 < size < Int.modulus;
-         Ptrofs.unsigned buf_ofs + size < Ptrofs.modulus)
+    PROP(0 <= size < Int.modulus;
+         0 <= buf_size < Int.modulus;
+         Ptrofs.unsigned buf_ofs + size < Ptrofs.modulus;
+         Ptrofs.unsigned buf_ofs + buf_size < Ptrofs.modulus)
     PARAMS(Vint tag; (Vptr buf_b buf_ofs); Vint (Int.repr size))
     GLOBALS()
-    SEP(data_at Tsh (tarray tuchar size)
-                    (default_val (tarray tuchar size)) 
+    SEP(data_at Tsh (tarray tuchar buf_size)
+                    (default_val (tarray tuchar buf_size)) 
                     (Vptr buf_b buf_ofs))
   POST[tuint]
-    let (ls, z) := ber_tlv_tag_serialize tag (Int.repr size) in
     PROP()
-    LOCAL(temp ret_temp (Vint (Int.repr z)))
-    SEP(if eq_dec ls [] 
-        then data_at Tsh (tarray tuchar size)
-                         (default_val (tarray tuchar size))
+    LOCAL(temp ret_temp
+               (Vint (Int.repr (snd (ber_tlv_tag_serialize tag
+                                                           (Int.repr size))))))
+    SEP(let ls := (fst (ber_tlv_tag_serialize tag (Int.repr size))) in
+        if eq_dec ls [] 
+        then data_at Tsh (tarray tuchar buf_size)
+                         (default_val (tarray tuchar buf_size))
                          (Vptr buf_b buf_ofs) 
-        else data_at Tsh (tarray tuchar size)
-                         (map Vint ls ++ sublist (len ls) size 
-                             (default_val (tarray tuchar size)))
+        else data_at Tsh (tarray tuchar buf_size)
+                         (map Vint ls 
+                              ++ sublist (len ls) buf_size 
+                             (default_val (tarray tuchar buf_size)))
                          (Vptr buf_b buf_ofs)).
-
-Definition Gprog := ltac:(with_library prog [ber_tlv_tag_serialize_spec]).
+(* Definition Gprog := ltac:(with_library prog [ber_tlv_tag_serialize_spec]).
 
 Open Scope IntScope.
 
@@ -72,21 +76,23 @@ Proof.
       entailer!.
     + unfold POSTCONDITION.
       unfold abbreviate. 
-      break_let.
+      try break_let.
       forward.
      break_if; unfold ber_tlv_tag_serialize in *;
      repeat rewrite_if_b;
      eapply Z.ge_le in H1;
      eapply Z.geb_le in H1;
      rewrite H1 in *.
-      * inversion Heqp.
-        rewrite_if_b.
+      * rewrite_if_b.
         entailer!.           
-      * inversion Heqp.
+      * unfold snd.
+        unfold fst.
         rewrite if_false by congruence.
         erewrite upd_Znth_unfold.
-        rewrite LB.
+        setoid_rewrite LB.
         entailer!.
+        setoid_rewrite LB.
+        assert (size <> 0%Z) by admit.
         nia.
   - (* 30 < tag *) 
     forward_if (
@@ -136,6 +142,7 @@ Proof.
       repeat rewrite_if_b.
       entailer!.
     + break_if.
+      assert (size = 0%Z) as S by admit.
       assert ((30 >=? Int.unsigned (tag >>u Int.repr 2)) = false) as C.
            { erewrite Z.geb_leb. 
              Zbool_to_Prop.
@@ -227,12 +234,11 @@ Proof.
            forward_if.
            unfold POSTCONDITION.
            unfold abbreviate. 
-           break_let.
+           try break_let.
            forward.
            unfold ber_tlv_tag_serialize in *.
            rewrite C in *.
            repeat rewrite_if_b.          
-           inversion Heqp.
            entailer!.
            rewrite Int.unsigned_repr_eq in H2.
            rewrite Zmod_small in H2; try rep_omega.           
@@ -242,7 +248,7 @@ Proof.
            replace (Int.unsigned 0) with 0%Z in * by auto with ints.
            auto.
            rep_omega.
-           rep_omega.
+           admit.
            rewrite Zmod_small in H2; try rep_omega.
            subst.
            rep_omega.
@@ -250,7 +256,9 @@ Proof.
            unfold two_power_nat.
            simpl.
            subst. nia.
-           ++ repeat forward. 
+           ++
+              assert (size <> 0%Z) as S by admit.
+              repeat forward. 
          forward_loop (EX i: Z, 
           PROP (i = 1%Z \/ i = 2 \/ i = 3 \/ i = 4 \/ i = 5; 
                 forall j, 0 <= j < i ->
@@ -287,7 +295,7 @@ Proof.
          * Intro i.
            forward_if; repeat forward.
            forward_if;
-            repeat forward.
+             repeat forward.
            rewrite Int.unsigned_repr_eq in H2.
            rewrite Zmod_small in H2.
            entailer!.
@@ -340,15 +348,22 @@ Proof.
            forward_if.
            unfold POSTCONDITION.
            unfold abbreviate. 
-           break_let.
+           try break_let.
            forward.
            unfold ber_tlv_tag_serialize in *.
-           rewrite C in *.
-           repeat rewrite_if_b.  
-           rewrite Int.unsigned_repr_eq in Heqp.
-           rewrite Zmod_small in Heqp; try rep_omega.
+           rewrite C in *.          
+           rewrite Int.unsigned_repr_eq.
+           rewrite Zmod_small; try rep_omega.
            rewrite Int.unsigned_repr_eq in H2.
            rewrite Zmod_small in H2; try rep_omega.
+           repeat rewrite_if_b.  
+           repeat rewrite_if_b. 
+           replace (size - 1 <? required_size (tag >>u Int.repr 2)) with true by admit.
+           rewrite_if_b.
+           unfold fst.
+           rewrite_if_b.
+           entailer!.
+           admit.
            forward.
            forward.
            normalize.
@@ -430,8 +445,13 @@ Proof.
                  with (Q := valid_pointer 
                               (Vptr buf_b (buf_ofs + Ptrofs.repr (v + 1))%ptrofs)).
                entailer!.
+                rewrite Int.unsigned_repr_eq in H2.
+                rewrite Zmod_small in H2; try rep_omega.
+                entailer!.
                apply valid_pointer_weak. }
-             { assert (0 < size - v - 1)%Z as LD by
+             {  rewrite Int.unsigned_repr_eq in H2.
+                rewrite Zmod_small in H2; try rep_omega.
+               assert (0 < size - v - 1)%Z as LD by
                      (try erewrite LB; nia).
                assert (sizeof (tarray tuchar (size - v - 1)) > 0) by (simpl; nia).
                remember (default_val (tarray tuchar size)) as default_list.
@@ -688,3 +708,4 @@ Proof.
                  autorewrite with norm; try rep_omega; try nia.
              *** subst. rep_omega.
 Admitted.
+*)
