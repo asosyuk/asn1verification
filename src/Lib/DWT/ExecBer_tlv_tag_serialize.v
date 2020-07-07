@@ -109,15 +109,15 @@ Definition ber_tlv_tag_serialize (tag size : int): list int * Z :=
   let tval := tag >>u (Int.repr 2) in
   if 30 >=? Int.unsigned tval then
     if eq_dec size 0%int 
-    then ([], 1)
+    then ([], -1)
     else ([Int.zero_ext 8 ((tclass << Int.repr 6) or tval)]%int, 1)
   else 
     let r := required_size tval in
     if eq_dec size 0%int 
-       then ([], r + 1)
+       then ([], -1)
        else let t := (Int.zero_ext 8 ((tclass << Int.repr 6) or Int.repr 31))%int in
             if Int.unsigned size - 1 <? r
-            then ([t], r + 1)
+            then ([t], -1)
             else
             (t :: (serialize_tag tval), r + 1).
 

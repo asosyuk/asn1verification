@@ -105,12 +105,12 @@ Open Scope Z.
 Definition ber_tlv_length_serialize len size : list int * Z :=
    if (127 >=? Int.signed len)%Z then
     if eq_dec size 0%int 
-    then ([], 1%Z)
+    then ([], -1%Z)
     else ([Int.zero_ext 8 len], 1%Z) 
   else let r := required_size len in 
        if (r <? Int.unsigned size)%Z 
        then (serialize_length_app len, (r + 1)%Z) 
-       else ([], r + 1).
+       else ([], -1).
 
 Lemma req_size_32 : forall l, 0 <= required_size l <= 4.
 Proof.
