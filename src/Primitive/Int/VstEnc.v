@@ -1,5 +1,5 @@
 Require Import Core.Core Lib.Lib Core.StructNormalizer 
-        VstLib Int.Exec Lib.Callback.Dummy Lib.DWT.Vst.
+        VstLib Int.Exec Lib.Callback.Dummy Lib.DWT.Vst. 
 Require Import VST.floyd.proofauto.
 Require Import Clight.dummy Clight.INTEGER.
 
@@ -84,7 +84,7 @@ Ltac forward_empty_loop :=
           forward_loop Pre break: Pre; try forward ; try entailer! 
       end. 
 
-Ltac prove_field_compatible := 
+Ltac prove_field_compatible_arr := 
   match goal with
   | |- field_compatible _ _ ?p => 
     match p with
@@ -105,7 +105,6 @@ Ltac prove_field_compatible :=
     end
   | _ => fail "Goal must be in the form field_compatible _ _ ?p"
   end.
-  
 
 Theorem int_der_encode : semax_body Vprog Gprog 
                                      (normalize_function f_INTEGER_encode_der
@@ -155,7 +154,8 @@ Proof.
     repeat forward.
     normalize.
     forward_loop (EX z : Z, 
-               PROP (0 < z + 1 < Zlength data)
+               PROP (0 <=  z;
+                     Ptrofs.unsigned buf_ofs + z <= Ptrofs.max_unsigned)
                LOCAL (temp 
                         _end1 
                         (Vptr buf_b
@@ -182,7 +182,8 @@ Proof.
                     field_at Tsh prim_type_s (DOT _size) (Vint (Int.repr size)) sptr_p; 
                     valid_pointer cb_p))%assert
       continue: (EX z : Z, 
-               PROP (0 < z + 1 <= Zlength data)
+               PROP (0 <= z;
+                     Ptrofs.unsigned buf_ofs + z + 1 <= Ptrofs.max_unsigned)
                LOCAL (temp 
                         _end1 
                         (Vptr buf_b
@@ -241,16 +242,52 @@ Proof.
     - (* loop *)
       Intros z.
       forward_if.
-      unfold test_order_ptrs.
+      unfold test_order_ptrs, sameblock.
+      destruct peq; try congruence.
+      entailer!.
       admit.
+
+      assert (Z : 0 < z + 1 < Zlength data).
+      { unfold typed_true, strict_bool_val, sem_cmp_pp in H9; cbn in H9.
+        destruct eq_block in H9; try congruence.
+        break_match_hyp; try congruence.
+        unfold force_val, Val.of_bool, Ptrofs.ltu in Heqv; cbn in Heqv.
+        destruct zlt in Heqv.
+        unfold Ptrofs.add in l.
+        repeat rewrite ->Ptrofs.add_unsigned in l.
+        replace (Ptrofs.repr 1) with Ptrofs.one in l by reflexivity.
+        unfold Ptrofs.sub in l.
+        replace (Ptrofs.unsigned (Ptrofs.repr z)) with z in l.
+        rewrite Ptrofs.unsigned_repr in l.
+        replace (Ptrofs.unsigned (Ptrofs.repr size)) with size in l.
+        replace (Ptrofs.unsigned Ptrofs.one) with 1 in l by reflexivity.
+        rewrite Ptrofs.unsigned_repr in l at 1.
+        rewrite Ptrofs.unsigned_repr in l.
+        assert (T : forall p, (p + size - 1) = (p + size + (-1))) by lia; 
+          rewrite T in l; clear T.
+        rewrite <-Z.add_assoc in l.
+        apply Zplus_lt_reg_l with (n := z) (m := (size + -1)) 
+                                    (p := Ptrofs.unsigned buf_ofs) in l.
+        lia.
+        rep_omega.
+        rewrite Ptrofs.unsigned_repr; rep_omega.
+        rewrite Ptrofs.unsigned_repr; rep_omega.
+        rep_omega.
+        rewrite Ptrofs.unsigned_repr. 
+        reflexivity.
+        rep_omega.
+        unfold Vfalse in Heqv; inversion Heqv; rewrite <-H11 in H9; 
+          unfold Int.eq in H9; rewrite Int.unsigned_zero in H9; cbn in H9.
+        congruence. }
 
       assert_PROP (Vptr buf_b (Ptrofs.add buf_ofs (Ptrofs.repr z)) =
                   field_address (tarray tuchar size) (SUB z) (Vptr buf_b buf_ofs)).
       entailer!.
-      assert (field_compatible (tarray tuchar (Zlength data)) (SUB z) (Vptr buf_b buf_ofs)).
-      prove_field_compatible.
-      apply field_compatible_field_address in H22.
-      rewrite H22; cbn; replace (0 + 1 * z) with z by lia; reflexivity.
+      assert (FA : field_compatible (tarray tuchar (Zlength data)) (SUB z) 
+                                    (Vptr buf_b buf_ofs)).
+      prove_field_compatible_arr.
+      apply field_compatible_field_address in FA.
+      rewrite FA; cbn; replace (0 + 1 * z) with z by lia; reflexivity.
 
       forward.
       entailer!.
@@ -293,11 +330,11 @@ Proof.
                                                         (Ptrofs.of_ints (Int.repr 1)))) =
                      field_address (tarray tuchar size) (SUB (z + 1)) (Vptr buf_b buf_ofs)).
         entailer!.
-        assert (field_compatible (tarray tuchar (Zlength data)) (SUB (z + 1)) 
+        assert (FA : field_compatible (tarray tuchar (Zlength data)) (SUB (z + 1)) 
                                  (Vptr buf_b buf_ofs)).
-        prove_field_compatible i H6.
-        apply field_compatible_field_address in H24.
-        rewrite H24; cbn; replace (0 + 1 * (z + 1)) with (z + 1) by lia; reflexivity.
+        prove_field_compatible_arr.
+        apply field_compatible_field_address in FA.
+        rewrite FA; cbn; replace (0 + 1 * (z + 1)) with (z + 1) by lia; reflexivity.
 
         forward.
         entailer!.
@@ -322,11 +359,11 @@ Proof.
                                                         (Ptrofs.of_ints (Int.repr 1)))) =
                      field_address (tarray tuchar size) (SUB (z + 1)) (Vptr buf_b buf_ofs)).
         entailer!.
-        assert (field_compatible (tarray tuchar (Zlength data)) (SUB (z + 1)) 
+        assert (FA : field_compatible (tarray tuchar (Zlength data)) (SUB (z + 1)) 
                                  (Vptr buf_b buf_ofs)).
-        prove_field_compatible i H6.
-        apply field_compatible_field_address in H24.
-        rewrite H24; cbn; replace (0 + 1 * (z + 1)) with (z + 1) by lia; reflexivity.
+        prove_field_compatible_arr.
+        apply field_compatible_field_address in FA.
+        rewrite FA; cbn; replace (0 + 1 * (z + 1)) with (z + 1) by lia; reflexivity.
 
         forward.
         entailer!.
@@ -344,26 +381,25 @@ Proof.
           forward.
           entailer!.
       }
-      { (* *buf <> 0 /\ *buf <> 255 -> default case -> break *)
+      { (* default case *)
         forward.
         entailer!.
       }
-      { (* additional break, if no inner switch ifs worked *)
+      { (* break after switch *)
         forward.
         Exists z.
         entailer!.
       }
-      (* Don't really understand from where this case comes from! *)
+      (* *buf <> 0 /\ *buf <> 255 -> default case -> break *)
       forward.
       Exists z.
       entailer!.
 
-    - (* iteration variable increment *)
+    - (* continue post-condition *)
       Intros z.
       forward.
       Exists (z + 1).
       entailer!.
-      admit.
       
     - (* after switch shift manipulation *)
       Intros z.
@@ -379,7 +415,8 @@ Proof.
         admit.
 
       + (* shift = 0 *)
-        admit.
+        forward.
+        entailer!.
     
   * (* postcondition check *)
     forward.
