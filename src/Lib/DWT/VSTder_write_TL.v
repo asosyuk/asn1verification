@@ -172,13 +172,19 @@ Proof.
       admit.
       discriminate.
     + (* cb <> nullval *)
+      pose proof (tag_serialize_req_size tag (Int.repr 32)) as TT.
+      pose proof (tag_serialize_req_size len (Int.repr 32)) as LL.
+      break_let.
+      break_let.
      pose proof (tag_serialize_bounds tag (Int.repr 32)) as TL.
      repeat forward.
      forward_call (tag, b, i, 32, 32).
      repeat split; try rep_omega.      
-     remember (snd (ber_tlv_tag_serialize tag (Int.repr 32))) as z.
+     assert (snd (ber_tlv_tag_serialize tag (Int.repr 32)) = z0) as MM. 
+     { unfold snd; break_let. inversion Heqp0. auto. }
+     rewrite MM.
      forward_if ((temp _t'3
-                       (if eq_dec (Int.repr z) (Int.repr (-1)) 
+                       (if eq_dec (Int.repr z0) (Int.repr (-1)) 
                         then Vint (Int.one)
                         else
            (force_val
@@ -193,7 +199,7 @@ Proof.
            auto;
            break_if; entailer!.      
       break_if.
-      * assert (z = -1) as Z. 
+      * assert (z0 = -1) as Z. 
       { eapply repr_inj_signed;
           try rep_omega; auto. }
         forward_if; try discriminate.
@@ -208,16 +214,19 @@ Proof.
           subst. cbn. auto. }  
         Exists (Vptr b i).
         rewrite L in *.
-        inversion Heqp.
+        inversion Heqp1.
         subst. 
         break_if.
         entailer!.
-        erewrite data_at_zero_array_eq.
+       (* erewrite data_at_zero_array_eq.
         all: auto.
         entailer!.
         erewrite data_at_zero_array_eq.
-        all: auto.
-      * assert (z <> -1) as Z. 
+        all: auto. *)
+        admit.
+        entailer!.
+        admit.
+      * assert (z0 <> -1) as Z. 
         { eapply repr_neq_e. auto. }
         forward_if.
         unfold POSTCONDITION.
@@ -229,7 +238,7 @@ Proof.
         clear H1.
         unfold Int.lt in H0.
         destruct zlt; try congruence.
-        do 2 rewrite Int.signed_repr in l0; try rep_omega.
+        do 2 rewrite Int.signed_repr in l2; try rep_omega.
         normalize in H0.
         eapply typed_false_of_bool in H0.
         unfold Int.lt in H0.
@@ -240,22 +249,22 @@ Proof.
         repeat forward.
         normalize.
         deadvars.
-        forward_if (temp _t'4 (Vint (Int.repr (32 - z)))); try congruence.
+        forward_if (temp _t'4 (Vint (Int.repr (32 - z0)))); try congruence.
         repeat forward.
         entailer!.
         discriminate.
         remember (fst (ber_tlv_tag_serialize tag (Int.repr 32))) as ls.         
         erewrite data_at_app_gen 
-          with (j1 := z)
-               (j2 := 32 - z)
+          with (j1 := z0)
+               (j2 := 32 - z0)
                (ls1 := map Vint ls)
-               (ls2 := (default_val (tarray tuchar (32 - z))));
+               (ls2 := (default_val (tarray tuchar (32 - z0))));
           (autorewrite with sublist list norm; try rep_omega; auto).
-        forward_call (len, b, (i + Ptrofs.repr z)%ptrofs, (32 - z), (32 - z)).
+        forward_call (len, b, (i + Ptrofs.repr z0)%ptrofs, (32 - z0), (32 - z0)).
         unfold Frame.
         instantiate
           (1 := [valid_pointer cb;  data_at_ Tsh enc_key_s app_key;
-          data_at Tsh (tarray tuchar z) (map Vint ls) (Vptr b i)]). 
+          data_at Tsh (tarray tuchar z0) (map Vint ls) (Vptr b i)]). 
         unfold fold_right_sepcon.
         entailer!.
         repeat split; try rep_omega.
@@ -269,23 +278,23 @@ Proof.
            repeat forward.
            Exists (Vptr b i).
            entailer!.
-           replace z1 with (snd (der_write_TL tag len 32)).
+           replace z2 with (snd (der_write_TL tag len 32)).
            unfold der_write_TL.
            repeat break_let.
            cbn in *.
            do 2 f_equal.
-           replace ((z =? -1) || (z >? 32))%bool with false.
-           assert ((snd (ber_tlv_length_serialize len (Int.repr (32 - z)))) = z2) as B.
+           replace ((z0 =? -1) || (z0 >? 32))%bool with false.
+           assert ((snd (ber_tlv_length_serialize len (Int.repr (32 - z0)))) = z1) as B.
            { unfold snd.
              break_let.
              auto.
-             inversion Heqp2.
+             inversion Heqp1.
              auto. }
-           assert (z2 = z0) as F.
-           rewrite Heqp2 in Heqp.
-           inversion Heqp. auto.
-           pose proof (length_serialize_bounds len (Int.repr (32 - z))) as L.
-           assert (z2 = -1) as Z0. 
+           assert (z1 = z3) as F.
+           rewrite Heqp4 in Heqp1.
+           inversion Heqp1. auto.
+           pose proof (length_serialize_bounds len (Int.repr (32 - z0))) as L.
+           assert (z3 = -1) as Z0. 
            { eapply repr_inj_signed;
                try rep_omega; subst; auto. }
            rewrite Z0.
@@ -298,34 +307,34 @@ Proof.
            unfold snd.
            break_let.
            congruence.
-           remember (snd (ber_tlv_tag_serialize tag (Int.repr 32))) as z.
+           remember (snd (ber_tlv_tag_serialize tag (Int.repr 32))) as z0.
            remember (fst (ber_tlv_tag_serialize tag (Int.repr 32))) as ls.
            break_if. 
-           +++ assert (l0 = ls ++ l) as L0.
+           +++ assert (l2 = ls ++ l1) as L0.
                { subst.
-                 replace l0 with (fst (der_write_TL tag len 32)).
+                 replace l2 with (fst (der_write_TL tag len 32)).
                  erewrite <- app_nil_end.
                  unfold der_write_TL.
                  repeat break_let.
                  cbn in *.
-                 replace ((z =? -1) || (z >? 32))%bool with false.
-                 assert ((snd (ber_tlv_length_serialize len (Int.repr (32 - z)))) = z2) as B.
+                 replace ((z0 =? -1) || (z0 >? 32))%bool with false.
+                 assert ((snd (ber_tlv_length_serialize len (Int.repr (32 - z0)))) = z3) as B.
                  { unfold snd.
                    break_let.
                    auto.
-                   inversion Heqp2.
+                   inversion Heqp4.
                    auto. }
-                 assert (z2 = z0) as F.
-                 rewrite Heqp2 in Heqp.
-                 inversion Heqp. auto.
-                 pose proof (length_serialize_bounds len (Int.repr (32 - z))) as L.
-                 assert (z2 = -1) as Z0. 
+                 assert (z3 = z1) as F.
+                 rewrite Heqp4 in Heqp1.
+                 inversion Heqp1. auto.
+                 pose proof (length_serialize_bounds len (Int.repr (32 - z0))) as L.
+                 assert (z3 = -1) as Z0. 
                  { eapply repr_inj_signed;
                      try rep_omega; subst; auto. }
                  rewrite Z0.
                  cbn.
-                 rewrite Heqp2 in Heqp.
-                 inversion Heqp.
+                 rewrite Heqp4 in Heqp1.
+                 inversion Heqp1.
                   erewrite <- app_nil_end.
                   auto.                  
                  symmetry.
@@ -341,16 +350,30 @@ Proof.
                  erewrite <- data_at_app_gen.
                  entailer!.
                  admit. 
-                 erewrite Zlength_map.
-                 (* add lemma z = ls *)
-                 admit.
+                 auto.
                  {  subst; unfold default_val;
                       simpl;
                       try erewrite Zlength_list_repeat;
-                      try nia; auto. }
-                 admit. (* len lemma *)
-                 admit.
-           +++ admit. (* wrong data_at introduced automatically *)
+                      try nia; auto. } 
+                 nia.
+                 rewrite <- Heqls.
+                 rewrite e.
+                 erewrite <- app_nil_end.
+                 erewrite Zlength_map in *.
+                 erewrite H4.
+                 autorewrite with sublist list norm.
+                 f_equal.
+                 unfold default_val.
+                   simpl.
+                   try erewrite Zlength_list_repeat.                   
+                 erewrite <- sublist_list_repeat with (k := 32).
+                 auto.
+                 all: try nia.
+                 setoid_rewrite H4.
+                 unfold tarray.
+                 erewrite Zlength_default_val_Tarray_tuchar.
+                 all: rep_omega.
+           +++  admit. (* wrong data_at introduced automatically *)
          ** repeat forward.
             forward_if.
             ***

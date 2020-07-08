@@ -78,23 +78,24 @@ Fixpoint serialize_tag_loop s n t :=
      serialize_tag_loop (s + 1)%Z n t ++ [b]
   end. 
 
-Definition serialize_tag l := 
-  let s := required_size l in
-  let n := Z.to_nat s in
-  serialize_tag_loop 0%Z n l ++ [Int.zero_ext 8 (l & Int.repr 127)].
+Definition serialize_tag t := 
+  let s := required_size t in
+  let n := Z.to_nat (s - 1) in
+  serialize_tag_loop 0%Z n t ++ [Int.zero_ext 8 (t & Int.repr 127)].
 
 Lemma loop_len_req_size : forall n l i, 
     len (serialize_tag_loop i n l) = Z.of_nat n.
-        induction n; intros.
-          - reflexivity.
-          - simpl.
-            erewrite Zlength_app.
-            erewrite IHn.
-            cbn.
-            nia.
+Proof.
+  induction n; intros.
+  - reflexivity.
+  - simpl.
+    erewrite Zlength_app.
+    erewrite IHn.
+    cbn.
+    nia.
 Qed.
            
-Lemma req_size_32 : forall l, 0 <= required_size l <= 5.
+Lemma req_size_32 : forall l, 1 <= required_size l <= 5.
 Proof.
   intros.
   unfold required_size.
@@ -120,6 +121,21 @@ Definition ber_tlv_tag_serialize (tag size : int): list int * Z :=
             then ([t], -1)
             else
             (t :: (serialize_tag tval), r + 1).
+
+Lemma tag_serialize_req_size : forall l s, 
+    let (ls, z) := ber_tlv_tag_serialize l s in
+    z <> -1 -> len ls = z.
+Proof.
+intros.
+unfold ber_tlv_tag_serialize.
+repeat break_if; auto; try nia.
+intros.
+pose proof (req_size_32 (l >>u Int.repr 2)).
+unfold serialize_tag.
+autorewrite with sublist list;
+erewrite loop_len_req_size;
+erewrite Z2Nat.id; try nia.
+Qed.
 
 Lemma shr_lt_zero_35: 
              forall x, Int.shru x (Int.repr 35)

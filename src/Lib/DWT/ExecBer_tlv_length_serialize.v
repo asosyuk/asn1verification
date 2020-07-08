@@ -91,16 +91,27 @@ Definition serialize_length_app l :=
 
 Lemma loop_len_req_size : forall n l i, 
     len (serialize_length_loop_app i n l) = Z.of_nat n.
-        induction n; intros.
-          - reflexivity.
-          - simpl.
-            erewrite Zlength_app.
-            erewrite IHn.
-            cbn.
-            nia.
+Proof.
+  induction n; intros.
+  - reflexivity.
+  - simpl.
+    erewrite Zlength_app.
+    erewrite IHn.
+    cbn.
+    nia.
 Qed.
+
            
 Open Scope Z.
+
+Lemma req_size_32 : forall l, 1 <= required_size l <= 4.
+Proof.
+  intros.
+  unfold required_size.
+  cbn.
+  repeat break_if; autorewrite with norm; nia.
+Qed.
+
 
 Definition ber_tlv_length_serialize len size : list int * Z :=
    if (127 >=? Int.signed len)%Z then
@@ -112,12 +123,19 @@ Definition ber_tlv_length_serialize len size : list int * Z :=
        then (serialize_length_app len, (r + 1)%Z) 
        else ([], -1).
 
-Lemma req_size_32 : forall l, 0 <= required_size l <= 4.
+Lemma length_serialize_req_size : forall l s, 
+    let (ls, z) := ber_tlv_length_serialize l s in
+    z <> -1 -> len ls = z.
 Proof.
-  intros.
-  unfold required_size.
-  cbn.
-  repeat break_if; autorewrite with norm; nia.
+intros.
+unfold ber_tlv_length_serialize.
+repeat break_if; auto; try nia.
+intros.
+pose proof (req_size_32 l).
+unfold serialize_length_app.
+autorewrite with sublist list.
+erewrite  loop_len_req_size .
+erewrite Z2Nat.id; try nia.
 Qed.
 
 Lemma shr_lt_zero_32: 
