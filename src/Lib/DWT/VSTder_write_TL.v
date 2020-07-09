@@ -74,12 +74,12 @@ Definition der_write_TL tag len size :=
   let (tl, t) := ber_tlv_tag_serialize tag (Int.repr size) in
   let (ll, l) := ber_tlv_length_serialize len (Int.repr (size - t)) in
   let ls := tl ++ ll in
-  if ((t =? -1) || (t >? 32))%bool 
+  if ((t =? -1) || (32 <? t))%bool 
   then ([], -1)
   else if l =? -1 
        then (ls, -1) 
        else let s := l + t in
-            if s >? 32 
+            if 32 <? s 
             then ([], -1)
             else (tl ++ ll, s).
 
@@ -98,11 +98,36 @@ Lemma length_serialize_bounds :
     repeat break_if; autorewrite with norm; try nia. } 
 Qed.
 
+Lemma der_write_TL_serialize_sum : 
+  forall t l s, 
+    let (tls, tl) := ber_tlv_tag_serialize t (Int.repr s)  in
+    let (lls, ll) := ber_tlv_length_serialize l (Int.repr (s - tl)) in
+    tl <> -1 ->
+    ll <> -1 ->
+    tl <= 32 ->
+    tl + ll <= 32 ->
+    der_write_TL t l s = (tls ++ lls, tl + ll).
+Proof.
+  intros.
+  repeat break_let.
+  unfold der_write_TL.
+  intros Z Z0 Z32 Zplus.
+  erewrite Heqp.
+  erewrite Heqp0.
+  repeat break_if; try destruct_orb_hyp;
+  repeat Zbool_to_Prop; try nia.
+  intuition.
+Qed.
+
 Definition Z_of_val v := 
   match v with
   | Vptr b i => Ptrofs.unsigned i 
   | _ => 0
   end.
+
+Definition dummy_callback : ident * funspec :=
+  DECLARE _dummy dummy_callback_spec.
+
   
 Definition der_write_TL_spec : ident * funspec :=
   DECLARE _der_write_TL
@@ -112,7 +137,8 @@ Definition der_write_TL_spec : ident * funspec :=
     PARAMS(Vint tag; Vint len; cb; app_key; Vint constructed)
     GLOBALS()
     SEP(data_at_ Tsh enc_key_s app_key;
-        valid_pointer cb)
+        valid_pointer cb;
+        func_ptr dummy_callback_spec cb)
   POST[tint]
     let size := if Val.eq cb nullval then 0 else 32 in
     let (ls, z) := der_write_TL tag len size in
@@ -124,7 +150,9 @@ Definition der_write_TL_spec : ident * funspec :=
                 (map Vint ls ++ sublist (Zlength ls) 32
                 (default_val (tarray tuchar 32))) buf;
         data_at_ Tsh enc_key_s app_key;
-        valid_pointer cb).
+        valid_pointer cb;
+        func_ptr dummy_callback_spec cb).
+
 
 Definition Gprog := ltac:(with_library prog [der_write_TL_spec;
                                              ber_tlv_tag_serialize_spec; 
@@ -163,18 +191,19 @@ Proof.
     entailer!.
     discriminate.
     edestruct HPv_buf.
-    subst. cbv. auto.
+    subst. cbn. auto.
+    all: admit.
   - forward.
     entailer!.
-    edestruct HPv_buf.
-    subst. cbv. auto.
+    (*edestruct HPv_buf.
+    subst. cbv. auto. *)
   - repeat forward.
     unfold isptr in *.
     destruct v_buf; try contradiction.
     cbn in H.
     break_if.
     (* cb = nullval *)
-    + forward_call (tag, b, i, 0%Z, 32).
+    + (* forward_call (tag, b, i, 0%Z, 32).
       repeat split; try rep_omega.      
       remember (snd (ber_tlv_tag_serialize tag (Int.repr 0))) as z.
       forward_if ((temp _t'3 (if eq_dec (Int.repr z) (Int.repr (-1)) 
@@ -217,10 +246,10 @@ Proof.
       rewrite if_true by (unfold fst; break_let; inversion B; auto).
       entailer!.
       admit.
-      discriminate.
+      discriminate. *) admit.
     + (* cb <> nullval *)
       pose proof (tag_serialize_req_size tag (Int.repr 32)) as TT.
-      pose proof (tag_serialize_req_size 
+      pose proof (length_serialize_req_size 
                     len (Int.repr (32 - 
                                    snd ((ber_tlv_tag_serialize tag (Int.repr 32)))))) as LL.
       break_let.
@@ -249,7 +278,7 @@ Proof.
            auto;
            break_if; entailer!.      
       break_if.
-      * assert (z0 = -1) as Z. 
+      * (* assert (z0 = -1) as Z. 
       { eapply repr_inj_signed;
           try rep_omega; auto. }
         forward_if; try discriminate.
@@ -274,7 +303,7 @@ Proof.
         erewrite data_at_zero_array_eq.
         all: auto. *)
         admit.
-        entailer!.
+        entailer!. *)
         admit.
       * assert (z0 <> -1) as Z. 
         { eapply repr_neq_e. auto. }
@@ -513,27 +542,30 @@ Proof.
                   1-8 : admit.
                   forward.
                   entailer!.
-                  hint.
-                  Intros.
+                  Intros.   
+                  Set Ltac Backtrace.
+                  (* forward_call ((Vptr b i), z, app_key). *)
+                  admit.
+               -- unfold POSTCONDITION.
+                  unfold abbreviate.
+                  repeat break_let.
+                  forward.
+                  Exists (Vptr b i).
+                  entailer!.
+                  do 2 f_equal.
+                  replace z1 
+                    with (snd (ber_tlv_tag_serialize len
+           (Int.repr (32 - snd (ber_tlv_tag_serialize tag (Int.repr 32)))))).
+                  replace z2 with
+                      (snd (der_write_TL tag len 32)).
+                  { unfold der_write_TL.
+                    erewrite term
                   
-                  forward_call ((Vptr b i), z, app_key).
-           ++
-             (* store - add to spec *)
-             admit.
-           ++
-             forward.
-             entailer!.
-           ++ 
-             (* forward call *)
-             admit.
-        --
-          forward.
-          entailer!.
-          do 2 f_equal.
-          admit. (* spec proof *)
-          break_let.
-          admit. (* changes in memory from serialize tag and length *)
-          ** admit. (* add lemma *)
+                  Search snd (_,_).
+                 admit. (* spec proof *)
+                 break_let.
+                 admit. (* changes in memory from serialize tag and length *)
+                 ** admit. (* add lemma *)
 Admitted.
 
 
