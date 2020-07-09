@@ -27,9 +27,9 @@ Definition ber_tlv_tag_serialize_spec : ident * funspec :=
   POST[tuint]
     PROP()
     LOCAL(temp ret_temp
-               (Vint (Int.repr (snd (ber_tlv_tag_serialize tag
+               (Vint (Int.repr (snd (tag_serialize tag
                                                            (Int.repr size))))))
-    SEP(let ls := (fst (ber_tlv_tag_serialize tag (Int.repr size))) in
+    SEP(let ls := (fst (tag_serialize tag (Int.repr size))) in
         if eq_dec ls [] 
         then data_at Tsh (tarray tuchar buf_size)
                          (default_val (tarray tuchar buf_size))

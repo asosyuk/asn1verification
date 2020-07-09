@@ -105,7 +105,7 @@ Qed.
 
 Open Scope Z.
 
-Definition ber_tlv_tag_serialize (tag size : int): list int * Z :=
+Definition tag_serialize (tag size : int): list int * Z :=
   let tclass := (tag & Int.repr 3)%int in 
   let tval := tag >>u (Int.repr 2) in
   if 30 >=? Int.unsigned tval then
@@ -123,11 +123,11 @@ Definition ber_tlv_tag_serialize (tag size : int): list int * Z :=
             (t :: (serialize_tag tval), r + 1).
 
 Lemma tag_serialize_req_size : forall l s, 
-    let (ls, z) := ber_tlv_tag_serialize l s in
+    let (ls, z) := tag_serialize l s in
     z <> -1 -> len ls = z.
 Proof.
 intros.
-unfold ber_tlv_tag_serialize.
+unfold tag_serialize.
 repeat break_if; auto; try nia.
 intros.
 pose proof (req_size_32 (l >>u Int.repr 2)).

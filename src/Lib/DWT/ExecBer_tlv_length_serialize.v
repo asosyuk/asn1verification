@@ -113,7 +113,7 @@ Proof.
 Qed.
 
 
-Definition ber_tlv_length_serialize len size : list int * Z :=
+Definition length_serialize len size : list int * Z :=
    if (127 >=? Int.signed len)%Z then
     if eq_dec size 0%int 
     then ([], -1%Z)
@@ -124,11 +124,11 @@ Definition ber_tlv_length_serialize len size : list int * Z :=
        else ([], -1).
 
 Lemma length_serialize_req_size : forall l s, 
-    let (ls, z) := ber_tlv_length_serialize l s in
+    let (ls, z) := length_serialize l s in
     z <> -1 -> len ls = z.
 Proof.
 intros.
-unfold ber_tlv_length_serialize.
+unfold length_serialize.
 repeat break_if; auto; try nia.
 intros.
 pose proof (req_size_32 l).
