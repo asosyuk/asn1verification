@@ -37,7 +37,7 @@ Proof.
   make_compspecs prog.
 Defined.
 
-Instance Change1 : change_composite_env Dummy.CompSpecs CompSpecs.
+Instance Change1 : change_composite_env Callback.Dummy.CompSpecs CompSpecs.
 Proof. make_cs_preserve Dummy.CompSpecs CompSpecs. Defined.
 
 Instance Change2 : change_composite_env CompSpecs Dummy.CompSpecs.
@@ -57,31 +57,28 @@ Proof. make_cs_preserve  VSTber_tlv_length_serialize.CompSpecs CompSpecs. Define
 
 Definition der_write_TL_spec : ident * funspec :=
   DECLARE _der_write_TL
-  WITH gv: globals, tag : int, len : int, app_key : val, constructed : int
+  WITH gv: globals, tag : int, len : int, 
+       cb : val, app_key : val, constructed : int
   PRE[tuint, tint, tptr cb_type, tptr tvoid, tint]
     PROP()
-    PARAMS(Vint tag; Vint len; (gv _dummy); app_key; Vint constructed)
-    GLOBALS(gv)
-    SEP(data_at_ Tsh enc_key_s app_key;
-        valid_pointer (gv _dummy))
+    PARAMS(Vint tag; Vint len; cb; app_key; Vint constructed)
+    GLOBALS()
+    SEP(func_ptr dummy_callback_spec cb;
+        data_at_ Tsh enc_key_s app_key;
+        valid_pointer cb)
   POST[tint]
-    let size := if Val.eq (gv _dummy) nullval then 0 else 32 in
-    let (ls, z) := der_write_TL tag len size in
-    EX buf : val,
+    let size := if Val.eq cb nullval then 0 else 32 in
+    let (_, z) := der_write_TL tag len size in
     PROP() 
     LOCAL(temp ret_temp (Vint (Int.repr z)))
-    SEP(data_at Tsh 
-                (tarray tuchar 32)
-                (map Vint ls ++ sublist (Zlength ls) 32
-                (default_val (tarray tuchar 32))) buf;
+    SEP(func_ptr dummy_callback_spec cb;
         data_at_ Tsh enc_key_s app_key;
-        valid_pointer (gv _dummy)).
+        valid_pointer cb).
 
 Definition Gprog := ltac:(with_library prog [der_write_TL_spec;
                                              ber_tlv_tag_serialize_spec; 
                                              der_tlv_length_serialize_spec;
                                              dummy_callback]).
-
 
 Open Scope Z.
 
@@ -99,16 +96,17 @@ Proof.
  (PROP (isptr v_buf;
         Z_of_val v_buf + 32 < Ptrofs.modulus)
   LOCAL (temp der_encoder._t'1 
-              (if Val.eq (gv _dummy) nullval 
+              (if Val.eq cb nullval 
                then Vzero
                else (Vint (Int.repr (sizeof (tarray tuchar 32)))));
          temp der_encoder._size (Vint (Int.repr 0)); 
-         lvar _buf (tarray tuchar 32) v_buf;
+         lvar _buf (tarray tuchar 32) v_buf; 
          temp _tag (Vint tag); temp _len (Vint len);
-         temp _cb (gv _dummy); temp _app_key app_key;
+         temp _cb cb; temp _app_key app_key;
          temp _constructed (Vint constructed))
   SEP (data_at_ Tsh (tarray tuchar 32) v_buf;
-       data_at_ Tsh enc_key_s app_key; valid_pointer (gv _dummy))).
+       data_at_ Tsh enc_key_s app_key; valid_pointer cb;
+       func_ptr dummy_callback_spec cb)).
   - forward.
     unfold isptr in H.
     repeat break_match;
@@ -118,21 +116,17 @@ Proof.
     subst. cbv. auto.
   - forward.
     entailer!.
-    edestruct HPv_buf.
-    split.
-    subst. cbv. auto.
-    rewrite_if_b.
-    auto.
   - repeat forward.
     unfold isptr in *.
     destruct v_buf; try contradiction.
     cbn in H.
+   
     break_if.
     (* cb = nullval *)
-    + (* forward_call (tag, b, i, 0%Z, 32).
+    +  destruct (tag_serialize tag (Int.repr (0))) as [tl zt] eqn : TS. 
+      forward_call (tag, b, i, 0%Z, 32).
       repeat split; try rep_omega.      
-      remember (snd (tag_serialize tag (Int.repr 0))) as z.
-      forward_if ((temp _t'3 (if eq_dec (Int.repr z) (Int.repr (-1)) 
+      forward_if ((temp _t'3 (if eq_dec (Int.repr zt) (Int.repr (-1)) 
                     then Vint (Int.one)
                     else
            (force_val
@@ -145,34 +139,31 @@ Proof.
            rewrite_if_b;
            auto;
            break_if; entailer!. 
-      assert (z = -1) as Z. 
-      {  unfold tag_serialize in *.
+      assert (zt = -1) as Z. 
+      { generalize TS.
+        unfold tag_serialize.
             break_if;
-              rewrite_if_b; auto. }
+              rewrite_if_b; intro HH; inversion HH;
+                auto. }
       break_if; try congruence.
       forward_if.
       unfold POSTCONDITION.
       unfold abbreviate.
-      break_let.
-      repeat forward.
-      Exists (Vptr b i).
+      rewrite TS.
       assert (tag_serialize tag (Int.repr 0) = ([], -1)) as B.
       { unfold tag_serialize.
         break_if;
           rewrite_if_b;
           reflexivity. }
       assert (der_write_TL tag len 0 = ([], -1)) as L.
-      { generalize Heqp.
-        unfold der_write_TL.
+      { unfold der_write_TL.
         repeat break_let.
-        cbn in Z.
-        subst. cbn. auto. }  
+        inversion B.
+        cbn. auto. }  
       rewrite L in *.
-      inversion Heqp.
-      rewrite if_true by (unfold fst; break_let; inversion B; auto).
-      entailer!.
-      admit.
-      discriminate. *) admit.
+      rewrite_if_b.
+      forward.     
+      discriminate. 
     + (* cb <> nullval *)
       unfold POSTCONDITION.
       unfold abbreviate.
@@ -189,14 +180,6 @@ Proof.
           by (unfold snd; break_let; inversion TS; auto).
       pose proof (length_serialize_bounds len (Int.repr (32 - zt))) as L.
       pose proof (tag_serialize_bounds tag (Int.repr 32)) as TL.
-      
-   (*   assert (snd (tag_serialize tag (Int.repr 32)) = z0) as MM. 
-      { unfold snd; break_let. inversion Heqp0. auto. }
-      cbn in BL, BT.
-      cbn in Heqp.
-       assert ((snd (ber_tlv_length_serialize len (Int.repr (32 - z0)))) = z) as B.
-       { unfold snd. break_let.
-         inversion Heqp. auto. } *)
      repeat forward.
      forward_call (tag, b, i, 32, 32).
      repeat split; try rep_omega.             
@@ -217,22 +200,25 @@ Proof.
            auto;
            break_if; entailer!.      
       break_if.
-      * (* assert (z0 = -1) as Z. 
+      * assert ((snd (tag_serialize tag (Int.repr 32))) = -1) as Z. 
       { eapply repr_inj_signed;
           try rep_omega; auto. }
         forward_if; try discriminate.
-        unfold POSTCONDITION.
-        unfold abbreviate.
-        break_let.
         forward.
-        assert (der_write_TL tag len 32 = ([], -1)) as L.
+       assert (der_write_TL tag len 32 = ([], -1)) as K.
         { unfold der_write_TL.
           repeat break_let.
           cbn in Z.
           subst. cbn. auto. }  
-        Exists (Vptr b i).
-        rewrite L in *.
-        inversion Heqp1.
+        assert (tag_serialize tag (Int.repr 32) = ([], -1)) as T.
+        { unfold tag_serialize.
+          break_if.
+          rewrite if_false.
+          cbn in Z.
+          subst. cbn. auto. }  
+
+        (* Exists (Vptr b i). *)
+        rewrite K in *.
         subst. 
         break_if.
         entailer!.
@@ -294,7 +280,7 @@ Proof.
            { eapply orb_false_intro;
                Zbool_to_Prop; try nia. }
            repeat forward.
-           Exists (Vptr b i).
+           (*Exists (Vptr b i). *)
            entailer!.
            unfold der_write_TL.
            erewrite TS, LS.
@@ -321,45 +307,45 @@ Proof.
                cbn. rewrite e.
                erewrite <- app_nil_end.
                auto.  }
-             rewrite L0.
+            (* rewrite L0. *)
              erewrite sepcon_comm.
              erewrite <- data_at_app_gen.
              entailer!.
-             admit. (* wrong data_at introduced automatically *)
              auto.
              {  subst; unfold default_val;
                   simpl;
                   try erewrite Zlength_list_repeat;
                   try nia; auto. } 
              nia.
-             rewrite e.
+             reflexivity.
+            (* rewrite e.
              erewrite <- app_nil_end.
              erewrite Zlength_map in *.
              assert ((fst (tag_serialize tag (Int.repr 32)) = tl)) as TLS
           by (unfold fst; break_let; inversion TS; auto).
-             rewrite TLS in *.
-             f_equal. setoid_rewrite H4.
+             rewrite TLS in *. *)
+             f_equal. setoid_rewrite H4. 
              unfold default_val.
              simpl.
              try erewrite Zlength_list_repeat.                   
-             erewrite <- sublist_list_repeat with (k := 32).
-             auto.
+            (* erewrite <- sublist_list_repeat with (k := 32).
+             auto. *)
              all: try nia.
-             setoid_rewrite H4.
+            (* setoid_rewrite H4.
              unfold tarray.
              erewrite Zlength_default_val_Tarray_tuchar.
-             all: rep_omega. 
+             all: rep_omega. *)
            +++  erewrite sepcon_comm.
                 change_compspecs CompSpecs.
                 erewrite <- data_at_app_gen.
                 entailer!.
-                admit. (* wrong data_at introduced automatically *) 
                 auto.
                 erewrite Zlength_app.
                 autorewrite with sublist norm.
                 admit.
                 nia.
-                replace (fst (der_write_TL tag len 32)) 
+                reflexivity.
+           (*     replace (fst (der_write_TL tag len 32)) 
                   with (tl ++ ll).
                 assert ((fst (tag_serialize tag (Int.repr 32)) = tl)) as TLS
           by (unfold fst; break_let; inversion TS; auto).
@@ -369,8 +355,8 @@ Proof.
                 f_equal.
                 autorewrite with sublist.
                 admit. (* sublist lemmas *)
-                admit. (* use der_write_TL_serialize_sum *)
-                unfold tarray.
+                admit. (* use der_write_TL_serialize_sum *) *)
+                unfold tarray. 
                 setoid_rewrite H4.
                 erewrite Zlength_app.
                 autorewrite with sublist.
@@ -388,7 +374,7 @@ Proof.
               unfold der_write_TL.
               erewrite TS, LS.
               forward.
-              Exists (Vptr b i).
+              (* Exists (Vptr b i). *)
               entailer!.
               do 2 f_equal.
               remember (snd (tag_serialize tag (Int.repr 32))) as z0.
@@ -413,16 +399,13 @@ Proof.
                 erewrite sepcon_comm.
                 erewrite <- data_at_app_gen.
                 entailer!.
-                admit.
                 auto.
                 {  subst; unfold default_val;
                   simpl;
                   try erewrite Zlength_list_repeat;
                   try nia; auto. } 
                 nia.
-                f_equal.
-                admit.
-                admit.
+                reflexivity.
                 setoid_rewrite H5.
                 unfold tarray.
                 erewrite Zlength_default_val_Tarray_tuchar.
@@ -433,7 +416,8 @@ Proof.
                 change_compspecs CompSpecs. 
                 erewrite <- data_at_app_gen.
                 entailer!.
-                all: admit.
+                all: try reflexivity; auto.
+               all: admit.
             *** 
               erewrite LS.
               erewrite SLS in *.
@@ -487,12 +471,10 @@ Proof.
            rep_omega.          
            forward.
            entailer!.
+           entailer!.
            admit.
-        -- unfold POSTCONDITION.
-           unfold abbreviate.
-           repeat break_let.
-           forward.
-           Exists (Vptr b i).
+        -- forward.
+           (* Exists (Vptr b i). *)
            entailer!.
            do 2 f_equal.
            pose proof (der_write_TL_serialize_sum tag len 32) as N.
@@ -514,7 +496,7 @@ Proof.
            erewrite Zlength_default_val_Tarray_tuchar.
            nia.
            nia.
-            replace (fst (der_write_TL tag len 32)) 
+           (* replace (fst (der_write_TL tag len 32)) 
               with (tl ++ ll).
                 assert ((fst (tag_serialize tag (Int.repr 32)) = tl)) as TLS
           by (unfold fst; break_let; inversion TS; auto).
@@ -523,7 +505,7 @@ Proof.
                 erewrite app_assoc.
                 f_equal.
                 admit.
-                admit.
+                admit. *)
                 
                 setoid_rewrite H5.
                 erewrite Zlength_app.
