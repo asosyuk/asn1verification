@@ -26,8 +26,8 @@ Definition der_tlv_length_serialize_spec : ident * funspec :=
    
     PROP()
     LOCAL(temp ret_temp (Vint (Int.repr (snd (length_serialize l (Int.repr size))))))
-    SEP( let (ls, z) := length_serialize l (Int.repr size) in
-         if eq_dec ls [] 
+    SEP(let (ls, z) := length_serialize l (Int.repr size) in
+        if eq_dec z (-1)%Z 
         then data_at Tsh (tarray tuchar buf_size)
                          (default_val (tarray tuchar buf_size))
                          (Vptr buf_b buf_ofs) 
