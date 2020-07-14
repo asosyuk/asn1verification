@@ -138,6 +138,16 @@ erewrite  loop_len_req_size .
 erewrite Z2Nat.id; try nia.
 Qed.
 
+Lemma length_serialize_req_size_gt0 : forall l s, 
+    snd (length_serialize l s) <> -1 -> 0 < snd (length_serialize l s).
+Proof.
+intros l s.
+unfold length_serialize.
+repeat break_if; auto; unfold snd in *; try nia.
+pose proof (req_size_32 l).
+nia.
+Qed.
+
 Lemma shr_lt_zero_32: 
   forall x, Int.shr x (Int.repr (Int.zwordsize)) 
        = if Int.lt x Int.zero then Int.mone else Int.zero.

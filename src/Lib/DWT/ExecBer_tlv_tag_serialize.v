@@ -137,6 +137,18 @@ erewrite loop_len_req_size;
 erewrite Z2Nat.id; try nia.
 Qed.
 
+Lemma tag_serialize_req_size_gt0 : forall l s, 
+    let (ls, z) := tag_serialize l s in
+    z <> -1 -> 0 < z.
+Proof.
+intros.
+unfold tag_serialize.
+repeat break_if; auto; try nia.
+intros.
+pose proof (req_size_32 (l >>u Int.repr 2)).
+nia.
+Qed.
+
 Lemma shr_lt_zero_35: 
              forall x, Int.shru x (Int.repr 35)
                   = if Int.ltu x Int.zero then Int.mone else Int.zero.

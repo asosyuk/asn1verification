@@ -107,13 +107,13 @@ Proof.
          temp _constructed (Vint constructed))
   SEP (data_at_ Tsh (tarray tuchar 32) v_buf;
        data_at_ Tsh enc_key_s app_key; valid_pointer cb;
-       func_ptr dummy_callback_spec cb)).
+       func_ptr' dummy_callback_spec cb)).
   - forward.
     unfold isptr in H.
     repeat break_match;
     entailer!.
     discriminate.
-    edestruct HPv_buf.
+    edestruct HPv_buf.    
     subst. cbv. auto.
   - forward.
     entailer!.
@@ -121,7 +121,6 @@ Proof.
     unfold isptr in *.
     destruct v_buf; try contradiction.
     cbn in H.
-   
     break_if.
     (* cb = nullval *)
     +  destruct (tag_serialize tag (Int.repr (0))) as [tl zt] eqn : TS. 
@@ -333,6 +332,15 @@ Proof.
               erewrite SLS in *.
               assert (zl <> -1) as Z0. 
               { eapply repr_neq_e. auto. }
+              assert (0 < zt) as Zgt0.
+              { pose proof (tag_serialize_req_size_gt0 tag (Int.repr 32)).
+                erewrite TS in H3.
+                nia. }             
+              assert (0 < len tl) as LENTL.
+              { pose proof (tag_serialize_req_size tag (Int.repr 32)).
+                rewrite TS in H3.
+                erewrite H3.
+                all: nia. }
               forward_if True; try congruence.
         -- erewrite TLS in *. 
            rewrite_if_b.
@@ -350,10 +358,28 @@ Proof.
            erewrite sublist_one with (lo := 0).
            erewrite data_at_tuchar_singleton_array_eq.
            Intros.
-           assert (0 <= 0 < len tl) by admit.
            forward.
            entailer!.
-           admit.
+           { unfold tag_serialize.
+             pose proof (Byte.Z_mod_modulus_range 
+                           (Int.unsigned (((tag & Int.repr 3) << Int.repr 6)
+                                            or (tag >>u Int.repr 2))%int)).
+             break_if.
+             rewrite if_false.
+             cbn.
+             erewrite Int.zero_ext_mod; try rep_omega.
+             erewrite <- Byte.Z_mod_modulus_eq;
+               rep_omega.
+             discriminate.
+             rewrite if_false by discriminate.
+             break_if;
+             cbn;
+             erewrite Int.zero_ext_mod; try rep_omega;
+              pose proof (Byte.Z_mod_modulus_range 
+                           ( Int.unsigned (((tag & Int.repr 3) << Int.repr 6)
+                                             or Int.repr 31)%int));
+             erewrite <- Byte.Z_mod_modulus_eq;
+               try rep_omega. }
            forward.
            rewrite <- ZT.
            entailer!.
@@ -364,16 +390,9 @@ Proof.
              autorewrite with sublist in ZT;
              try rep_omega.
            admit.
-           erewrite <- ZT.
-           admit.
-           admit.
            forward.
            entailer!.
            Intros.
-           eapply make_func_ptr with (id := _cb) (gv := gv) (p := cb);
-             try reflexivity.
-           cbn.
-           admit.
            forward_call ((Vptr b i), (zt + zl), app_key).
            cbn in BT, BL.
            rep_omega.
@@ -384,7 +403,7 @@ Proof.
            eapply lt_inv in H4.
            rewrite Int.signed_repr in H4.
            autorewrite with norm in H4.
-           replace ( Int.signed 0%int) with 0 in * by auto with ints.
+           replace (Int.signed 0%int) with 0 in * by auto with ints.
            rep_omega.
            rep_omega.
            symmetry.
@@ -394,11 +413,8 @@ Proof.
            nia.
            rep_omega.          
            forward.
-           entailer!.
            rewrite_if_b.
            entailer!.
-           admit.
-           admit.
         -- forward.
            (* Exists (Vptr b i). *)
            entailer!.
