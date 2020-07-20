@@ -1,4 +1,5 @@
-Require Import Core.Core Core.Notations Core.Tactics Types DWT.Exec BCT.Exec.
+Require Import Core.Core Core.Notations Core.Tactics Types
+        Exec.Der_write_tags BCT.Exec.
 From ExtLib.Structures Require Import Monad MonadWriter.
 From ExtLib.Data Require Import Monads.OptionMonad.
 

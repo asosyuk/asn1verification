@@ -1,14 +1,13 @@
-Require Import Core.Core Core.StructNormalizer VstLib DWT.Exec 
-        ErrorWithWriter Callback.Overrun.
+Require Import Core.Core Core.StructNormalizer VstLib Exec.Der_write_tags 
+        ErrorWithWriter Clight.dummy Callback.Dummy.
 Require Import VST.floyd.proofauto.
 Require Import Clight.der_encoder.
 
-Definition composites := composites ++ (match find_cs 
-                                            asn_application._overrun_encoder_key 
-                                            asn_application.composites with
-                      | Some r => [r]
-                      | None => []
-                      end).
+Definition composites :=
+  composites ++ (match find_cs dummy._dummy dummy.composites with
+                 | Some r => [r]
+                 | None => []
+                 end).
 
 Definition Vprog : varspecs. 
 Proof.
@@ -27,36 +26,34 @@ Proof.
   set (gd := global_definitions).
   set (pi := public_idents).
   unfold composites in cs.
-
   simpl in cs.
   set (prog := Clightdefs.mkprogram cs gd pi _main Logic.I).
   make_compspecs prog.
 Defined.
 
+Instance Change1 : change_composite_env Callback.Dummy.CompSpecs CompSpecs.
+Proof. make_cs_preserve Dummy.CompSpecs CompSpecs. Defined.
+
+Instance Change2 : change_composite_env CompSpecs Dummy.CompSpecs.
+Proof. make_cs_preserve CompSpecs Dummy.CompSpecs. Defined.
+
 Open Scope Z.
 
 Section Der_write_tags.
 
-Definition cbi := asn_application._overrun_encoder_cb.
-
 Definition der_write_tags_spec : ident * funspec :=
   DECLARE _der_write_tags
   WITH gv : globals,
-       (* pointer to type descriptor structure *) 
        td_p : val, td : TYPE_descriptor,
-       struct_len: Z, tag_mode : Z, last_tag_form : Z, tag : Z,
-       (* callback argument pointer *)
-       app_p : val,
-       (* overrun_encoder_key fields *)
-       buf_p : val, buf_size : Z, computed_size : Z
+       struct_len: Z, tag_mode : Z, last_tag_form : Z, tag : Z, 
+       cb_p : val, app_p : val
   PRE[tptr type_descriptor_s, tuint, tint, tint, tuint, 
       tptr cb_type, tptr tvoid]
     PROP()
     PARAMS(td_p; Vint (Int.repr struct_len); Vint (Int.repr tag_mode);
-           Vint (Int.repr last_tag_form); Vint (Int.repr tag); (gv cbi); app_p)
-    GLOBALS(gv)
-    SEP(data_at_ Tsh type_descriptor_s td_p ; 
-        data_at Tsh enc_key_s (mk_enc_key buf_p buf_size computed_size) app_p)
+           Vint (Int.repr last_tag_form); Vint (Int.repr tag); cb_p; app_p)
+    GLOBALS()
+    SEP(data_at_ Tsh type_descriptor_s td_p)
     POST[tint]
       PROP()
       LOCAL(temp ret_temp 

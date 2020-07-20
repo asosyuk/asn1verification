@@ -1,8 +1,6 @@
 Require Import Core.Core Core.Notations Core.Notations Types.
 Require Import ExtLib.Structures.Monad.
 
-Import MonadNotation.
-
 (* checks the tag, outputs consumed length and expected length *)
 Definition ber_check_tags (td : TYPE_descriptor) (ls : list byte) : 
   option check_tag_r :=

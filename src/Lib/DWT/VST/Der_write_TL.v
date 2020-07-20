@@ -3,11 +3,11 @@ Require Import Core.Core Core.VstTactics Core.StructNormalizer VstLib
 Require Import Core.Tactics 
         VST.floyd.proofauto Clight.der_encoder
         Core.Notations Core.SepLemmas.
-Require Import Clight.dummy Lib.Callback.Dummy ExecDer_write_TL.
-Require Import VSTber_tlv_length_serialize
-        VSTber_tlv_tag_serialize.
-Require Import ExecBer_tlv_tag_serialize
-        ExecBer_tlv_length_serialize.
+Require Import Clight.dummy Lib.Callback.Dummy Exec.Der_write_TL.
+Require Import VST.ber_tlv_length_serialize
+        VST.ber_tlv_tag_serialize.
+Require Import Exec.Ber_tlv_tag_serialize
+        Exec.Ber_tlv_length_serialize.
 
 Definition composites :=
   composites ++ (match find_cs dummy._dummy dummy.composites with

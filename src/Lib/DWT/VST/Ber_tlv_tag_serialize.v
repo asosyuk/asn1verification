@@ -3,7 +3,7 @@ Require Import Core.Core Core.VstTactics Core.StructNormalizer VstLib
 Require Import Core.Tactics.
                
 Require Import VST.floyd.proofauto.
-Require Import Clight.ber_tlv_tag ExecBer_tlv_tag_serialize.
+Require Import Clight.ber_tlv_tag Exec.Ber_tlv_tag_serialize.
 Require Import Core.Notations Core.SepLemmas.
 
 Instance CompSpecs : compspecs. Proof. make_compspecs prog. Defined.
