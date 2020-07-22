@@ -7,11 +7,9 @@ Require Export Types.
 Require Export ExtLib.Structures.Monad.
 From ExtLib.Data Require Export Monads.OptionMonad.
 
-Import MonadNotation.
-
 Open Scope monad.
 
-Definition primitive_decoder td ls : option (list byte * Z) :=
+Definition primitive_decoder td ls : option (list int * Z) :=
     match ls with
     | [] => None
     | _ => ber_check_tags td ls >>=
@@ -24,10 +22,10 @@ Definition primitive_decoder td ls : option (list byte * Z) :=
     end.
 
 (* writes tags, copies ls and outputs the number of encoded bytes *)
-Definition primitive_encoder td ls : errW1 asn_enc_rval :=
-  der_write_tags td >>= 
-                 fun x => tell ls >>= 
-                            fun _ => ret (encode (Zlength ls + encoded x)).
+(* Definition primitive_encoder td ls : errW1 asn_enc_rval :=
+  x <- der_write_tags td  ;; 
+  tell ls ;;
+  ret (encode (Zlength ls + encoded x)). *)
 
 Definition ZeroChar := Byte.repr 48.
 
