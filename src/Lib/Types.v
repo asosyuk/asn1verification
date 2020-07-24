@@ -44,7 +44,8 @@ Inductive asn_type :=
 Inductive TYPE_descriptor :=
   def { tags : list Z;
         elements : list TYPE_descriptor; 
-        decoder_type : asn_type
+        decoder_type : asn_type;
+        tags_count : Z
       }.
 
 (* The function can return error in 3 cases:
