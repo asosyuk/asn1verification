@@ -1,5 +1,5 @@
 Require Import VST.floyd.proofauto Psatz.
-Require Import StructTact.StructTactics Psatz AbstractSpec Core.Notations.
+Require Import StructTact.StructTactics Psatz Core.Notations.
 
 Proposition sublist_first : forall (A : Type) j (ls : list A),
     Inhabitant A ->
