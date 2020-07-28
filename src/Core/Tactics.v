@@ -14,6 +14,15 @@ Ltac ints_compute_add_mul :=
       simpl; unfold Int.add; unfold Int.mul;
       repeat rewrite Int.unsigned_repr_eq;  repeat rewrite Int.unsigned_repr_eq; repeat rewrite Zmod_small.
 
+Ltac strip_repr :=
+  autorewrite with norm;
+  unfold Int.add; unfold Int.mul; unfold Int.neg;
+  unfold Int.sub;
+  repeat rewrite Int.unsigned_repr;  
+  repeat rewrite Int.signed_repr;     
+  try rep_omega; auto. 
+
+
 Ltac ints64_compute_add_mul :=
       simpl; unfold Int64.add; unfold Int.mul;
       repeat rewrite Int64.unsigned_repr_eq;  repeat rewrite Int64.unsigned_repr_eq; repeat rewrite Zmod_small.
