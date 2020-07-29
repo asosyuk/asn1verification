@@ -140,26 +140,19 @@ Proof.
   forward.
   entailer!.
   *
-  remember (if eq_dec (Int.repr tag_mode) (Int.neg (Int.repr 1))
-            then (if Int.eq (Int.repr (Zlength (tags td))) Int.zero 
-                  then Int.zero else Int.one)
-            else Int.zero) as t1.
+  remember ((if ((Int.repr tag_mode == (Int.neg (Int.repr 1)))%int &&
+                (Int.eq (Int.repr (Zlength (tags td))) Int.zero)) 
+             then Int.zero
+             else Int.one)%bool) as t1.
   forward_if (temp _tags_count (Vint (Int.repr (len (tags td)) + 1 - t1)%int)).
   **
   repeat forward.
-  forward_if ((temp _t'1
-           (Vint (
-                if eq_dec (Int.repr tag_mode) (Int.neg (Int.repr 1))
-                then (if Int.eq (Int.repr (Zlength (tags td))) Int.zero 
-                  then Int.zero else Int.one)
-                else Int.zero))));
+  forward_if (temp _t'1 (Vint t1));
     repeat forward; try rewrite_if_b; try entailer!.
-  forward_if (((temp _t'2
-           (Vint (
-                if eq_dec (Int.repr tag_mode) (Int.neg (Int.repr 1))
-                then (if Int.eq (Int.repr (Zlength (tags td))) Int.zero 
-                  then Int.zero else Int.one)
-                else Int.zero))))); repeat forward; try rewrite_if_b; try entailer!.
+  1-2: admit.
+  forward_if (temp _t'2 (Vint t1)); 
+    repeat forward; try rewrite_if_b; try entailer!.
+  1-2: admit.
   repeat break_if; try rep_omega.
   all: unfold Int.neg;
     try rewrite Int.signed_repr;
@@ -176,7 +169,7 @@ Proof.
   remember (tags td) as tags.
   forward_loop  (
   EX i : Z,
-  PROP (0 <= i <= len tags) 
+  PROP (0 <= i <= len tags + 1 - stag_offset) 
   LOCAL (temp _i (Vint (Int.repr (i + 1)));
   temp _stag_offset (Vint (Int.repr (- (1)) + t1))%int;
   temp _tags_count (Vint (Int.repr (len tags + 1) - t1)%int); 
@@ -195,7 +188,8 @@ Proof.
        data_at Tsh (tarray tuint (len tags)) 
                (map Vint (map Int.repr tags)) tags_p;
        data_at Tsh (tarray tuint 16) 
-       (if eq_dec (Int.repr tag_mode) (Int.neg (Int.repr 1)) 
+       (if ((Int.repr tag_mode == (Int.neg (Int.repr 1)))%int &&
+                (Int.eq (Int.repr (Zlength (tags))) Int.zero))%bool 
         then map Vint (map Int.repr (tag :: sublist 1 (i + 1) tags))
                       ++ default_val (tarray tuint (16 - i - 1)) 
         else (map Vint (map Int.repr (tag :: sublist 0 i tags))) 
@@ -227,7 +221,8 @@ break:
        data_at Tsh (tarray tuint (len tags))
                (map Vint (map Int.repr tags)) tags_p;
        data_at Tsh (tarray tuint 16) 
-                ((if eq_dec (Int.repr tag_mode) (Int.neg (Int.repr 1)) 
+                ((if ((Int.repr tag_mode == (Int.neg (Int.repr 1)))%int &&
+                (Int.eq (Int.repr (Zlength (tags))) Int.zero))%bool
                 then upd_Znth 0 (map Vint (map Int.repr tags)) (Vint (Int.repr tag)) 
                 else (Vint (Int.repr tag) :: (map Vint (map Int.repr tags)))) ++
                 default_val (tarray tuint (16 - (len tags) - 1))) 
@@ -237,25 +232,29 @@ break:
   + forward.
     Exists 0.
     entailer!.
-    break_if;
-    try erewrite sublist_nil;
-    repeat erewrite upd_Znth_unfold;
-      cbn; try nia;
-    entailer!.
+    Ltac strip_repr :=
+      autorewrite with norm;
+      unfold Int.add; unfold Int.mul; unfold Int.neg;
+      unfold Int.sub;
+      try erewrite Int.unsigned_zero;
+      try erewrite Int.unsigned_one;
+      repeat rewrite Int.unsigned_repr;  
+      repeat rewrite Int.signed_repr;     
+      try rep_omega; auto. 
+    repeat break_if; strip_repr.
+    repeat break_if;
+      try erewrite sublist_nil;
+      repeat erewrite upd_Znth_unfold;
+      try erewrite Int.unsigned_zero;
+      try erewrite Int.unsigned_one;
+      pose proof (Zlength_nonneg (tags td));
+      cbn; try nia; entailer!.    
   + Intro i.
     forward_if.
     assert (i + 1 < len tags + 1 - Int.unsigned t1) as S.
     { generalize H5.
       subst.
-      repeat break_if;
-      unfold Int.neg;
-      unfold Int.sub;
-      try rewrite Int.signed_repr;
-      try rewrite Int.unsigned_repr;
-      autorewrite with norm;
-      try rep_omega; auto.
-      erewrite Int.unsigned_one;
-        rep_omega. }
+      repeat break_if; strip_repr. }
     forward.
     unfold isptr in H.
     destruct tags_p; try contradiction. 
@@ -271,15 +270,6 @@ break:
       rep_omega. }
     forward.
     entailer!.
-
-    Ltac strip_repr :=
-      autorewrite with norm;
-      unfold Int.add; unfold Int.mul; unfold Int.neg;
-      unfold Int.sub;
-      repeat rewrite Int.unsigned_repr;  
-      repeat rewrite Int.signed_repr;     
-        try rep_omega; auto. 
-
     repeat break_if; strip_repr.
     forward.
     entailer!.
@@ -380,6 +370,7 @@ break:
         (map Vint (map Int.repr (sublist 0 (i + 1) (tags td))))).
       replace [Vint (Int.repr (Znth i (tags td)))] 
         with (map Vint (map Int.repr [Znth i (tags td)])).
+        try erewrite Int.unsigned_zero in *.
 
       do 2 erewrite <- map_app.
       do 2 f_equal.
@@ -387,9 +378,6 @@ break:
       reflexivity.
       
       1-2: try nia.
-      replace (Int.repr (len (tags td)) == 0)%int with false in * by admit.
-      try erewrite Int.unsigned_zero in *.
-      nia.
       reflexivity.
       setoid_rewrite <- H1.
       replace (16 - (i + 1) - 1) with (16 - i - 1 - 1) by nia.
@@ -401,9 +389,13 @@ break:
       autorewrite with sublist.
       cbn -[sublist].
       erewrite sublist_list_repeat.
-       replace (16 - i - 1 - 1)  with (16 - Z.succ i - 1) by nia.
+        try erewrite Int.unsigned_zero in *.
+        replace (16 - i - 1 - 1)  with (16 - Z.succ i - 1) by nia.
+         autorewrite with sublist.
       reflexivity.
-      nia.
+       try erewrite Int.unsigned_zero in *.
+       autorewrite with sublist.
+       nia.
        all:  replace (Int.repr (len (tags td)) == 0)%int with false in * by admit;
         try erewrite Int.unsigned_zero in *;
       autorewrite with sublist;
@@ -419,10 +411,69 @@ break:
     entailer!.
     forward.
     entailer!.
-    admit.
-    break_if.
-    admit.
-    admit.
+    assert (i + 1 =
+       Int.signed
+         (Int.repr (len (tags td) + 1) -
+          (if eq_dec (Int.repr tag_mode) (Int.repr (- (1)))
+           then if Int.repr (len (tags td)) == 0 then 0 else 1
+           else 0))%int).
+    { generalize H5.
+      repeat break_if;
+      strip_repr;
+      try nia.
+      intro.
+      generalize Heqb.
+      unfold Int.eq.
+      break_if;
+      try congruence.
+      intro.
+      generalize e0.
+      strip_repr.
+      all: try erewrite Int.unsigned_zero in *;
+        try erewrite Int.unsigned_one in *;
+        try nia. }
+    erewrite H1.
+    erewrite Int.repr_signed.
+    auto.
+
+    assert (i + 1 =
+       Int.signed
+         (Int.repr (len (tags td) + 1) -
+          (if eq_dec (Int.repr tag_mode) (Int.repr (- (1)))
+           then if Int.repr (len (tags td)) == 0 then 0 else 1
+           else 0))%int).
+    { generalize H5.
+      repeat break_if;
+      strip_repr;
+      try nia.
+      intro.
+      generalize Heqb.
+      unfold Int.eq.
+      break_if;
+      try congruence.
+      intro.
+      generalize e0.
+      strip_repr.
+      all: try erewrite Int.unsigned_zero in *;
+        try erewrite Int.unsigned_one in *;
+        try nia. }
+    erewrite H1.
+    break_if;
+    normalize.
+    { replace (Int.repr (len (tags td)) == 0)%int with false in * by admit.
+      replace (Int.signed (Int.repr (len (tags td) + 1) - 1)%int)
+              with (len (tags td)) by strip_repr.
+      erewrite upd_Znth0_old.
+      autorewrite with sublist list norm.
+      replace i with (len (tags td)).
+      repeat erewrite map_sublist.
+      entailer!.
+      admit. 
+      admit. }
+    { replace i with (len (tags td)).
+      erewrite sublist_same; try nia.
+      entailer!; nia.
+      admit. }
   + forward.
     entailer!.
     admit.
