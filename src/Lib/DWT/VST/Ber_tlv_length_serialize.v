@@ -1,4 +1,4 @@
-Require Import Core.Core Core.VstTactics Core.StructNormalizer VstLib DWT.Exec 
+Require Import Core.Core Core.VstTactics Core.StructNormalizer VstLib
         ErrorWithWriter.
 Require Import VST.floyd.proofauto.
 Require Import Clight.ber_tlv_length.
