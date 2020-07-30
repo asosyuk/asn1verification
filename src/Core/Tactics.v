@@ -1,4 +1,4 @@
-Require Import Core Int Notations.
+Require Import Core Int  VST.floyd.proofauto Notations.
 
 Ltac ints_to_Z :=
   repeat rewrite Int.unsigned_repr_eq; repeat rewrite Zmod_small.

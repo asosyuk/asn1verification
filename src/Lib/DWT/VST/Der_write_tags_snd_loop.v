@@ -556,7 +556,7 @@ break:
   (* loop 2 *) 
   forward_loop (
   EX j : Z,
-  PROP ( )
+  PROP (0 <= j <= len (tags td))
   LOCAL (
   temp _tags v_tags_buf_scratch;  
   temp _i
@@ -594,12 +594,39 @@ break:
          default_val (tarray tuint (16 - len (tags td) - 1))) v_tags_buf_scratch;
   data_at Tsh type_descriptor_s (r, (r0, (r1, (r2, (Vint (Int.repr (len (tags td))), m3))))) td_p;
   data_at Tsh (tarray tuint (len (tags td))) (map Vint (map Int.repr (tags td))) tags_p;
-  func_ptr' dummy_callback_spec cb; data_at_ Tsh enc_key_s app_key; valid_pointer cb))%assert 
-               break: (PROP()LOCAL()SEP()).
+  func_ptr' dummy_callback_spec cb;
+  data_at_ Tsh enc_key_s app_key;
+  valid_pointer cb;
+  valid_pointer nullval))%assert 
+               break:
+ (PROP ( )
+  LOCAL (temp _tags v_tags_buf_scratch;
+  temp _i Vzero;
+  temp _overall_length (Vint (Int.repr struct_len));
+  temp _tags_count (Vint (Int.repr (len (tags td))));
+  temp _t'17 (Vint (Int.repr (len (tags td)))); lvar _lens (tarray tint 16) v_lens;
+  lvar _tags_buf_scratch (tarray tuint 16) v_tags_buf_scratch; temp _sd td_p;
+  temp _struct_length (Vint (Int.repr struct_len)); temp _tag_mode (Vint (Int.repr tag_mode));
+  temp _last_tag_form (Vint (Int.repr last_tag_form)); temp _tag (Vint (Int.repr tag));
+  temp _cb cb; temp _app_key app_key)
+  SEP (data_at_ Tsh (tarray tint 16) v_lens;
+  data_at Tsh (tarray tuint 16)
+    (map Vint (map Int.repr (tags td)) ++
+         default_val (tarray tuint (16 - len (tags td))))
+    v_tags_buf_scratch;
+  data_at Tsh type_descriptor_s 
+          (r, (r0, (r1, (r2, (Vint (Int.repr (len (tags td))), m3))))) td_p;
+  data_at Tsh (tarray tuint (len (tags td))) (map Vint (map Int.repr (tags td))) tags_p;
+  func_ptr' dummy_callback_spec cb;
+  data_at_ Tsh enc_key_s app_key;
+  valid_pointer cb;
+  valid_pointer nullval)).
   + repeat forward.
     entailer!.
     admit.
     Exists 1.
+    entailer!.
+    admit.
     entailer!.
     admit.
   + break_if.
@@ -608,13 +635,6 @@ break:
     forward.
     entailer!.
     admit.
-    admit.
-    
-   (* tag : int, l : int, 
-       cb : val, app_key : val, constructed : int *)
-    remember (Znth (len (tags td) - 1)
-                 ((map Int.repr (tags td)))) as z.
-    Search (val -> int).
     remember (force_int ((Znth (len (tags td) - j)
                  (map Vint (map Int.repr (tags td)) ++
                   default_val (tarray tuint (16 - len (tags td))))))) as fi.
@@ -622,6 +642,7 @@ break:
     entailer!.
     f_equal.
     cbn.
+    hint.
     admit.
     rewrite_if_b.
     unfold Frame.
@@ -638,11 +659,144 @@ break:
    valid_pointer cb]).
     unfold fold_right_sepcon.
     entailer!.
+    forward.
+    forward.
     entailer!.
-    
-  admit. (* tags_p should be a pointer *)
-  entailer!.
-  admit.
+    admit.
+    forward_if.
+    forward.
+    hint.
+    rewrite if_true by auto.
+    clear Delta.
+    entailer!.
+    admit.
+    admit. (* add valid_pointer nullval in LI *)
+    repeat forward.
+    remember (Int.repr
+                match
+                  evalErrW
+                    (Der_write_TL_m.der_write_TL_m fi (Int.repr struct_len)
+                       (if Val.eq nullval nullval then 0 else 32) 0%int) []
+                with
+                | Some {| encoded := v0 |} => v0
+                | None => -1
+                end) as res.
+    Exists (j + 1).
+    entailer!.
+    split. 
+    admit.
+    split.
+    do 2 f_equal.
+    nia.
+    admit.
+    rewrite_if_b.
+    entailer!.
+    forward.
+    entailer!.
+    ++ admit.
+  + forward_if.
+    forward.
+    (* 3d loop *)
+    forward_loop ( 
+  EX i : Z,
+  PROP ( 0 <= i <= len (tags td))
+  LOCAL (temp _i (Vint (Int.repr 0)); temp _tags v_tags_buf_scratch;
+  temp _overall_length (Vint (Int.repr struct_len));
+  temp _tags_count (Vint (Int.repr (len (tags td))));
+  temp _t'17 (Vint (Int.repr (len (tags td)))); lvar _lens (tarray tint 16) v_lens;
+  lvar _tags_buf_scratch (tarray tuint 16) v_tags_buf_scratch; temp _sd td_p;
+  temp _struct_length (Vint (Int.repr struct_len)); temp _tag_mode (Vint (Int.repr tag_mode));
+  temp _last_tag_form (Vint (Int.repr last_tag_form)); temp _tag (Vint (Int.repr tag));
+  temp _cb cb; temp _app_key app_key)
+  SEP (data_at_ Tsh (tarray tint 16) v_lens;
+  data_at Tsh (tarray tuint 16)
+    (map Vint (map Int.repr (tags td)) ++ default_val (tarray tuint (16 - len (tags td))))
+    v_tags_buf_scratch;
+  data_at Tsh type_descriptor_s (r, (r0, (r1, (r2, (Vint (Int.repr (len (tags td))), m3))))) td_p;
+  data_at Tsh (tarray tuint (len (tags td))) (map Vint (map Int.repr (tags td))) tags_p;
+  func_ptr' dummy_callback_spec cb; data_at_ Tsh enc_key_s app_key; valid_pointer cb;
+  valid_pointer nullval))%assert break: 
+  (PROP ( )
+  LOCAL (temp _i (Vint (Int.repr 0)); temp _tags v_tags_buf_scratch;
+  temp _overall_length (Vint (Int.repr struct_len));
+  temp _tags_count (Vint (Int.repr (len (tags td))));
+  temp _t'17 (Vint (Int.repr (len (tags td)))); lvar _lens (tarray tint 16) v_lens;
+  lvar _tags_buf_scratch (tarray tuint 16) v_tags_buf_scratch; temp _sd td_p;
+  temp _struct_length (Vint (Int.repr struct_len)); temp _tag_mode (Vint (Int.repr tag_mode));
+  temp _last_tag_form (Vint (Int.repr last_tag_form)); temp _tag (Vint (Int.repr tag));
+  temp _cb cb; temp _app_key app_key)
+  SEP (data_at_ Tsh (tarray tint 16) v_lens;
+  data_at Tsh (tarray tuint 16)
+    (map Vint (map Int.repr (tags td)) ++ default_val (tarray tuint (16 - len (tags td))))
+    v_tags_buf_scratch;
+  data_at Tsh type_descriptor_s (r, (r0, (r1, (r2, (Vint (Int.repr (len (tags td))), m3))))) td_p;
+  data_at Tsh (tarray tuint (len (tags td))) (map Vint (map Int.repr (tags td))) tags_p;
+  func_ptr' dummy_callback_spec cb; data_at_ Tsh enc_key_s app_key; valid_pointer cb;
+  valid_pointer nullval)).
+    ++ forward.
+       Exists 0.
+       entailer!.
+    ++ Intro i.
+      forward_if. 
+      forward_if
+        (temp _t'4 (if eq_dec (Int.repr last_tag_form) 0%int 
+                        then (Val.of_bool
+                               (Int.repr 0 < Int.repr (len (tags td) - 1))%int)
+                        else Vone)).
+      forward.
+      rewrite_if_b.
+      entailer!.
+      forward.
+      rewrite_if_b.
+      entailer!.
+      repeat forward.
+      entailer!.
+      admit.
+      admit.
+      remember (force_int ((Znth 0
+          (map Vint (map Int.repr (tags td)) ++
+               default_val (tarray tuint (16 - len (tags td))))))) as t6.
+
+      remember (force_int 
+                  (Znth 0 (default_val (nested_field_type (tarray tint 16) []))))
+        as t7.
+    forward_call (t6, t7, cb, app_key, 
+                  (if eq_dec (Int.repr last_tag_form) 0%int
+                   then (if (0 <? (len (tags td) - 1)) then 1 else 0)
+                   else 1)%int).
+    rewrite_if_b.
+    unfold Frame.
+    instantiate (1 :=
+                [data_at_ Tsh (tarray tint 16) v_lens ;
+   data_at Tsh (tarray tuint 16)
+     (map Vint (map Int.repr (tags td)) ++
+          default_val (tarray tuint (16 - len (tags td))))
+     v_tags_buf_scratch;
+   data_at Tsh type_descriptor_s
+           (r, (r0, (r1, (r2, (Vint (Int.repr (len (tags td))), m3)))))
+     td_p ;
+   data_at Tsh (tarray tuint (len (tags td))) 
+           (map Vint (map Int.repr (tags td))) tags_p;
+   valid_pointer nullval]).
+    unfold fold_right_sepcon.
+    entailer!.
+    admit. (* change compspecs change_compspecs CompSpecs. *)
+    forward.
+    abbreviate_semax.
+    forward_if.
+    forward.
+    forward.
+    Exists (i + 1).
+    repeat rewrite_if_b.
+    entailer!.
+    forward.
+    entailer!.
+    ++
+      forward.
+      entailer!.
+      (* why (struct_len - struct_len)? *)
+      admit.
+      admit.
 Admitted.
 
 End Der_write_tags.
