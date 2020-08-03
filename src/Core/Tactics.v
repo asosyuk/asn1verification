@@ -18,6 +18,8 @@ Ltac strip_repr :=
   autorewrite with norm;
   unfold Int.add; unfold Int.mul; unfold Int.neg;
   unfold Int.sub;
+  try erewrite Int.unsigned_one in *;
+  try erewrite Int.unsigned_zero in *;
   repeat rewrite Int.unsigned_repr;  
   repeat rewrite Int.signed_repr;     
   try rep_omega; auto. 
