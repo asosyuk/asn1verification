@@ -1,4 +1,4 @@
-Require Import Core.Core Core.StructNormalizer
+(*Require Import Core.Core Core.StructNormalizer
         VstLib ErrorWithWriter BCT.Exec.
 Require Import VST.floyd.proofauto.
 Require Import Clight.ber_decoder.
@@ -54,3 +54,4 @@ Theorem bool_der_encode : semax_body Vprog Gprog (normalize_function f_ber_check
 Admitted.
 
 End Ber_check_tags.
+*)
