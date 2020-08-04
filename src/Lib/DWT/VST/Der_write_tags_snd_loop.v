@@ -306,7 +306,8 @@ Proof.
       strip_repr. }
   + break_if.
     ++ 
-    Intros j o.
+    Intros j.
+    break_let.
     forward_if.
     erewrite  Heqdata_at_tags.
     forward.
@@ -317,34 +318,64 @@ Proof.
     autorewrite with sublist list;
     try nia.
     remember (Int.repr (Znth (tags_count - j) (tags td))) as fi.
-    forward_call (fi, Int.repr struct_len, nullval, nullval, Int.zero).
+    forward_call (fi, Int.repr z, nullval, nullval, Int.zero).
     rewrite_if_b.
     unfold Frame.
- (*   instantiate (1 := [data_at_ Tsh (tarray tint 16) v_lens ;
+  instantiate (1 := [data_at Tsh (tarray tint 16) r4 v_lens ;
    data_at Tsh (tarray tuint 16)
      (map Vint (map Int.repr (tags td))
           ++ default_val (tarray tuint (16 - len (tags td))))
      v_tags_buf_scratch ;
-   data_at Tsh type_descriptor_s (r, (r0, (r1, (r2, (Vint (Int.repr (len (tags td))), m3)))))
-     td_p ;
+   (* data_at Tsh type_descriptor_s (r, (r0, (r1, (r2, (Vint (Int.repr (len (tags td))), m3)))))
+     td_p ; *)
    data_at Tsh (tarray tuint (len (tags td))) (map Vint (map Int.repr (tags td)))
-     (get_tags (r, (r0, (r1, (r2, (Vint (Int.repr (len (tags td))), m3)))))) ;
+     (get_tags (r, (r0, (r1, (r2, (Vint (Int.repr (len (tags td))), m3)))))) ; 
    func_ptr' dummy_callback_spec cb ; data_at_ Tsh enc_key_s app_key ; 
    valid_pointer cb]).
     unfold fold_right_sepcon.
-    entailer!. *)
-    admit.
-    admit.
+    entailer!. 
     forward.
     forward.
     entailer!.
-    repeat break_match; auto;
     erewrite upd_Znth_same;
-    auto;
-    unfold default_val; cbn; nia.
+       inversion Heqp;
+    unfold default_val; cbn; try nia.
+    admit. (* add lemma *)
     forward_if.
     forward.
+    repeat rewrite_if_b.
     entailer!.
+    unfold der_write_tags.
+    break_if; auto.
+    break_match; auto.
+    generalize Heqo.
+    break_if.
+    admit.  (* contradiction  with tag_mode = 0 *)
+    unfold evalErrW.
+    break_match.
+    congruence.
+    cbn in Heqs.
+    destruct (der_write_tags_loop1 (tags td) struct_len []) eqn :DRT.
+    congruence.
+    (* lemma connecting H6 *)
+  (*  break_let.
+    generalize Heqs.
+    break_match.
+    congruence.
+    destruct (der_write_tags_loop1 (tags td) struct_len []) eqn : DRT.
+    congruence.
+    all: try congruence.
+    Check (der_write_tags_loop1 (tags td) struct_len []).
+    Check (inl (list int * errW1 asn_enc_rval) (CustomError DWT_Error)).
+    Check (inl (list int * errW1 asn_enc_rval) ( CustomError DWT_Error)).
+    replace (der_write_tags_loop1 (tags td) struct_len [])
+            with  (inl  (list int * errW1 asn_enc_rval) (CustomError DWT_Error)) 
+      in Heqs.
+    replace (der_write_tags_loop1
+               (sublist (len (tags td) - (j - 1)) 
+                        (len (tags td)) (tags td)) struct_len [])
+            with (inl (list int * errW1 asn_enc_rval) (CustomError DWT_Error)).
+    unfold der_write_tags_loop1. *)
   (*  { erewrite upd_Znth_same in H6.
       rewrite_if_b.
       cbn -[Der_write_TL_m.der_write_TL_m] in H6.
