@@ -18,7 +18,7 @@ Definition dummy_callback_spec  : funspec :=
       SEP ()
     POST [tint]
       PROP ()
-      LOCAL (temp ret_temp (if size =? 0 then (Vint (Int.repr (-1))) else Vzero))
+      LOCAL (temp ret_temp (if size =? 0 then (Vint (Int.repr (-1))) else Vint (Int.repr size)))
       SEP (). 
 
 Definition dummy_callback : ident * funspec :=
@@ -29,13 +29,12 @@ Definition Gprog := ltac:(with_library prog [dummy_callback]).
 Theorem bool_der_encode : semax_body Vprog Gprog f_dummy dummy_callback.
 Proof.
   start_function.
+  deadvars!.
   forward_if (
       PROP ( ) 
       LOCAL (temp _t'1 (if size =? 0 
                         then (Vint (Int.repr (-1))) 
-                        else Vzero);
-             temp _buffer data_p; temp _size (Vint (Int.repr size)); 
-             temp _application_specific_key key_p)  
+                        else (Vint (Int.repr size))))  
       SEP ()).
   * (* if size = 0 *)
     forward.
