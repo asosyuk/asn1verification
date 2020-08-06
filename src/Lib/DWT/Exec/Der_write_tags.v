@@ -4,13 +4,32 @@ Require Import Der_write_TL_m.
 
 Inductive DWT_Error := .
 
-Fixpoint der_write_tags_loop1 (tags : list Z) (length : Z) : errW1 asn_enc_rval :=
-  match tags with
-  | [] => ret (encode length)
-  | tag :: tl => 
-    i <- der_write_TL_m (Int.repr tag) (Int.repr length) 0 0%int ;;
-    der_write_tags_loop1 tl (length + encoded i)
+Require Import VST.floyd.sublist.
+
+Fixpoint der_write_tags_loop1 (n : nat) (tags : list Z) (length : Z) : errW1 asn_enc_rval :=
+  match n with
+  | O => ret (encode length)
+  | S n => 
+    i <- der_write_TL_m (Int.repr (Znth (Z.of_nat (S n)) tags))
+      (Int.repr length) 0 0%int ;;
+    der_write_tags_loop1 n tags (length + encoded i)
   end.
+
+Lemma der_write_tags_loop1_fail : forall n ls l s e,
+    (0 < n)%nat ->
+    der_write_TL_m (Int.repr (Znth (Z.of_nat n) ls)) (Int.repr l) 0 0%int s = inl e ->
+    der_write_tags_loop1 n ls l s = inl e.
+Proof.
+  induction n;
+  intros until e;
+  intros N;
+  intros B.
+  - nia.
+  - simpl.
+    simpl in B.
+    erewrite B.
+    auto.
+Qed.   
 
 Fixpoint der_write_tags_loop2 (ts : list Z) (ls : list int)
          (i : Z) (size : Z) (last_tag_form : Z)
@@ -41,6 +60,6 @@ Definition der_write_tags (td : TYPE_descriptor)
            then l + 1 
            else l) =? 0 
        then ret (encode 0)
-       else '(_, ls) <- listen (der_write_tags_loop1 ts struct_len) ;;
+       else '(_, ls) <- listen (der_write_tags_loop1 (length ts) ts struct_len) ;;
              z <- der_write_tags_loop2 ts ls l size last_tag_form ;;
              ret (encode (encoded z - struct_len)).
