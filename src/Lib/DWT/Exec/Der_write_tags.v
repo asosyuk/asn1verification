@@ -6,22 +6,23 @@ Inductive DWT_Error := .
 
 Require Import VST.floyd.sublist.
 
-Fixpoint der_write_tags_loop1 (n : nat) (tags : list Z) (length : Z) : errW1 asn_enc_rval :=
+Fixpoint der_write_tags_loop1 (n : nat) (lens : list Z) (ts : list Z) (l : Z) 
+  : errW1 (asn_enc_rval * list Z) :=
   match n with
-  | O => ret (encode length)
+  | O => ret (encode l, lens)
   | S n => 
-    i <- der_write_TL_m (Int.repr (Znth (Z.of_nat (S n)) tags))
-      (Int.repr length) 0 0%int ;;
-    der_write_tags_loop1 n tags (length + encoded i)
+    '(encode i) <-
+     der_write_TL_m (Int.repr (Znth (Z.of_nat (S n)) ts)) (Int.repr l) 0 0%int ;;
+     der_write_tags_loop1 n (l - i :: lens) ts (l + i)
   end.
 
-Lemma der_write_tags_loop1_fail : forall n ls l s e,
+Lemma der_write_tags_loop1_fail : forall n ls l s e ls',
     (0 < n)%nat ->
     der_write_TL_m (Int.repr (Znth (Z.of_nat n) ls)) (Int.repr l) 0 0%int s = inl e ->
-    der_write_tags_loop1 n ls l s = inl e.
+    der_write_tags_loop1 n ls' ls l s = inl e.
 Proof.
   induction n;
-  intros until e;
+  intros until ls';
   intros N;
   intros B.
   - nia.
@@ -29,20 +30,20 @@ Proof.
     simpl in B.
     erewrite B.
     auto.
-Qed.   
+Qed. 
 
 Fixpoint der_write_tags_loop2 (ts : list Z) (ls : list int)
          (i : Z) (size : Z) (last_tag_form : Z)
-  : errW1 asn_enc_rval:=
+  : errW1 asn_enc_rval :=
   match ts, ls with
   | [], [] => ret (encode 0)
   | t :: tl, l :: ls => 
     let c := if (negb (last_tag_form =? 0) || (i <? (len ts - 1)))%bool
              then Int.one 
              else Int.zero in 
-     z1 <- der_write_TL_m (Int.repr t) l size c ;;
-     z2 <- der_write_tags_loop2 tl ls (i - 1) size last_tag_form ;;
-     ret (encode (encoded z1 + encoded z2))
+     '(encode z1) <- der_write_TL_m (Int.repr t) l size c ;;
+     '(encode z2) <- der_write_tags_loop2 tl ls (i - 1) size last_tag_form ;;
+     ret (encode (z1 + z2))
   | _, _ => raise (CustomError DWT_Error)
   end.
 
@@ -60,6 +61,7 @@ Definition der_write_tags (td : TYPE_descriptor)
            then l + 1 
            else l) =? 0 
        then ret (encode 0)
-       else '(_, ls) <- listen (der_write_tags_loop1 (length ts) ts struct_len) ;;
-             z <- der_write_tags_loop2 ts ls l size last_tag_form ;;
-             ret (encode (encoded z - struct_len)).
+       else
+         '(_, ls) <- listen (der_write_tags_loop1 (length ts) [] ts struct_len) ;;
+          z <- der_write_tags_loop2 ts ls l size last_tag_form ;;
+          ret (encode (encoded z - struct_len)).
