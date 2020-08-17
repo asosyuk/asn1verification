@@ -1,4 +1,5 @@
-Require Import Core.Core Core.Notations Core.Notations Types.
+Require Import  VST.floyd.proofauto
+ Core.Core Core.Notations Core.Notations Types.
 Require Import ExtLib.Structures.Monad.
 Require Import Der_write_TL_m.
 
@@ -65,3 +66,124 @@ Definition der_write_tags (td : TYPE_descriptor)
          '(_, ls) <- listen (der_write_tags_loop1 (length ts) [] ts struct_len) ;;
           z <- der_write_tags_loop2 ts ls l size last_tag_form ;;
           ret (encode (encoded z - struct_len)).
+
+Require Import Ber_tlv_tag_serialize_m Ber_tlv_length_serialize_m.
+
+Lemma TS_inr_not_one : forall t s ls e,
+  tag_serialize t (Int.repr s) []
+  = inr (ls, {| encoded := e |}) ->
+  0 <= e.
+Proof.
+  intros.
+  unfold tag_serialize in H.
+  repeat break_if; cbn in H; try congruence.
+  inversion H as [A].
+  discriminate.
+  repeat break_if;
+    inversion H as [A];
+    discriminate.
+Qed.
+
+Lemma TS_inr_not_int_one : forall t s ls e i,
+  tag_serialize t (Int.repr s) i
+  = inr (ls, e) ->
+  Int.repr (encoded e) <> Int.repr (-1).
+Proof.
+  intros.
+  unfold tag_serialize in H.
+  repeat break_if; cbn in H; try congruence.
+  inversion H as [A].
+  discriminate.
+  repeat break_if;
+    inversion H as [A];
+    discriminate.
+Qed.
+
+Lemma LS_inr_not_int_one : forall t s ls e i,
+  length_serialize t (Int.repr s) i
+  = inr (ls, e) ->
+  Int.repr (encoded e) <> Int.repr (-1).
+Proof.
+  intros.
+  unfold length_serialize in H.
+  repeat break_if; cbn in H; try congruence.
+  inversion H as [A].
+  discriminate.
+  repeat break_if;
+    inversion H as [A];
+    discriminate.
+Qed.
+
+Lemma LS_inr_not_one : forall t s ls e i,
+  length_serialize t (Int.repr s) i
+  = inr (ls, {| encoded :=  e |}) ->
+  0 <= e.
+Proof.
+  intros.
+  unfold length_serialize in H.
+  repeat break_if; cbn in H; try congruence.
+  inversion H as [A].
+  discriminate.
+  repeat break_if;
+    inversion H as [A];
+    discriminate.
+Qed.
+
+Lemma DWT_inr_not_one : forall t l s c ls e,
+  der_write_TL_m t l s c [] = inr (ls, e) ->
+   Int.repr (encoded e) <> Int.repr (-1).
+Proof.
+  intros.
+  unfold der_write_TL_m in H.
+  cbn in H.
+  repeat break_match;
+    try congruence.
+  subst.
+  inversion H.
+  subst. clear H.
+  inversion Heqs1.
+  subst. clear Heqs1.
+  inversion Heqs0.
+  subst. clear Heqs0.
+  inversion Heqs2.
+  subst. clear Heqs2.
+  simpl in *.
+  inversion Heqs4 as [TS].
+  eapply TS_inr_not_one in TS.
+   inversion Heqs3 as [LS].
+  eapply LS_inr_not_one in LS.
+  eapply TS_inr_not_int_one in Heqs4.
+  eapply LS_inr_not_int_one in Heqs3.
+  assert (0 <= encoded + encoded0) as E by nia.
+  assert (-1 <> encoded + encoded0) as EE by nia.
+  clear E.
+Admitted.
+  
+  
+
+  
+  subst.
+  
+
+Lemma eval_DWT_opt_to_Z : forall t l s c,
+  (Int.repr
+    match
+      evalErrW (der_write_TL_m t l s c) []
+    with
+    | Some {| encoded := v0 |} => v0
+    | None => -1
+    end == Int.repr (- (1)))%int = true -> 
+   (exists e, (der_write_TL_m t l s c) [] = inl e).
+Proof.
+  intros.
+  unfold evalErrW in H.
+  repeat break_match; try congruence.
+  inversion Heqo as [A].
+  rewrite A in *. clear A.
+  Search Int.eq true.
+  symmetry in H.
+  eapply binop_lemmas2.int_eq_true in H.
+  inversion H as [A].
+   
+  
+  simp in H.
