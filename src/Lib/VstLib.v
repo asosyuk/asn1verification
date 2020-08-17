@@ -1,21 +1,28 @@
 Require Import Core.Core.
 Require Import VST.floyd.proofauto.
-Require Import Clight.asn_codecs_prim.
+Require Import Clight.asn_codecs_prim Clight.asn_application.
 Require Import Lib.
 
-Instance CompSpecs : compspecs. make_compspecs prog. Defined.
+Require Export Lib.
 
-(* memory representation of abstract types *)
-Parameter TYPE_descriptor_rep : TYPE_descriptor
-                                -> reptype (Tstruct _asn_TYPE_descriptor_s noattr). 
+Definition cb_type := (Tfunction 
+                          (Tcons (tptr tvoid) 
+                                 (Tcons tuint (Tcons (tptr tvoid) Tnil))) tint 
+                          cc_default).
+Definition type_descriptor_s := Tstruct _asn_TYPE_descriptor_s noattr.
+Definition asn_codec_ctx_s := Tstruct _asn_codec_ctx_s noattr.
 
-(* These two will express memory specifications *)
+(* Encoder return struct *)
+Definition enc_rval_s := Tstruct _asn_enc_rval_s noattr.
+Definition mk_enc_rval encoded (td sptr : val) := 
+  (Vint (Int.repr encoded), (td, sptr)).
 
-(* on any error write {buf = 0; size = 0},
-    else {buf = ls; size = |ls|}*)
-Parameter PRIMITIVE_TYPE_rep : option byte
-                               -> reptype (Tstruct _ASN__PRIMITIVE_TYPE_s noattr).
+(* Decoder return struct *)
+Definition asn_dec_rval_s := Tstruct _asn_dec_rval_s noattr.
+Definition mk_dec_rval code consumed := 
+  (Vint (Int.repr code), Vint (Int.repr consumed)).
 
-(* on error rval c l write {code := c; consumed := l},
-   else {code := OK; consumed := |ls| *)
-Parameter dec_rval_rep : option byte -> reptype (Tstruct _asn_dec_rval_s noattr).
+(* Overrun callback key *)
+Definition enc_key_s := Tstruct _overrun_encoder_key noattr.
+Definition mk_enc_key (buf : val) size comp_size := 
+  (buf, (Vint (Int.repr size), Vint (Int.repr comp_size))). 

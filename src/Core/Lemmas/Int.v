@@ -1,4 +1,3 @@
-Require Import StructTact.StructTactics.
 Require Import Core Notations.
 
 

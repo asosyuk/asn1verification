@@ -1,5 +1,4 @@
-Require Import StructTact.StructTactics.
-Require Import Core Notations Tactics IntLemmas PtrLemmas.
+Require Import Core Notations Tactics Int Ptr.
 
 Proposition addr_ge_to_sem_cmp_lt : forall b m b1 b2 i1 i2,
     addr_ge m (b1, i1) (b2, i2) = Some b ->

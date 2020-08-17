@@ -1,5 +1,9 @@
 Require Import Core.
-Import ListNotations.
+
+Notation "x >> y" := (Z.shiftr x y) (at level 70) : Z_scope.
+Notation "x << y" := (Z.shiftl x y) (at level 70) : Z_scope.
+Infix "&" := Z.land (at level 70) : Z_scope.
+Infix "or" := Z.lor (at level 70): Z_scope.
 
 (* Notations for integers and ptrofs *)
 
@@ -13,6 +17,7 @@ Infix "+" := Byte.add  : ByteScope.
 Infix "-" := Byte.sub : ByteScope.
 Infix "*" := Byte.mul : ByteScope.
 Infix "<" := Byte.lt : ByteScope.
+Infix "<u" := Byte.ltu (at level 70) : ByteScope.
 Notation "x <=u y" := (negb (Byte.ltu y x)) (at level 70) : ByteScope.
 Notation "x <= y" := (negb (Byte.lt y x)) (at level 70) : ByteScope.
 Infix "%" := Byte.mods (at level 70) : ByteScope.
@@ -24,16 +29,21 @@ Delimit Scope IntScope with int.
 Infix "==" := Int.eq (at level 70) : IntScope.
 Notation "x ~= y" := (negb Int.eq x y) (at level 70) : IntScope.
 Notation "x >> y" := (Int.shru x y) (at level 70) : IntScope.
+Notation "x << y" := (Int.shl x y) (at level 70) : IntScope.
 Notation "0" := Int.zero : IntScope.
 Notation "1" := Int.one : IntScope.
 Infix "+" := Int.add : IntScope.
 Infix "-" := Int.sub : IntScope.
 Infix "*" := Int.mul : IntScope.
 Infix "<" := Int.lt : IntScope.
+Infix "<u" := Int.ltu (at level 70) : IntScope.
 Notation "x <=u y" := (negb (Int.ltu y x)) (at level 70) : IntScope.
 Notation "x <= y" := (negb (Int.lt y x)) (at level 70) : IntScope.
 Infix "%" := Int.mods (at level 70) : IntScope.
 Infix "//" := Int.divs (at level 70) : IntScope.
+Infix "&" := Int.and (at level 70) : IntScope. 
+Infix "or" := Int.or (at level 70) : IntScope. 
+
 
 Delimit Scope Int64Scope with int64.
 Infix "==" := Int64.eq (at level 70) : Int64Scope.

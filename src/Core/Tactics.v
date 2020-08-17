@@ -1,5 +1,4 @@
-Require Import Core IntLemmas Notations.
-Require Import StructTact.StructTactics.
+Require Import Core Int Notations.
 
 Ltac ints_to_Z :=
   repeat rewrite Int.unsigned_repr_eq; repeat rewrite Zmod_small.
@@ -50,3 +49,59 @@ Ltac destruct_andb_hyp :=
  | [H : andb _ _ = true |- _] => apply andb_prop in H; destruct H
  | [H : andb _ _ = false |- _] => apply andb_false_elim in H; destruct H
  end.
+
+Ltac Zbool_to_Prop :=
+  try (rewrite Z.leb_le in * 
+        || rewrite Z.leb_gt in * 
+        || rewrite Z.eqb_eq in * 
+        || rewrite Z.eqb_neq in * 
+        || rewrite Z.ltb_ge in * 
+        || rewrite Z.ltb_lt in *).
+
+
+(*Tactic Notation "forward_if" constr(postL) constr(postP) constr(postS) :=
+  let l :=
+  lazymatch type of postL with
+  | localdef =>
+      match goal with
+      | |- semax _ (PROPx (?P) (LOCALx ?Q ?R)) _ _ =>
+          let Q' := remove_LOCAL2 constr:(cons postL nil) Q in
+          constr:(cons postL Q')
+      end
+  | list localdef =>
+      match goal with
+      | |- semax _ (PROPx (?P) (LOCALx ?Q ?R)) _ _ =>
+          let Q' := remove_LOCAL2 postL Q in
+          let Q'' := eval cbv iota zeta beta delta [app] in (postL ++ Q') in Q''
+      end
+  | _ => fail "First arg must be localdef or list localdef" 
+  end in 
+  let p :=
+  lazymatch type of postP with
+  | Prop =>
+      match goal with
+      | |- semax _ (PROPx (?P) ?Q) _ _ =>
+          constr:(cons postP P)
+      end
+  | list Prop =>
+      match goal with
+      | |- semax _ (PROPx (?P) ?Q) _ _ =>
+          let P' := eval cbv iota zeta beta delta [app] in (postP ++ P) in P'
+      end
+  | _ => fail "Second arg must be Prop or list Prop"
+  end in
+  lazymatch type of postS with
+  | mpred =>
+      match goal with
+      | |- semax _ (PROPx (?P) (LOCALx ?Q) SEPx (?R)) _ _ =>
+          (*let R' := modify_sep [postS] R in*)
+          forward_if_tac ((PROPx p) (LOCALx l) (SEPx R))
+      end
+  | list mpred =>
+      match goal with
+      | |- semax _ (PROPx (?P) (LOCALx ?Q) SEPx (?R)) _ _ =>
+          (*let R' := modify_sep postS R in*)
+          forward_if_tac ((PROPx p) (LOCALx l) (SEPx R))
+      end
+  | _ => fail "Third arg must be mpred or list mpred" 
+  end.*)

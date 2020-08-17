@@ -1,4 +1,4 @@
-Require Import Core.Core Core.Notations Lib.Lib.
+(*)Require Import Core.Core Core.Notations Lib.Lib.
 
 Section Encoder.
 
@@ -12,3 +12,4 @@ Section Decoder.
 Definition real_decoder := primitive_decoder.
 
 End Decoder.
+*)

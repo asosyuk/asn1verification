@@ -1,10 +1,14 @@
-Require Import ZArith Core.Core Core.Notations ErrorWithWriter.
+Require Import Core.Core Core.Notations ErrorWithWriter.
 Require Import ExtLib.Data.List.
 
 Require Export ErrorWithWriter.
 
 (* Decoder return type *)
 Record asn_dec_rval := rval { consumed : Z }.
+
+(* tag_consumed - how much buffer ber_check_tags consumed
+   tag_length - expected size of value(in bytes) *)
+Record check_tag_r := mk_check_tag { tag_consumed : Z; tag_length : Z }.
 
 (* Encoder return type *)
 Record asn_enc_rval : Type := encode {
@@ -42,8 +46,6 @@ Inductive TYPE_descriptor :=
         elements : list TYPE_descriptor; 
         decoder_type : asn_type
       }.
-
-Record check_tag_r := mk_check_tag_rval { tag_consumed : Z; tag_expected : Z }.
 
 (* The function can return error in 3 cases:
    1) If der_write_tags fails.
