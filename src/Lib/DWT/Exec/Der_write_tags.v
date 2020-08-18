@@ -72,16 +72,16 @@ Require Import Ber_tlv_tag_serialize_m Ber_tlv_length_serialize_m.
 Lemma TS_inr_not_one : forall t s ls e,
   tag_serialize t (Int.repr s) []
   = inr (ls, {| encoded := e |}) ->
-  0 <= e.
+  0 <= e <= 6.
 Proof.
   intros.
   unfold tag_serialize in H.
   repeat break_if; cbn in H; try congruence.
   inversion H as [A].
-  discriminate.
+  nia.
   repeat break_if;
     inversion H as [A];
-    discriminate.
+    nia.
 Qed.
 
 Lemma TS_inr_not_int_one : forall t s ls e i,
@@ -117,16 +117,16 @@ Qed.
 Lemma LS_inr_not_one : forall t s ls e i,
   length_serialize t (Int.repr s) i
   = inr (ls, {| encoded :=  e |}) ->
-  0 <= e.
+  0 <= e <= 5.
 Proof.
   intros.
   unfold length_serialize in H.
   repeat break_if; cbn in H; try congruence.
   inversion H as [A].
-  discriminate.
+  nia.
   repeat break_if;
     inversion H as [A];
-    discriminate.
+    nia.
 Qed.
 
 Lemma DWT_inr_not_one : forall t l s c ls e,
@@ -137,32 +137,31 @@ Proof.
   unfold der_write_TL_m in H.
   cbn in H.
   repeat break_match;
-    try congruence.
-  subst.
-  inversion H.
-  subst. clear H.
-  inversion Heqs1.
-  subst. clear Heqs1.
-  inversion Heqs0.
-  subst. clear Heqs0.
-  inversion Heqs2.
-  subst. clear Heqs2.
-  simpl in *.
-  inversion Heqs4 as [TS].
-  eapply TS_inr_not_one in TS.
-   inversion Heqs3 as [LS].
-  eapply LS_inr_not_one in LS.
-  eapply TS_inr_not_int_one in Heqs4.
-  eapply LS_inr_not_int_one in Heqs3.
-  assert (0 <= encoded + encoded0) as E by nia.
-  assert (-1 <> encoded + encoded0) as EE by nia.
-  clear E.
-Admitted.
-  
-  
-
-  
-  subst.
+    try congruence;
+  subst;
+  inversion H;
+  subst; clear H;
+  inversion Heqs1;
+  subst; clear Heqs1;
+  inversion Heqs0;
+  subst; clear Heqs0;
+  inversion Heqs2;
+  subst; clear Heqs2;
+  simpl in *;
+  inversion Heqs4 as [TS];
+  eapply TS_inr_not_one in TS;
+   inversion Heqs3 as [LS];
+  eapply LS_inr_not_one in LS;
+  assert (0 <= encoded + encoded0 <= 11) as E by nia;
+  assert (-1 <> encoded + encoded0) as EE by nia;
+  destruct (eq_dec (Int.repr (encoded + encoded0)) (Int.repr (-1))) as [e | g];
+  try inversion e;
+  try erewrite Int.Z_mod_modulus_eq in H0;
+  try erewrite Zmod_small in H0;
+  try nia;
+  try rep_omega;
+  try eassumption. 
+Qed.
   
 
 Lemma eval_DWT_opt_to_Z : forall t l s c,
@@ -180,10 +179,10 @@ Proof.
   repeat break_match; try congruence.
   inversion Heqo as [A].
   rewrite A in *. clear A.
-  Search Int.eq true.
   symmetry in H.
   eapply binop_lemmas2.int_eq_true in H.
-  inversion H as [A].
-   
-  
-  simp in H.
+  eapply DWT_inr_not_one in Heqs0.
+  simpl in Heqs0.
+  contradiction.
+  exists e. auto.
+Qed.

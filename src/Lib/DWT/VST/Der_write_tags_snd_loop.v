@@ -206,6 +206,7 @@ Proof.
                   else len (tags td) + 1 - Int.unsigned t1) as tags_count.
   (* loop 2 *) 
   Require Import Exec.Der_write_TL_m.
+
   remember (if eq_dec (Int.repr tag_mode) 0%int
        then data_at Tsh (tarray tuint 16)
                     ((map Vint (map Int.repr (tags td)))
@@ -221,7 +222,9 @@ Proof.
           else Vint (Int.repr tag) :: map Vint (map Int.repr (tags td))) ++
          default_val (tarray tuint (16 - len (tags td) - 1))) v_tags_buf_scratch)
            as data_at_tags.
+
   remember (tags td) as ts.
+
   forward_loop (
   EX j : Z, 
   let (overall_length, lens) :=
@@ -316,6 +319,8 @@ Proof.
     destruct (eq_dec (Int.repr tag_mode) 0%int).
  ++ forward.
     entailer!.
+    strip_repr.
+    admit.
     admit.
     erewrite app_Znth1.
     erewrite zlist_hint_db.Znth_map_Vint.
@@ -331,8 +336,10 @@ Proof.
     forward_call (fi, Int.repr z, nullval, nullval, Int.zero).
     rewrite_if_b.
     unfold Frame.
-  instantiate (1 := [data_at Tsh (tarray tint 16) (default_val (tarray tint (16 - j)) ++ map Vint (map Int.repr l))
-     v_lens;
+  instantiate (1 :=
+                 [data_at Tsh (tarray tint 16) (default_val (tarray tint (16 - j)) 
+                                                            ++ map Vint (map Int.repr l))
+                          v_lens;
    data_at Tsh (tarray tuint 16)
      (map Vint (map Int.repr (tags td))
           ++ default_val (tarray tuint (16 - len (tags td))))
@@ -356,6 +363,7 @@ Proof.
     admit. (* add lemma *)
     repeat rewrite_if_b.
     forward_if.
+    abbreviate_semax.
     forward.
     erewrite upd_Znth_same in H6.
     entailer!.
