@@ -7,17 +7,35 @@ Inductive DWT_Error := .
 
 Require Import VST.floyd.sublist.
 
+
 Fixpoint der_write_tags_loop1 (n : nat) (lens : list Z) (ts : list Z) (l : Z) 
   : errW1 (asn_enc_rval * list Z) :=
   match n with
+    
   | O => ret (encode l, lens)
+ (* |
+    '(encode i) <- der_write_TL_m (Int.repr (Znth 0 ts)) (Int.repr l) 0 0%int ;;
+     ret (encode (l + i), (l-i :: lens)) *)
+  | S n => 
+    '(encode i) <-
+     der_write_TL_m (Int.repr (Znth (Z.of_nat n) ts)) (Int.repr l) 0 0%int ;;
+     der_write_tags_loop1 n (l - i :: lens) ts (l + i)
+  end.
+
+
+(* Fixpoint der_write_tags_loop1 (n : nat) (lens : list Z) (ts : list Z) (l : Z) 
+  : errW1 (asn_enc_rval * list Z) :=
+  match n with
+  | O =>
+    '(encode i) <- der_write_TL_m (Int.repr (Znth 0 ts)) (Int.repr l) 0 0%int ;;
+     ret (encode (l + i), (l-i :: lens))
   | S n => 
     '(encode i) <-
      der_write_TL_m (Int.repr (Znth (Z.of_nat (S n)) ts)) (Int.repr l) 0 0%int ;;
      der_write_tags_loop1 n (l - i :: lens) ts (l + i)
-  end.
+  end. *)
 
-Lemma der_write_tags_loop1_fail : forall n ls l s e ls',
+(*Lemma der_write_tags_loop1_fail : forall n ls l s e ls',
     (0 < n)%nat ->
     der_write_TL_m (Int.repr (Znth (Z.of_nat n) ls)) (Int.repr l) 0 0%int s = inl e ->
     der_write_tags_loop1 n ls' ls l s = inl e.
@@ -31,7 +49,7 @@ Proof.
     simpl in B.
     erewrite B.
     auto.
-Qed. 
+Qed. *)
 
 Fixpoint der_write_tags_loop2 (ts : list Z) (ls : list int)
          (i : Z) (size : Z) (last_tag_form : Z)
@@ -173,6 +191,49 @@ Lemma eval_DWT_opt_to_Z : forall t l s c,
     | None => -1
     end == Int.repr (- (1)))%int = true -> 
    (exists e, (der_write_TL_m t l s c) [] = inl e).
+Proof.
+  intros.
+  unfold evalErrW in H.
+  repeat break_match; try congruence.
+  inversion Heqo as [A].
+  rewrite A in *. clear A.
+  symmetry in H.
+  eapply binop_lemmas2.int_eq_true in H.
+  eapply DWT_inr_not_one in Heqs0.
+  simpl in Heqs0.
+  contradiction.
+  exists e. auto.
+Qed.
+
+Lemma write_TL_to_loop1 :  forall e n ts l,
+      (0 < n)%nat ->
+      (der_write_TL_m
+         (Int.repr (Znth (Z.of_nat n) ts)) (Int.repr l) 0 0%int [] = inl e) ->
+       der_write_tags_loop1 (S n) [] ts l [] = inl e.
+    { intros until l.
+      intros N R.
+      destruct n.
+      nia.
+      simpl in *.
+      erewrite R;
+      auto. }
+Qed.
+
+Lemma sublist_loop1_fail : forall j l ts e v,
+   der_write_tags_loop1 (Z.to_nat (j + 1)) []
+                        (sublist (len ts - (j + 1)) (len ts) ts) l [] = inl e ->
+   der_write_tags_loop1 (Z.to_nat j) []
+                        (sublist (len ts - j) (len ts) ts) l [] = inr v ->
+   der_write_tags_loop1 (length ts) [] ts l [] = inl e.
+Proof.
+  intros.
+  induction ts.
+  - autorewrite with sublist in *.
+    simpl in *.
+    admit.
+  - simpl.
+
+
 Proof.
   intros.
   unfold evalErrW in H.

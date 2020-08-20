@@ -117,7 +117,6 @@ Definition der_write_tags_spec : ident * funspec :=
           data_at_ Tsh enc_key_s app_key;
           valid_pointer cb).
 
-
 Definition Gprog := ltac:(with_library prog [der_write_tags_spec;
                                                der_write_TL_spec]).
 
@@ -229,12 +228,15 @@ Proof.
   EX j : Z, 
   let (overall_length, lens) :=
       (match der_write_tags_loop1
-               (Z.to_nat j) [] 
-               (sublist (len ts - j) (len ts) ts) struct_len [] with
+               (Z.to_nat j) [] (sublist (len ts - j) (len ts) ts) struct_len [] with
         | inr (_, p) => match p with (l, ls) => (encoded l, ls) end
         | _ => (struct_len, [])
       end) in
-  PROP (0 <= j <= tags_count)
+  PROP (0 <= j <= tags_count;
+       forall j', exists v, 0 < j' <= j ->
+            der_write_tags_loop1
+              (Z.to_nat j') [] (sublist (len ts - j') (len ts) ts) struct_len [] 
+            = inr v)
   LOCAL (
   temp _tags v_tags_buf_scratch;  
   temp _i (Vint (Int.repr tags_count - Int.repr j - 1)%int);
@@ -298,21 +300,25 @@ Proof.
     repeat break_if; strip_repr.    
     Exists 0.
     autorewrite with sublist.
-    unfold der_write_tags_loop1.
-    break_let.
+    break_let.        
     simpl in Heqp.
     inversion Heqp.
     subst.
     entailer!.
+    split.
     { generalize H3.
       repeat break_if;
         pose proof (Zlength_nonneg (tags td));
       intro I;
       eapply repr_neq_e in I; split;
       strip_repr. }
+    split.
+    intro.
+    eexists.
+    nia.
+    repeat break_if; strip_repr.
     apply derives_refl.
-  +  
-    Intros j.
+  + Intros j.
     break_let.
     forward_if.
     erewrite Heqdata_at_tags.
@@ -332,13 +338,14 @@ Proof.
     erewrite app_Znth1.
     strip_repr.
     erewrite zlist_hint_db.Znth_map_Vint.
-    remember ( (Znth (tags_count - j - 1) ((map Int.repr ts)))) as fi.
+    remember ((Znth (tags_count - j - 1) ((map Int.repr ts)))) as fi.
     forward_call (fi, Int.repr z, nullval, nullval, Int.zero).
     rewrite_if_b.
     unfold Frame.
   instantiate (1 :=
-                 [data_at Tsh (tarray tint 16) (default_val (tarray tint (16 - j)) 
-                                                            ++ map Vint (map Int.repr l))
+                 [data_at Tsh (tarray tint 16) 
+                          (default_val (tarray tint (16 - j)) 
+                                       ++ map Vint (map Int.repr l))
                           v_lens;
    data_at Tsh (tarray tuint 16)
      (map Vint (map Int.repr (tags td))
@@ -361,24 +368,47 @@ Proof.
        inversion Heqp;
     unfold default_val; cbn; try nia.
     admit. (* add lemma *)
-    repeat rewrite_if_b.
+     erewrite upd_Znth_same.
+     repeat rewrite_if_b.
     forward_if.
-    abbreviate_semax.
     forward.
-    erewrite upd_Znth_same in H6.
     entailer!.
+    Require Import Exec.Der_write_tags.
+    { (* return - 1 *)
     assert (exists e, der_write_TL_m
                    (Znth (len (tags td) - j - 1) 
                          (map Int.repr (tags td)))
-                   (Int.repr z) 0 0%int [] = inl e) as E by admit. (* from H6 *)
+                   (Int.repr z) 0 0%int [] = inl e) as E.
+    { eapply eval_DWT_opt_to_Z.
+      admit. }
     destruct E as [err  E].
-    clear H6.
-    assert (der_write_tags_loop1 (Z.to_nat (len (tags td) - j - 1))
-                                 [] (tags td) z [] = inl err) as EE by admit.
-                                  
+    assert (write_TL_to_loop1 :  forall e n ts l,
+      (0 < n)%nat ->
+      (der_write_TL_m
+         (Int.repr (Znth (Z.of_nat n) ts)) (Int.repr l) 0 0%int [] = inl e) ->
+       der_write_tags_loop1 (S n) [] ts l [] = inl e).
+    { intros until l0.
+      intros N R.
+      destruct n.
+      nia.
+      simpl in *.
+      erewrite R;
+      auto. }
+    
+    assert (der_write_tags_loop1 (S (Z.to_nat (len (tags td) - j - 1)))
+                                 [] (tags td) z [] = inl err) as EE.
+    { eapply write_TL_to_loop1.
+      admit.
+      admit. } (* true *)
+                              
     unfold der_write_tags.
-    assert (der_write_tags_loop1 ((length (tags td)))
-                                 [] (tags td) struct_len [] = inl err) as EEE by admit.
+    assert (exists k, der_write_tags_loop1 
+              ((length (tags td)))
+              [] (tags td) struct_len [] = inl k) as EEE by admit.
+
+    
+              )
+    destruct EEE as [k EEE].
     unfold evalErrW.
     cbn. 
     break_if; auto.
@@ -389,7 +419,6 @@ Proof.
     erewrite EEE.
     congruence.
     admit.
-    admit.
     rewrite_if_b.
     repeat forward.   
     remember (Int.repr
@@ -399,18 +428,25 @@ Proof.
                 | Some {| encoded := v0 |} => v0
                 | None => -1
                 end) as res.
+    1-4: admit.
     Exists (j + 1).
     rewrite_if_b.
+    break_let.
     entailer!.
     split. 
-    erewrite upd_Znth_same in H6.
     admit.
-    unfold default_val; cbn.
-    nia.
     split.
-    do 2 f_equal.
-    nia.
+    do 3 f_equal.
+    admit.
     erewrite upd_Znth_same.
+    simpl.
+    f_equal.
+    break_match.
+    break_match.
+    generalize  Heqp.
+    generalize  Heqp0.
+    
+    
     (* why struct len??? *)
     admit.
     unfold default_val; cbn; nia.
