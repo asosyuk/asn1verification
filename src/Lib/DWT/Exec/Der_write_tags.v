@@ -7,7 +7,14 @@ Inductive DWT_Error := .
 
 Require Import VST.floyd.sublist.
 
-
+Fixpoint der_write_tags_loop1 (ts : list Z) (sl : Z) :=
+  match ts with
+    | [] => ret sl
+    | h :: tl => y <- der_write_tags_loop1 tl sl ;;
+                '(encode x) <- der_write_TL_m (Int.repr h) (Int.repr y) 0 0%int;;
+                ret (x + y)
+  end.
+(*
 Fixpoint der_write_tags_loop1 (n : nat) (lens : list Z) (ts : list Z) (l : Z) 
   : errW1 (asn_enc_rval * list Z) :=
   match n with
@@ -22,6 +29,8 @@ Fixpoint der_write_tags_loop1 (n : nat) (lens : list Z) (ts : list Z) (l : Z)
      der_write_tags_loop1 n (l - i :: lens) ts (l + i)
   end.
 
+
+*)
 
 (* Fixpoint der_write_tags_loop1 (n : nat) (lens : list Z) (ts : list Z) (l : Z) 
   : errW1 (asn_enc_rval * list Z) :=
@@ -81,7 +90,7 @@ Definition der_write_tags (td : TYPE_descriptor)
            else l) =? 0 
        then ret (encode 0)
        else
-         '(_, ls) <- listen (der_write_tags_loop1 (length ts) [] ts struct_len) ;;
+         '(_, ls) <- listen (der_write_tags_loop1 (*(length ts) [] *) ts struct_len) ;;
           z <- der_write_tags_loop2 ts ls l size last_tag_form ;;
           ret (encode (encoded z - struct_len)).
 
@@ -205,6 +214,7 @@ Proof.
   exists e. auto.
 Qed.
 
+(*
 Lemma write_TL_to_loop1 :  forall e n ts l,
       (0 < n)%nat ->
       (der_write_TL_m
@@ -247,3 +257,4 @@ Proof.
   contradiction.
   exists e. auto.
 Qed.
+*)

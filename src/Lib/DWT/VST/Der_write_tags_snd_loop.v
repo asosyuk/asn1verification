@@ -225,17 +225,15 @@ Proof.
   remember (tags td) as ts.
 
   forward_loop (
-  EX j : Z, 
-  let (overall_length, lens) :=
-      (match der_write_tags_loop1
-               (Z.to_nat j) [] (sublist (len ts - j) (len ts) ts) struct_len [] with
-        | inr (_, p) => match p with (l, ls) => (encoded l, ls) end
-        | _ => (struct_len, [])
+  EX j : Z, EX lens : list Z,
+  let overall_length :=
+      (match der_write_tags_loop1 (sublist (len ts - j) (len ts) ts) struct_len [] with
+        | inr (ls, l) => l
+        | _ => struct_len
       end) in
   PROP (0 <= j <= tags_count;
        forall j', exists v, 0 < j' <= j ->
-            der_write_tags_loop1
-              (Z.to_nat j') [] (sublist (len ts - j') (len ts) ts) struct_len [] 
+            der_write_tags_loop1 (sublist (len ts - j') (len ts) ts) struct_len [] 
             = inr v)
   LOCAL (
   temp _tags v_tags_buf_scratch;  
@@ -264,12 +262,12 @@ Proof.
   valid_pointer nullval))%assert 
 
  break:
- (let (overall_length, lens) :=
-      match der_write_tags_loop1 (length (tags td)) [] (tags td) struct_len [] with
-        | inr (_, p) => match p with (l, lens) =>
-          (encoded l, lens) end
-        | _ => (struct_len, [])
+ (let overall_length :=
+      match der_write_tags_loop1 (* (length (tags td)) [] *) (tags td) struct_len [] with
+        | inr (ls, l) => l
+        | _ => struct_len
       end in
+  EX lens : list Z,
   PROP ()
   LOCAL (temp _tags v_tags_buf_scratch;
   temp _i Vzero;
@@ -298,12 +296,8 @@ Proof.
   + forward. 
     entailer!.
     repeat break_if; strip_repr.    
-    Exists 0.
+    Exists 0 (@nil Z).
     autorewrite with sublist.
-    break_let.        
-    simpl in Heqp.
-    inversion Heqp.
-    subst.
     entailer!.
     split.
     { generalize H3.
@@ -317,9 +311,8 @@ Proof.
     eexists.
     nia.
     repeat break_if; strip_repr.
-    apply derives_refl.
-  + Intros j.
-    break_let.
+    (* apply derives_refl. *)
+  + Intros j lens.
     forward_if.
     erewrite Heqdata_at_tags.
     destruct (eq_dec (Int.repr tag_mode) 0%int).
@@ -339,64 +332,65 @@ Proof.
     strip_repr.
     erewrite zlist_hint_db.Znth_map_Vint.
     remember ((Znth (tags_count - j - 1) ((map Int.repr ts)))) as fi.
+    remember (match der_write_tags_loop1 (sublist (len ts - j) (len ts) ts) struct_len [] with
+             | inl _ => struct_len
+             | inr (_, l) => l
+             end) as z.
     forward_call (fi, Int.repr z, nullval, nullval, Int.zero).
     rewrite_if_b.
     unfold Frame.
-  instantiate (1 :=
-                 [data_at Tsh (tarray tint 16) 
-                          (default_val (tarray tint (16 - j)) 
-                                       ++ map Vint (map Int.repr l))
-                          v_lens;
+    instantiate (1 := [(data_at Tsh (tarray tint 16)
+     (default_val (tarray tint (16 - j)) ++ map Vint (map Int.repr lens)) v_lens *
    data_at Tsh (tarray tuint 16)
-     (map Vint (map Int.repr (tags td))
-          ++ default_val (tarray tuint (16 - len (tags td))))
-     v_tags_buf_scratch ;
-   (* data_at Tsh type_descriptor_s (r, (r0, (r1, (r2, (Vint (Int.repr (len (tags td))), m3)))))
-     td_p ; *)
-   data_at Tsh (tarray tuint (len (tags td))) (map Vint (map Int.repr (tags td)))
-     (get_tags (r, (r0, (r1, (r2, (Vint (Int.repr (len (tags td))), m3)))))) ; 
-   func_ptr' dummy_callback_spec cb ; data_at_ Tsh enc_key_s app_key ; 
-   valid_pointer cb]).
+     (map Vint (map Int.repr ts) ++ default_val (tarray tuint (16 - len ts))) v_tags_buf_scratch *
+   data_at Tsh (tarray tuint (len (tags td))) (map Vint (map Int.repr (tags td))) tags_p *
+   func_ptr' dummy_callback_spec cb * data_at_ Tsh enc_key_s app_key * 
+   valid_pointer cb)%logic]).
     unfold fold_right_sepcon.
-    entailer!. 
+    entailer!.
+    Intros.
+    repeat rewrite_if_b.
+    Intros.
     forward.
     admit.
     forward.
     admit.
     entailer!.
-    erewrite upd_Znth_same;
-       inversion Heqp;
+    erewrite upd_Znth_same.
+    cbn. auto.
     unfold default_val; cbn; try nia.
     admit. (* add lemma *)
-     erewrite upd_Znth_same.
-     repeat rewrite_if_b.
+    erewrite upd_Znth_same.
+    repeat rewrite_if_b.
     forward_if.
     forward.
     entailer!.
     Require Import Exec.Der_write_tags.
     { (* return - 1 *)
+      remember (tags td) as ts.    
+      remember (match der_write_tags_loop1 (sublist (len ts - j) (len ts) ts) struct_len [] with
+             | inl _ => struct_len
+             | inr (_, l) => l
+             end) as z.
     assert (exists e, der_write_TL_m
                    (Znth (len (tags td) - j - 1) 
                          (map Int.repr (tags td)))
                    (Int.repr z) 0 0%int [] = inl e) as E.
     { eapply eval_DWT_opt_to_Z.
-      admit. }
+      admit. } (* true *)
     destruct E as [err  E].
     assert (write_TL_to_loop1 :  forall e n ts l,
       (0 < n)%nat ->
       (der_write_TL_m
          (Int.repr (Znth (Z.of_nat n) ts)) (Int.repr l) 0 0%int [] = inl e) ->
-       der_write_tags_loop1 (S n) [] ts l [] = inl e).
-    { intros until l0.
+       der_write_tags_loop1 ts l [] = inl e).
+    { intros until l.
       intros N R.
-      destruct n.
-      nia.
-      simpl in *.
-      erewrite R;
-      auto. }
+      destruct ts.
+      admit. admit. }
     
-    assert (der_write_tags_loop1 (S (Z.to_nat (len (tags td) - j - 1)))
-                                 [] (tags td) z [] = inl err) as EE.
+   (* assert (der_write_tags_loop1 (S (Z.to_nat (len (tags td) - j - 1)))
+                                 [] (tags td) z [] = inl err) as EE. 
     { eapply write_TL_to_loop1.
       admit.
       admit. } (* true *)
@@ -557,3 +551,4 @@ Proof.
 Admitted.
 
 End Der_write_tags.
+*)
