@@ -262,3 +262,23 @@ Proof.
   exists e. auto.
 Qed.
 
+Lemma eval_DWT_opt_inr : forall t l s c i,
+  (Int.repr
+    match
+      evalErrW (der_write_TL_m t l s c) i
+    with
+    | Some {| encoded := v0 |} => v0
+    | None => -1
+    end <> Int.repr (- (1))) -> 
+   (exists v, (der_write_TL_m t l s c) i = inr v).
+Proof.
+  intros.
+  unfold evalErrW in H.
+  repeat break_match; try congruence.
+  inversion Heqo as [A].
+  rewrite A in *. clear A.
+  exists (l0, {| encoded := encoded |}).
+  auto.
+  contradiction.
+Qed.
+
