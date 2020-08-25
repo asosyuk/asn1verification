@@ -26,6 +26,42 @@ Proof.
     erewrite IHl1; auto.
 Qed.
 
+Lemma write_TL_to_loop1 :  forall e h tl l ls sl,
+      der_write_tags_loop1 tl sl [] = inr (ls, l) ->
+      der_write_TL_m (Int.repr h) (Int.repr l) 0 0%int ls = inl e ->
+      der_write_tags_loop1 (h :: tl) sl [] = inl e.
+Proof.
+  intros.
+  simpl.
+  erewrite H.
+  erewrite H0.
+  auto.
+Qed.
+
+Lemma write_TL_to_loop1_sublist :  
+  forall j e ts l ls sl,
+    0 < j < len ts ->
+    der_write_tags_loop1
+      (sublist (len ts - j) (len ts) ts) sl [] = inr (ls, l) ->
+    der_write_TL_m
+      (Int.repr (Znth (len ts - j - 1) ts)) (Int.repr l) 0 0%int ls = inl e ->
+    der_write_tags_loop1 ts sl [] = inl e.
+Proof.
+  intros until sl.
+  intros J L TL.
+  replace ts with
+      ((sublist 0 (len ts - j - 1) ts 
+                ++  (sublist (len ts - j - 1) (len ts) ts))).
+  eapply loop1_app.
+  replace (sublist (len ts - j - 1) (len ts) ts) with
+      ((Znth (len ts - j - 1) ts) :: (sublist (len ts - j) (len ts) ts)). 
+  eapply write_TL_to_loop1; try eassumption.
+  erewrite Znth_cons_sublist.
+  all: autorewrite with sublist;
+  auto.
+  nia.
+Qed.
+  
 (*
 Fixpoint der_write_tags_loop1 (n : nat) (lens : list Z) (ts : list Z) (l : Z) 
   : errW1 (asn_enc_rval * list Z) :=
