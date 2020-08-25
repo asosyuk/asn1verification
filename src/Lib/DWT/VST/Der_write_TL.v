@@ -58,7 +58,7 @@ Proof. make_cs_preserve  Ber_tlv_length_serialize.CompSpecs CompSpecs. Defined.
 Definition der_write_TL_spec : ident * funspec :=
   DECLARE _der_write_TL
   WITH tag : int, l : int, 
-       cb : val, app_key : val, constructed : int
+       cb : val, app_key : val, constructed : int, init : list int
   PRE[tuint, tint, tptr cb_type, tptr tvoid, tint]
     PROP()
     PARAMS(Vint tag; Vint l; cb; app_key; Vint constructed)
@@ -73,7 +73,7 @@ Definition der_write_TL_spec : ident * funspec :=
     PROP() 
     LOCAL(temp ret_temp
                (Vint (Int.repr
-              (match evalErrW (der_write_TL_m tag l size constructed) [] with
+              (match evalErrW (der_write_TL_m tag l size constructed) init with
                 | Some v => match v with encode v => v end
                 | None => -1
               end))))

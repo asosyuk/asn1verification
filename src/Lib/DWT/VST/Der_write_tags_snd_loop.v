@@ -232,7 +232,7 @@ Proof.
         | _ => struct_len
       end) in
   PROP (0 <= j <= tags_count;
-       forall j', exists v, 0 < j' <= j ->
+       forall j', exists v, 0 <= j' <= j ->
             der_write_tags_loop1 (sublist (len ts - j') (len ts) ts) struct_len [] 
             = inr v)
   LOCAL (
@@ -309,7 +309,12 @@ Proof.
     split.
     intro.
     eexists.
-    nia.
+    intro.
+    assert (j' = 0) by nia.
+    subst.
+    autorewrite with sublist.
+    simpl.
+    auto.
     repeat break_if; strip_repr.
   + Intros j lens.
     forward_if.
@@ -335,7 +340,11 @@ Proof.
              | inl _ => struct_len
              | inr (_, l) => l
              end) as z.
-    forward_call (fi, Int.repr z, nullval, nullval, Int.zero).
+    remember (match der_write_tags_loop1 (sublist (len ts - j) (len ts) ts) struct_len [] with
+             | inl _ => []
+             | inr (ls, _) => ls
+             end) as ls.
+    forward_call (fi, Int.repr z, nullval, nullval, Int.zero, ls).
     rewrite_if_b.
     unfold Frame.
     instantiate
@@ -378,51 +387,39 @@ Proof.
          | inl _ => struct_len
          | inr (_, l) => l
          end) as z.
+      remember (match der_write_tags_loop1 (sublist (len ts - j) (len ts) ts) struct_len [] with
+             | inl _ => []
+             | inr (ls, _) => ls
+             end) as ls.
       assert (exists e, der_write_TL_m
                    (Znth (len (tags td) - j - 1) 
                          (map Int.repr (tags td)))
-                   (Int.repr z) 0 0%int [] = inl e) as E.
+                   (Int.repr z) 0 0%int ls = inl e) as E.
     { eapply eval_DWT_opt_to_Z.
-      admit. } (* true *)
-    destruct E as [err  E].
-    assert (write_TL_to_loop1 :  forall j e ts l ls,
-      der_write_tags_loop1
-        (sublist (len ts - j) (len ts) ts) struct_len [] = inr (ls, l) ->
-      der_write_TL_m
-         (Int.repr (Znth (len ts - j - 1) ts)) (Int.repr l) 0 0%int [] = inl e ->
-       der_write_tags_loop1 ts l [] = inl e).
-    { intros until ls.
-      intros Loop TL.
-      assert (j0 = 0) by admit.
-      rewrite H2 in *.
-      autorewrite with norm in *.
-      autorewrite with sublist in Loop.
-      simpl in Loop.
-      inversion Loop.
-      subst.
-      destruct ts0.
-      admit.
-      
-      
-      
-        admit.
-      - simpl.
-        
-      admit. admit. }
-    
-    (* assert (der_write_tags_loop1 (S (Z.to_nat (len (tags td) - j - 1)))
-                                 [] (tags td) z [] = inl err) as EE. 
-    { eapply write_TL_to_loop1.
-      admit.
-      admit. } (* true *)
-                              
+      erewrite Heqts in *.
+      erewrite H7. auto. }
+    destruct E as [err E].    
     unfold der_write_tags.
-    assert (exists k, der_write_tags_loop1 
-              ((length (tags td)))
-              [] (tags td) struct_len [] = inl k) as EEE by admit.
-
-    
-              )
+    assert (exists k, der_write_tags_loop1 (tags td) struct_len [] = inl k) as EEE.
+    { edestruct H5.
+      destruct x.
+      erewrite Heqts in *.
+      exists err.
+      eapply write_TL_to_loop1_sublist with (j := j).
+      generalize H6.
+      strip_repr.
+      nia.
+      eapply H2.
+      nia.
+      erewrite H2 in *.
+      subst.
+      erewrite Znth_map in E.
+      eassumption.
+      all: try split; try nia.
+      generalize H6.
+      strip_repr.
+      nia.
+    }
     destruct EEE as [k EEE].
     unfold evalErrW.
     cbn. 
@@ -430,9 +427,19 @@ Proof.
     break_match; auto.
     generalize Heqo.
     break_if.
-    admit. (* contradiction  with tag_mode = 0 *)
+    assert (tag_mode = 0).
+    { inversion e.
+      admit. }
+    generalize Heqb0.
+    break_if.
+    Zbool_to_Prop.
+    intro.
+    pose proof (Zlength_nonneg (tags td)).
+    nia.
+    rewrite H2 in *.
+    discriminate.
     erewrite EEE.
-    congruence.
+    congruence. }
     admit.
     rewrite_if_b.
     repeat forward.   

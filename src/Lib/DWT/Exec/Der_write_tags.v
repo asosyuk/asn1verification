@@ -40,7 +40,7 @@ Qed.
 
 Lemma write_TL_to_loop1_sublist :  
   forall j e ts l ls sl,
-    0 < j < len ts ->
+    0 <= j < len ts ->
     der_write_tags_loop1
       (sublist (len ts - j) (len ts) ts) sl [] = inr (ls, l) ->
     der_write_TL_m
@@ -144,8 +144,8 @@ Definition der_write_tags (td : TYPE_descriptor)
 
 Require Import Ber_tlv_tag_serialize_m Ber_tlv_length_serialize_m.
 
-Lemma TS_inr_not_one : forall t s ls e,
-  tag_serialize t (Int.repr s) []
+Lemma TS_inr_not_one : forall t s ls e i,
+  tag_serialize t (Int.repr s) i
   = inr (ls, {| encoded := e |}) ->
   0 <= e <= 6.
 Proof.
@@ -204,8 +204,8 @@ Proof.
     nia.
 Qed.
 
-Lemma DWT_inr_not_one : forall t l s c ls e,
-  der_write_TL_m t l s c [] = inr (ls, e) ->
+Lemma DWT_inr_not_one : forall t l s c ls e i,
+  der_write_TL_m t l s c i = inr (ls, e) ->
    Int.repr (encoded e) <> Int.repr (-1).
 Proof.
   intros.
@@ -239,15 +239,15 @@ Proof.
 Qed.
   
 
-Lemma eval_DWT_opt_to_Z : forall t l s c,
+Lemma eval_DWT_opt_to_Z : forall t l s c i,
   (Int.repr
     match
-      evalErrW (der_write_TL_m t l s c) []
+      evalErrW (der_write_TL_m t l s c) i
     with
     | Some {| encoded := v0 |} => v0
     | None => -1
     end == Int.repr (- (1)))%int = true -> 
-   (exists e, (der_write_TL_m t l s c) [] = inl e).
+   (exists e, (der_write_TL_m t l s c) i = inl e).
 Proof.
   intros.
   unfold evalErrW in H.
@@ -262,47 +262,3 @@ Proof.
   exists e. auto.
 Qed.
 
-(*
-Lemma write_TL_to_loop1 :  forall e n ts l,
-      (0 < n)%nat ->
-      (der_write_TL_m
-         (Int.repr (Znth (Z.of_nat n) ts)) (Int.repr l) 0 0%int [] = inl e) ->
-       der_write_tags_loop1 (S n) [] ts l [] = inl e.
-    { intros until l.
-      intros N R.
-      destruct n.
-      nia.
-      simpl in *.
-      erewrite R;
-      auto. }
-Qed.
-
-Lemma sublist_loop1_fail : forall j l ts e v,
-   der_write_tags_loop1 (Z.to_nat (j + 1)) []
-                        (sublist (len ts - (j + 1)) (len ts) ts) l [] = inl e ->
-   der_write_tags_loop1 (Z.to_nat j) []
-                        (sublist (len ts - j) (len ts) ts) l [] = inr v ->
-   der_write_tags_loop1 (length ts) [] ts l [] = inl e.
-Proof.
-  intros.
-  induction ts.
-  - autorewrite with sublist in *.
-    simpl in *.
-    admit.
-  - simpl.
-
-
-Proof.
-  intros.
-  unfold evalErrW in H.
-  repeat break_match; try congruence.
-  inversion Heqo as [A].
-  rewrite A in *. clear A.
-  symmetry in H.
-  eapply binop_lemmas2.int_eq_true in H.
-  eapply DWT_inr_not_one in Heqs0.
-  simpl in Heqs0.
-  contradiction.
-  exists e. auto.
-Qed.
-*)
