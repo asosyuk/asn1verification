@@ -116,7 +116,6 @@ Definition der_write_tags_spec : ident * funspec :=
           data_at_ Tsh enc_key_s app_key;
           valid_pointer cb).
 
-
 Definition Gprog := ltac:(with_library prog [der_write_tags_spec]).
 
 Theorem bool_der_encode : semax_body Vprog Gprog (normalize_function f_der_write_tags composites)

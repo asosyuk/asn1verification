@@ -14,6 +14,18 @@ Fixpoint der_write_tags_loop1 (ts : list Z) (sl : Z) :=
                 '(encode x) <- der_write_TL_m (Int.repr h) (Int.repr y) 0 0%int;;
                 ret (x + y)
   end.
+
+Lemma loop1_app : forall l1 l2 z e i, 
+    der_write_tags_loop1 l2 z i = inl e ->
+    der_write_tags_loop1 (l1 ++ l2) z i = inl e.
+Proof.
+  induction l1.
+  - auto.
+  - intros.
+    simpl.
+    erewrite IHl1; auto.
+Qed.
+
 (*
 Fixpoint der_write_tags_loop1 (n : nat) (lens : list Z) (ts : list Z) (l : Z) 
   : errW1 (asn_enc_rval * list Z) :=
