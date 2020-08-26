@@ -427,7 +427,8 @@ Proof.
     congruence. }
     admit. (* FIX type_descriptor type *)
     rewrite_if_b.
-    repeat forward.   
+    repeat forward.  
+    
     remember
       (Int.repr
          match
@@ -444,26 +445,34 @@ Proof.
     unfold default_val; simpl. rewrite Zlength_list_repeat.
     admit. (* TODO: add lens to LI *)
     nia.
-    Exists (j + 1) z (@nil Z).
+    assert (exists v, der_write_TL_m fi (Int.repr z) 0 0%int ls = inr v) as I.
+    { eapply eval_DWT_opt_inr' in H5.
+      eassumption. }
+    destruct I as [v I].
+    unfold evalErrW in H5.
+    setoid_rewrite I in H5.
+    break_let.
+    Exists (j + 1) (encoded a + z) (@nil Z).
     rewrite_if_b.
     entailer!.
     split. 
+    assert (exists ls', der_write_TL_m
+                    (Znth (len (tags td) - j - 1) 
+                          (map Int.repr (tags td)))
+                    (Int.repr z) 0 0%int ls = inr (ls', {| encoded := (encoded a) |})) as E.
+    { eapply eval_DWT_opt_inr; auto.
+      unfold evalErrW.
+      erewrite I.
+      auto. }  
+    destruct E as [ls' TL].
     eexists.
-    eapply eval_DWT_opt_inr in H5.
-    destruct H5 as [v TL].
-    assert (write_TL_to_loop1_sublist_inr :  
-              forall j ts l ls sl vs v,
-    0 <= j < len ts ->
-    der_write_tags_loop1
-      (sublist (len ts - j) (len ts) ts) sl [] = inr (ls, l) ->
-    der_write_TL_m
-      (Int.repr (Znth (len ts - j - 1) ts)) (Int.repr l) 0 0%int ls = inr (vs, encode v) ->
-    der_write_tags_loop1 (sublist (len ts - (j + 1)) (len ts) ts) sl [] = inr (vs, v)) by admit.
     eapply write_TL_to_loop1_sublist_inr with (j := j).
     autorewrite with sublist. nia.
+    erewrite Loop.
+    auto.
+    erewrite Znth_map in TL.
     eassumption.
-    generalize TL.
-    admit.
+    nia.
     split.
     strip_repr.
     do 2 f_equal.
@@ -471,12 +480,26 @@ Proof.
     erewrite upd_Znth_same.
     simpl.
     f_equal.
+    unfold evalErrW.
+    erewrite I.
+    unfold encoded.   
+    normalize.
+    f_equal.
+    nia.
+    admit. (* add lens *)
+    erewrite upd_Znth_same.
+    simpl.
+    unfold evalErrW.
+    erewrite I.
     break_match.
-    break_match.
-    (* why struct len??? *)
     admit.
     admit.
-    unfold default_val; cbn; nia.
+    admit.
+    autorewrite with sublist.
+    nia.
+    strip_repr.
+    autorewrite with sublist.
+    nia.
     ++ admit. (* tag_mode <> 0 *)
   + forward_if.
     forward.

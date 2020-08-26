@@ -61,6 +61,43 @@ Proof.
   auto.
   nia.
 Qed.
+
+
+Lemma write_TL_to_loop1_inr : forall h tl ls1 l1 ls2 l2 sl,
+      der_write_tags_loop1 tl sl [] = inr (ls1, l1) ->
+      der_write_TL_m (Int.repr h) (Int.repr l1) 0 0%int ls1 = inr (ls2, encode l2) ->
+      der_write_tags_loop1 (h :: tl) sl [] = inr (ls1 ++ ls2, l2 + l1).
+Proof.
+  intros.
+  simpl.
+  erewrite H.
+  erewrite H0.
+  auto.
+Qed.
+
+Lemma write_TL_to_loop1_sublist_inr :  
+              forall j ts ls1 l1 ls2 l2 sl,
+    0 <= j < len ts ->
+    der_write_tags_loop1
+      (sublist (len ts - j) (len ts) ts) sl [] = inr (ls1, l1) ->
+    der_write_TL_m
+      (Int.repr (Znth (len ts - j - 1) ts))
+      (Int.repr l1) 0 0%int ls1 = inr (ls2, encode l2) ->
+    der_write_tags_loop1 (sublist (len ts - (j + 1)) 
+                                  (len ts) ts) sl [] = inr (ls1 ++ ls2, l2 + l1).
+Proof.
+  intros until sl.
+  intros J L T.
+  replace (sublist (len ts - (j + 1)) (len ts) ts) with
+      ((Znth (len ts - j - 1) ts) :: (sublist (len ts - j) (len ts) ts)). 
+  eapply write_TL_to_loop1_inr; try eassumption.
+  erewrite Znth_cons_sublist.
+  all: autorewrite with sublist;
+  auto.
+  replace (len ts - j - 1)  with (len ts - (j + 1)) by nia.
+  auto.
+  nia.
+Qed.
   
 (*
 Fixpoint der_write_tags_loop1 (n : nat) (lens : list Z) (ts : list Z) (l : Z) 
@@ -262,15 +299,14 @@ Proof.
   exists e. auto.
 Qed.
 
-Lemma eval_DWT_opt_inr : forall t l s c i,
-  (Int.repr
-    match
-      evalErrW (der_write_TL_m t l s c) i
-    with
-    | Some {| encoded := v0 |} => v0
-    | None => -1
-    end <> Int.repr (- (1))) -> 
-   (exists v, (der_write_TL_m t l s c) i = inr v).
+Lemma eval_DWT_opt_inr' : forall t l s c i,
+    Int.repr (match
+            evalErrW (der_write_TL_m t l s c) i
+          with
+          | Some {| encoded := v0 |} => v0
+          | None => -1
+          end) <> Int.repr (-1) -> 
+    exists v, der_write_TL_m t l s c i = inr v.
 Proof.
   intros.
   unfold evalErrW in H.
@@ -279,6 +315,25 @@ Proof.
   rewrite A in *. clear A.
   exists (l0, {| encoded := encoded |}).
   auto.
-  contradiction.
+Qed.
+
+Lemma eval_DWT_opt_inr : forall t l s c i v,
+    v =(match
+            evalErrW (der_write_TL_m t l s c) i
+          with
+          | Some {| encoded := v0 |} => v0
+          | None => -1
+          end) ->
+    Int.repr v <> Int.repr (-1) -> 
+    exists ls, der_write_TL_m t l s c i = inr (ls, encode v).
+Proof.
+  intros.
+  unfold evalErrW in H.
+  repeat break_match; try congruence.
+  inversion Heqo as [A].
+  rewrite A in *. clear A.
+  exists l0.
+  inversion H.
+  auto.
 Qed.
 
