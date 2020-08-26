@@ -7,17 +7,17 @@ Inductive DWT_Error := .
 
 Require Import VST.floyd.sublist.
 
-Fixpoint der_write_tags_loop1 (ts : list Z) (sl : Z) :=
+Fixpoint der_write_tags_loop1 (ts : list Z) (sl : Z) (ls : list Z) :=
   match ts with
-    | [] => ret sl
-    | h :: tl => y <- der_write_tags_loop1 tl sl ;;
+    | [] => ret (ls, encode sl)
+    | h :: tl => '(l, encode y) <- der_write_tags_loop1 tl sl ls ;;
                 '(encode x) <- der_write_TL_m (Int.repr h) (Int.repr y) 0 0%int;;
-                ret (x + y)
+                ret (y :: l, encode (x + y))
   end.
 
-Lemma loop1_app : forall l1 l2 z e i, 
-    der_write_tags_loop1 l2 z i = inl e ->
-    der_write_tags_loop1 (l1 ++ l2) z i = inl e.
+Lemma loop1_app : forall l1 l2 z e i ls, 
+    der_write_tags_loop1 l2 z ls i = inl e ->
+    der_write_tags_loop1 (l1 ++ l2) z ls i = inl e.
 Proof.
   induction l1.
   - auto.
@@ -26,10 +26,10 @@ Proof.
     erewrite IHl1; auto.
 Qed.
 
-Lemma write_TL_to_loop1 :  forall e h tl l ls sl,
-      der_write_tags_loop1 tl sl [] = inr (ls, l) ->
+Lemma write_TL_to_loop1 :  forall e h tl l ls sl ln i,
+      der_write_tags_loop1 tl sl i [] = inr (ls, (ln, encode l)) ->
       der_write_TL_m (Int.repr h) (Int.repr l) 0 0%int ls = inl e ->
-      der_write_tags_loop1 (h :: tl) sl [] = inl e.
+      der_write_tags_loop1 (h :: tl) sl i [] = inl e.
 Proof.
   intros.
   simpl.
@@ -39,15 +39,15 @@ Proof.
 Qed.
 
 Lemma write_TL_to_loop1_sublist :  
-  forall j e ts l ls sl,
+  forall j e ts l ls sl ln i,
     0 <= j < len ts ->
     der_write_tags_loop1
-      (sublist (len ts - j) (len ts) ts) sl [] = inr (ls, l) ->
+      (sublist (len ts - j) (len ts) ts) sl i [] = inr (ls, (ln, encode l)) ->
     der_write_TL_m
       (Int.repr (Znth (len ts - j - 1) ts)) (Int.repr l) 0 0%int ls = inl e ->
-    der_write_tags_loop1 ts sl [] = inl e.
+    der_write_tags_loop1 ts sl i [] = inl e.
 Proof.
-  intros until sl.
+  intros until i.
   intros J L TL.
   replace ts with
       ((sublist 0 (len ts - j - 1) ts 
@@ -63,11 +63,12 @@ Proof.
 Qed.
 
 
-Lemma write_TL_to_loop1_inr : forall h tl ls1 l1 ls2 l2 sl,
-      der_write_tags_loop1 tl sl [] = inr (ls1, l1) ->
+Lemma write_TL_to_loop1_inr : forall i h tl ls1 l1 ls2 l2 sl lens1,
+      der_write_tags_loop1 tl sl i [] = inr (ls1, (lens1, encode l1)) ->
       der_write_TL_m (Int.repr h) (Int.repr l1) 0 0%int ls1 = inr (ls2, encode l2) ->
-      der_write_tags_loop1 (h :: tl) sl [] = inr (ls1 ++ ls2, l2 + l1).
-Proof.
+      der_write_tags_loop1 (h :: tl) sl i [] 
+      = inr (ls1 ++ ls2, (l1 :: lens1, (encode (l2 + l1)))).
+Proof. 
   intros.
   simpl.
   erewrite H.
@@ -76,15 +77,16 @@ Proof.
 Qed.
 
 Lemma write_TL_to_loop1_sublist_inr :  
-              forall j ts ls1 l1 ls2 l2 sl,
+              forall lens1 i j ts ls1 l1 ls2 l2 sl,
     0 <= j < len ts ->
     der_write_tags_loop1
-      (sublist (len ts - j) (len ts) ts) sl [] = inr (ls1, l1) ->
+      (sublist (len ts - j) (len ts) ts) sl i [] = inr (ls1, (lens1, encode l1)) ->
     der_write_TL_m
       (Int.repr (Znth (len ts - j - 1) ts))
       (Int.repr l1) 0 0%int ls1 = inr (ls2, encode l2) ->
     der_write_tags_loop1 (sublist (len ts - (j + 1)) 
-                                  (len ts) ts) sl [] = inr (ls1 ++ ls2, l2 + l1).
+                                  (len ts) ts) sl i []
+    = inr (ls1 ++ ls2, (l1 :: lens1, (encode (l2 + l1)))).
 Proof.
   intros until sl.
   intros J L T.
@@ -99,52 +101,6 @@ Proof.
   nia.
 Qed.
   
-(*
-Fixpoint der_write_tags_loop1 (n : nat) (lens : list Z) (ts : list Z) (l : Z) 
-  : errW1 (asn_enc_rval * list Z) :=
-  match n with
-    
-  | O => ret (encode l, lens)
- (* |
-    '(encode i) <- der_write_TL_m (Int.repr (Znth 0 ts)) (Int.repr l) 0 0%int ;;
-     ret (encode (l + i), (l-i :: lens)) *)
-  | S n => 
-    '(encode i) <-
-     der_write_TL_m (Int.repr (Znth (Z.of_nat n) ts)) (Int.repr l) 0 0%int ;;
-     der_write_tags_loop1 n (l - i :: lens) ts (l + i)
-  end.
-
-
-*)
-
-(* Fixpoint der_write_tags_loop1 (n : nat) (lens : list Z) (ts : list Z) (l : Z) 
-  : errW1 (asn_enc_rval * list Z) :=
-  match n with
-  | O =>
-    '(encode i) <- der_write_TL_m (Int.repr (Znth 0 ts)) (Int.repr l) 0 0%int ;;
-     ret (encode (l + i), (l-i :: lens))
-  | S n => 
-    '(encode i) <-
-     der_write_TL_m (Int.repr (Znth (Z.of_nat (S n)) ts)) (Int.repr l) 0 0%int ;;
-     der_write_tags_loop1 n (l - i :: lens) ts (l + i)
-  end. *)
-
-(*Lemma der_write_tags_loop1_fail : forall n ls l s e ls',
-    (0 < n)%nat ->
-    der_write_TL_m (Int.repr (Znth (Z.of_nat n) ls)) (Int.repr l) 0 0%int s = inl e ->
-    der_write_tags_loop1 n ls' ls l s = inl e.
-Proof.
-  induction n;
-  intros until ls';
-  intros N;
-  intros B.
-  - nia.
-  - simpl.
-    simpl in B.
-    erewrite B.
-    auto.
-Qed. *)
-
 Fixpoint der_write_tags_loop2 (ts : list Z) (ls : list int)
          (i : Z) (size : Z) (last_tag_form : Z)
   : errW1 asn_enc_rval :=
@@ -175,7 +131,7 @@ Definition der_write_tags (td : TYPE_descriptor)
            else l) =? 0 
        then ret (encode 0)
        else
-         '(_, ls) <- listen (der_write_tags_loop1 (*(length ts) [] *) ts struct_len) ;;
+         '(_, ls) <- listen (der_write_tags_loop1 (*(length ts) [] *) ts struct_len []) ;;
           z <- der_write_tags_loop2 ts ls l size last_tag_form ;;
           ret (encode (encoded z - struct_len)).
 
@@ -191,7 +147,9 @@ Proof.
   repeat break_if; cbn in H; try congruence.
   inversion H as [A].
   nia.
-  repeat break_if;
+  inversion H as [A].
+  nia.
+  all: repeat break_if;
     inversion H as [A];
     nia.
 Qed.
@@ -209,6 +167,9 @@ Proof.
   repeat break_if;
     inversion H as [A];
     discriminate.
+   all: repeat break_if;
+    inversion H as [A];
+    try discriminate.
 Qed.
 
 Lemma LS_inr_not_int_one : forall t s ls e i,
@@ -336,4 +297,5 @@ Proof.
   inversion H.
   auto.
 Qed.
+
 

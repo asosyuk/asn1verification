@@ -223,17 +223,11 @@ Proof.
            as data_at_tags.
 
   remember (tags td) as ts.
-
   forward_loop (
   EX j : Z, EX overall_length : Z, EX lens : list Z,
- (* let overall_length :=
-      (match der_write_tags_loop1 (sublist (len ts - j) (len ts) ts) struct_len [] with
-        | inr (ls, l) => l
-        | _ => struct_len
-      end) in *)
   PROP (0 <= j <= tags_count;
-        exists ls, der_write_tags_loop1 (sublist (len ts - j) (len ts) ts) struct_len [] 
-            = inr (ls, overall_length))
+        exists ls, der_write_tags_loop1 (sublist (len ts - j) (len ts) ts) struct_len [] [] 
+            = inr (ls, (lens, encode overall_length)))
   LOCAL (
   temp _tags v_tags_buf_scratch;  
   temp _i (Vint (Int.repr tags_count - Int.repr j - 1)%int);
@@ -261,13 +255,9 @@ Proof.
   valid_pointer nullval))%assert 
 
  break:
- (let overall_length :=
-      match der_write_tags_loop1 (* (length (tags td)) [] *) (tags td) struct_len [] with
-        | inr (ls, l) => l
-        | _ => struct_len
-      end in
-  EX lens : list Z,
-  PROP ()
+  (EX lens : list Z, EX overall_length : Z,
+  PROP (exists ls, der_write_tags_loop1 ts struct_len [] [] 
+            = inr (ls, (lens, encode overall_length)))
   LOCAL (temp _tags v_tags_buf_scratch;
   temp _i Vzero;
   temp _overall_length (Vint (Int.repr overall_length)); (* changed *)
@@ -310,7 +300,7 @@ Proof.
     simpl.
     auto.
     repeat break_if; strip_repr.
-  + Intros j z lens.
+  + Intros j overall_length lens.
     forward_if.
     assert (tags_count - j - 1 >= 0) as TJ. 
     { generalize H6; strip_repr;
@@ -331,16 +321,8 @@ Proof.
     strip_repr.
     erewrite zlist_hint_db.Znth_map_Vint. 
     remember ((Znth (tags_count - j - 1) ((map Int.repr ts)))) as fi.
-   (* remember (match der_write_tags_loop1 (sublist (len ts - j) (len ts) ts) struct_len [] with
-             | inl _ => struct_len
-             | inr (_, l) => l
-             end) as z. 
-    remember (match der_write_tags_loop1 (sublist (len ts - j) (len ts) ts) struct_len [] with
-             | inl _ => []
-             | inr (ls, _) => ls
-             end) as ls. *)
     destruct H5 as [ls Loop].
-    forward_call (fi, Int.repr z, nullval, nullval, Int.zero, ls).
+    forward_call (fi, Int.repr overall_length, nullval, nullval, Int.zero, ls).
     rewrite_if_b.
     unfold Frame.
     instantiate
@@ -371,33 +353,22 @@ Proof.
     erewrite upd_Znth_same.
     repeat rewrite_if_b.
     forward_if.
-    forward.
+  { forward.
     entailer!.
     Require Import Exec.Der_write_tags.
     { (* return - 1 *)
       remember (tags td) as ts.    
-      (*remember 
-        (match der_write_tags_loop1 (sublist (len ts - j) (len ts) ts) struct_len [] with
-         | inl _ => struct_len
-         | inr (_, l) => l
-         end) as z.
-      remember (match der_write_tags_loop1 (sublist (len ts - j) (len ts) ts) struct_len [] with
-             | inl _ => []
-             | inr (ls, _) => ls
-             end) as ls. *)
       assert (exists e, der_write_TL_m
                    (Znth (len (tags td) - j - 1) 
                          (map Int.repr (tags td)))
-                   (Int.repr z) 0 0%int ls = inl e) as E.
+                   (Int.repr overall_length) 0 0%int ls = inl e) as E.
     { eapply eval_DWT_opt_to_Z.
       erewrite Heqts in *.
       erewrite H5. auto. }
     destruct E as [err E].    
     unfold der_write_tags.
-    assert (exists k, der_write_tags_loop1 (tags td) struct_len [] = inl k) as EEE.
-    {(* edestruct H5.
-      destruct x. *)
-      erewrite Heqts in *. 
+    assert (exists k, der_write_tags_loop1 (tags td) struct_len [] [] = inl k) as EEE.
+    { erewrite Heqts in *. 
       exists err.
       eapply write_TL_to_loop1_sublist with (j := j).
       nia.
@@ -425,41 +396,62 @@ Proof.
     discriminate.
     erewrite EEE.
     congruence. }
-    admit. (* FIX type_descriptor type *)
+    admit. (* FIX type_descriptor type *) }
     rewrite_if_b.
-    repeat forward.  
-    
-    remember
-      (Int.repr
-         match
-           evalErrW (Der_write_TL_m.der_write_TL_m fi (Int.repr struct_len) 0 0%int) ls
-         with
-         | Some {| encoded := v0 |} => v0
-         | None => -1
-         end) as res.
+    abbreviate_semax.
+    deadvars!.
+    forward.  
     entailer!.
     autorewrite with sublist.
     erewrite upd_Znth_same.
     auto.
     autorewrite with sublist.
     unfold default_val; simpl. rewrite Zlength_list_repeat.
-    admit. (* TODO: add lens to LI *)
+    subst.
+    generalize H8.
+    admit.
+   (* 
+    break_if.
+    autorewrite with sublist.
+    erewrite upd_Znth_Zlength.
+    autorewrite with sublist.
+    erewrite Zlength_default_val.
+    nia. 
     nia.
-    assert (exists v, der_write_TL_m fi (Int.repr z) 0 0%int ls = inr v) as I.
+     autorewrite with sublist.
+     generalize H8.
+    erewrite upd_Znth_Zlength.
+    autorewrite with sublist.
+    erewrite Zlength_default_val.
+    nia. 
+    nia. *)
+    nia.
+    forward.
+    erewrite upd_Znth_same.
+    forward.
+    entailer!.
+    erewrite upd_Znth_same.
+    auto.
+    admit.
+    erewrite upd_Znth_same.
+    forward.
+    forward.
+    assert (exists v, der_write_TL_m fi (Int.repr overall_length) 0 0%int ls = inr v) as I.
     { eapply eval_DWT_opt_inr' in H5.
       eassumption. }
     destruct I as [v I].
     unfold evalErrW in H5.
     setoid_rewrite I in H5.
     break_let.
-    Exists (j + 1) (encoded a + z) (@nil Z).
+    Exists (j + 1) (encoded a + overall_length) (overall_length :: lens).
     rewrite_if_b.
     entailer!.
     split. 
     assert (exists ls', der_write_TL_m
                     (Znth (len (tags td) - j - 1) 
                           (map Int.repr (tags td)))
-                    (Int.repr z) 0 0%int ls = inr (ls', {| encoded := (encoded a) |})) as E.
+                    (Int.repr overall_length) 0 0%int ls 
+                   = inr (ls', {| encoded := (encoded a) |})) as E.
     { eapply eval_DWT_opt_inr; auto.
       unfold evalErrW.
       erewrite I.
@@ -477,25 +469,58 @@ Proof.
     strip_repr.
     do 2 f_equal.
     nia.
-    erewrite upd_Znth_same.
-    simpl.
-    f_equal.
     unfold evalErrW.
     erewrite I.
     unfold encoded.   
     normalize.
-    f_equal.
+    do 2 f_equal.
     nia.
-    admit. (* add lens *)
-    erewrite upd_Znth_same.
-    simpl.
     unfold evalErrW.
     erewrite I.
-    break_match.
-    admit.
-    admit.
+    Search upd_Znth.
+    assert (upd_Znth (len (tags td) - j - 1)
+       (upd_Znth (len (tags td) - j - 1)
+          (@default_val CompSpecs (tarray tint (16 - j)) ++ map Vint (map Int.repr lens))
+          (Vint (Int.repr match a with
+                          | {| encoded := v |} => v
+                          end)))
+       (Vint
+          (Int.repr
+             (overall_length + match a with
+                               | {| encoded := v |} => v
+                               end - match a with
+                                     | {| encoded := v |} => v
+                                    end))) =
+        default_val (tarray tint (16 - (j + 1))) ++
+         Vint (Int.repr overall_length) :: map Vint (map Int.repr lens)) as U.
+    { destruct a.
+      replace (overall_length + encoded - encoded) with overall_length by nia.
+      assert (upd_Znth_idem: forall {A} j ls (a b : A),
+                 0 <= j < len ls ->           
+                 
+                 upd_Znth j (upd_Znth j ls b) a = upd_Znth j ls a).
+      { intros.
+        erewrite upd_Znth_unfold.
+        erewrite sublist_upd_Znth_l.
+        erewrite sublist_upd_Znth_r.
+        erewrite upd_Znth_Zlength.
+        erewrite upd_Znth_unfold.
+        auto.
+        all: try nia.
+         erewrite upd_Znth_Zlength; try nia.
+          erewrite upd_Znth_Zlength; try nia. }
+      erewrite upd_Znth_idem.
+      erewrite upd_Znth_app1.
+      admit.
+      admit.
+      admit. }
+    setoid_rewrite U.
+    entailer!.
+    autorewrite with sublist. 
+    setoid_rewrite Zlength_default_val with (t := tint) (n := (16 - j)); try nia.
     admit.
     autorewrite with sublist.
+    setoid_rewrite Zlength_default_val with (t := tint) (n := (16 - j)); try nia.
     nia.
     strip_repr.
     autorewrite with sublist.

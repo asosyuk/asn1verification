@@ -124,6 +124,7 @@ Inductive DWT_Error := .
     (@bind _ _ _ _ c1 (fun x => match x with pat => c2 end))
     (at level 61, pat pattern, c1 at next level, right associativity) : monad_scope.
 
+(*
 Definition tag_serialize (tag size : int): errW1 asn_enc_rval :=
   let tclass := (tag & Int.repr 3)%int in 
   let tval := tag >>u (Int.repr 2) in
@@ -141,6 +142,29 @@ Definition tag_serialize (tag size : int): errW1 asn_enc_rval :=
          tell1 [t] ;; 
                if Int.unsigned size - 1 <? r
                then raise (CustomError DWT_Error)
+               else
+                 tell1 (serialize_tag tval) ;; ret (encode (r + 1)). *)
+
+Definition tag_serialize (tag size : int): errW1 asn_enc_rval :=
+  let tclass := (tag & Int.repr 3)%int in 
+  let tval := tag >>u (Int.repr 2) in
+  if 30 >=? Int.unsigned tval then
+    if eq_dec size 0%int 
+    then ret (encode 1)
+    else tell1 [Int.zero_ext 8 ((tclass << Int.repr 6) or tval)]%int 
+               ;; ret (encode 1)
+  else 
+    let r := required_size tval in
+    if eq_dec size 0%int 
+    then (if Int.unsigned size - 1 <? r
+          then ret (encode (r + 1))
+          else
+            tell1 (serialize_tag tval) ;; ret (encode (r + 1)))
+       else
+         let t := (Int.zero_ext 8 ((tclass << Int.repr 6) or Int.repr 31))%int in
+         tell1 [t] ;; 
+               if Int.unsigned size - 1 <? r
+               then  ret (encode (r + 1))
                else
                  tell1 (serialize_tag tval) ;; ret (encode (r + 1)).
 
