@@ -105,7 +105,6 @@ Fixpoint der_write_tags_loop2 (ts : list Z) (ls : list int)
          (i : Z) (size : Z) (last_tag_form : Z)
   : errW1 asn_enc_rval :=
   match ts, ls with
-  | [], [] => ret (encode 0)
   | t :: tl, l :: ls => 
     let c := if (negb (last_tag_form =? 0) || (i <? (len ts - 1)))%bool
              then Int.one 
@@ -113,7 +112,7 @@ Fixpoint der_write_tags_loop2 (ts : list Z) (ls : list int)
      '(encode z1) <- der_write_TL_m (Int.repr t) l size c ;;
      '(encode z2) <- der_write_tags_loop2 tl ls (i - 1) size last_tag_form ;;
      ret (encode (z1 + z2))
-  | _, _ => raise (CustomError DWT_Error)
+  | _, _ => ret (encode 0)
   end.
 
 Definition der_write_tags (td : TYPE_descriptor) 
@@ -131,7 +130,7 @@ Definition der_write_tags (td : TYPE_descriptor)
            else l) =? 0 
        then ret (encode 0)
        else
-         '(_, ls) <- listen (der_write_tags_loop1 (*(length ts) [] *) ts struct_len []) ;;
+         '(_, ls) <- listen (der_write_tags_loop1 ts struct_len []) ;;
           z <- der_write_tags_loop2 ts ls l size last_tag_form ;;
           ret (encode (encoded z - struct_len)).
 
