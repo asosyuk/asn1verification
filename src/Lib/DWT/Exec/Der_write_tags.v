@@ -101,6 +101,53 @@ Proof.
   nia.
 Qed.
   
+Fixpoint der_write_tags_loop2_app (i : nat) (ts : list Z) (ls : list int)
+          (size : Z) (last_tag_form : Z)
+  : errW1 asn_enc_rval :=
+  match i with
+  | O => ret (encode 0)
+  | S n => 
+    let i := Z.of_nat i in 
+    let c := if (negb (last_tag_form =? 0) || (i <? (len ts - 1)))%bool
+             then Int.one 
+             else Int.zero in 
+     '(encode z1) <- der_write_TL_m (Int.repr (Znth i ts)) (Znth i ls) size c ;;
+     '(encode z2) <- der_write_tags_loop2_app n ts ls size last_tag_form ;;
+     ret (encode (z1 + z2))
+  end.
+
+Lemma write_TL_to_loop2_app :  forall e s ll tl l ls i ltf ii,
+      der_write_tags_loop2_app i tl ll s ltf ii = inr (ls, encode l) ->
+      der_write_TL_m (Int.repr (Znth (Z.of_nat (S i)) tl)) (Znth (Z.of_nat (S i)) ll) s 
+                     (if negb (ltf =? 0) || (Z.of_nat (S i) <? len tl - 1)
+                      then 1%int 
+                      else 0%int) 
+                     ii = inl e ->
+      der_write_tags_loop2_app (S i) tl ll s ltf ii = inl e.
+Proof.
+  intros until ii.
+  intros Loop TL.
+  simpl in *.
+  erewrite TL.
+  auto.
+Qed.
+
+Lemma write_TL_to_loop2_sublist: 
+  forall j e ts l ls sl ln i last_tag_form,
+             der_write_tags_loop2_app j ts ln 32 sl i =
+             inr (ls, {| encoded := l |}) ->
+             
+             der_write_TL_m (Int.repr (Znth (Z.of_nat j) ts)) (Znth (Z.of_nat j) ln) 32
+                            (if (negb (last_tag_form =? 0) 
+                                 || (Z.of_nat j <? (len ts - 1)))%bool
+                             then Int.one 
+                             else Int.zero) ls = inl e ->
+
+              der_write_tags_loop2_app (S j) ts ln 32 sl i = inl e.
+Proof.
+  intros.      
+Admitted.   
+
 Fixpoint der_write_tags_loop2 (ts : list Z) (ls : list int)
          (i : Z) (size : Z) (last_tag_form : Z)
   : errW1 asn_enc_rval :=
@@ -115,6 +162,23 @@ Fixpoint der_write_tags_loop2 (ts : list Z) (ls : list int)
   | _, _ => ret (encode 0)
   end.
 
+Lemma write_TL_to_loop2 :  forall e s ht hl tll tlt l ls i ltf ii,
+      der_write_tags_loop2 tlt tll i s ltf ii = inr (ls, encode l) ->
+      der_write_TL_m (Int.repr ht) hl s 
+                     (if negb (ltf =? 0) || (i <? len (ht :: tlt) - 1)
+                      then 1%int 
+                      else 0%int) 
+                     ii = inl e ->
+      der_write_tags_loop2 (ht :: tlt) (hl :: tll) i s ltf ii = inl e.
+Proof.
+  intros.
+  simpl.
+  break_if;
+  erewrite H0;
+  auto.
+Qed.
+
+                                                                                       
 Definition der_write_tags (td : TYPE_descriptor) 
            (struct_len : Z) (tag_mode : Z)
            (last_tag_form : Z) (tag : Z)

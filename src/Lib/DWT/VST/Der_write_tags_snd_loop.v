@@ -580,18 +580,23 @@ Proof.
   + Intros lens overall_length j.
     forward_if.
   { forward. }
-  erewrite   Heqdata_at_tags.
-  
+  erewrite   Heqdata_at_tags. 
     (* 3d loop *)
-{ forward_loop ( 
+  {  
+  destruct H5 as [ls H5].
+  forward_loop ( 
   EX j : Z, EX l : Z,
   PROP (0 <= j <= tags_count;
-        0 <= j <= len lens;
-       exists ls, der_write_tags_loop2 (sublist 0 j ts)
+        len lens = tags_count;
+       (* exists ls, der_write_tags_loop2 (sublist 0 j ts)
                                   (map Int.repr lens) 
                                   (tags_count - j)
                                   (if Val.eq cb nullval then 0 else 32)
-                                  struct_len [] = inr (ls, encode l))
+                                  struct_len [] = inr (ls, encode l) *)
+        exists ls', der_write_tags_loop2_app 
+                 (Z.to_nat j) ts (map Int.repr lens) 
+                 (if Val.eq cb nullval then 0 else 32)
+                 last_tag_form ls = inr (ls', encode l))
   LOCAL (
   temp _i (Vint (Int.repr j));
   temp _tags v_tags_buf_scratch;
@@ -607,8 +612,8 @@ Proof.
   temp _tag (Vint (Int.repr tag));
   temp _cb cb; temp _app_key app_key)
   SEP (data_at Tsh (tarray tint 16)
-               (default_val (tarray tint (16 - tags_count)) 
-                            ++ map Vint (map Int.repr lens)) v_lens;
+               (map Vint (map Int.repr lens) ++
+               default_val (tarray tint (16 - tags_count))) v_lens;
        data_at_tags;
     
  (* data_at Tsh type_descriptor_s 
@@ -619,9 +624,10 @@ Proof.
 
   break: 
   (EX l : Z,                         
-  PROP (exists ls, der_write_tags_loop2 ts (map Int.repr lens) 0
+  PROP (exists ls', der_write_tags_loop2_app (Z.to_nat (len ts)) 
+                                   ts (map Int.repr lens)
                         (if Val.eq cb nullval then 0 else 32)
-                        struct_len [] = inr (ls, encode l))
+                        last_tag_form ls = inr (ls', encode l))
   LOCAL (temp _len (Vint (Int.repr l)); 
          temp __constr (Vint (if negb (last_tag_form =? 0)
                                          then Int.one 
@@ -640,8 +646,8 @@ Proof.
          temp _tag (Vint (Int.repr tag));
          temp _cb cb; temp _app_key app_key)
   SEP (data_at Tsh (tarray tint 16)
-               (default_val (tarray tint (16 - tags_count)) 
-                            ++ map Vint (map Int.repr lens)) v_lens;
+               (map Vint (map Int.repr lens) ++
+               default_val (tarray tint (16 - tags_count))) v_lens;
        data_at_tags;
        (* data_at Tsh type_descriptor_s 
      (r, (r0, (r1, (r2, (Vint (Int.repr (len (tags td))), m3))))) td_p; *)
@@ -658,14 +664,18 @@ Proof.
        autorewrite with sublist;
        simpl.
      break_if; strip_repr; try nia.
-     all: exists []; auto.
+     admit.
+     break_if; strip_repr; try nia.
+     admit.
+     admit.
+     1-2: exists ls; auto.
  ++ Intros i l.
     forward_if. 
     { forward_if
         (temp _t'4 (if eq_dec (Int.repr last_tag_form) 0%int 
-                        then (Val.of_bool
-                               (Int.repr i < Int.repr (tags_count - 1))%int)
-                        else Vone)).
+                    then (Val.of_bool
+                            (Int.repr i < Int.repr (tags_count - 1))%int)
+                    else Vone)).
       forward.
       rewrite_if_b.
       entailer!.
@@ -689,76 +699,101 @@ Proof.
       try nia.
       forward.
       entailer!.
-      erewrite app_Znth2.
+      erewrite app_Znth1.
       erewrite Znth_map.
       auto.
       autorewrite with sublist.
-      replace (len (default_val (tarray tint (16 - len (tags td)))))
-              with (16 - len (tags td)).
-     split.
-     a
+      generalize H10.
+      strip_repr.
+      nia.
       autorewrite with sublist.
-       replace (len (default_val (tarray tint (16 - len (tags td)))))
-              with (16 - len (tags td)).
-       
-      
-     
-      
-      admit.
-      setoid_rewrite Zlength_default_val.
-      auto.
+       generalize H10.
+      strip_repr.
       nia.
-      replace (len (default_val (tarray tint (16 - len (tags td)))))
-              with (16 - len (tags td)).
-      admit.
-      setoid_rewrite Zlength_default_val.
-      auto.
-      nia.
-      Search default_val Zlength.
-      
-      (* false ?? *)
       erewrite app_Znth1.
-      entailer
-      
-      
-      admit.
-      admit.
-      remember (force_int ((Znth 0
-          (map Vint (map Int.repr (tags td)) ++
-               default_val (tarray tuint (16 - len (tags td))))))) as t6.
-
-      remember (force_int 
-                  (Znth 0 (default_val (nested_field_type (tarray tint 16) []))))
-        as t7.
-    forward_call (t6, t7, cb, app_key, 
-                  (if eq_dec (Int.repr last_tag_form) 0%int
-                   then (if (0 <? (len (tags td) - 1)) then 1 else 0)
-                   else 1)%int).
+      erewrite Znth_map.
+      erewrite app_Znth1.
+      erewrite Znth_map.
+      erewrite Znth_map.
+      erewrite Znth_map.
+     
+    forward_call (Int.repr (Znth i ts), Int.repr (Znth i lens), cb, app_key, 
+                  force_int (if eq_dec (Int.repr last_tag_form) 0%int
+                             then Val.of_bool (Int.repr i < Int.repr (len (tags td) - 1))%int
+                             else Vone), ls).
+    entailer!.
+    unfold force_int;
+    unfold Val.of_bool.
+    repeat break_if; cbn; auto.
     rewrite_if_b.
     unfold Frame.
-    instantiate (1 :=
-                [data_at_ Tsh (tarray tint 16) v_lens ;
-   data_at Tsh (tarray tuint 16)
-     (map Vint (map Int.repr (tags td)) ++
-          default_val (tarray tuint (16 - len (tags td))))
-     v_tags_buf_scratch;
-   data_at Tsh type_descriptor_s
-           (r, (r0, (r1, (r2, (Vint (Int.repr (len (tags td))), m3)))))
-     td_p ;
-   data_at Tsh (tarray tuint (len (tags td))) 
-           (map Vint (map Int.repr (tags td))) tags_p;
-   valid_pointer nullval]).
+    instantiate
+      (1 :=
+         [(data_at Tsh (tarray tint 16)
+                   (map Vint (map Int.repr lens) 
+                        ++ default_val (tarray tint (16 - tags_count))) v_lens *
+           data_at Tsh (tarray tuint 16)
+                   (map Vint (map Int.repr ts)
+                        ++ default_val (tarray tuint (16 - len ts))) v_tags_buf_scratch *
+           data_at Tsh (tarray tuint (len (tags td)))
+                   (map Vint (map Int.repr (tags td))) tags_p *
+           valid_pointer nullval)%logic]).
     unfold fold_right_sepcon.
     entailer!.
-    admit. (* change compspecs change_compspecs CompSpecs. *)
+    admit.
+    (* change_compspecs CompSpecs. *)
+    Intros.
     forward.
     abbreviate_semax.
     forward_if.
+   { (* return -1 *)
     forward.
+    rewrite_if_b.
+    entailer!.
+    remember (tags td) as ts.    
+      assert (exists e, der_write_TL_m
+                   (Int.repr (Znth i ts))
+                   (Int.repr (Znth i lens)) 32 (force_int
+                    (if eq_dec (Int.repr last_tag_form) 0%int
+                     then Val.of_bool (Int.repr i < Int.repr (len ts - 1))%int
+                     else Vone)) ls = inl e) as E.
+    { eapply eval_DWT_opt_to_Z.
+      erewrite Heqts in *.
+      setoid_rewrite H11. auto. }
+    destruct E as [err E].  
+    destruct H9 as [e2 Loop2].
+    assert (exists k, der_write_tags_loop2_app 
+                   (S (Z.to_nat i))
+                   (tags td) (map Int.repr lens) 32 last_tag_form ls = inl k) as EEE.
+    { erewrite Heqts in *. 
+      exists err.
+      eapply write_TL_to_loop2_app.
+      eassumption.
+      admit. }
+    destruct EEE as [k EEE].
+    unfold evalErrW.
+    cbn. 
+    break_if; auto.
+    break_match; auto.
+    generalize Heqo.
+    break_if.
+    assert (tag_mode = 0).
+    { inversion e.
+      admit. } (* TODO: add assumption about tag_mode < IntMax *)
+    all: admit. }
     forward.
     Exists (i + 1).
+    Exists 0.
     repeat rewrite_if_b.
     entailer!.
+    split.
+    generalize H10; strip_repr.
+    nia.
+    destruct H9 as [ls' E].
+    eexists.
+    replace (Z.to_nat (i + 1)) with (S (Z.to_nat i)). 
+    simpl.
+    
     forward.
     entailer!.
     ++

@@ -1,6 +1,14 @@
 Require Import VST.floyd.proofauto Psatz.
 Require Import StructTact.StructTactics Psatz Core.Notations.
 
+Lemma Zlength_default_val : forall {cs} n t, 
+    0 <= n -> 
+    len (@default_val cs (tarray t n)) = n.
+Proof.
+  intros.
+  unfold default_val; simpl. rewrite Zlength_list_repeat; trivial. 
+Qed.
+
 Proposition sublist_first : forall (A : Type) j (ls : list A),
     Inhabitant A ->
     0 <= j < Zlength ls ->
