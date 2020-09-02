@@ -218,6 +218,61 @@ Fixpoint der_write_tags_loop2' (ts : list (Z*Z))
 
 Require Import Core.Tactics.
 
+Lemma write_TL_to_loop2_sublist' : 
+  forall ts j e s i ltf ii,
+    der_write_tags_loop2' (sublist 0 j ts) i s ltf ii = inl e ->
+    der_write_tags_loop2' ts i s ltf ii = inl e.
+Proof.
+  induction ts; intros until ii; intro D.
+  - admit.
+  - simpl.
+    break_let.
+     assert ((if negb (ltf =? 0) || (i <? len ((z, z0) :: ts) - 1) then 1%int else 0%int)
+              = 
+              (if negb (ltf =? 0) || (i <? len ((z, z0) :: sublist 0 (j - 1) ts) - 1)
+               then 1%int
+               else 0%int)) as B.
+    admit.
+    assert (sublist 0 j ((z, z0) :: ts)  = (z, z0) :: sublist 0 (j - 1) ts) as F.
+      admit.
+      setoid_rewrite F in D.
+      simpl in D.
+    break_match.
+    * 
+    rewrite <- B in D.
+    break_if;
+      erewrite Heqs0 in D;
+      inversion D;
+      auto.
+    * break_let.
+      break_match.
+      rewrite <- B in D.
+      erewrite IHts.
+      auto.
+       break_if.
+      erewrite Heqs0 in D.
+      clear B.
+      break_match.
+      inversion D.
+      erewrite H0 in *.
+      eassumption.
+      break_let.
+      break_match.
+      congruence.
+
+      erewrite Heqs0 in D.
+      clear B.
+      break_match.
+      inversion D.
+      erewrite H0 in *.
+      eassumption.
+      break_let.
+      break_match.
+      congruence.
+Admitted.
+      
+    
+
 Lemma write_TL_to_loop2_inl : 
   forall tl1 tl2 e s i ltf ls v ii,
     i < len (tl1 ++ tl2) ->
@@ -274,112 +329,6 @@ Proof.
       autorewrite with sublist.
       nia.
 Admitted.
-
-Lemma aux : forall tl i s ltf ls1 ls2  e,
-  der_write_tags_loop2' tl i s ltf ls1 = inl e ->
-  der_write_tags_loop2' tl i s ltf ls2 = inl e.
-Proof.
-  induction tl; intros.
-  - simpl in *. congruence.
-  - generalize H.
-    simpl.
-    break_let.
-    break_match.
-    intro.
-    break_match.
-    erewrite Heqs0 in Heqs1.
-
-     
-      reflexivity.
-      
-      Zbool_to_Prop
-    admit. (* contradiction with H *)
-
-    autorewrite with sublist in H.
-    pose proof (Zlength_nonneg ll1).
-    nia.
-  - autorewrite with sublist in H.
-    pose proof (Zlength_nonneg tl1).
-    nia.
-  - simpl.
-    break_match.
-    admit. (* contradiction with H1 *)
-    break_let.
-    break_match.
-    
-    
-      
-    
-
-
-destruct tl1.
-    -- simpl.
-       destruct ll1.
-       destruct ll2.
-       * admit.
-       * simpl.
-         simpl in H2.
-         erewrite <- H2.
-         normalize.
-       * admit.
-   -- simpl.
-      destruct ll1.
-      destruct ll2.
-      * admit.
-      * admit.
-      * simpl.
-        simpl in H1
-        erewrite H1.
-      
-
-Lemma write_TL_to_loop2' : forall tl j k s ll ltf i ls v v',
-    tl <> [] ->
-    len tl = len ll ->
-    j = len tl - 1 ->
-    der_write_tags_loop2 (sublist 0 j tl) (sublist 0 j ll) k s ltf i = inr (ls, v)  ->
-    let c := (if negb (ltf =? 0) || (j <? len tl - 1) 
-                    then 1%int
-                    else 0%int) in
-    der_write_TL_m (Int.repr (Znth j tl)) (Znth j ll) s c ls = inr v' ->
-    exists v', der_write_tags_loop2 tl ll k s ltf i = inr v'.
-Proof.
-  induction tl.
-  - congruence.
-  - intros.
-    simpl.
-    break_match.
-    admit.
-    
-    
-
-Lemma write_TL_to_loop2' : forall tl k s ll ltf,
-    len tl = len ll ->
-    (forall j, j < len tl -> 
-          let c := (if negb (ltf =? 0) || (j <? len tl - 1) 
-                    then 1%int
-                    else 0%int) in
-         exists v i, der_write_TL_m (Int.repr (Znth j tl)) (Znth j ll) s c i = inr v) ->
-    exists v ii, der_write_tags_loop2 tl ll k s ltf ii = inr v.
-Proof.
-  induction tl; intros.
-  - repeat eexists.
-  - destruct ll.
-    * admit.
-    * simpl.
-      destruct H0 with (j := k) as [v J].
-      clear H0.
-      autorewrite with sublist.
-      admit.
-      destruct J as [ii J].
-      autorewrite with sublist in *.
-      exists v. exists ii.
-    (* erewrite J.
-      break_let.
-      break_match.
-  
-    
-    
-    
 
                                                                                        
 Definition der_write_tags (td : TYPE_descriptor) 
