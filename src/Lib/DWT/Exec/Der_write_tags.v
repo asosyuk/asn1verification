@@ -157,13 +157,20 @@ Fixpoint der_write_tags_loop2 (ts : list Z) (ls : list int)
              then Int.one 
              else Int.zero in 
      '(encode z1) <- der_write_TL_m (Int.repr t) l size c ;;
-     '(encode z2) <- der_write_tags_loop2 tl ls (i - 1) size last_tag_form ;;
+     '(encode z2) <- der_write_tags_loop2 tl ls (i - 1) size last_tag_form ;;     
      ret (encode (z1 + z2))
   | _, _ => ret (encode 0)
   end.
 
-Lemma write_TL_to_loop2 :  forall e s ht hl tll tlt l ls i ltf ii,
-      der_write_tags_loop2 tlt tll i s ltf ii = inr (ls, encode l) ->
+Lemma rev_app_cons : forall {A} (a : A) ls, rev (a :: ls) = rev ls ++ [a].
+  Proof.
+    intros.
+    replace [a] with (rev [a]) by reflexivity.
+    erewrite <- rev_app_distr.
+    reflexivity.
+Qed.
+
+Lemma write_TL_to_loop2_inl_left :  forall e s ht hl tll tlt  i ltf ii,
       der_write_TL_m (Int.repr ht) hl s 
                      (if negb (ltf =? 0) || (i <? len (ht :: tlt) - 1)
                       then 1%int 
@@ -174,9 +181,205 @@ Proof.
   intros.
   simpl.
   break_if;
-  erewrite H0;
+  erewrite H;
   auto.
 Qed.
+
+Lemma write_TL_to_loop2_inl_right :  forall e s ht hl tll tlt  i ltf ls v ii,
+      der_write_TL_m (Int.repr ht) hl s 
+                     (if negb (ltf =? 0) || (i <? len (ht :: tlt) - 1)
+                      then 1%int 
+                      else 0%int) 
+                     ii = inr (ls, v) ->
+      der_write_tags_loop2 tlt tll (i - 1) s ltf (ii ++ ls) = inl e ->
+      der_write_tags_loop2 (ht :: tlt) (hl :: tll) i s ltf ii = inl e.
+Proof.
+  intros.
+  simpl.
+  erewrite H.
+  break_match.
+  erewrite H0.
+  auto.
+Qed.
+
+Fixpoint der_write_tags_loop2' (ts : list (Z*Z)) 
+         (i : Z) (size : Z) (last_tag_form : Z)
+  : errW1 asn_enc_rval :=
+  match ts with
+  | (t,l) :: tl => 
+    let c := if (negb (last_tag_form =? 0) || (i <? (len ts - 1)))%bool
+             then Int.one 
+             else Int.zero in 
+     '(encode z1) <- der_write_TL_m (Int.repr t) (Int.repr l) size c ;;
+     '(encode z2) <- der_write_tags_loop2' tl (i - 1) size last_tag_form ;;     
+     ret (encode (z1 + z2))
+  | [] => ret (encode 0)
+  end.
+
+Require Import Core.Tactics.
+
+Lemma write_TL_to_loop2_inl : 
+  forall tl1 tl2 e s i ltf ls v ii,
+    i < len (tl1 ++ tl2) ->
+    der_write_tags_loop2' tl1 i s ltf ii = inr (ls, v) ->
+    der_write_tags_loop2' tl2 (i - len tl1) s ltf ls = inl e ->
+    der_write_tags_loop2' (tl1 ++ tl2) i s ltf ii = inl e.
+Proof.
+  induction tl1; intros until ii; intros C TL1 TL2.
+  - cbn in *.
+    inversion TL1.
+    subst.
+    replace (i - 0) with i in * by nia.
+    auto.
+  - simpl.
+    break_let.
+    break_match.
+    + simpl in TL1.
+      break_if.
+      destruct_orb_hyp.
+      erewrite H in *.
+      simpl in TL1.
+      erewrite Heqs0 in TL1.
+      congruence.
+      replace (i <? len ((z, z0) :: tl1) - 1)  with true in *.
+      simpl in TL1.
+      replace (negb (ltf =? 0) || true) with true in *.
+      erewrite Heqs0 in TL1.
+      congruence.
+      admit.
+      admit.
+      admit.
+    + break_let.
+      break_match.
+      erewrite IHtl1.
+      auto.
+      autorewrite with sublist in *.
+      nia.
+      simpl in TL1.
+      assert (negb (ltf =? 0) || (i <? len ((z, z0) :: tl1 ++ tl2) - 1) =
+              negb (ltf =? 0) || (i <? len ((z, z0) :: tl1) - 1)) as L.
+      admit.
+      erewrite <- L in TL1.
+      erewrite Heqs0 in TL1.
+      generalize TL1.
+      break_match.
+      congruence.
+      break_let.
+      break_match.
+      admit.
+      instantiate (1 := ls).
+      generalize TL2.
+      replace (i - len ((z, z0) :: tl1)) with (i - 1 - len tl1).
+      auto.
+      autorewrite with sublist.
+      nia.
+Admitted.
+
+Lemma aux : forall tl i s ltf ls1 ls2  e,
+  der_write_tags_loop2' tl i s ltf ls1 = inl e ->
+  der_write_tags_loop2' tl i s ltf ls2 = inl e.
+Proof.
+  induction tl; intros.
+  - simpl in *. congruence.
+  - generalize H.
+    simpl.
+    break_let.
+    break_match.
+    intro.
+    break_match.
+    erewrite Heqs0 in Heqs1.
+
+     
+      reflexivity.
+      
+      Zbool_to_Prop
+    admit. (* contradiction with H *)
+
+    autorewrite with sublist in H.
+    pose proof (Zlength_nonneg ll1).
+    nia.
+  - autorewrite with sublist in H.
+    pose proof (Zlength_nonneg tl1).
+    nia.
+  - simpl.
+    break_match.
+    admit. (* contradiction with H1 *)
+    break_let.
+    break_match.
+    
+    
+      
+    
+
+
+destruct tl1.
+    -- simpl.
+       destruct ll1.
+       destruct ll2.
+       * admit.
+       * simpl.
+         simpl in H2.
+         erewrite <- H2.
+         normalize.
+       * admit.
+   -- simpl.
+      destruct ll1.
+      destruct ll2.
+      * admit.
+      * admit.
+      * simpl.
+        simpl in H1
+        erewrite H1.
+      
+
+Lemma write_TL_to_loop2' : forall tl j k s ll ltf i ls v v',
+    tl <> [] ->
+    len tl = len ll ->
+    j = len tl - 1 ->
+    der_write_tags_loop2 (sublist 0 j tl) (sublist 0 j ll) k s ltf i = inr (ls, v)  ->
+    let c := (if negb (ltf =? 0) || (j <? len tl - 1) 
+                    then 1%int
+                    else 0%int) in
+    der_write_TL_m (Int.repr (Znth j tl)) (Znth j ll) s c ls = inr v' ->
+    exists v', der_write_tags_loop2 tl ll k s ltf i = inr v'.
+Proof.
+  induction tl.
+  - congruence.
+  - intros.
+    simpl.
+    break_match.
+    admit.
+    
+    
+
+Lemma write_TL_to_loop2' : forall tl k s ll ltf,
+    len tl = len ll ->
+    (forall j, j < len tl -> 
+          let c := (if negb (ltf =? 0) || (j <? len tl - 1) 
+                    then 1%int
+                    else 0%int) in
+         exists v i, der_write_TL_m (Int.repr (Znth j tl)) (Znth j ll) s c i = inr v) ->
+    exists v ii, der_write_tags_loop2 tl ll k s ltf ii = inr v.
+Proof.
+  induction tl; intros.
+  - repeat eexists.
+  - destruct ll.
+    * admit.
+    * simpl.
+      destruct H0 with (j := k) as [v J].
+      clear H0.
+      autorewrite with sublist.
+      admit.
+      destruct J as [ii J].
+      autorewrite with sublist in *.
+      exists v. exists ii.
+    (* erewrite J.
+      break_let.
+      break_match.
+  
+    
+    
+    
 
                                                                                        
 Definition der_write_tags (td : TYPE_descriptor) 
