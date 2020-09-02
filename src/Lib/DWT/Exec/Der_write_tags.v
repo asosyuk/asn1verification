@@ -218,6 +218,64 @@ Fixpoint der_write_tags_loop2' (ts : list (Z*Z))
 
 Require Import Core.Tactics.
 
+Lemma loop2_app_singleton : 
+  forall ts e s i ltf t l ls v ii,
+    der_write_tags_loop2' ts i s ltf ii = inr (ls, v) ->
+    der_write_TL_m (Int.repr t) (Int.repr l) s 
+                   (if negb (ltf =? 0) || (i <? len (ts ++ [(t, l)]) - 1)
+                    then 1%int 
+                    else 0%int) ls = inl e ->
+    der_write_tags_loop2' (ts ++ [(t,l)]) i s ltf ii = inl e.
+Proof.
+  induction ts; intros until ii; intros Loop TL.
+  - simpl in *.
+    inversion Loop.
+    erewrite TL.
+    auto.
+ - simpl in Loop.
+   simpl.
+   break_let.
+   generalize Loop.
+   assert ((if negb (ltf =? 0) || (i <? len ((z, z0) :: ts ++ [(t, l)]) - 1) then 1%int else 0%int) =
+           (if negb (ltf =? 0) || (i <? len ((z, z0) :: ts) - 1) then 1%int else 0%int)) as P.
+   admit.
+   rewrite P.
+   break_match.
+   congruence.
+   intro.
+   break_let.
+   break_match.
+   erewrite IHts.
+   auto.
+   erewrite <- Loop0.
+   break_match.
+   auto.
+   break_let.
+   break_match.
+   admit.
+   admit.
+Admitted.
+     
+Lemma write_TL_to_loop2_sublist_j' : 
+  forall ts j e s i ltf ii,
+    der_write_tags_loop2' (sublist j (len ts) ts) i s ltf ii = inl e ->
+    exists e, der_write_tags_loop2' ts i s ltf ii = inl e.
+Proof.
+    induction ts; intros until ii; intro D.
+    - admit.
+    - assert ((sublist j (len (a :: ts)) (a :: ts)) =
+              (sublist j (len ( ts)) (ts)) ) as K.
+      admit.
+      erewrite K in D.
+      simpl.
+      break_let.
+      break_match.
+      exists e0. auto.
+      break_let.
+      break_match.
+      edestruct IHts with (i := i - 1) (j := j) (ii := ii ++ l).
+Admitted.            
+    
 Lemma write_TL_to_loop2_sublist' : 
   forall ts j e s i ltf ii,
     der_write_tags_loop2' (sublist 0 j ts) i s ltf ii = inl e ->
