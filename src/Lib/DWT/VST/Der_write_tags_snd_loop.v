@@ -585,18 +585,14 @@ Proof.
   {  
   destruct H5 as [ls H5].
   forward_loop ( 
-  EX j : Z, EX l : Z,
+  EX j : Z, EX l : Z, EX k : Z,
   PROP (0 <= j <= tags_count;
         len lens = tags_count;
-       (* exists ls, der_write_tags_loop2 (sublist 0 j ts)
-                                  (map Int.repr lens) 
-                                  (tags_count - j)
+        exists ls, der_write_tags_loop2 (sublist 0 j ts)
+                                  (sublist 0 j (map Int.repr lens)) 
+                                  k
                                   (if Val.eq cb nullval then 0 else 32)
-                                  struct_len [] = inr (ls, encode l) *)
-        exists ls', der_write_tags_loop2_app 
-                 (Z.to_nat j) ts (map Int.repr lens) 
-                 (if Val.eq cb nullval then 0 else 32)
-                 last_tag_form ls = inr (ls', encode l))
+                                  struct_len [] = inr (ls, encode l))
   LOCAL (
   temp _i (Vint (Int.repr j));
   temp _tags v_tags_buf_scratch;
@@ -623,20 +619,15 @@ Proof.
        valid_pointer nullval))%assert
 
   break: 
-  (EX l : Z,                         
-  PROP (exists ls', der_write_tags_loop2_app (Z.to_nat (len ts)) 
-                                   ts (map Int.repr lens)
+  (EX l : Z,                     
+  PROP (exists ls', der_write_tags_loop2 ts (map Int.repr lens) 0
                         (if Val.eq cb nullval then 0 else 32)
                         last_tag_form ls = inr (ls', encode l))
-  LOCAL (temp _len (Vint (Int.repr l)); 
-         temp __constr (Vint (if negb (last_tag_form =? 0)
-                                         then Int.one 
-                                         else Int.zero));
-         temp _i (Vint (Int.repr tags_count)); 
+  LOCAL (temp _i (Vint (Int.repr tags_count)); 
          temp _tags v_tags_buf_scratch;
          temp _overall_length (Vint (Int.repr overall_length));
-         temp _tags_count (Vint (Int.repr (len (tags td))));
-         temp _t'17 (Vint (Int.repr (len (tags td))));
+         temp _tags_count (Vint (Int.repr tags_count));
+         temp _t'17 (Vint (Int.repr tags_count));
          lvar _lens (tarray tint 16) v_lens;
          lvar _tags_buf_scratch (tarray tuint 16) v_tags_buf_scratch; 
          temp _sd td_p;
@@ -658,7 +649,7 @@ Proof.
        valid_pointer cb;
        valid_pointer nullval))%assert.
   ++ forward.
-     Exists 0 0.
+     Exists 0 0 0.
      entailer!.
      repeat split; break_if; strip_repr;try nia;
        autorewrite with sublist;
@@ -668,8 +659,8 @@ Proof.
      break_if; strip_repr; try nia.
      admit.
      admit.
-     1-2: exists ls; auto.
- ++ Intros i l.
+     1-2: exists []; auto.
+ ++ Intros i l k.
     forward_if. 
     { forward_if
         (temp _t'4 (if eq_dec (Int.repr last_tag_form) 0%int 
@@ -717,10 +708,13 @@ Proof.
       erewrite Znth_map.
       erewrite Znth_map.
      
-    forward_call (Int.repr (Znth i ts), Int.repr (Znth i lens), cb, app_key, 
-                  force_int (if eq_dec (Int.repr last_tag_form) 0%int
-                             then Val.of_bool (Int.repr i < Int.repr (len (tags td) - 1))%int
-                             else Vone), ls).
+    forward_call (Int.repr (Znth i ts),
+                  Int.repr (Znth i lens),
+                  cb, app_key, 
+                  force_int
+                    (if eq_dec (Int.repr last_tag_form) 0%int
+                     then Val.of_bool (Int.repr i < Int.repr (len (tags td) - 1))%int
+                     else Vone), ls).
     entailer!.
     unfold force_int;
     unfold Val.of_bool.
@@ -762,28 +756,42 @@ Proof.
       setoid_rewrite H11. auto. }
     destruct E as [err E].  
     destruct H9 as [e2 Loop2].
-    assert (exists k, der_write_tags_loop2_app 
-                   (S (Z.to_nat i))
-                   (tags td) (map Int.repr lens) 32 last_tag_form ls = inl k) as EEE.
-    { erewrite Heqts in *. 
-      exists err.
-      eapply write_TL_to_loop2_app.
-      eassumption.
-      admit. }
-    destruct EEE as [k EEE].
+    assert (der_write_tags_loop2 
+              (sublist 0 (i + 1) ts)
+              (sublist 0 (i + 1) (map Int.repr lens)) (i)
+              32 last_tag_form ls = inl err) as EEE.
+    { admit. }
+    eapply write_TL_to_loop2_sublist in EEE.
+    replace i with (len ts) in EEE by admit.
     unfold evalErrW.
-    cbn. 
-    break_if; auto.
-    break_match; auto.
-    generalize Heqo.
+    rewrite_if_b.
+    repeat f_equal.
+    unfold der_write_tags.
+    cbn.
+    break_if. auto.
     break_if.
-    assert (tag_mode = 0).
-    { inversion e.
-      admit. } (* TODO: add assumption about tag_mode < IntMax *)
-    all: admit. }
+    admit.
+    erewrite Heqts in *.
+    erewrite H5.
+    simpl.
+    erewrite EEE. auto.
+    admit. }
     forward.
     Exists (i + 1).
-    Exists 0.
+    assert (O := H11).
+    eapply (eval_DWT_opt_inr
+              (Int.repr (Znth i ts))
+              (Int.repr (Znth i lens))
+              (if Val.eq cb nullval then 0 else 32)
+              (force_int
+                 (if eq_dec (Int.repr last_tag_form) 0%int
+                  then Val.of_bool (Int.repr i < Int.repr (len (tags td) - 1))%int
+                  else Vone)) ls) in O.
+    destruct O as [lso O].
+    break_match; try contradiction.
+    break_match.
+    Exists encoded.
+    Exists (k + 1).
     repeat rewrite_if_b.
     entailer!.
     split.
@@ -791,17 +799,52 @@ Proof.
     nia.
     destruct H9 as [ls' E].
     eexists.
-    replace (Z.to_nat (i + 1)) with (S (Z.to_nat i)). 
-    simpl.
-    
-    forward.
+    rewrite_if_b.
+    assert (write_TL_to_loop2_sublist_inr : 
+               forall ts ll  ls1 ls2 j s i ltf v1 v2 ii,
+                 der_write_tags_loop2
+                   (sublist 0 j ts) 
+                   (sublist 0 j ll) (i - 1) s ltf ii = inr (ls1, v1) ->
+                 der_write_TL_m (Int.repr (Znth j ts))
+                                (Znth j ll) s 
+                   (if (negb (ltf =? 0) || (i - 1 <? len ts - 1))%bool
+                    then 1%int 
+                    else 0%int) ls1 = inr (ls2, v2) ->
+                 
+                 der_write_tags_loop2 
+                   (sublist 0 (j + 1) ts)
+                   (sublist 0 (j + 1) ll) 
+                   i s ltf ii = inr (ls2, v2)). admit.
+    eapply write_TL_to_loop2_sublist_inr.
+    replace (k + 1 - 1) with k by nia.
+    eassumption.
+    instantiate (1 := lso).
+    admit. (* from O *)
+    rewrite_if_b.
     entailer!.
-    ++
-      forward.
-      entailer!.
-      (* why (struct_len - struct_len)? *)
-      admit.
-      admit.
+    admit. (* change CompSpecs *)
+    reflexivity.
+    all: generalize H10; strip_repr; autorewrite with sublist; try nia. }
+    { (*  tag_mode <> 0 *) admit. } 
+    }
+    (* loop break *)
+    forward.
+    Exists l.
+    entailer!.
+    repeat split.
+    rewrite_if_b.
+    generalize H9.
+    admit. (* remove struct len from break *)
+    
+    
+    replace i with (len (tags td)).
+    autorewrite with sublist.
+    replace (len (tags td)) with (len (map Int.repr lens)).
+    autorewrite with sublist.
+    replace k with 0.
+    auto.
+    (* 
+
 Admitted.
 
 End Der_write_tags.
