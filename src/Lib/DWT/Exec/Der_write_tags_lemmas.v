@@ -1,13 +1,12 @@
 Require Import  VST.floyd.proofauto
  Core.Core Core.Notations Core.Notations Types.
 Require Import ExtLib.Structures.Monad.
-Require Import Der_write_TL_m.
-Require Import Der_write_tags.
+Require Import Exec.Der_write_TL_m.
+Require Import Exec.Der_write_tags.
 
 Inductive DWT_Error := .
 
 Require Import VST.floyd.sublist.
-
 
 Lemma loop1_app : forall l1 l2 z e i ls, 
     der_write_tags_loop1 l2 z ls i = inl e ->
@@ -93,22 +92,6 @@ Proof.
   replace (len ts - j - 1)  with (len ts - (j + 1)) by nia.
   auto.
   nia.
-Qed.
-
-Lemma write_TL_to_loop2_app :  forall e s ll tl l ls i ltf ii,
-      der_write_tags_loop2_app i tl ll s ltf ii = inr (ls, encode l) ->
-      der_write_TL_m (Int.repr (Znth (Z.of_nat (S i)) tl)) (Znth (Z.of_nat (S i)) ll) s 
-                     (if negb (ltf =? 0) || (Z.of_nat (S i) <? len tl - 1)
-                      then 1%int 
-                      else 0%int) 
-                     ii = inl e ->
-      der_write_tags_loop2_app (S i) tl ll s ltf ii = inl e.
-Proof.
-  intros until ii.
-  intros Loop TL.
-  simpl in *.
-  erewrite TL.
-  auto.
 Qed.
 
 Lemma loop2_app_singleton : 
@@ -226,7 +209,7 @@ Fixpoint loop' ls :=
               ret (x + y)
   end.
 
-
+(*
 Lemma loop_app' :
   forall ts ls b i v e, 
     loop' ts i = inr (ls, v) ->
@@ -257,6 +240,7 @@ Lemma rev_app_cons : forall {A} (a : A) ls, rev (a :: ls) = rev ls ++ [a].
     erewrite <- rev_app_distr.
     reflexivity.
 Qed.
+ *)
 
 Lemma write_TL_to_loop2_inl_left :  forall e s ht hl tll tlt  i ltf ii,
       der_write_TL_m (Int.repr ht) hl s 
@@ -292,7 +276,7 @@ Qed.
 
 
 Require Import Core.Tactics.
-
+(*
 Lemma loop2_app_singleton' : 
   forall ts e s i ltf t l ls v ii,
     der_write_tags_loop2' ts i s ltf ii = inr (ls, v) ->
@@ -450,7 +434,7 @@ Proof.
       nia.
 Admitted.
                                                                                        
-
+*)
 Require Import Ber_tlv_tag_serialize_m Ber_tlv_length_serialize_m.
 
 Lemma TS_inr_not_one : forall t s ls e i,

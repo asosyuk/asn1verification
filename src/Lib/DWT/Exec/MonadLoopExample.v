@@ -4,7 +4,7 @@ Require Import ExtLib.Structures.Monad ErrorWithWriter ExtLib.Data.List.
 Import MonadNotation.
 Require Import StructTact.StructTactics.
 
-
+(*
 (* errW1 monad *)
 
 Inductive Err :=
@@ -119,3 +119,4 @@ Proof.
     exists ls.
     eassumption.
 Qed.
+*)

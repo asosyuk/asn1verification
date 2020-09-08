@@ -7,7 +7,7 @@ Inductive DWT_Error := .
 
 Require Import VST.floyd.sublist.
 
-Fixpoint der_write_tags_loop1 (ts : list Z) (sl : Z) (ls : list Z) :=
+Fixpoint der_write_tags_loop1 ts sl (ls : list Z) :=
   match ts with
     | [] => ret (ls, encode sl)
     | h :: tl => '(l, encode y) <- der_write_tags_loop1 tl sl ls ;;
