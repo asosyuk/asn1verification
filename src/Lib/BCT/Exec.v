@@ -3,19 +3,37 @@ Require Import ExtLib.Structures.Monad.
 
 Import MonadNotation.
 
-(* checks the tag, outputs consumed length and expected length *)
-Definition ber_check_tags (td : TYPE_descriptor) (ls : list byte) : 
-  option check_tag_r :=
-  match decoder_type td with
-  | BOOLEAN_t => match ls with
-                | x1::x2::_ => if ((x1 == Byte.one) && (x2 == Byte.one))%byte
-                            then Some (mk_check_tag 2 1 )
-                            else None
-                | _ => None
-                end
-  | _ => None
-  end.
+Record asn_codec_ctx := { max_stack_size : Z }.
 
+(* assuming ctx is not null *)
+Parameter asn_stack_overflow_check : asn_codec_ctx -> bool.
+Parameter ber_fetch_tag : Z -> Z.
+Parameter ber_fetch_length : bool-> Z -> Z.
+Parameter constructed : list Z -> bool.
+Parameter ber_check_tags_loop : Z -> Z -> Z -> option Z.
+
+Open Scope bool.
+
+(* checks the tag, outputs consumed length and expected length *)
+Definition ber_check_tags ts td ctx tag_mode size step : 
+  option Z :=
+  if asn_stack_overflow_check ctx 
+  then Some (-1) 
+  else 
+    let tagno := step + (if tag_mode =? 1 then -1 else 0) in                
+    if (tag_mode =? 0) || (0 <? len (tags td))
+    then 
+      let tag_len := ber_fetch_tag size in
+      if (tag_len =? -1) || (tag_len =? 0) 
+      then None 
+      else let len_len := ber_fetch_length (constructed ts) (size - tag_len) in
+           if (len_len =? -1) || (len_len =? 0) 
+           then None
+           else let size := size - tag_len - len_len in
+                ber_check_tags_loop tagno size step
+    else ber_check_tags_loop tagno size step.
+                 
+(*  
 Theorem ber_check_tags_bool_res : forall td ls,
     decoder_type td = BOOLEAN_t ->
     ber_check_tags td ls = Some (mk_check_tag 2 1) 
@@ -52,3 +70,4 @@ Proof.
   rewrite T, T1.
   exists l0; reflexivity.
 Qed.
+*)
