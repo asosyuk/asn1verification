@@ -75,7 +75,9 @@ Definition ber_check_tags_spec : ident * funspec :=
       GLOBALS ()
       SEP (data_at_ Tsh asn_dec_rval_s res_p;
            data_at_ Tsh tint ll_p;
-           data_at Tsh (Tstruct _asn_struct_ctx_s noattr) c ctx_s_p)
+           data_at Tsh (Tstruct _asn_struct_ctx_s noattr) c ctx_s_p;
+           data_at Tsh (Tstruct _asn_codec_ctx_s noattr) 
+                   (Vint (Int.repr (max_stack_size ctx_Z))) ctx_p)
     POST [tvoid]
       PROP ()
       LOCAL ()
@@ -89,9 +91,15 @@ Definition ber_check_tags_spec : ident * funspec :=
              data_at_ Tsh tint ll_p
            end).
 
-Definition Gprog := ltac:(with_library prog [ber_check_tags_spec]).
+Require Import VST.ASN__STACK_OVERFLOW_CHECK.
 
-Theorem bool_der_encode : semax_body Vprog Gprog (normalize_function f_ber_check_tags composites) ber_check_tags_spec.
+Definition Gprog := ltac:(with_library prog [ber_check_tags_spec;
+                         ASN__STACK_OVERFLOW_CHECK_spec]).
+
+Theorem bool_der_encode : 
+  semax_body Vprog Gprog
+             (normalize_function f_ber_check_tags composites) 
+             ber_check_tags_spec.
 Proof.
   start_function.
   repeat forward.
@@ -113,6 +121,68 @@ Proof.
   forward.
   entailer!.
   forward.
+  forward_call (ctx_p, max_stack_size ctx_Z).
+  forward_if True. (* TODO *)
+  deadvars!.
+  forward_loop  (PROP ( )
+     LOCAL (temp _step (Vint (Int.repr (if eq_dec ctx_s_p nullval then 0 else step)));
+     temp _consumed_myself (Vint (Int.repr 0));
+     lvar _rval__16 (Tstruct _asn_dec_rval_s noattr) v_rval__16;
+     lvar _rval__15 (Tstruct _asn_dec_rval_s noattr) v_rval__15;
+     lvar _rval__14 (Tstruct _asn_dec_rval_s noattr) v_rval__14;
+     lvar _rval__13 (Tstruct _asn_dec_rval_s noattr) v_rval__13;
+     lvar _rval__12 (Tstruct _asn_dec_rval_s noattr) v_rval__12;
+     lvar _rval__11 (Tstruct _asn_dec_rval_s noattr) v_rval__11;
+     lvar _rval__10 (Tstruct _asn_dec_rval_s noattr) v_rval__10;
+     lvar _rval__9 (Tstruct _asn_dec_rval_s noattr) v_rval__9;
+     lvar _rval__8 (Tstruct _asn_dec_rval_s noattr) v_rval__8;
+     lvar _rval__7 (Tstruct _asn_dec_rval_s noattr) v_rval__7;
+     lvar _rval__6 (Tstruct _asn_dec_rval_s noattr) v_rval__6;
+     lvar _rval__5 (Tstruct _asn_dec_rval_s noattr) v_rval__5;
+     lvar _rval__4 (Tstruct _asn_dec_rval_s noattr) v_rval__4;
+     lvar _rval__3 (Tstruct _asn_dec_rval_s noattr) v_rval__3;
+     lvar _rval__2 (Tstruct _asn_dec_rval_s noattr) v_rval__2;
+     lvar _rval__1 (Tstruct _asn_dec_rval_s noattr) v_rval__1;
+     lvar _rval (Tstruct _asn_dec_rval_s noattr) v_rval; lvar _tlv_len tint v_tlv_len;
+     lvar _tlv_tag tuint v_tlv_tag; temp __res res_p; temp _opt_ctx ctx_s_p)
+     SEP (data_at Tsh (Tstruct _asn_codec_ctx_s noattr) (Vint (Int.repr (max_stack_size ctx_Z)))
+            ctx_p; data_at_ Tsh (Tstruct _asn_dec_rval_s noattr) v_rval__16;
+     data_at_ Tsh (Tstruct _asn_dec_rval_s noattr) v_rval__15;
+     data_at_ Tsh (Tstruct _asn_dec_rval_s noattr) v_rval__14;
+     data_at_ Tsh (Tstruct _asn_dec_rval_s noattr) v_rval__13;
+     data_at_ Tsh (Tstruct _asn_dec_rval_s noattr) v_rval__12;
+     data_at_ Tsh (Tstruct _asn_dec_rval_s noattr) v_rval__11;
+     data_at_ Tsh (Tstruct _asn_dec_rval_s noattr) v_rval__10;
+     data_at_ Tsh (Tstruct _asn_dec_rval_s noattr) v_rval__9;
+     data_at_ Tsh (Tstruct _asn_dec_rval_s noattr) v_rval__8;
+     data_at_ Tsh (Tstruct _asn_dec_rval_s noattr) v_rval__7;
+     data_at_ Tsh (Tstruct _asn_dec_rval_s noattr) v_rval__6;
+     data_at_ Tsh (Tstruct _asn_dec_rval_s noattr) v_rval__5;
+     data_at_ Tsh (Tstruct _asn_dec_rval_s noattr) v_rval__4;
+     data_at_ Tsh (Tstruct _asn_dec_rval_s noattr) v_rval__3;
+     data_at_ Tsh (Tstruct _asn_dec_rval_s noattr) v_rval__2;
+     data_at_ Tsh (Tstruct _asn_dec_rval_s noattr) v_rval__1;
+     data_at_ Tsh (Tstruct _asn_dec_rval_s noattr) v_rval; data_at_ Tsh tint v_tlv_len;
+     data_at_ Tsh tuint v_tlv_tag; data_at_ Tsh asn_dec_rval_s res_p; 
+     data_at_ Tsh tint ll_p; data_at Tsh (Tstruct _asn_struct_ctx_s noattr) c ctx_s_p)).
+  - entailer!.
+  - forward.
+    forward_if (c = (let (x, _) := c in x,
+    (Vint (Int.sign_ext 16 (Int.repr (if Memory.EqDec_val ctx_s_p nullval then 0 else step))),
+    let (_, y) := let (_, y) := c in y in y))).
+    -- forward.
+       entailer!.
+       break_let.
+       generalize H.
+       break_let.
+       subst.
+       admit.
+       admit.
+    -- forward.
+       entailer!.
+    -- admit.
+ - admit.
+ - admit.
 Admitted.
 
 End Ber_check_tags.
