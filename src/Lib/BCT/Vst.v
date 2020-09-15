@@ -513,7 +513,6 @@ Proof.
      data_at_ Tsh asn_dec_rval_s res_p; data_at_ Tsh tint ll_p;
      @data_at CompSpecs Tsh (Tstruct _asn_struct_ctx_s noattr) c ctx_s_p)) as Q.
                   subst.
-                  Set Printing All.
    Ltac aux Q
      := match goal with
         | [ _ : _ |- semax _ (PROP(?p)LOCAL(?l)SEP(?s)) (Ssequence (Sifthenelse _ _) _) ] =>
@@ -562,12 +561,49 @@ Proof.
      data_at_ Tsh (Tstruct _asn_dec_rval_s noattr) v_rval__1;
      data_at_ Tsh (Tstruct _asn_dec_rval_s noattr) v_rval; data_at_ Tsh tint v_tlv_len;
      data_at_ Tsh tuint v_tlv_tag; data_at Tsh (Tstruct _asn_TYPE_descriptor_s noattr) t td_p;
-     data_at_ Tsh asn_dec_rval_s res_p; data_at_ Tsh tint ll_p;
-     @data_at CompSpecs Tsh (Tstruct _asn_struct_ctx_s noattr) c ctx_s_p)) * SEP(data_at Tsh tint Vzero ll_p))%logic.
+     data_at_ Tsh asn_dec_rval_s res_p; (data_at Tsh tint Vzero ll_p);
+     @data_at CompSpecs Tsh (Tstruct _asn_struct_ctx_s noattr) c ctx_s_p)))%logic.
                   admit.
                   admit.
                   forward.
                   entailer!.
+                  admit.
+                 
+            Ltac replace_sep ls Q p := 
+              let rec replace_sep ls Q p :=
+                  match ls with 
+              | [] => constr:([Q])
+              | ?h :: ?tl => match h with 
+                         | data_at _ _ _ p => constr: (Q :: tl)
+                         | _ => constr: (h :: (replace_sep tl Q p))
+                         end
+              end in
+              replace_sep ls Q p. 
+                    
+            Ltac forward_if_add_sep Q p
+            := match goal with
+               | [ _ : _ |- semax _ (@PROPx environ ?ps 
+                                   (LOCALx ?lcs 
+                                   (@SEPx environ ?ls))) 
+                                   (Ssequence (Sifthenelse _ _ _) _) _ ] =>
+                 let ls' := replace_sep ls Q p in
+                          forward_if (@PROPx environ ps
+                                     (LOCALx lcs
+                                     (@SEPx environ (ls'))))
+               end. 
+            
+             assert (semax Delta 
+                           (PROP()LOCAL(temp _step Vzero)SEP(data_at Tsh tint Vone ll_p;
+                           data_at Tsh tint Vone ctx_p))
+                           (Ssequence (Sifthenelse (Econst_int Int.zero tint) Sskip Sskip)
+                                      Sskip) 
+                           (function_body_ret_assert tvoid (PROP()LOCAL()SEP()))).
+                  { 
+                    forward_if_add_sep (data_at Tsh tint Vone ll_p) ll_p.
+                    
+                    all: admit. }
+                 (* forward_if_add_sep (data_at Tsh (Tstruct _asn_struct_ctx_s noattr) c ctx_s_p) 
+                                     ctx_s_p. *)
                   forward_if True.
                   forward.
                   nia.
