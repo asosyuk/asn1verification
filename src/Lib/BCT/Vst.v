@@ -2,7 +2,7 @@ Require Import Core.Core Core.Tactics Core.VstTactics Core.StructNormalizer
         VstLib ErrorWithWriter BCT.Exec.
 Require Import VST.floyd.proofauto.
 Require Import Clight.ber_decoder.
-Require Import VST.ASN__STACK_OVERFLOW_CHECK ber_fetch_tag. (*  *)
+Require Import VST.ASN__STACK_OVERFLOW_CHECK ber_fetch_tag ber_fetch_length Lib.Forward. 
 
 Definition Vprog : varspecs. mk_varspecs prog. Defined.
 Instance CompSpecs : compspecs. make_compspecs prog. Defined.
@@ -55,6 +55,12 @@ Proof. make_cs_preserve CompSpecs ber_fetch_tag.CompSpecs. Defined.
 Instance Change2 : change_composite_env ber_fetch_tag.CompSpecs CompSpecs.
 Proof. make_cs_preserve ber_fetch_tag.CompSpecs CompSpecs. Defined.
 
+Instance Change3 : change_composite_env CompSpecs ber_fetch_length.CompSpecs.
+Proof. make_cs_preserve CompSpecs ber_fetch_length.CompSpecs. Defined.
+
+Instance Change4 : change_composite_env ber_fetch_length.CompSpecs CompSpecs.
+Proof. make_cs_preserve ber_fetch_length.CompSpecs CompSpecs. Defined.
+
 Definition ber_check_tags_spec : ident * funspec :=
   DECLARE _ber_check_tags
     WITH (* Codec context pointer *) 
@@ -106,6 +112,7 @@ Definition ber_check_tags_spec : ident * funspec :=
 
 Definition Gprog := ltac:(with_library prog [ber_check_tags_spec;
                                              ber_fetch_tag_spec;
+                                             ber_fetch_length_spec;
                                              ASN__STACK_OVERFLOW_CHECK_spec]).
 
 (* tactics *)
@@ -149,9 +156,9 @@ Proof.
   start_function.
   repeat forward.
   forward_if (temp _t'1 
-                   (Vint (Int.repr (if eq_dec ctx_s_p nullval 
-                                    then 0 
-                                    else step)))).
+                    (if eq_dec ctx_s_p nullval 
+                                    then (Vint (Int.repr 0)) 
+                                    else (Vint (Int.repr step)))).
   forward.    
   entailer!.
   repeat break_let.
@@ -169,9 +176,10 @@ Proof.
   forward_call (ctx_p, max_stack_size ctx_Z).
   unfold MORE_COMMANDS.
   unfold abbreviate.
-  forward_if ((if eq_dec ctx_p nullval
+  (* forward_if ((if eq_dec ctx_p nullval
                then 0
-               else ASN__STACK_OVERFLOW_CHECK 0 (max_stack_size ctx_Z)) = 0).
+               else ASN__STACK_OVERFLOW_CHECK 0 (max_stack_size ctx_Z)) = 0). *)
+  forward_if True.
   deadvars!.  
   forward_empty_while.
   -
@@ -208,9 +216,10 @@ Proof.
        all: admit.
   - forward.
     admit.
-  - forward_if
+  - (* forward_if
       (temp _t'4 (Vint (Int.repr (if eq_dec (Int.repr tag_mode) (Int.repr 1)
-                                  then -1 else 0)))).
+                                  then -1 else 0)))). *)
+    forward_if (temp _t'4 (Vint (Int.repr (-1)))).
     -- (* forward.
        Require Import Core.VstTactics.
        repeat rewrite_if_b.
@@ -222,7 +231,8 @@ Proof.
        rewrite_if_b.
        auto. *) admit.
     -- forward.
-       entailer!.
+       (* entailer!. *)
+       admit.
        Ltac strip_repr :=
          autorewrite with norm;
          unfold Int.add; unfold Int.mul; unfold Int.neg;
@@ -232,12 +242,13 @@ Proof.
          repeat rewrite Int.unsigned_repr;  
          repeat rewrite Int.signed_repr;     
          try rep_omega; auto. 
-       { repeat break_if; strip_repr.
-         all: admit. (* step within int bounds *) }
-       forward_if (temp _t'12 (Vint (Int.repr (if eq_dec (Int.repr tag_mode)
+     (*  { repeat break_if; strip_repr.
+         all: admit. (* step within int bounds *) } *)
+       (* forward_if (temp _t'12 (Vint (Int.repr (if eq_dec (Int.repr tag_mode)
                                                          (Int.repr 0)
                                                then 1
-                                               else 0)))).
+                                               else 0)))). *)
+       forward_if (temp _t'12 Vone).
        --- forward.
            admit.
            forward.
@@ -245,152 +256,66 @@ Proof.
        --- forward.
            entailer!.
            rewrite_if_b.
-           auto.
-       --- forward_if True. (* TODO *)
+           admit.
+       ---         
+         forward_if True. (* TODO *)
           + forward_call (buf_p, size, v_tlv_tag).
-            deadvars.
             rewrite_if_b.
-            assert (((Vint
-          (Int.add (Int.repr (if Memory.EqDec_val ctx_s_p nullval then 0 else step))
-             (Int.repr
-                (if
-                  match zeq (Int.Z_mod_modulus tag_mode) 1 with
-                  | Specif.left e =>
-                      Specif.left
-                        (Int.mkint_eq (Int.Z_mod_modulus tag_mode) 1
-                           (Int.Z_mod_modulus_range' tag_mode) (Int.Z_mod_modulus_range' 1) e)
-                  | right n =>
-                      right
-                        (fun
-                           H2 : {|
-                                Int.intval := Int.Z_mod_modulus tag_mode;
-                                Int.intrange := Int.Z_mod_modulus_range' tag_mode |} =
-                                {| Int.intval := 1; Int.intrange := Int.Z_mod_modulus_range' 1 |}
-                         =>
-                         n
-                           (f_equal
-                              (fun e : int =>
-                               match e with
-                               | {| Int.intval := intval |} => intval
-                               end) H2))
-                  end
-                 then -1
-                 else 0))))) = Vzero) as V. admit.
-            setoid_rewrite V.
-            forward_if True.
-            replace (PROP ( )
-     LOCAL (temp _tag_len (Vint (Int.repr 1));
-     temp _t'12 (Vint (Int.repr (if eq_dec (Int.repr tag_mode) (Int.repr 0) then 1 else 0)));
-     temp _tagno
-       (Vint
-          (Int.add (Int.repr (if Memory.EqDec_val ctx_s_p nullval then 0 else step))
-             (Int.repr
-                (if
-                  match zeq (Int.Z_mod_modulus tag_mode) 1 with
-                  | Specif.left e =>
-                      Specif.left
-                        (Int.mkint_eq (Int.Z_mod_modulus tag_mode) 1
-                           (Int.Z_mod_modulus_range' tag_mode) (Int.Z_mod_modulus_range' 1) e)
-                  | right n =>
-                      right
-                        (fun
-                           H2 : {|
-                                Int.intval := Int.Z_mod_modulus tag_mode;
-                                Int.intrange := Int.Z_mod_modulus_range' tag_mode |} =
-                                {| Int.intval := 1; Int.intrange := Int.Z_mod_modulus_range' 1 |}
-                         =>
-                         n
-                           (f_equal
-                              (fun e : int =>
-                               match e with
-                               | {| Int.intval := intval |} => intval
-                               end) H2))
-                  end
-                 then -1
-                 else 0))));
-     temp _t'4
-       (Vint
-          (Int.repr
-             (if
-               match zeq (Int.Z_mod_modulus tag_mode) 1 with
-               | Specif.left e =>
-                   Specif.left
-                     (Int.mkint_eq (Int.Z_mod_modulus tag_mode) 1
-                        (Int.Z_mod_modulus_range' tag_mode) (Int.Z_mod_modulus_range' 1) e)
-               | right n =>
-                   right
-                     (fun
-                        H2 : {|
-                             Int.intval := Int.Z_mod_modulus tag_mode;
-                             Int.intrange := Int.Z_mod_modulus_range' tag_mode |} =
-                             {| Int.intval := 1; Int.intrange := Int.Z_mod_modulus_range' 1 |} =>
-                      n
-                        (f_equal
-                           (fun e : int =>
-                            match e with
-                            | {| Int.intval := intval |} => intval
-                            end) H2))
-               end
-              then -1
-              else 0)));
-     temp _t'3
-       (Vint
-          (Int.repr
-             (if Memory.EqDec_val ctx_p nullval
-              then 0
-              else ASN__STACK_OVERFLOW_CHECK 0 (max_stack_size ctx_Z))));
-     temp _step (Vint (Int.repr (if Memory.EqDec_val ctx_s_p nullval then 0 else step)));
-     temp _t'1 (Vint (Int.repr (if Memory.EqDec_val ctx_s_p nullval then 0 else step)));
-     temp _tlv_constr (Vint (Int.neg (Int.repr 1)));
-     temp _expect_00_terminators (Vint (Int.repr 0));
-     temp _limit_len (Vint (Int.neg (Int.repr 1))); temp _consumed_myself (Vint (Int.repr 0));
-     lvar _rval__16 (Tstruct _asn_dec_rval_s noattr) v_rval__16;
-     lvar _rval__15 (Tstruct _asn_dec_rval_s noattr) v_rval__15;
-     lvar _rval__14 (Tstruct _asn_dec_rval_s noattr) v_rval__14;
-     lvar _rval__13 (Tstruct _asn_dec_rval_s noattr) v_rval__13;
-     lvar _rval__12 (Tstruct _asn_dec_rval_s noattr) v_rval__12;
-     lvar _rval__11 (Tstruct _asn_dec_rval_s noattr) v_rval__11;
-     lvar _rval__10 (Tstruct _asn_dec_rval_s noattr) v_rval__10;
-     lvar _rval__9 (Tstruct _asn_dec_rval_s noattr) v_rval__9;
-     lvar _rval__8 (Tstruct _asn_dec_rval_s noattr) v_rval__8;
-     lvar _rval__7 (Tstruct _asn_dec_rval_s noattr) v_rval__7;
-     lvar _rval__6 (Tstruct _asn_dec_rval_s noattr) v_rval__6;
-     lvar _rval__5 (Tstruct _asn_dec_rval_s noattr) v_rval__5;
-     lvar _rval__4 (Tstruct _asn_dec_rval_s noattr) v_rval__4;
-     lvar _rval__3 (Tstruct _asn_dec_rval_s noattr) v_rval__3;
-     lvar _rval__2 (Tstruct _asn_dec_rval_s noattr) v_rval__2;
-     lvar _rval__1 (Tstruct _asn_dec_rval_s noattr) v_rval__1;
-     lvar _rval (Tstruct _asn_dec_rval_s noattr) v_rval; lvar _tlv_len tint v_tlv_len;
-     lvar _tlv_tag tuint v_tlv_tag; temp __res res_p; temp _opt_codec_ctx ctx_p; 
-     temp _td td_p; temp _opt_ctx ctx_s_p; temp _ptr buf_p; temp _size (Vint (Int.repr size));
-     temp _tag_mode (Vint (Int.repr tag_mode));
-     temp _last_tag_form (Vint (Int.repr last_tag_from)); temp _last_length ll_p;
-     temp _opt_tlv_form opt_tlv_form_p)
-     SEP (@data_at CompSpecs Tsh (Tstruct _asn_codec_ctx_s noattr) (Vint (Int.repr (max_stack_size ctx_Z)))
-            ctx_p; data_at_ Tsh (Tstruct _asn_dec_rval_s noattr) v_rval__16;
-     data_at_ Tsh (Tstruct _asn_dec_rval_s noattr) v_rval__15;
-     data_at_ Tsh (Tstruct _asn_dec_rval_s noattr) v_rval__14;
-     data_at_ Tsh (Tstruct _asn_dec_rval_s noattr) v_rval__13;
-     data_at_ Tsh (Tstruct _asn_dec_rval_s noattr) v_rval__12;
-     data_at_ Tsh (Tstruct _asn_dec_rval_s noattr) v_rval__11;
-     data_at_ Tsh (Tstruct _asn_dec_rval_s noattr) v_rval__10;
-     data_at_ Tsh (Tstruct _asn_dec_rval_s noattr) v_rval__9;
-     data_at_ Tsh (Tstruct _asn_dec_rval_s noattr) v_rval__8;
-     data_at_ Tsh (Tstruct _asn_dec_rval_s noattr) v_rval__7;
-     data_at_ Tsh (Tstruct _asn_dec_rval_s noattr) v_rval__6;
-     data_at_ Tsh (Tstruct _asn_dec_rval_s noattr) v_rval__5;
-     data_at_ Tsh (Tstruct _asn_dec_rval_s noattr) v_rval__4;
-     data_at_ Tsh (Tstruct _asn_dec_rval_s noattr) v_rval__3;
-     data_at_ Tsh (Tstruct _asn_dec_rval_s noattr) v_rval__2;
-     data_at_ Tsh (Tstruct _asn_dec_rval_s noattr) v_rval__1;
-     data_at_ Tsh (Tstruct _asn_dec_rval_s noattr) v_rval; data_at_ Tsh tint v_tlv_len;
-     data_at_ Tsh tuint v_tlv_tag; data_at Tsh (Tstruct _asn_TYPE_descriptor_s noattr) t td_p;
-     data_at_ Tsh asn_dec_rval_s res_p; data_at_ Tsh tint ll_p;
-     @data_at CompSpecs Tsh (Tstruct _asn_struct_ctx_s noattr) c ctx_s_p)) 
-              with (PROP()LOCAL(temp _tag_len (Vint (Int.repr 1)))SEP()).
-            forward_if True. (* switch *)
-             
-             admit. (* ber_fetch_tags *)
+            match goal with
+            | [ _ : _ |- semax _ ?Pre ?C ?Post ] =>
+                forward_switch Pre
+              end. 
+            clear E.
+            abbreviate_semax.
+            
+            Ltac forward_empty_while_break :=
+              match goal with
+              | [ _ : _ |- semax _ ?Pre (Ssequence (Sloop _ Sbreak) _) _ ] =>
+                forward_loop Pre break: Pre; try forward ; try entailer! 
+              end. 
+            * forward_empty_while_break.
+              forward_if True.
+              forward.
+              entailer!.
+              admit.
+              forward.
+              entailer!.
+              forward_if True.
+              forward.
+              entailer!.
+              admit.
+              admit.
+              admit.
+            * forward_empty_while_break.
+              admit. 
+            * forward.
+              admit.
+            * 
+              Ltac add_sep Q p
+                := match goal with
+                   | [ _ : _ |- semax _ (@PROPx environ ?ps 
+                                               (LOCALx ?lcs 
+                                                       (@SEPx environ ?ls))) 
+                                     ?C ?Post ] =>
+                     let ls' := replace_sep ls Q p in
+                     replace (@PROPx environ ps 
+                                     (LOCALx lcs 
+                                             (@SEPx environ ls)))
+                       with
+                         (@PROPx environ ps
+                                 (LOCALx lcs
+                                         (@SEPx environ (ls'))))
+                   end.
+              add_sep (data_at_ Tsh tuchar buf_p) buf_p.
+              forward.
+              admit.
+              forward_if (temp _t'8 Vzero).
+              forward.
+              admit.
+              forward.
+              admit.
+              forward.
+              forward_call (0, offset_val 1 buf_p, (size - 1), v_tlv_len).              
            + forward.
                 admit. 
                 forward_if.
@@ -398,193 +323,7 @@ Proof.
                 entailer!.
                 (* assert fail *)
                 admit.
-           ---- forward_loop 
-                  (PROP (True)
-     LOCAL (temp _t'12
-              (Vint (Int.repr (if eq_dec (Int.repr tag_mode) (Int.repr 0) then 1 else 0)));
-     temp _tagno
-       (Vint
-          (Int.add (Int.repr (if eq_dec ctx_s_p nullval then 0 else step))
-             (Int.repr (if eq_dec (Int.repr tag_mode) (Int.repr 1) then -1 else 0))));
-     temp _t'4 (Vint (Int.repr (if eq_dec (Int.repr tag_mode) (Int.repr 1) then -1 else 0)));
-     temp _t'3
-       (Vint
-          (Int.repr
-             (if eq_dec ctx_p nullval
-              then 0
-              else ASN__STACK_OVERFLOW_CHECK 0 (max_stack_size ctx_Z))));
-     temp _step (Vint (Int.repr (if eq_dec ctx_s_p nullval then 0 else step)));
-     temp _t'1 (Vint (Int.repr (if Memory.EqDec_val ctx_s_p nullval then 0 else step)));
-     temp _tlv_constr (Vint (Int.neg (Int.repr 1)));
-     temp _expect_00_terminators (Vint (Int.repr 0));
-     temp _limit_len (Vint (Int.neg (Int.repr 1))); temp _consumed_myself (Vint (Int.repr 0));
-     lvar _rval__16 (Tstruct _asn_dec_rval_s noattr) v_rval__16;
-     lvar _rval__15 (Tstruct _asn_dec_rval_s noattr) v_rval__15;
-     lvar _rval__14 (Tstruct _asn_dec_rval_s noattr) v_rval__14;
-     lvar _rval__13 (Tstruct _asn_dec_rval_s noattr) v_rval__13;
-     lvar _rval__12 (Tstruct _asn_dec_rval_s noattr) v_rval__12;
-     lvar _rval__11 (Tstruct _asn_dec_rval_s noattr) v_rval__11;
-     lvar _rval__10 (Tstruct _asn_dec_rval_s noattr) v_rval__10;
-     lvar _rval__9 (Tstruct _asn_dec_rval_s noattr) v_rval__9;
-     lvar _rval__8 (Tstruct _asn_dec_rval_s noattr) v_rval__8;
-     lvar _rval__7 (Tstruct _asn_dec_rval_s noattr) v_rval__7;
-     lvar _rval__6 (Tstruct _asn_dec_rval_s noattr) v_rval__6;
-     lvar _rval__5 (Tstruct _asn_dec_rval_s noattr) v_rval__5;
-     lvar _rval__4 (Tstruct _asn_dec_rval_s noattr) v_rval__4;
-     lvar _rval__3 (Tstruct _asn_dec_rval_s noattr) v_rval__3;
-     lvar _rval__2 (Tstruct _asn_dec_rval_s noattr) v_rval__2;
-     lvar _rval__1 (Tstruct _asn_dec_rval_s noattr) v_rval__1;
-     lvar _rval (Tstruct _asn_dec_rval_s noattr) v_rval; lvar _tlv_len tint v_tlv_len;
-     lvar _tlv_tag tuint v_tlv_tag; temp __res res_p; temp _opt_codec_ctx ctx_p; 
-     temp _td td_p; temp _opt_ctx ctx_s_p; temp _ptr buf_p; temp _size (Vint (Int.repr size));
-     temp _tag_mode (Vint (Int.repr tag_mode));
-     temp _last_tag_form (Vint (Int.repr last_tag_from)); temp _last_length ll_p;
-     temp _opt_tlv_form opt_tlv_form_p)
-     SEP (data_at Tsh (Tstruct _asn_codec_ctx_s noattr) (Vint (Int.repr (max_stack_size ctx_Z)))
-            ctx_p; data_at_ Tsh (Tstruct _asn_dec_rval_s noattr) v_rval__16;
-     data_at_ Tsh (Tstruct _asn_dec_rval_s noattr) v_rval__15;
-     data_at_ Tsh (Tstruct _asn_dec_rval_s noattr) v_rval__14;
-     data_at_ Tsh (Tstruct _asn_dec_rval_s noattr) v_rval__13;
-     data_at_ Tsh (Tstruct _asn_dec_rval_s noattr) v_rval__12;
-     data_at_ Tsh (Tstruct _asn_dec_rval_s noattr) v_rval__11;
-     data_at_ Tsh (Tstruct _asn_dec_rval_s noattr) v_rval__10;
-     data_at_ Tsh (Tstruct _asn_dec_rval_s noattr) v_rval__9;
-     data_at_ Tsh (Tstruct _asn_dec_rval_s noattr) v_rval__8;
-     data_at_ Tsh (Tstruct _asn_dec_rval_s noattr) v_rval__7;
-     data_at_ Tsh (Tstruct _asn_dec_rval_s noattr) v_rval__6;
-     data_at_ Tsh (Tstruct _asn_dec_rval_s noattr) v_rval__5;
-     data_at_ Tsh (Tstruct _asn_dec_rval_s noattr) v_rval__4;
-     data_at_ Tsh (Tstruct _asn_dec_rval_s noattr) v_rval__3;
-     data_at_ Tsh (Tstruct _asn_dec_rval_s noattr) v_rval__2;
-     data_at_ Tsh (Tstruct _asn_dec_rval_s noattr) v_rval__1;
-     data_at_ Tsh (Tstruct _asn_dec_rval_s noattr) v_rval; data_at_ Tsh tint v_tlv_len;
-     data_at_ Tsh tuint v_tlv_tag; data_at Tsh (Tstruct _asn_TYPE_descriptor_s noattr) t td_p;
-     data_at_ Tsh asn_dec_rval_s res_p; data_at_ Tsh tint ll_p;
-     data_at Tsh (Tstruct _asn_struct_ctx_s noattr) c ctx_s_p))
-                  continue: (PROP ( )
-  LOCAL (temp _t'39
-           (let (x, _) :=
-              let (_, y) := let (_, y) := let (_, y) := let (_, y) := t in y in y in y in y in
-            x);
-  temp _t'12 (Vint (Int.repr (if eq_dec (Int.repr tag_mode) (Int.repr 0) then 1 else 0)));
-  temp _tagno
-    (Vint
-       (Int.add (Int.repr (if eq_dec ctx_s_p nullval then 0 else step))
-          (Int.repr (if eq_dec (Int.repr tag_mode) (Int.repr 1) then -1 else 0))));
-  temp _t'4 (Vint (Int.repr (if eq_dec (Int.repr tag_mode) (Int.repr 1) then -1 else 0)));
-  temp _t'3
-    (Vint
-       (Int.repr
-          (if eq_dec ctx_p nullval then 0 else ASN__STACK_OVERFLOW_CHECK 0 (max_stack_size ctx_Z))));
-  temp _step (Vint (Int.repr (if eq_dec ctx_s_p nullval then 0 else step)));
-  temp _t'1 (Vint (Int.repr (if Memory.EqDec_val ctx_s_p nullval then 0 else step)));
-  temp _tlv_constr (Vint (Int.neg (Int.repr 1)));
-  temp _expect_00_terminators (Vint (Int.repr 0)); temp _limit_len (Vint (Int.neg (Int.repr 1)));
-  temp _consumed_myself (Vint (Int.repr 0));
-  lvar _rval__16 (Tstruct _asn_dec_rval_s noattr) v_rval__16;
-  lvar _rval__15 (Tstruct _asn_dec_rval_s noattr) v_rval__15;
-  lvar _rval__14 (Tstruct _asn_dec_rval_s noattr) v_rval__14;
-  lvar _rval__13 (Tstruct _asn_dec_rval_s noattr) v_rval__13;
-  lvar _rval__12 (Tstruct _asn_dec_rval_s noattr) v_rval__12;
-  lvar _rval__11 (Tstruct _asn_dec_rval_s noattr) v_rval__11;
-  lvar _rval__10 (Tstruct _asn_dec_rval_s noattr) v_rval__10;
-  lvar _rval__9 (Tstruct _asn_dec_rval_s noattr) v_rval__9;
-  lvar _rval__8 (Tstruct _asn_dec_rval_s noattr) v_rval__8;
-  lvar _rval__7 (Tstruct _asn_dec_rval_s noattr) v_rval__7;
-  lvar _rval__6 (Tstruct _asn_dec_rval_s noattr) v_rval__6;
-  lvar _rval__5 (Tstruct _asn_dec_rval_s noattr) v_rval__5;
-  lvar _rval__4 (Tstruct _asn_dec_rval_s noattr) v_rval__4;
-  lvar _rval__3 (Tstruct _asn_dec_rval_s noattr) v_rval__3;
-  lvar _rval__2 (Tstruct _asn_dec_rval_s noattr) v_rval__2;
-  lvar _rval__1 (Tstruct _asn_dec_rval_s noattr) v_rval__1;
-  lvar _rval (Tstruct _asn_dec_rval_s noattr) v_rval; lvar _tlv_len tint v_tlv_len;
-  lvar _tlv_tag tuint v_tlv_tag; temp __res res_p; temp _opt_codec_ctx ctx_p; 
-  temp _td td_p; temp _opt_ctx ctx_s_p; temp _ptr buf_p; temp _size (Vint (Int.repr size));
-  temp _tag_mode (Vint (Int.repr tag_mode)); temp _last_tag_form (Vint (Int.repr last_tag_from));
-  temp _last_length ll_p; temp _opt_tlv_form opt_tlv_form_p)
-  SEP (data_at Tsh (Tstruct _asn_codec_ctx_s noattr) (Vint (Int.repr (max_stack_size ctx_Z)))
-         ctx_p; data_at_ Tsh (Tstruct _asn_dec_rval_s noattr) v_rval__16;
-  data_at_ Tsh (Tstruct _asn_dec_rval_s noattr) v_rval__15;
-  data_at_ Tsh (Tstruct _asn_dec_rval_s noattr) v_rval__14;
-  data_at_ Tsh (Tstruct _asn_dec_rval_s noattr) v_rval__13;
-  data_at_ Tsh (Tstruct _asn_dec_rval_s noattr) v_rval__12;
-  data_at_ Tsh (Tstruct _asn_dec_rval_s noattr) v_rval__11;
-  data_at_ Tsh (Tstruct _asn_dec_rval_s noattr) v_rval__10;
-  data_at_ Tsh (Tstruct _asn_dec_rval_s noattr) v_rval__9;
-  data_at_ Tsh (Tstruct _asn_dec_rval_s noattr) v_rval__8;
-  data_at_ Tsh (Tstruct _asn_dec_rval_s noattr) v_rval__7;
-  data_at_ Tsh (Tstruct _asn_dec_rval_s noattr) v_rval__6;
-  data_at_ Tsh (Tstruct _asn_dec_rval_s noattr) v_rval__5;
-  data_at_ Tsh (Tstruct _asn_dec_rval_s noattr) v_rval__4;
-  data_at_ Tsh (Tstruct _asn_dec_rval_s noattr) v_rval__3;
-  data_at_ Tsh (Tstruct _asn_dec_rval_s noattr) v_rval__2;
-  data_at_ Tsh (Tstruct _asn_dec_rval_s noattr) v_rval__1;
-  data_at_ Tsh (Tstruct _asn_dec_rval_s noattr) v_rval; data_at_ Tsh tint v_tlv_len;
-  data_at_ Tsh tuint v_tlv_tag; data_at Tsh (Tstruct _asn_TYPE_descriptor_s noattr) t td_p;
-  data_at_ Tsh asn_dec_rval_s res_p; data_at_ Tsh tint ll_p;
-  data_at Tsh (Tstruct _asn_struct_ctx_s noattr) c ctx_s_p))
-                  break:  (PROP ( )
-  LOCAL (temp _t'39
-           (let (x, _) :=
-              let (_, y) := let (_, y) := let (_, y) := let (_, y) := t in y in y in y in y in
-            x);
-  temp _t'12 (Vint (Int.repr (if eq_dec (Int.repr tag_mode) (Int.repr 0) then 1 else 0)));
-  temp _tagno
-    (Vint
-       (Int.add (Int.repr (if eq_dec ctx_s_p nullval then 0 else step))
-          (Int.repr (if eq_dec (Int.repr tag_mode) (Int.repr 1) then -1 else 0))));
-  temp _t'4 (Vint (Int.repr (if eq_dec (Int.repr tag_mode) (Int.repr 1) then -1 else 0)));
-  temp _t'3
-    (Vint
-       (Int.repr
-          (if eq_dec ctx_p nullval then 0 else ASN__STACK_OVERFLOW_CHECK 0 (max_stack_size ctx_Z))));
-  temp _step (Vint (Int.repr (if eq_dec ctx_s_p nullval then 0 else step)));
-  temp _t'1 (Vint (Int.repr (if Memory.EqDec_val ctx_s_p nullval then 0 else step)));
-  temp _tlv_constr (Vint (Int.neg (Int.repr 1)));
-  temp _expect_00_terminators (Vint (Int.repr 0)); temp _limit_len (Vint (Int.neg (Int.repr 1)));
-  temp _consumed_myself (Vint (Int.repr 0));
-  lvar _rval__16 (Tstruct _asn_dec_rval_s noattr) v_rval__16;
-  lvar _rval__15 (Tstruct _asn_dec_rval_s noattr) v_rval__15;
-  lvar _rval__14 (Tstruct _asn_dec_rval_s noattr) v_rval__14;
-  lvar _rval__13 (Tstruct _asn_dec_rval_s noattr) v_rval__13;
-  lvar _rval__12 (Tstruct _asn_dec_rval_s noattr) v_rval__12;
-  lvar _rval__11 (Tstruct _asn_dec_rval_s noattr) v_rval__11;
-  lvar _rval__10 (Tstruct _asn_dec_rval_s noattr) v_rval__10;
-  lvar _rval__9 (Tstruct _asn_dec_rval_s noattr) v_rval__9;
-  lvar _rval__8 (Tstruct _asn_dec_rval_s noattr) v_rval__8;
-  lvar _rval__7 (Tstruct _asn_dec_rval_s noattr) v_rval__7;
-  lvar _rval__6 (Tstruct _asn_dec_rval_s noattr) v_rval__6;
-  lvar _rval__5 (Tstruct _asn_dec_rval_s noattr) v_rval__5;
-  lvar _rval__4 (Tstruct _asn_dec_rval_s noattr) v_rval__4;
-  lvar _rval__3 (Tstruct _asn_dec_rval_s noattr) v_rval__3;
-  lvar _rval__2 (Tstruct _asn_dec_rval_s noattr) v_rval__2;
-  lvar _rval__1 (Tstruct _asn_dec_rval_s noattr) v_rval__1;
-  lvar _rval (Tstruct _asn_dec_rval_s noattr) v_rval; lvar _tlv_len tint v_tlv_len;
-  lvar _tlv_tag tuint v_tlv_tag; temp __res res_p; temp _opt_codec_ctx ctx_p; 
-  temp _td td_p; temp _opt_ctx ctx_s_p; temp _ptr buf_p; temp _size (Vint (Int.repr size));
-  temp _tag_mode (Vint (Int.repr tag_mode)); temp _last_tag_form (Vint (Int.repr last_tag_from));
-  temp _last_length ll_p; temp _opt_tlv_form opt_tlv_form_p)
-  SEP (data_at Tsh (Tstruct _asn_codec_ctx_s noattr) (Vint (Int.repr (max_stack_size ctx_Z)))
-         ctx_p; data_at_ Tsh (Tstruct _asn_dec_rval_s noattr) v_rval__16;
-  data_at_ Tsh (Tstruct _asn_dec_rval_s noattr) v_rval__15;
-  data_at_ Tsh (Tstruct _asn_dec_rval_s noattr) v_rval__14;
-  data_at_ Tsh (Tstruct _asn_dec_rval_s noattr) v_rval__13;
-  data_at_ Tsh (Tstruct _asn_dec_rval_s noattr) v_rval__12;
-  data_at_ Tsh (Tstruct _asn_dec_rval_s noattr) v_rval__11;
-  data_at_ Tsh (Tstruct _asn_dec_rval_s noattr) v_rval__10;
-  data_at_ Tsh (Tstruct _asn_dec_rval_s noattr) v_rval__9;
-  data_at_ Tsh (Tstruct _asn_dec_rval_s noattr) v_rval__8;
-  data_at_ Tsh (Tstruct _asn_dec_rval_s noattr) v_rval__7;
-  data_at_ Tsh (Tstruct _asn_dec_rval_s noattr) v_rval__6;
-  data_at_ Tsh (Tstruct _asn_dec_rval_s noattr) v_rval__5;
-  data_at_ Tsh (Tstruct _asn_dec_rval_s noattr) v_rval__4;
-  data_at_ Tsh (Tstruct _asn_dec_rval_s noattr) v_rval__3;
-  data_at_ Tsh (Tstruct _asn_dec_rval_s noattr) v_rval__2;
-  data_at_ Tsh (Tstruct _asn_dec_rval_s noattr) v_rval__1;
-  data_at_ Tsh (Tstruct _asn_dec_rval_s noattr) v_rval; data_at_ Tsh tint v_tlv_len;
-  data_at_ Tsh tuint v_tlv_tag; data_at Tsh (Tstruct _asn_TYPE_descriptor_s noattr) t td_p;
-  data_at_ Tsh asn_dec_rval_s res_p; data_at_ Tsh tint ll_p;
-  data_at Tsh (Tstruct _asn_struct_ctx_s noattr) c ctx_s_p)). 
+           ---- forward_loop ... 
                 + entailer!.
                 + forward.
                   admit.
@@ -603,140 +342,16 @@ Proof.
                   Time entailer!. 
                   admit.
                 + deadvars!.
-                  remember (PROP ( )
-     LOCAL (temp _step (Vint (Int.repr (if eq_dec ctx_s_p nullval then 0 else step)));
-     temp _tlv_constr (Vint (Int.neg (Int.repr 1)));
-     temp _expect_00_terminators (Vint (Int.repr 0)); temp _consumed_myself (Vint (Int.repr 0));
-     lvar _rval__16 (Tstruct _asn_dec_rval_s noattr) v_rval__16;
-     lvar _rval__15 (Tstruct _asn_dec_rval_s noattr) v_rval__15;
-     lvar _rval__14 (Tstruct _asn_dec_rval_s noattr) v_rval__14;
-     lvar _rval__13 (Tstruct _asn_dec_rval_s noattr) v_rval__13;
-     lvar _rval__12 (Tstruct _asn_dec_rval_s noattr) v_rval__12;
-     lvar _rval__11 (Tstruct _asn_dec_rval_s noattr) v_rval__11;
-     lvar _rval__10 (Tstruct _asn_dec_rval_s noattr) v_rval__10;
-     lvar _rval__9 (Tstruct _asn_dec_rval_s noattr) v_rval__9;
-     lvar _rval__8 (Tstruct _asn_dec_rval_s noattr) v_rval__8;
-     lvar _rval__7 (Tstruct _asn_dec_rval_s noattr) v_rval__7;
-     lvar _rval__6 (Tstruct _asn_dec_rval_s noattr) v_rval__6;
-     lvar _rval__5 (Tstruct _asn_dec_rval_s noattr) v_rval__5;
-     lvar _rval__4 (Tstruct _asn_dec_rval_s noattr) v_rval__4;
-     lvar _rval__3 (Tstruct _asn_dec_rval_s noattr) v_rval__3;
-     lvar _rval__2 (Tstruct _asn_dec_rval_s noattr) v_rval__2;
-     lvar _rval__1 (Tstruct _asn_dec_rval_s noattr) v_rval__1;
-     lvar _rval (Tstruct _asn_dec_rval_s noattr) v_rval; lvar _tlv_len tint v_tlv_len;
-     lvar _tlv_tag tuint v_tlv_tag; temp __res res_p; temp _opt_ctx ctx_s_p;
-     temp _last_length ll_p; temp _opt_tlv_form opt_tlv_form_p)
-     SEP (@data_at CompSpecs Tsh (Tstruct _asn_codec_ctx_s noattr) (Vint (Int.repr (max_stack_size ctx_Z)))
-            ctx_p; data_at_ Tsh (Tstruct _asn_dec_rval_s noattr) v_rval__16;
-     data_at_ Tsh (Tstruct _asn_dec_rval_s noattr) v_rval__15;
-     data_at_ Tsh (Tstruct _asn_dec_rval_s noattr) v_rval__14;
-     data_at_ Tsh (Tstruct _asn_dec_rval_s noattr) v_rval__13;
-     data_at_ Tsh (Tstruct _asn_dec_rval_s noattr) v_rval__12;
-     data_at_ Tsh (Tstruct _asn_dec_rval_s noattr) v_rval__11;
-     data_at_ Tsh (Tstruct _asn_dec_rval_s noattr) v_rval__10;
-     data_at_ Tsh (Tstruct _asn_dec_rval_s noattr) v_rval__9;
-     data_at_ Tsh (Tstruct _asn_dec_rval_s noattr) v_rval__8;
-     data_at_ Tsh (Tstruct _asn_dec_rval_s noattr) v_rval__7;
-     data_at_ Tsh (Tstruct _asn_dec_rval_s noattr) v_rval__6;
-     data_at_ Tsh (Tstruct _asn_dec_rval_s noattr) v_rval__5;
-     data_at_ Tsh (Tstruct _asn_dec_rval_s noattr) v_rval__4;
-     data_at_ Tsh (Tstruct _asn_dec_rval_s noattr) v_rval__3;
-     data_at_ Tsh (Tstruct _asn_dec_rval_s noattr) v_rval__2;
-     data_at_ Tsh (Tstruct _asn_dec_rval_s noattr) v_rval__1;
-     data_at_ Tsh (Tstruct _asn_dec_rval_s noattr) v_rval; data_at_ Tsh tint v_tlv_len;
-     data_at_ Tsh tuint v_tlv_tag; data_at Tsh (Tstruct _asn_TYPE_descriptor_s noattr) t td_p;
-     data_at_ Tsh asn_dec_rval_s res_p; data_at_ Tsh tint ll_p;
-     @data_at CompSpecs Tsh (Tstruct _asn_struct_ctx_s noattr) c ctx_s_p)) as Q.
-                  subst.
-   Ltac aux Q
-     := match goal with
-        | [ _ : _ |- semax _ (PROP(?p)LOCAL(?l)SEP(?s)) (Ssequence (Sifthenelse _ _) _) ] =>
-          forward_if (PROP(?p)LOCAL(?l)SEP(?s; Q))
-        end. 
+                 
+            
                   
-                  forward_if ((PROP ( )
-     LOCAL (temp _step (Vint (Int.repr (if eq_dec ctx_s_p nullval then 0 else step)));
-     temp _tlv_constr (Vint (Int.neg (Int.repr 1)));
-     temp _expect_00_terminators (Vint (Int.repr 0)); temp _consumed_myself (Vint (Int.repr 0));
-     lvar _rval__16 (Tstruct _asn_dec_rval_s noattr) v_rval__16;
-     lvar _rval__15 (Tstruct _asn_dec_rval_s noattr) v_rval__15;
-     lvar _rval__14 (Tstruct _asn_dec_rval_s noattr) v_rval__14;
-     lvar _rval__13 (Tstruct _asn_dec_rval_s noattr) v_rval__13;
-     lvar _rval__12 (Tstruct _asn_dec_rval_s noattr) v_rval__12;
-     lvar _rval__11 (Tstruct _asn_dec_rval_s noattr) v_rval__11;
-     lvar _rval__10 (Tstruct _asn_dec_rval_s noattr) v_rval__10;
-     lvar _rval__9 (Tstruct _asn_dec_rval_s noattr) v_rval__9;
-     lvar _rval__8 (Tstruct _asn_dec_rval_s noattr) v_rval__8;
-     lvar _rval__7 (Tstruct _asn_dec_rval_s noattr) v_rval__7;
-     lvar _rval__6 (Tstruct _asn_dec_rval_s noattr) v_rval__6;
-     lvar _rval__5 (Tstruct _asn_dec_rval_s noattr) v_rval__5;
-     lvar _rval__4 (Tstruct _asn_dec_rval_s noattr) v_rval__4;
-     lvar _rval__3 (Tstruct _asn_dec_rval_s noattr) v_rval__3;
-     lvar _rval__2 (Tstruct _asn_dec_rval_s noattr) v_rval__2;
-     lvar _rval__1 (Tstruct _asn_dec_rval_s noattr) v_rval__1;
-     lvar _rval (Tstruct _asn_dec_rval_s noattr) v_rval; lvar _tlv_len tint v_tlv_len;
-     lvar _tlv_tag tuint v_tlv_tag; temp __res res_p; temp _opt_ctx ctx_s_p;
-     temp _last_length ll_p; temp _opt_tlv_form opt_tlv_form_p)
-     SEP (@data_at CompSpecs Tsh (Tstruct _asn_codec_ctx_s noattr) (Vint (Int.repr (max_stack_size ctx_Z)))
-            ctx_p; data_at_ Tsh (Tstruct _asn_dec_rval_s noattr) v_rval__16;
-     data_at_ Tsh (Tstruct _asn_dec_rval_s noattr) v_rval__15;
-     data_at_ Tsh (Tstruct _asn_dec_rval_s noattr) v_rval__14;
-     data_at_ Tsh (Tstruct _asn_dec_rval_s noattr) v_rval__13;
-     data_at_ Tsh (Tstruct _asn_dec_rval_s noattr) v_rval__12;
-     data_at_ Tsh (Tstruct _asn_dec_rval_s noattr) v_rval__11;
-     data_at_ Tsh (Tstruct _asn_dec_rval_s noattr) v_rval__10;
-     data_at_ Tsh (Tstruct _asn_dec_rval_s noattr) v_rval__9;
-     data_at_ Tsh (Tstruct _asn_dec_rval_s noattr) v_rval__8;
-     data_at_ Tsh (Tstruct _asn_dec_rval_s noattr) v_rval__7;
-     data_at_ Tsh (Tstruct _asn_dec_rval_s noattr) v_rval__6;
-     data_at_ Tsh (Tstruct _asn_dec_rval_s noattr) v_rval__5;
-     data_at_ Tsh (Tstruct _asn_dec_rval_s noattr) v_rval__4;
-     data_at_ Tsh (Tstruct _asn_dec_rval_s noattr) v_rval__3;
-     data_at_ Tsh (Tstruct _asn_dec_rval_s noattr) v_rval__2;
-     data_at_ Tsh (Tstruct _asn_dec_rval_s noattr) v_rval__1;
-     data_at_ Tsh (Tstruct _asn_dec_rval_s noattr) v_rval; data_at_ Tsh tint v_tlv_len;
-     data_at_ Tsh tuint v_tlv_tag; data_at Tsh (Tstruct _asn_TYPE_descriptor_s noattr) t td_p;
-     data_at_ Tsh asn_dec_rval_s res_p; (data_at Tsh tint Vzero ll_p);
-     @data_at CompSpecs Tsh (Tstruct _asn_struct_ctx_s noattr) c ctx_s_p)))%logic.
+                  forward_if True.
                   admit.
                   admit.
                   forward.
                   entailer!.
                   admit.
-                 
-            Ltac replace_sep ls Q p := 
-              let rec replace_sep ls Q p :=
-                  match ls with 
-              | [] => constr:([Q])
-              | ?h :: ?tl => match h with 
-                         | data_at _ _ _ p => constr: (Q :: tl)
-                         | _ => constr: (h :: (replace_sep tl Q p))
-                         end
-              end in
-              replace_sep ls Q p. 
-                    
-            Ltac forward_if_add_sep Q p
-            := match goal with
-               | [ _ : _ |- semax _ (@PROPx environ ?ps 
-                                   (LOCALx ?lcs 
-                                   (@SEPx environ ?ls))) 
-                                   (Ssequence (Sifthenelse _ _ _) _) _ ] =>
-                 let ls' := replace_sep ls Q p in
-                          forward_if (@PROPx environ ps
-                                     (LOCALx lcs
-                                     (@SEPx environ (ls'))))
-               end. 
-            
-             assert (semax Delta 
-                           (PROP()LOCAL(temp _step Vzero)SEP(data_at Tsh tint Vone ll_p;
-                           data_at Tsh tint Vone ctx_p))
-                           (Ssequence (Sifthenelse (Econst_int Int.zero tint) Sskip Sskip)
-                                      Sskip) 
-                           (function_body_ret_assert tvoid (PROP()LOCAL()SEP()))).
-                  { 
-                    forward_if_add_sep (data_at Tsh tint Vone ll_p) ll_p.
-                    
-                    all: admit. }
+                
                  (* forward_if_add_sep (data_at Tsh (Tstruct _asn_struct_ctx_s noattr) c ctx_s_p) 
                                      ctx_s_p. *)
                   forward_if True.
@@ -758,53 +373,7 @@ Proof.
                   forward.
                   entailer!.
                   discriminate.
-                  forward_if (PROP ( )
-     LOCAL (temp _t'29 Vone;
-     temp _step (Vint (Int.repr (if eq_dec ctx_s_p nullval then 0 else step)));
-     temp _tlv_constr (Vint (Int.neg (Int.repr 1)));
-     temp _expect_00_terminators (Vint (Int.repr 0)); temp _consumed_myself (Vint (Int.repr 0));
-     lvar _rval__16 (Tstruct _asn_dec_rval_s noattr) v_rval__16;
-     lvar _rval__15 (Tstruct _asn_dec_rval_s noattr) v_rval__15;
-     lvar _rval__14 (Tstruct _asn_dec_rval_s noattr) v_rval__14;
-     lvar _rval__13 (Tstruct _asn_dec_rval_s noattr) v_rval__13;
-     lvar _rval__12 (Tstruct _asn_dec_rval_s noattr) v_rval__12;
-     lvar _rval__11 (Tstruct _asn_dec_rval_s noattr) v_rval__11;
-     lvar _rval__10 (Tstruct _asn_dec_rval_s noattr) v_rval__10;
-     lvar _rval__9 (Tstruct _asn_dec_rval_s noattr) v_rval__9;
-     lvar _rval__8 (Tstruct _asn_dec_rval_s noattr) v_rval__8;
-     lvar _rval__7 (Tstruct _asn_dec_rval_s noattr) v_rval__7;
-     lvar _rval__6 (Tstruct _asn_dec_rval_s noattr) v_rval__6;
-     lvar _rval__5 (Tstruct _asn_dec_rval_s noattr) v_rval__5;
-     lvar _rval__4 (Tstruct _asn_dec_rval_s noattr) v_rval__4;
-     lvar _rval__3 (Tstruct _asn_dec_rval_s noattr) v_rval__3;
-     lvar _rval__2 (Tstruct _asn_dec_rval_s noattr) v_rval__2;
-     lvar _rval__1 (Tstruct _asn_dec_rval_s noattr) v_rval__1;
-     lvar _rval (Tstruct _asn_dec_rval_s noattr) v_rval; lvar _tlv_len tint v_tlv_len;
-     lvar _tlv_tag tuint v_tlv_tag; temp __res res_p; temp _opt_ctx ctx_s_p;
-     temp _last_length ll_p; temp _opt_tlv_form opt_tlv_form_p)
-     SEP (data_at Tsh (Tstruct _asn_codec_ctx_s noattr) (Vint (Int.repr (max_stack_size ctx_Z)))
-            ctx_p;
-   
-      data_at Tsh (Tstruct _asn_dec_rval_s noattr) (Vint (Int.repr 0), Vint (Int.repr 0)) v_rval__16;
-     data_at_ Tsh (Tstruct _asn_dec_rval_s noattr) v_rval__15;
-     data_at_ Tsh (Tstruct _asn_dec_rval_s noattr) v_rval__14;
-     data_at_ Tsh (Tstruct _asn_dec_rval_s noattr) v_rval__13;
-     data_at_ Tsh (Tstruct _asn_dec_rval_s noattr) v_rval__12;
-     data_at_ Tsh (Tstruct _asn_dec_rval_s noattr) v_rval__11;
-     data_at_ Tsh (Tstruct _asn_dec_rval_s noattr) v_rval__10;
-     data_at_ Tsh (Tstruct _asn_dec_rval_s noattr) v_rval__9;
-     data_at_ Tsh (Tstruct _asn_dec_rval_s noattr) v_rval__8;
-     data_at_ Tsh (Tstruct _asn_dec_rval_s noattr) v_rval__7;
-     data_at_ Tsh (Tstruct _asn_dec_rval_s noattr) v_rval__6;
-     data_at_ Tsh (Tstruct _asn_dec_rval_s noattr) v_rval__5;
-     data_at_ Tsh (Tstruct _asn_dec_rval_s noattr) v_rval__4;
-     data_at_ Tsh (Tstruct _asn_dec_rval_s noattr) v_rval__3;
-     data_at_ Tsh (Tstruct _asn_dec_rval_s noattr) v_rval__2;
-     data_at_ Tsh (Tstruct _asn_dec_rval_s noattr) v_rval__1;
-     data_at_ Tsh (Tstruct _asn_dec_rval_s noattr) v_rval; data_at_ Tsh tint v_tlv_len;
-     data_at_ Tsh tuint v_tlv_tag; data_at Tsh (Tstruct _asn_TYPE_descriptor_s noattr) t td_p;
-     data_at_ Tsh asn_dec_rval_s res_p; data_at_ Tsh tint ll_p;
-     data_at Tsh (Tstruct _asn_struct_ctx_s noattr) c ctx_s_p)). (* change rval_16 - why 16??? *)
+                  forward_if True. (* change rval_16 - why 16??? *)
                   forward.
                   entailer!.
                   discriminate.
@@ -824,7 +393,7 @@ Proof.
                   list_solve.
                   list_simplify
                   
- admit.
+                    admit.
                 + admit.
                 + 
 Admitted.
