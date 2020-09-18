@@ -104,12 +104,21 @@ Ltac forward_if_add_sep Q p
      | [ _ : _ |- semax _ (@PROPx environ ?ps 
                                  (LOCALx ?lcs 
                                          (@SEPx environ ?ls))) 
-                       (Ssequence (Sifthenelse _ _ _) _) _ ] =>
+                       (Ssequence (Sifthenelse _ _ _) _) _ ] => 
+       let ls' := replace_sep ls Q p in
+       forward_if (@PROPx environ ps
+                          (LOCALx lcs
+                                  (@SEPx environ (ls'))))
+     | [ _ : _ |- semax _ (@PROPx environ ?ps 
+                                 (LOCALx ?lcs 
+                                         (@SEPx environ ?ls))) 
+                       (Ssequence (Ssequence (Sifthenelse _ _ _) _) _) _ ]  =>
        let ls' := replace_sep ls Q p in
        forward_if (@PROPx environ ps
                           (LOCALx lcs
                                   (@SEPx environ (ls'))))
      end.
+
 
 Ltac forward_empty_while :=
   match goal with

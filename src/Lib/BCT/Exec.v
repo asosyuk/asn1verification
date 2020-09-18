@@ -3,10 +3,8 @@ Require Import ExtLib.Structures.Monad.
 
 Import MonadNotation.
 
-Record asn_codec_ctx := { max_stack_size : Z }.
-
 (* assuming ctx is not null *)
-Parameter asn_stack_overflow_check : asn_codec_ctx -> bool.
+Parameter asn_stack_overflow_check : Z -> bool.
 Parameter ber_fetch_tag : Z -> Z.
 Parameter ber_fetch_length : bool-> Z -> Z.
 Parameter constructed : list Z -> bool.
