@@ -3,7 +3,7 @@ Require Import Core.Core Core.Tactics Core.VstTactics Core.StructNormalizer
 Require Import VST.floyd.proofauto.
 Require Import Clight.ber_decoder.
 Require Import VST.ASN__STACK_OVERFLOW_CHECK ber_fetch_tag ber_fetch_length Lib.Forward. 
-
+Require Import Core.VstTactics.
 Definition Vprog : varspecs. mk_varspecs prog. Defined.
 Instance CompSpecs : compspecs. make_compspecs prog. Defined.
 
@@ -42,6 +42,42 @@ Fixpoint mk_struct_repr (ls : list (ident * type))  :=
                 (reptype t * mk_struct_repr tl)%type
   end.  
 
+Definition type_descr_composites :=
+  ((_name, (tptr tschar)) :: (_xml_tag, (tptr tschar)) ::
+    (_op, (tptr (Tstruct _asn_TYPE_operation_s noattr))) ::
+    (_tags, (tptr tuint)) :: (_tags_count, tuint) ::
+    (_all_tags, (tptr tuint)) :: (_all_tags_count, tuint) ::
+    (_encoding_constraints, (Tstruct _asn_encoding_constraints_s noattr)) ::
+    (_elements, (tptr (Tstruct _asn_TYPE_member_s noattr))) ::
+    (_elements_count, tuint) :: (_specifics, (tptr tvoid)) :: nil).
+
+
+Fixpoint mk_TYPE_descriptor_repr (ls : list (ident * type))  :=
+  match ls with
+    | [] => val
+    | [h] => let (_, t) := h in reptype t
+    | h :: tl => let (_, t) := h in
+                (reptype t * mk_TYPE_descriptor_repr tl)%type
+  end.  
+
+Definition type_descr := mk_TYPE_descriptor_repr type_descr_composites.
+
+
+Definition get_tags_count (v : type_descr) :=
+  let (_, y) := v in
+  let (_, y) := y in
+  let (_, y) := y in
+  let (_, y) := y in
+  let (x, y) := y in
+        x. 
+
+Definition get_tags (v : type_descr) :=
+  let (_, y) := v in
+  let (_, y) := y in
+  let (_, y) := y in
+  let (x, y) := y in
+        x.
+
 Definition asn_struct_ctx_type := mk_struct_repr asn_struct_ctx_composites.
 
 
@@ -57,11 +93,15 @@ Proof. make_cs_preserve CompSpecs ber_fetch_length.CompSpecs. Defined.
 Instance Change4 : change_composite_env ber_fetch_length.CompSpecs CompSpecs.
 Proof. make_cs_preserve ber_fetch_length.CompSpecs CompSpecs. Defined.
 
+Print gfield.
+
+Eval cbn in reptype (nested_field_type (Tstruct _asn_TYPE_descriptor_s noattr) (DOT _tags)).
+
 Definition ber_check_tags_spec : ident * funspec :=
   DECLARE _ber_check_tags
     WITH opt_codec_ctx_p : val, opt_codec_ctx : val,
          td_p : val, td : TYPE_descriptor, 
-         t : reptype (Tstruct _asn_TYPE_descriptor_s noattr),
+         tags_p : val,
          opt_ctx_p : val,
          opt_ctx : asn_struct_ctx_type_abstract,                         
          ptr_p : val, ptr : list Z,
@@ -80,7 +120,15 @@ Definition ber_check_tags_spec : ident * funspec :=
                 Vint (Int.repr tag_mode); Vint (Int.repr last_tag_from);
                   last_length_p; opt_tlv_form_p)
       GLOBALS ()
-      SEP (data_at Tsh (Tstruct _asn_TYPE_descriptor_s noattr) t td_p;
+      SEP ((* data_at Tsh (Tstruct _asn_TYPE_descriptor_s noattr) t td_p; *)
+           field_at Tsh (Tstruct _asn_TYPE_descriptor_s noattr) 
+                         [StructField _tags] 
+                         tags_p td_p;
+           field_at Tsh (Tstruct _asn_TYPE_descriptor_s noattr) 
+                         [StructField _tags_count] 
+                         (Vint (Int.repr (Zlength (tags td)))) td_p;
+           data_at Tsh (tarray tint (Zlength (tags td))) 
+                   (map Vint (map Int.repr (tags td))) tags_p;
            data_at_ Tsh asn_dec_rval_s res_p;
            data_at_ Tsh tint last_length_p;
            data_at Tsh (Tstruct _asn_struct_ctx_s noattr) 
@@ -96,7 +144,14 @@ Definition ber_check_tags_spec : ident * funspec :=
     EX st : int,
       PROP ()
       LOCAL ()
-      SEP (data_at Tsh (Tstruct _asn_TYPE_descriptor_s noattr) t td_p;          
+      SEP (field_at Tsh (Tstruct _asn_TYPE_descriptor_s noattr) 
+                         [StructField _tags] 
+                         tags_p td_p;
+           field_at Tsh (Tstruct _asn_TYPE_descriptor_s noattr) 
+                         [StructField _tags_count] 
+                         (Vint (Int.repr (Zlength (tags td)))) td_p;
+           data_at Tsh (tarray tint (Zlength (tags td))) 
+                   (map Vint (map Int.repr (tags td))) tags_p;
            data_at Tsh (Tstruct _asn_codec_ctx_s noattr) 
                   (Vint (Int.repr (max_stack_size))) opt_codec_ctx_p;
         match ber_check_tags ptr td max_stack_size
@@ -123,6 +178,7 @@ Definition ber_check_tags_spec : ident * funspec :=
                    opt_ctx_p *
              data_at_ Tsh tint last_length_p
         end).
+
 
 Definition Gprog := ltac:(with_library prog 
                                        [ber_check_tags_spec;
@@ -193,50 +249,57 @@ Proof.
                                       then 0
                                       else step opt_ctx))).
     entailer!. 
-  - forward.
-    admit.
-  - (* forward_if
+  + 
+   forward.
+   entailer!.
+  + forward_if
       (temp _t'4 (Vint (Int.repr (if eq_dec (Int.repr tag_mode) (Int.repr 1)
-                                  then -1 else 0)))). *)
-    forward_if (temp _t'4 (Vint (Int.repr (-1)))).
-    -- (* forward.
-       Require Import Core.VstTactics.
-       repeat rewrite_if_b.
-       entailer!.
-       rewrite_if_b.
-       auto. *) admit.
-    -- (* forward.
-       entailer!.
-       rewrite_if_b.
-       auto. *) admit.
-    -- forward.
-       (* entailer!. *)
-       admit.
-       Ltac strip_repr :=
-         autorewrite with norm;
-         unfold Int.add; unfold Int.mul; unfold Int.neg;
-         unfold Int.sub;
-         try erewrite Int.unsigned_one in *;
+                                  then -1 else 0)))).
+  -- forward.
+     entailer!.
+     rewrite_if_b.
+     auto.  
+  -- forward.
+     entailer!.
+     rewrite_if_b.
+     auto. 
+  -- forward.
+     entailer!. 
+     Ltac strip_repr :=
+       autorewrite with norm;
+       unfold Int.add; unfold Int.mul; unfold Int.neg;
+       unfold Int.sub;
+       try erewrite Int.unsigned_one in *;
          try erewrite Int.unsigned_zero in *;
          repeat rewrite Int.unsigned_repr;  
          repeat rewrite Int.signed_repr;     
          try rep_omega; auto. 
-     (*  { repeat break_if; strip_repr.
-         all: admit. (* step within int bounds *) } *)
-       (* forward_if (temp _t'12 (Vint (Int.repr (if eq_dec (Int.repr tag_mode)
-                                                         (Int.repr 0)
-                                               then 1
-                                               else 0)))). *)
-       forward_if (temp _t'12 Vone).
-       --- forward.
-           admit.
-           forward.
-           admit.
-       --- forward.
-           entailer!.
-           rewrite_if_b.
-           admit.
-       ---         
+     { repeat break_if; strip_repr. }
+     Require Import Core.Notations.
+     forward_if (temp _t'12 
+                  (if eq_dec (Int.repr tag_mode) Int.zero 
+                   then
+                  (force_val
+                  (sem_cast tint tbool
+                  (eval_binop Oeq tint tint
+                    (Vint
+                       (Int.repr (if eq_dec opt_ctx_p nullval
+                                  then 0 
+                                  else step opt_ctx) +
+                        Int.repr (if eq_dec (Int.repr tag_mode) (Int.repr 1)
+                                  then -1 
+                                  else 0))%int)
+                    (eval_cast tuint tint (Vint (Int.repr (len (tags td))))))))
+                   else (Vint (Int.repr 0)))).
+     --- forward.
+         forward.
+         rewrite H0.
+         entailer!.  
+     --- forward.
+         entailer!.
+         rewrite_if_b.
+         auto.
+     ---         
          forward_if True. (* TODO *)
           + forward_call (buf_p, size, v_tlv_tag).
             rewrite_if_b.
