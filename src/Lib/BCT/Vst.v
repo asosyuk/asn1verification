@@ -4,6 +4,7 @@ Require Import VST.floyd.proofauto.
 Require Import Clight.ber_decoder.
 Require Import VST.ASN__STACK_OVERFLOW_CHECK ber_fetch_tag ber_fetch_length Lib.Forward. 
 Require Import Core.VstTactics.
+
 Definition Vprog : varspecs. mk_varspecs prog. Defined.
 Instance CompSpecs : compspecs. make_compspecs prog. Defined.
 
@@ -11,16 +12,6 @@ Open Scope Z.
 
 Section Ber_check_tags.
 
-(* ts td ctx tag_mode size step *)
-
-(* typedef struct asn_struct_ctx_s {
-	short phase;		/* Decoding phase */
-	short step;		/* Elementary step of a phase */
-	int context;		/* Other context information */
-	void *ptr;		/* Decoder-specific stuff (stack elements) */
-	ber_tlv_len_t left;	/* Number of bytes left, -1 for indefinite */
-} asn_struct_ctx_t;
-*)
 
 Record asn_struct_ctx_type_abstract := 
   {  phase : Z;		
@@ -41,42 +32,6 @@ Fixpoint mk_struct_repr (ls : list (ident * type))  :=
     | h :: tl => let (_, t) := h in
                 (reptype t * mk_struct_repr tl)%type
   end.  
-
-Definition type_descr_composites :=
-  ((_name, (tptr tschar)) :: (_xml_tag, (tptr tschar)) ::
-    (_op, (tptr (Tstruct _asn_TYPE_operation_s noattr))) ::
-    (_tags, (tptr tuint)) :: (_tags_count, tuint) ::
-    (_all_tags, (tptr tuint)) :: (_all_tags_count, tuint) ::
-    (_encoding_constraints, (Tstruct _asn_encoding_constraints_s noattr)) ::
-    (_elements, (tptr (Tstruct _asn_TYPE_member_s noattr))) ::
-    (_elements_count, tuint) :: (_specifics, (tptr tvoid)) :: nil).
-
-
-Fixpoint mk_TYPE_descriptor_repr (ls : list (ident * type))  :=
-  match ls with
-    | [] => val
-    | [h] => let (_, t) := h in reptype t
-    | h :: tl => let (_, t) := h in
-                (reptype t * mk_TYPE_descriptor_repr tl)%type
-  end.  
-
-Definition type_descr := mk_TYPE_descriptor_repr type_descr_composites.
-
-
-Definition get_tags_count (v : type_descr) :=
-  let (_, y) := v in
-  let (_, y) := y in
-  let (_, y) := y in
-  let (_, y) := y in
-  let (x, y) := y in
-        x. 
-
-Definition get_tags (v : type_descr) :=
-  let (_, y) := v in
-  let (_, y) := y in
-  let (_, y) := y in
-  let (x, y) := y in
-        x.
 
 Definition asn_struct_ctx_type := mk_struct_repr asn_struct_ctx_composites.
 
@@ -265,7 +220,7 @@ Proof.
      auto. 
   -- forward.
      entailer!. 
-     Ltac strip_repr :=
+   (*  Ltac strip_repr :=
        autorewrite with norm;
        unfold Int.add; unfold Int.mul; unfold Int.neg;
        unfold Int.sub;
@@ -273,10 +228,10 @@ Proof.
          try erewrite Int.unsigned_zero in *;
          repeat rewrite Int.unsigned_repr;  
          repeat rewrite Int.signed_repr;     
-         try rep_omega; auto. 
+         try rep_omega; auto. *)
      { repeat break_if; strip_repr. }
      Require Import Core.Notations.
-     forward_if (temp _t'12 
+     forward_if (temp _t'10 
                   (if eq_dec (Int.repr tag_mode) Int.zero 
                    then
                   (force_val
@@ -299,41 +254,140 @@ Proof.
          entailer!.
          rewrite_if_b.
          auto.
-     ---         
-         forward_if True. (* TODO *)
-          + forward_call (buf_p, size, v_tlv_tag).
-            rewrite_if_b.
+     ---
+       Arguments eq_dec : simpl never.
+       remember (if eq_dec (Int.repr tag_mode) 0%int
+               then
+                force_val
+                  (sem_cast tint tbool
+                     (eval_binop Oeq tint tint
+                        (Vint
+                           (Int.repr (if eq_dec opt_ctx_p nullval 
+                                      then 0 else step opt_ctx) +
+                            Int.repr (if eq_dec (Int.repr tag_mode) (Int.repr 1) 
+                                      then -1 else 0))%int)
+                        (eval_cast tuint tint (Vint (Int.repr (len (tags td)))))))
+               else Vint (Int.repr 0)) as t12.  
+         (* TODO: exec specs for ber_fetch_tags 
+     and ber_fetch_length *)
+         pose (tag_len := 1).
+         pose (len_len := 1).
+         pose (num := tag_len + len_len).
+         forward_if [temp _tag_len (Vint (Int.repr tag_len));
+                     temp _len_len (Vint (Int.repr len_len));
+                     temp _ptr (offset_val num ptr_p);
+                     temp _size (Vint (Int.repr (size - num)));
+                     temp _consumed_myself (Vint (Int.repr num))].
+         ++ forward_call (ptr_p, size, v_tlv_tag).
+            repeat rewrite_if_b.
             match goal with
             | [ _ : _ |- semax _ ?Pre ?C ?Post ] =>
                 forward_switch Pre
               end. 
+         * (* Case 0 *)
             clear E.
             abbreviate_semax.
-            
-            Ltac forward_empty_while_break :=
-              match goal with
-              | [ _ : _ |- semax _ ?Pre (Ssequence (Sloop _ Sbreak) _) _ ] =>
-                forward_loop Pre break: Pre; try forward ; try entailer! 
-              end. 
-            * forward_empty_while_break.
-              forward_if True.
-              forward.
-              entailer!.
-              admit.
-              forward.
-              entailer!.
-              forward_if True.
-              forward.
-              entailer!.
-              admit.
-              admit.
-              admit.
-            * forward_empty_while_break.
-              admit. 
-            * forward.
-              admit.
-            * 
-              Ltac add_sep Q p
+            match goal with
+            | [ _ : _ |- semax _ ?Pre (Sloop _ Sbreak) ?Post ]  => 
+              forward_loop Pre; try forward ; try entailer! 
+            | [ _ : _ |- semax _ ?Pre (Ssequence (Sloop _ Sbreak) _) ?Post ] =>
+              forward_loop Pre; try forward ; try entailer! 
+            end. 
+            repeat rewrite_if_b. 
+            remember (Int.sign_ext 16
+           (Int.repr (if Memory.EqDec_val opt_ctx_p nullval 
+                      then 0 
+                      else step opt_ctx))) as st. 
+  
+            forward_if_add_sep (data_at Tsh (Tstruct _asn_struct_ctx_s noattr)
+                                        (Vint (Int.repr (phase opt_ctx)),
+                                         (Vint (if eq_dec opt_ctx_p nullval 
+                                                then Int.repr (step opt_ctx) else st),
+                                          (Vint (Int.repr (context opt_ctx)),
+                                           (Vptr (fst (pt opt_ctx)) (snd (pt opt_ctx)), 
+                                            Vint (Int.repr (left opt_ctx))))))
+                                        opt_ctx_p) opt_ctx_p.
+        ** forward.
+           entailer!.
+           destruct opt_ctx_p; try contradiction.
+           repeat rewrite if_false by discriminate.
+           entailer!.
+        ** forward.
+           repeat rewrite_if_b.
+           entailer!.
+        ** forward_if (temp _t'6 (force_val (sem_cast_i2bool opt_ctx_p)));
+             try forward; try entailer!.
+           forward_if_add_sep (data_at Tsh (Tstruct _asn_dec_rval_s noattr)
+                                       (Vint (Int.repr 2), 
+                                        Vint (Int.repr 0)) v_rval__1) v_rval__1; 
+           try forward; try entailer!.
+           repeat forward. 
+           (* failing asn_overflow check *)
+           assert (ber_check_tags ptr td max_stack_size tag_mode size (step opt_ctx) = None) as N.
+           { admit. }
+           erewrite N.
+           Exists (if eq_dec opt_ctx_p nullval
+                   then Int.repr (step opt_ctx)
+                   else
+                     Int.sign_ext 16
+                                  (Int.repr (if Memory.EqDec_val opt_ctx_p nullval 
+                                             then 0
+                                             else step opt_ctx))).
+           entailer!. 
+         * (* same as before *)
+            clear E.
+            abbreviate_semax.
+            match goal with
+            | [ _ : _ |- semax _ ?Pre (Sloop _ Sbreak) ?Post ]  => 
+              forward_loop Pre; try forward ; try entailer! 
+            | [ _ : _ |- semax _ ?Pre (Ssequence (Sloop _ Sbreak) _) ?Post ] =>
+              forward_loop Pre; try forward ; try entailer! 
+            end. 
+            repeat rewrite_if_b. 
+            remember (Int.sign_ext 16
+           (Int.repr (if Memory.EqDec_val opt_ctx_p nullval 
+                      then 0 
+                      else step opt_ctx))) as st. 
+  
+            forward_if_add_sep (data_at Tsh (Tstruct _asn_struct_ctx_s noattr)
+                                        (Vint (Int.repr (phase opt_ctx)),
+                                         (Vint (if eq_dec opt_ctx_p nullval 
+                                                then Int.repr (step opt_ctx) else st),
+                                          (Vint (Int.repr (context opt_ctx)),
+                                           (Vptr (fst (pt opt_ctx)) (snd (pt opt_ctx)), 
+                                            Vint (Int.repr (left opt_ctx))))))
+                                        opt_ctx_p) opt_ctx_p.
+        ** forward.
+           entailer!.
+           destruct opt_ctx_p; try contradiction.
+           repeat rewrite if_false by discriminate.
+           entailer!.
+        ** forward.
+           repeat rewrite_if_b.
+           entailer!.
+        ** forward_if (temp _t'6 (force_val (sem_cast_i2bool opt_ctx_p)));
+             try forward; try entailer!.
+           forward_if_add_sep (data_at Tsh (Tstruct _asn_dec_rval_s noattr)
+                                       (Vint (Int.repr 2), 
+                                        Vint (Int.repr 0)) v_rval__1) v_rval__1; 
+           try forward; try entailer!.
+           repeat forward. 
+           (* failing asn_overflow check *)
+           assert (ber_check_tags ptr td max_stack_size tag_mode size (step opt_ctx) = None) as N.
+           { admit. }
+           erewrite N.
+           Exists (if eq_dec opt_ctx_p nullval
+                   then Int.repr (step opt_ctx)
+                   else
+                     Int.sign_ext 16
+                                  (Int.repr (if Memory.EqDec_val opt_ctx_p nullval 
+                                             then 0
+                                             else step opt_ctx))).
+           entailer!.
+         * forward.
+           entailer!.
+           admit. (* Why FF? *)
+         * Ltac add_sep Q p
                 := match goal with
                    | [ _ : _ |- semax _ (@PROPx environ ?ps 
                                                (LOCALx ?lcs 
@@ -348,7 +402,7 @@ Proof.
                                  (LOCALx lcs
                                          (@SEPx environ (ls'))))
                    end.
-              add_sep (data_at_ Tsh tuchar buf_p) buf_p.
+              add_sep (data_at_ Tsh tuchar ptr_p) ptr_p.
               forward.
               admit.
               forward_if (temp _t'8 Vzero).
