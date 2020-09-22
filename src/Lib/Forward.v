@@ -123,5 +123,23 @@ Ltac forward_if_add_sep Q p
 Ltac forward_empty_while :=
   match goal with
   | [ _ : _ |- semax _ ?Pre (Sloop _ Sbreak) _ ] =>
-    forward_loop Pre; try forward ; try entailer! 
+    forward_loop Pre; try forward ; try entailer!
+  | [ _ : _ |- semax _ ?Pre (Ssequence (Sloop _ Sbreak) _) ?Post ] =>
+   forward_loop Pre; try forward ; try entailer!  
   end. 
+
+Ltac add_sep Q p
+  := match goal with
+     | [ _ : _ |- semax _ (@PROPx environ ?ps 
+                                 (LOCALx ?lcs 
+                                         (@SEPx environ ?ls))) 
+                       ?C ?Post ] =>
+       let ls' := replace_sep ls Q p in
+       replace (@PROPx environ ps 
+                       (LOCALx lcs 
+                               (@SEPx environ ls)))
+         with
+           (@PROPx environ ps
+                   (LOCALx lcs
+                           (@SEPx environ (ls'))))
+     end.
