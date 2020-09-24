@@ -401,7 +401,7 @@ Proof.
           *** forward.
               entailer!.
           ***
-              forward_empty_while. (* ADVANCE *)
+             (* forward_empty_while. (* ADVANCE *)
               repeat forward.
               entailer!.
               assert (isptr ptr_p) as P by admit.
@@ -417,16 +417,18 @@ Proof.
               list_solve.
               autorewrite with sublist.
               admit. (* add precondition ptr_p + len ptr < Ptrofs.modulus *)
-              1-2: (list_solve || autorewrite with subslist; auto).              
-          ** subst.
+              1-2: (list_solve || autorewrite with subslist; auto).  *)
+            admit.
+          ** (* subst.
              assert (isptr ptr_p) as P by admit.
              unfold isptr in P.
              destruct ptr_p; try contradiction.
              erewrite <- split_non_empty_list.
              reflexivity.
              erewrite Znth_cons_sublist.
-             all: (list_solve || autorewrite with sublist; auto).
-             admit. (* add precondition ptr_p + len ptr < Ptrofs.modulus *)
+             all: (list_solve || autorewrite with sublist; auto). *)
+            admit.
+              (* add precondition ptr_p + len ptr < Ptrofs.modulus *)
           ++ forward.
               admit. (* assert fail case *)
           ++ (* MAIN LOOP *)
@@ -477,13 +479,37 @@ Proof.
                cbn.
                strip_repr.
                1-2: admit.
-               remember (if eq_dec 
-                              (Vint (Int.repr (Byte.unsigned (Byte.repr (Znth 0 ptr)) & 32)))
-                              (Vint 0%int)
-                         then Vzero
-                         else Vone) as tlv_constr.
-               forward_if (temp t' tlv_constr).
-
+               forward_if (temp _t'13 tlv_constr).
+               ** forward. entailer!.
+                  admit. (* as before *)
+               ** forward. entailer!.
+                  admit. (* as before *)
+               ** forward.
+                  forward_if
+                    (temp _t'15
+                          (if eq_dec (Int.repr tag_mode) Int.zero
+                           then Vzero
+                           else force_val
+                                  (sem_cast_i2bool
+                                     (Val.of_bool
+                                        (Int.repr (if eq_dec opt_ctx_p (Vint 0) 
+                                                   then 0
+                                                   else step opt_ctx) == Int.repr 0)%int))));
+                    try forward; try entailer!; rewrite_if_b; try entailer!.
+                 all:  auto.
+                 forward_if True. (* TODO *)
+             *** forward. entailer!.
+             *** forward_if True.
+                 forward.
+                 entailer!.
+                 admit. (* assert_fail *)
+                 forward.
+                 admit. (* FIXME *)
+                 
+                 entailer!.
+                 forward.
+                 forward.
+                 entailer!.
                Intros.
                forward.
               admit.
