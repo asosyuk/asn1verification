@@ -44,7 +44,7 @@ Definition der_write_tags_spec : ident * funspec :=
        (* callback argument pointer *)
        app_p : val,
        (* callback fields *)
-       buf_b : block, buf_ofs : ptrofs, cb_p : val
+       cb_p : val
   PRE[tptr type_descriptor_s, tuint, tint, tint, tuint, 
       tptr cb_type, tptr tvoid]
     PROP()

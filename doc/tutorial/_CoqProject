@@ -1,1 +1,3 @@
--R C Clight
+-R C Clight -Q ../../../VST VST -Q ../../../VST/compcert compcert
+
+-arg -w -arg -none

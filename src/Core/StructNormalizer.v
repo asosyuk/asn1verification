@@ -100,4 +100,3 @@ Definition normalize_function f c :=
                            [(fn_temps f); (fn_vars f);
                               (fn_params f)] c)
              (struct_normalize (fn_body f) c (fresh_ident f)).
-

@@ -11,10 +11,10 @@ Section Integer_der_encode.
 Definition prim_type_s := (Tstruct _ASN__PRIMITIVE_TYPE_s noattr).
 Definition mk_prim_type_s (buf_p : val) size := (buf_p, Vint (Int.repr size)).
 
-Definition int_enc_rval td li sptr_p := 
+Definition int_enc_rval td li td_p sptr_p := 
   match evalErrW (int_encoder td li) [] with
-  | Some v => mk_enc_rval (encoded v) Vzero
-  | None => mk_enc_rval (-1) sptr_p
+  | Some v => mk_enc_rval (encoded v) td_p Vzero
+  | None => mk_enc_rval (-1) td_p sptr_p
   end.
 
 Definition int_enc_res td li := 
@@ -70,7 +70,7 @@ Definition int_der_encode_spec : ident * funspec :=
                         (Vptr buf_b buf_ofs);
            data_at Tsh prim_type_s (mk_prim_type_s (Vptr buf_b buf_ofs) size) sptr_p;
            (* Result *)
-           data_at Tsh enc_rval_s (int_enc_rval td data sptr_p) res_p;
+           data_at Tsh enc_rval_s (int_enc_rval td data td_p sptr_p) res_p;
            (* Callback *)
            valid_pointer cb_p;
            data_at_ Tsh enc_key_s app_key_p;

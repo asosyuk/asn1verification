@@ -68,13 +68,10 @@ Definition bool_der_encode_spec : ident * funspec :=
     WITH res: val,  sptr_p : val, sptr_val : int, 
          td_p : val, td : TYPE_descriptor,
          tag_mode : Z, tag : Z,
-         app_key_p : val,
-         (* overrun callback destination buffer *)
-         buf_b : block, buf_ofs : ptrofs, cb_p : val
+         app_key_p : val, cb_p : val
     PRE [tptr enc_rval_s, tptr type_descriptor_s, tptr tvoid, tint, 
          tuint, tptr cb_type, tptr tvoid]
-      PROP (decoder_type td = BOOLEAN_t;
-            isptr (Vptr buf_b buf_ofs))
+      PROP (decoder_type td = BOOLEAN_t)
       PARAMS (res; td_p; sptr_p; Vint (Int.repr tag_mode);
               Vint (Int.repr tag); cb_p; app_key_p)
       GLOBALS ()
@@ -89,8 +86,8 @@ Definition bool_der_encode_spec : ident * funspec :=
       LOCAL ()
       let res_val := 
           match evalErrW (bool_encoder td (bool_of_int sptr_val)) [] with 
-                     | Some v => mk_enc_rval (encoded v) Vzero 
-                     | None => mk_enc_rval (-1) sptr_p end in
+                     | Some v => mk_enc_rval (encoded v) Vzero Vzero 
+                     | None => mk_enc_rval (-1) td_p sptr_p end in
       SEP (data_at_ Tsh type_descriptor_s td_p; 
            data_at Tsh tint (Vint sptr_val) sptr_p;
            data_at Tsh enc_rval_s res_val res;
@@ -109,15 +106,14 @@ Theorem bool_der_encode : semax_body Vprog Gprog
                                      bool_der_encode_spec.
 Proof.
   start_function. 
-  rename H into DT; rename H0 into Bf_ptr.
+  rename H into Dt.
   forward.
-  forward_call (td_p, td, 1, tag_mode, 0, tag, app_key_p, buf_b, buf_ofs, cb_p).
+  forward_call (td_p, td, 1, tag_mode, 0, tag, app_key_p, cb_p).
   rewrite Exec.eval_dwt_boolean by assumption.
   unfold_data_at_ v_erval; unfold_data_at (data_at _ _ _ v_erval).
   repeat forward.
   forward_if; [contradiction|clear H].
   deadvars!.
-  remember (Vptr buf_b buf_ofs) as buf_p.
   forward_if (
       PROP ( )
       LOCAL (temp _st sptr_p;
@@ -198,9 +194,9 @@ Proof.
     deadvars!.
     forward_loop (
         PROP ( )
-           LOCAL (lvar _bool_value tuchar v_bool_value; 
-               lvar _erval (Tstruct _asn_enc_rval_s noattr) v_erval; 
-               temp __res res)
+        LOCAL (lvar _bool_value tuchar v_bool_value; 
+            lvar _erval (Tstruct _asn_enc_rval_s noattr) v_erval; 
+            temp __res res)
         SEP (data_at Tsh tuchar 
                      (Vint 
                         (Int.zero_ext 8 
