@@ -1,5 +1,5 @@
-Require Import VST.floyd.proofauto Psatz.
-Require Import StructTact.StructTactics Psatz Core.Notations.
+Require Import VST.floyd.proofauto.
+Require Import StructTact.StructTactics Core.Notations.
 
 Lemma Zlength_default_val : forall {cs} n t, 
     0 <= n -> 
@@ -30,14 +30,14 @@ Lemma split2_data_at_Tarray_tschar {cs: compspecs} sh n n1 (v: list val) p:
    0 <= n1 <= n ->
    Zlength v = n ->
    data_at sh (Tarray tschar n noattr) v p =
-    data_at sh (Tarray tschar n1 noattr) (sublist 0 n1 v) p *
-    data_at sh (Tarray tschar (n - n1) noattr) (sublist n1 n v) (field_address0 (Tarray tschar n noattr) (ArraySubsc n1::nil) p).
+    (data_at sh (Tarray tschar n1 noattr) (sublist 0 n1 v) p *
+    data_at sh (Tarray tschar (n - n1) noattr) (sublist n1 n v) (field_address0 (Tarray tschar n noattr) (ArraySubsc n1::nil) p))%logic.
 Proof. 
   intros.
   eapply split2_data_at_Tarray; auto.
   rewrite <-H0.
   reflexivity.
-  rewrite sublist_same; try omega; auto.
+  rewrite sublist_same; try nia; auto.
 Qed.
 
 
@@ -46,10 +46,10 @@ Lemma split_data_at_sublist_tschar : forall (cs : compspecs) sh ls b ofs j,
     0 <= j <= Zlength ls ->
 
     data_at sh (tarray tschar (Zlength ls)) (map Vbyte ls) (Vptr b ofs) =
-    data_at sh (tarray tschar j) (map Vbyte (sublist 0 j ls))
+    (data_at sh (tarray tschar j) (map Vbyte (sublist 0 j ls))
             (Vptr b ofs) *
     data_at sh (tarray tschar (Zlength ls - j)) (map Vbyte (sublist j (Zlength ls) ls))
-            (Vptr b (Ptrofs.add ofs (Ptrofs.repr j))).
+            (Vptr b (Ptrofs.add ofs (Ptrofs.repr j))))%logic.
 Proof.
   intros.
   unfold tarray.
@@ -82,10 +82,10 @@ Lemma split_data_at_sublist_tuchar : forall (cs : compspecs) sh ls b ofs j,
     Ptrofs.unsigned ofs + Zlength ls < Ptrofs.modulus ->
     0 <= j <= Zlength ls ->
     data_at sh (tarray tuchar (Zlength ls)) ls (Vptr b ofs) =
-    data_at sh (tarray tuchar j) (sublist 0 j ls)
+    (data_at sh (tarray tuchar j) (sublist 0 j ls)
             (Vptr b ofs) *
     data_at sh (tarray tuchar (Zlength ls - j)) (sublist j (Zlength ls) ls)
-            (Vptr b (Ptrofs.add ofs (Ptrofs.repr j))).
+            (Vptr b (Ptrofs.add ofs (Ptrofs.repr j))))%logic.
 Proof.
   intros.
   unfold tarray.
@@ -121,9 +121,9 @@ Lemma combine_data_at_sublist_tuchar :
     sublist j (Zlength ls) ls = ls2 ->
     Zlength ls1 = j ->
     data_at sh (tarray tuchar (Zlength ls)) ls (Vptr b ofs) =
-    data_at sh (tarray tuchar j) ls1 (Vptr b ofs) *
+    (data_at sh (tarray tuchar j) ls1 (Vptr b ofs) *
      data_at sh (tarray tuchar (Zlength ls - j)) ls2
-             (Vptr b (Ptrofs.add ofs (Ptrofs.repr j))).
+             (Vptr b (Ptrofs.add ofs (Ptrofs.repr j))))%logic.
 Proof.
   intros.
   erewrite split_data_at_sublist_tuchar with (j := j).
@@ -172,8 +172,9 @@ Proof.
     autorewrite with sublist.
     simpl.
     pose proof (Zlength_nonneg ls').
-    assert (1 <= 1 + len ls')%Z by nia.
-    eassumption.
+    remember (len ls') as z1.
+    assert (1 <= 1 + z1)  by nia. 
+    subst. eassumption.
   }
   rewrite J.
   subst.
@@ -190,9 +191,9 @@ Qed.
 Proposition split_non_empty_list_tuchar (cs : compspecs) i ls' ls sh b ofs:
       ls = i::ls'  -> Ptrofs.unsigned ofs + Zlength ls < Ptrofs.modulus -> 
       data_at sh (tarray tuchar (Zlength ls)) (map Vbyte ls) (Vptr b ofs) =
-      data_at sh tuchar (Vbyte i) (Vptr b ofs) *
+      (data_at sh tuchar (Vbyte i) (Vptr b ofs) *
       data_at sh (tarray tuchar (Zlength ls')) (map Vbyte ls')
-              (Vptr b (Ptrofs.add ofs Ptrofs.one)).
+              (Vptr b (Ptrofs.add ofs Ptrofs.one)))%logic.
 Proof.
   intros LEN MOD.
   rewrite LEN.
@@ -259,6 +260,9 @@ all: autorewrite with sublist list; auto.
 pose proof (Zlength_nonneg ls2); 
   pose proof (Zlength_nonneg ls1);
   try nia.
+  remember (len ls1) as z1. (* BUG in VST 2.6 requires this *)
+  remember (len ls2) as z2.
+  nia.
 Qed.
 
 Lemma data_at_app_gen : forall (cs : compspecs) sh ls1 ls2 ls b ofs j1 j2 j,
@@ -288,6 +292,9 @@ all: autorewrite with sublist list; auto.
 pose proof (Zlength_nonneg ls2); 
   pose proof (Zlength_nonneg ls1);
   try nia.
+ remember (len ls1) as z1. (* BUG in VST 2.6 requires this *)
+  remember (len ls2) as z2.
+  nia.
 Qed.
 
 Lemma typed_true_ptr_ge : forall b ptr1 ptr2, 

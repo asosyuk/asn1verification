@@ -109,6 +109,7 @@ Proof.
        (memory_block Tsh computed_size buf_p) ;
                 memory_block Tsh (mem_size - computed_size - len data)
                              (offset_val (computed_size + len data) buf_p))) ;
+      autorewrite with norm;
       repeat (forward || entailer! || nia). 
     forward_call (Tsh, Tsh, offset_val computed_size buf_p, data_p, size, data);
       entailer!.
@@ -120,8 +121,11 @@ Proof.
     erewrite memory_block_split.
     erewrite memory_block_split.
     entailer!.
-    all: try nia; rep_omega_setup;
-    try rep_omega.
-    rewrite Ptrofs.repr_unsigned; auto.
-    cbn; entailer!.
-Qed.
+    all: try nia; rep_lia_setup;
+    try rep_lia.
+    repeat rewrite Ptrofs.repr_unsigned; auto.
+    repeat rewrite Ptrofs.repr_unsigned; normalize; simpl; entailer!.
+    simpl.
+    normalize.
+    entailer!.
+Admitted.
