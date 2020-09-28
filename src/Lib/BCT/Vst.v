@@ -1,10 +1,10 @@
 Require Import Core.Core Core.Tactics Core.VstTactics Core.StructNormalizer
-        Core.SepLemmas
+      (*  Core.SepLemmas *)
         VstLib ErrorWithWriter BCT.Exec.
 Require Import VST.floyd.proofauto.
-Require Import Clight.ber_decoder.
-Require Import VST.ASN__STACK_OVERFLOW_CHECK BFT.Vst BFL.Vst Lib.Forward. 
+Require Import VST.ASN__STACK_OVERFLOW_CHECK (* BFT.Vst BFL.Vst *) Lib.Forward. 
 Require Import Core.VstTactics Core.Notations.
+Require Import ber_fetch_tag Clight.ber_decoder.
 
 Definition Vprog : varspecs. mk_varspecs prog. Defined.
 Instance CompSpecs : compspecs. make_compspecs prog. Defined.
@@ -35,7 +35,13 @@ Fixpoint mk_struct_repr (ls : list (ident * type))  :=
 
 Definition asn_struct_ctx_type := mk_struct_repr asn_struct_ctx_composites.
 
+Instance Change1 : change_composite_env CompSpecs ber_fetch_tag.CompSpecs.
+Proof. make_cs_preserve CompSpecs ber_fetch_tag.CompSpecs. Defined.
 
+Instance Change2 : change_composite_env ber_fetch_tag.CompSpecs CompSpecs.
+Proof. make_cs_preserve ber_fetch_tag.CompSpecs CompSpecs. Defined.
+
+(*
 Instance Change1 : change_composite_env CompSpecs BFT.Vst.CompSpecs.
 Proof. make_cs_preserve CompSpecs BFT.Vst.CompSpecs. Defined.
 
@@ -46,7 +52,7 @@ Instance Change3 : change_composite_env CompSpecs BFL.Vst.CompSpecs.
 Proof. make_cs_preserve CompSpecs BFL.Vst.CompSpecs. Defined.
 
 Instance Change4 : change_composite_env BFL.Vst.CompSpecs CompSpecs.
-Proof. make_cs_preserve BFL.Vst.CompSpecs CompSpecs. Defined.
+Proof. make_cs_preserve BFL.Vst.CompSpecs CompSpecs. Defined. *)
 
 Definition ber_check_tags_spec : ident * funspec :=
   DECLARE _ber_check_tags
@@ -128,7 +134,7 @@ Definition ber_check_tags_spec : ident * funspec :=
 Definition Gprog := ltac:(with_library prog 
                                        [ber_check_tags_spec;
                                         ber_fetch_tag_spec;
-                                        ber_fetch_len_spec;
+                                       (* ber_fetch_len_spec; *)
                                         ASN__STACK_OVERFLOW_CHECK_spec]).
 
 Theorem bool_der_encode : 
@@ -210,8 +216,8 @@ Proof.
      rewrite_if_b.
      auto. *) admit.
   -- forward.
-     entailer!. 
-     { repeat break_if; strip_repr. }
+    (* entailer!. 
+     { repeat break_if; strip_repr. } *) admit.
      forward_if (temp _t'10 
                   (if eq_dec (Int.repr tag_mode) Int.zero 
                    then
@@ -265,7 +271,11 @@ Proof.
                      temp _ptr (offset_val num ptr_p);
                      temp _size (Vint (Int.repr (size - num)));
                      temp _consumed_myself (Vint (Int.repr num))].
-         ++ forward_call (ptr_p, size, v_tlv_tag).
+         ++ 
+         (* ptr_b : block, ptr_ofs : ptrofs, ptr_v : list Z, size : Z, 
+            tag_p : val, tag_v : Z *)
+            Time forward_call (ptr_p, size, v_tlv_tag).
+           Time forward_call (ptr_p, ptr, size, v_tlv_tag, 0).
             repeat rewrite_if_b.
             match goal with
             | [ _ : _ |- semax _ ?Pre ?C ?Post ] =>

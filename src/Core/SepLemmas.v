@@ -113,6 +113,14 @@ Proof.
   autorewrite with sublist; reflexivity.
 Qed.
 
+Open Scope Z.
+
+Lemma test : forall (ls : list int), 
+    0 <= Zlength ls -> 1 <= 1 + Zlength ls.
+Proof.
+  intros. nia.
+Qed.
+
 Lemma combine_data_at_sublist_tuchar :
   forall (cs : compspecs) sh ls ls1 ls2 b ofs j,
     (Ptrofs.unsigned ofs + Zlength ls < Ptrofs.modulus)%Z ->
@@ -134,7 +142,7 @@ Qed.
 
 Arguments valid_pointer p : simpl never.
 
-Proposition split_non_empty_list (cs : compspecs) i ls' ls sh b ofs j1 j2:
+Proposition split_non_empty_list (cs : compspecs) i (ls' ls : list val) sh b ofs j1 j2:
       ls = i::ls' -> 
       (Ptrofs.unsigned ofs + Zlength ls < Ptrofs.modulus)%Z ->
       j1 = Zlength ls ->
@@ -143,7 +151,7 @@ Proposition split_non_empty_list (cs : compspecs) i ls' ls sh b ofs j1 j2:
      (data_at sh tuchar i (Vptr b ofs) *
       data_at sh (tarray tuchar j2) ls' (Vptr b (ofs + 1)%ptrofs))%logic.
 Proof.
-  intros LEN MOD J1 J2.
+  intros LEN MOD J1 J2.  
   rewrite LEN.
   replace (i::ls') with ([i] ++ ls') by reflexivity.
   rewrite split2_data_at_Tarray_app with (mid := 1%Z).
@@ -172,10 +180,7 @@ Proof.
     autorewrite with sublist.
     simpl.
     pose proof (Zlength_nonneg ls').
-    remember (len ls') as z1.
-    assert (1 <= 1 + z1)  by nia. 
-    subst. eassumption.
-  }
+    nia. }
   rewrite J.
   subst.
   replace (Zlength (i :: ls') - 1)%Z with (Zlength ls').
@@ -235,7 +240,7 @@ Proof.
 Qed.
 
 
-Lemma data_at_app : forall (cs : compspecs) sh ls1 ls2 b ofs j1 j2,
+Lemma data_at_app : forall (cs : compspecs) sh (ls1 ls2 : list val)  b ofs j1 j2,
     j1 = Zlength ls1 ->
     j2 = Zlength ls2 ->
     Ptrofs.unsigned ofs + (len ls1 + len ls2) < Ptrofs.modulus ->
@@ -260,9 +265,6 @@ all: autorewrite with sublist list; auto.
 pose proof (Zlength_nonneg ls2); 
   pose proof (Zlength_nonneg ls1);
   try nia.
-  remember (len ls1) as z1. (* BUG in VST 2.6 requires this *)
-  remember (len ls2) as z2.
-  nia.
 Qed.
 
 Lemma data_at_app_gen : forall (cs : compspecs) sh ls1 ls2 ls b ofs j1 j2 j,
