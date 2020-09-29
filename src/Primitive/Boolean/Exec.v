@@ -1,8 +1,14 @@
-Require Import Core.Core Core.Notations Lib.Lib BCT.Exec Prim.Exec.
+Require Import Core.Core Core.Notations Lib.Lib BCT.Exec Lib.DWT.Exec.
 Require Import ExtLib.Structures.Monad.
 Import MonadNotation.
 
 Section Encoder.
+
+(* writes tags, copies ls and outputs the number of encoded bytes *)
+Definition primitive_encoder td ls : errW1 Z :=
+  der_write_tags td >>= 
+                 fun x => tell ls >>= 
+                            fun _ => ret (len ls + x).
 
 Definition bool_encoder := 
   fun td (b : bool) => primitive_encoder td [byte_of_bool b].

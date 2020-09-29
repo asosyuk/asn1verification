@@ -1,5 +1,5 @@
 Require Import Core.Core Core.StructNormalizer VstLib Stdlib
-        Boolean.Exec ErrorWithWriter BCT.Vst.
+        Boolean.Exec ErrorWithWriter Lib.BCT.Vst.
 Require Import VST.floyd.proofauto VST.floyd.library.
 Require Import Clight.BOOLEAN VstTactics.
 
@@ -57,7 +57,7 @@ Definition bool_ber_decode_spec : ident * funspec :=
              else match bool_decoder td buf with
                   | Some (r, c) => 
                     data_at Tsh asn_dec_rval_s (Vzero, Vint (Int.repr c)) res_p *
-                    data_at Ews tint (Vubyte r) v
+                    data_at Ews tint (Vubyte (byte_of_bool r)) v
                   | None =>
                     RC_FAIL * 
                     data_at Ews (tarray tint 1) ls v 
@@ -96,7 +96,6 @@ Definition if_post1  bv_p v__res__1 v_tmp_error v_length v_rval
             data_at Ews (tarray tint 1) (map Vint ls) p 
        else data_at_ Tsh asn_dec_rval_s res_p * data_at_ Ews tint bv_p
        ).
-
 
 
 Theorem bool_der_encode : semax_body Vprog Gprog 
