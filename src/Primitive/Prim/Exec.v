@@ -10,10 +10,10 @@ Import MonadNotation.
 Section Encoder.
 
 (* writes tags, copies ls and outputs the number of encoded bytes *)
-Definition primitive_encoder td ls : errW1 asn_enc_rval :=
+Definition primitive_encoder td ls : errW1 Z :=
   der_write_tags td >>= 
                  fun x => tell ls >>= 
-                            fun _ => ret (encode (Zlength ls + encoded x)).
+                            fun _ => ret (len ls +  x).
 
 End Encoder.
 

@@ -21,7 +21,7 @@ Qed.
 
 Theorem eval_boolean_enc : forall td b,
   decoder_type td = BOOLEAN_t ->
-  evalErrW (bool_encoder td b) [] = Some (encode 3).
+  evalErrW (bool_encoder td b) [] = Some 3.
 Proof.
   intros.
   unfold evalErrW, bool_encoder, primitive_encoder, Exec.der_write_tags;
@@ -35,7 +35,7 @@ Section Decoder.
 
 (* checks tag in ls wrt td, 
    then returns head of ls and consumed bytes or error *) 
-Definition bool_decoder td ls : option (byte * Z) :=
+Definition bool_decoder td ls :=
     match ls with
     | [] => None
     | _ => ber_check_tags td ls >>=
@@ -44,7 +44,7 @@ Definition bool_decoder td ls : option (byte * Z) :=
                               if (Zlength ls - c <? l) || negb (l =? 1) 
                               then None 
                               else hd_error (skipn (Z.to_nat c) ls) 
-                                     >>= fun y => Some (y, c + 1)
+                                     >>= fun y => Some (bool_of_byte y, c + 1)
     end.
 
 (* Related lemmas *)
@@ -58,7 +58,7 @@ Proof.
   repeat break_match; try discriminate; auto.
   cbn.
   repeat break_match; try discriminate; auto.
-  right; exists i1; reflexivity.
+  right; exists (bool_of_byte i1); reflexivity.
 Qed.
 
 End Decoder.

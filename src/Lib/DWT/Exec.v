@@ -6,15 +6,15 @@ Import MonadNotation.
 Inductive DWT_Error := NotBoolean.
 
 (* Writes header octets *)
-Definition der_write_tags (td : TYPE_descriptor) : errW1 asn_enc_rval :=
+Definition der_write_tags (td : TYPE_descriptor) : errW1 Z :=
   match decoder_type td with
-  | BOOLEAN_t => tell1 (map Byte.repr [1; 1]) >>= fun _ => ret (encode 2)
+  | BOOLEAN_t => tell1 (map Byte.repr [1; 1]) >>= fun _ => ret 2
   | _ => raise (CustomError NotBoolean)
   end.
 
 Theorem eval_dwt_boolean : forall td,
   decoder_type td = BOOLEAN_t ->
-  evalErrW (der_write_tags td) [] = Some (encode 2).
+  evalErrW (der_write_tags td) [] = Some 2.
 Proof.
   intros.
   unfold evalErrW, der_write_tags; rewrite H; cbn.

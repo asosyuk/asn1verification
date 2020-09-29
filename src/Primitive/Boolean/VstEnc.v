@@ -53,13 +53,13 @@ Section Boolean_der_encode.
 
 Definition tags_enc_len td :=  
   match evalErrW (Exec.der_write_tags td) [] with 
-  | Some v => encoded v
+  | Some v => v
   | None => 0
   end.
 
 Definition bool_enc_len td b := 
   match evalErrW (bool_encoder td b) [] with
-  | Some v => encoded v
+  | Some v => v
   | None => 0
   end.
 
@@ -89,7 +89,7 @@ Definition bool_der_encode_spec : ident * funspec :=
       LOCAL ()
       let res_val := 
           match evalErrW (bool_encoder td (bool_of_int sptr_val)) [] with 
-                     | Some v => mk_enc_rval (encoded v) Vzero 
+                     | Some v => mk_enc_rval v Vzero 
                      | None => mk_enc_rval (-1) sptr_p end in
       SEP (data_at_ Tsh type_descriptor_s td_p; 
            data_at Tsh tint (Vint sptr_val) sptr_p;

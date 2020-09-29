@@ -57,7 +57,7 @@ Definition der_write_tags_spec : ident * funspec :=
       PROP()
       LOCAL(temp ret_temp 
                  (Vint (Int.repr (match evalErrW (der_write_tags td) [] with
-                                  | Some w => encoded w
+                                  | Some w =>  w
                                   | None => -1
                                   end))))
       SEP(data_at_ Tsh type_descriptor_s td_p; 
