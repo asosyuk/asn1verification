@@ -3,7 +3,7 @@ Require Import Core.Core Core.StructNormalizer VstLib Callback.Dummy
 Require Import VST.floyd.proofauto.
 Require Import Clight.dummy Clight.BOOLEAN.
 Require Import Core.Notations. 
-Require Import Boolean.Exec AbstractSpec Lib Prim.Exec.
+Require Import Boolean.Exec AbstractSpec Lib PrimExec.
 Require Import Clight.dummy Clight.BOOLEAN.
 
 Hypothesis der_encoder_correctness : forall td b ls z,
@@ -50,7 +50,9 @@ Definition bool_der_encode_spec : ident * funspec :=
           match evalErrW (bool_encoder td (bool_of_int sptr_val)) [] with 
                      | Some v => mk_enc_rval v Vzero 
                      | None => mk_enc_rval (-1) sptr_p end in
-      SEP (data_at Tsh enc_rval_s res_val res;
+      SEP ((* Correspondence to the exec spec, 
+              we write correct result in the memory *)
+           data_at Tsh enc_rval_s res_val res;
            data_at_ Tsh type_descriptor_s td_p; 
            data_at Tsh tint (Vint sptr_val) sptr_p;
            data_at_ Tsh tvoid app_key_p;
@@ -93,23 +95,27 @@ Definition bool_ber_decode_spec : ident * funspec :=
     POST [tvoid] 
       PROP ()
       LOCAL ()
-      SEP (valid_pointer bv_p;
-           data_at Tsh asn_codec_ctx_s ctx ctx_p;
-           data_at_ Tsh type_descriptor_s td_p;
-           data_at Tsh (tarray tuchar (len buf)) (map Vubyte buf) buf_p;
-           let res_val := match bool_decoder td buf with
+      let res_val := match bool_decoder td buf with
                           | Some (r, c) => ((Vzero, Vint (Int.repr c)),
                                            (Vubyte (byte_of_bool r)))
                           | None => ((Vint (Int.repr 2), Vzero), Vone)
                           end in
-           EX v : val,
+      SEP (EX v : val,
                   EX ls : list val, data_at Tsh (tptr tvoid) v bv_pp *
                                     if eq_dec v nullval 
                                     then data_at Tsh asn_dec_rval_s
                                                  (Vint (Int.repr 2), Vzero) res_p
-                                    else data_at Tsh asn_dec_rval_s
-                                                 (fst res_val) res_p *
-                                         data_at Ews tint (snd res_val) v).
+                                    else 
+                                      (* Correspondence to the exec spec,
+                                         we write correct result in the memory *)
+                                      data_at Tsh asn_dec_rval_s
+                                              (fst res_val) res_p *
+                                      data_at Ews tint (snd res_val) v;
+           valid_pointer bv_p;
+           data_at Tsh asn_codec_ctx_s ctx ctx_p;
+           data_at_ Tsh type_descriptor_s td_p;
+           data_at Tsh (tarray tuchar (len buf)) (map Vubyte buf) buf_p).
+           
                                     
 (* We are proving: forall x in parameters, 
    the separation logic triple 
