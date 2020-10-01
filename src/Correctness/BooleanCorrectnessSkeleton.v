@@ -106,13 +106,19 @@ Hypothesis bool_ber_decode_correctness :
    auxiliary functions in the code
    satisfy the specs from Gprog *)       
 
-Definition full_correctness (f : function) (f_spec : ident * funspec) 
-      (aux_fs : list function) (V : varspecs) (G : list (ident * funspec)) := 
-  (* the function assuming the aux functions specs is correct *)
-  semax_body V G f f_spec /\
-  (* the aux functions (aux_fs) correspond to the aux spec *)
-  forall g_spec, In g_spec G -> g_spec <> f_spec 
-            -> exists g V G, In g aux_fs /\ semax_body V G g g_spec. 
+Inductive full_correctness (f : function) (f_spec : ident * funspec) 
+      (aux_fs : list function) (V : varspecs) (G : list (ident * funspec)) : Prop :=
+| NoAuxCorr : aux_fs = [] -> 
+          semax_body V G f f_spec ->
+          full_correctness f f_spec aux_fs V G
+| WithAuxCorr g fs V' G' g_spec: 
+    aux_fs = g :: fs ->
+    semax_body V G f f_spec ->
+    (* all aux functions (aux_fs) correspond to the aux specs *)
+    In g_spec G -> 
+    g_spec <> f_spec ->
+    full_correctness g g_spec fs V' G' ->
+    full_correctness f f_spec aux_fs V G.
 
 (* C implementation of calloc *)
 Parameter f_calloc : function.
