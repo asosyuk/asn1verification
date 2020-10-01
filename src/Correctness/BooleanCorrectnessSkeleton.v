@@ -28,6 +28,118 @@ Hypothesis boolean_roundtrip : forall td ls b z,
     bool_decoder td ls = Some (b, z).
 
 (* Need der_fetch_tags correctness *)
+      
+
+Inductive full_correctness (f : function) (f_spec : ident * funspec) 
+      (aux_fs : list function) (V : varspecs) (G : list (ident * funspec)) : Prop :=
+| NoAuxCorr : aux_fs = [] -> 
+          semax_body V G f f_spec ->
+          full_correctness f f_spec aux_fs V G
+| WithAuxCorr  V' G' g_spec: 
+    aux_fs <> [] ->
+    semax_body V G f f_spec ->
+    (* all aux functions (aux_fs) correspond to the aux specs *)
+    forall g, In g aux_fs ->
+         In g_spec G -> 
+         g_spec <> f_spec ->
+         (exists fs, full_correctness g g_spec fs V' G') ->
+         full_correctness f f_spec aux_fs V G.
+   
+Definition bool_der_encode_spec : ident * funspec :=
+  DECLARE _BOOLEAN_encode_der
+    (* FORALL parameters *)
+    WITH res: val,  sptr_p : val, sptr_val : int, 
+         td_p : val, td : TYPE_descriptor,
+         tag_mode : Z, tag : Z,
+         app_key_p : val,
+         buf_b : block, buf_ofs : ptrofs, cb_p : val
+    (* PRECONDITION *)
+    PRE [tptr enc_rval_s, tptr type_descriptor_s, tptr tvoid, tint, 
+         tuint, tptr cb_type, tptr tvoid]
+      PROP (decoder_type td = BOOLEAN_t)
+      PARAMS (res; td_p; sptr_p; Vint (Int.repr tag_mode);
+              Vint (Int.repr tag); cb_p; app_key_p)
+      GLOBALS ()
+      SEP (data_at_ Tsh enc_rval_s res;
+           data_at_ Tsh type_descriptor_s td_p; 
+           data_at Tsh tint (Vint sptr_val) sptr_p;
+           data_at_ Tsh tvoid app_key_p;
+           valid_pointer cb_p)
+    (* POSTCONDITION *)
+    POST [tvoid]
+      PROP ()
+      LOCAL ()      
+      SEP ((* Correspondence to the exec spec: 
+              after executing the function on any input thats satisfies
+              the precondition,
+              we write the result of bool_encoder in the memory *)
+          let res_val := 
+              match evalErrW (bool_encoder td (bool_of_int sptr_val)) [] with 
+              | Some v => mk_enc_rval v Vzero 
+              | None => mk_enc_rval (-1) sptr_p end in
+          data_at Tsh enc_rval_s res_val res;
+          (* Unchanged memory:
+             we didn't modify memory we were not supposed to *)
+          data_at_ Tsh type_descriptor_s td_p; 
+          data_at Tsh tint (Vint sptr_val) sptr_p;
+          data_at_ Tsh tvoid app_key_p;
+          valid_pointer cb_p).
+
+(* We are proving: forall x in parameters, 
+   the separation logic triple 
+   PRECONDITION {f_BOOLEAN_encode_der} POSTCONDITION
+   holds *)
+
+Definition Vprog_enc : varspecs. mk_varspecs prog. Defined.
+
+(* Note: we are proving correctness for _cb refering to f_dummy *)
+
+Definition Gprog_enc := ltac:(with_library prog [der_write_tags_spec; 
+                                                 (_cb, dummy_callback_spec); 
+                                                 bool_der_encode_spec]).
+
+Hypothesis bool_der_encode :
+  semax_body Vprog_enc Gprog_enc (normalize_function f_BOOLEAN_encode_der composites)
+             bool_der_encode_spec.
+
+Hypothesis full_boolean_encoder_correctness :
+  full_correctness (normalize_function f_BOOLEAN_encode_der composites)
+                   bool_der_encode_spec
+                   [f_der_write_tags; f_dummy]
+                   Vprog_enc Gprog_enc.
+
+(* We need for full_boolean_encoder_correctness:
+
+(* 90% DONE *)
+full_correctness (normalize_function f_der_write composites)
+                   der_write_tags_spec
+                   [f_ber_serialize_tag; f_ber_serialize_length]
+                   Vprog Gprog.
+
+
+(* DONE *)
+full_correctness (normalize_function f_der_write_TL] composites)
+                   der_write_TL_spec
+                   [f_ber_serialize_length;  f_ber_serialize_tag]
+                   Vprog Gprog.
+
+(* DONE *)
+full_correctness (normalize_function f_ber_serialize_tag composites)
+                   ber_serialize_tag_spec
+                   []
+                   Vprog Gprog.
+
+(* DONE *)
+full_correctness (normalize_function f_ber_serialize_length composites)
+                   ber_serialize_length_spec
+                   []
+                   Vprog Gprog.
+
+(* DONE *)
+full_correctness (normalize_function f_dummy composites)
+                   dummy_spec
+                   []
+                   Vprog Gprog. *)
 
 Definition bool_ber_decode_spec : ident * funspec :=
   DECLARE _BOOLEAN_decode_ber
@@ -98,101 +210,64 @@ Definition Gprog_dec := ltac:(with_library prog [(_calloc, calloc_spec);
    satisfy the specs from Gprog *)
 
 Hypothesis bool_ber_decode_correctness : 
-  semax_body Vprog Gprog (normalize_function f_BOOLEAN_decode_ber composites) 
+  semax_body Vprog_dec Gprog_dec (normalize_function f_BOOLEAN_decode_ber composites) 
              bool_ber_decode_spec.
 
 (* BOOLEAN_decode_ber fully corresponds to bool_ber_decode_spec 
    This means that BOOLEAN_decode_ber is correct and that selected
    auxiliary functions in the code
-   satisfy the specs from Gprog *)       
-
-Inductive full_correctness (f : function) (f_spec : ident * funspec) 
-      (aux_fs : list function) (V : varspecs) (G : list (ident * funspec)) : Prop :=
-| NoAuxCorr : aux_fs = [] -> 
-          semax_body V G f f_spec ->
-          full_correctness f f_spec aux_fs V G
-| WithAuxCorr g fs V' G' g_spec: 
-    aux_fs = g :: fs ->
-    semax_body V G f f_spec ->
-    (* all aux functions (aux_fs) correspond to the aux specs *)
-    In g_spec G -> 
-    g_spec <> f_spec ->
-    full_correctness g g_spec fs V' G' ->
-    full_correctness f f_spec aux_fs V G.
+   satisfy the specs from Gprog *) 
 
 (* C implementation of calloc *)
 Parameter f_calloc : function.
 
 (* We assume f_calloc is correct *)
-Hypothesis full_boolean_decoder_correctness :
-  exists V G, semax_body V G f_calloc (_calloc, calloc_spec)  -> 
+Lemma full_boolean_decoder_correctness :
+  (exists V G, semax_body V G f_calloc (_calloc, calloc_spec))  -> 
   full_correctness (normalize_function f_BOOLEAN_decode_ber composites)
                    bool_ber_decode_spec
                    [f_ber_check_tags]
                    Vprog_dec Gprog_dec.
+Proof.
+  intros.
+  eapply WithAuxCorr.
+  congruence.
+  eapply bool_ber_decode_correctness.
+  econstructor; auto.
+  unfold Gprog_dec.
+  instantiate (1 := ber_check_tags_spec).
+  unfold In.
+  auto.
+  discriminate.
+  (* exists [f_ber_fetch_tag; f_ber_fetch_length]. *)
+  (* and so on: using correctness of aux functions *)
+Admitted.
 
-Definition bool_der_encode_spec : ident * funspec :=
-  DECLARE _BOOLEAN_encode_der
-    (* FORALL parameters *)
-    WITH res: val,  sptr_p : val, sptr_val : int, 
-         td_p : val, td : TYPE_descriptor,
-         tag_mode : Z, tag : Z,
-         app_key_p : val,
-         buf_b : block, buf_ofs : ptrofs, cb_p : val
-    (* PRECONDITION *)
-    PRE [tptr enc_rval_s, tptr type_descriptor_s, tptr tvoid, tint, 
-         tuint, tptr cb_type, tptr tvoid]
-      PROP (decoder_type td = BOOLEAN_t)
-      PARAMS (res; td_p; sptr_p; Vint (Int.repr tag_mode);
-              Vint (Int.repr tag); cb_p; app_key_p)
-      GLOBALS ()
-      SEP (data_at_ Tsh enc_rval_s res;
-           data_at_ Tsh type_descriptor_s td_p; 
-           data_at Tsh tint (Vint sptr_val) sptr_p;
-           data_at_ Tsh tvoid app_key_p;
-           valid_pointer cb_p)
-    (* POSTCONDITION *)
-    POST [tvoid]
-      PROP ()
-      LOCAL ()      
-      SEP ((* Correspondence to the exec spec: 
-              after executing the function on any input thats satisfies
-              the precondition,
-              we write the result of bool_encoder in the memory *)
-          let res_val := 
-              match evalErrW (bool_encoder td (bool_of_int sptr_val)) [] with 
-              | Some v => mk_enc_rval v Vzero 
-              | None => mk_enc_rval (-1) sptr_p end in
-          data_at Tsh enc_rval_s res_val res;
-          (* Unchanged memory:
-             we didn't modify memory we were not supposed to *)
-          data_at_ Tsh type_descriptor_s td_p; 
-          data_at Tsh tint (Vint sptr_val) sptr_p;
-          data_at_ Tsh tvoid app_key_p;
-          valid_pointer cb_p).
+(* We assume f__assert_fail correct,
+   We need for full_boolean_decoder_correctness:
 
-(* We are proving: forall x in parameters, 
-   the separation logic triple 
-   PRECONDITION {f_BOOLEAN_encode_der} POSTCONDITION
-   holds *)
+(* 30% DONE *)
+full_correctness (normalize_function f_ber_check_tags composites)
+                   ber_check_tags_spec
+                   [f_ber_fetch_tag; f_ber_fetch_length; f_ASN_OVERFLOW_CHECK]
+                   Vprog Gprog.
 
-Definition Vprog_enc : varspecs. mk_varspecs prog. Defined.
+(* 0% *)
+full_correctness (normalize_function f_ber_fetch_tag composites)
+                   ber_fetch_tags_spec
+                   []
+                   Vprog Gprog.
 
-(* Note: we are proving correctness for _cb refering to f_dummy *)
+(* 0% *)
+full_correctness (normalize_function f_ber_fetch_length composites)
+                   ber_fetch_length_spec
+                   []
+                   Vprog Gprog.
 
-Definition Gprog_enc := ltac:(with_library prog [der_write_tags_spec; 
-                                                 (_cb, dummy_callback_spec); 
-                                                 bool_der_encode_spec]).
-
-Hypothesis bool_der_encode :
-  semax_body Vprog_enc Gprog_enc (normalize_function f_BOOLEAN_encode_der composites)
-             bool_der_encode_spec.
-
-Hypothesis full_boolean_encode_correctness :
-  full_correctness (normalize_function f_BOOLEAN_encode_der composites)
-                   bool_der_encode_spec
-                   [f_der_write_tags; f_dummy]
-                   Vprog_dec Gprog_dec.
-
+(* 70% DONE *)
+full_correctness (normalize_function f_ASN_OVERFLOW_CHECK] composites)
+                   ASN_OVERFLOW_CHECK]_spec
+                   []
+                   Vprog Gprog. *)
 
 
