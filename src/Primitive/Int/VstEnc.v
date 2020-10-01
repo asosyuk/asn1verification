@@ -13,7 +13,7 @@ Definition mk_prim_type_s (buf_p : val) size := (buf_p, Vint (Int.repr size)).
 
 Definition int_enc_rval td li sptr_p := 
   match evalErrW (int_encoder td li) [] with
-  | Some v => mk_enc_rval (encoded v) Vzero
+  | Some v => mk_enc_rval ( v) Vzero
   | None => mk_enc_rval (-1) sptr_p
   end.
 
@@ -122,7 +122,7 @@ Proof.
       PROP ( ) 
       LOCAL (temp _t'2 buf_p; temp _st sptr_p; 
              lvar __res__1 enc_rval_s v__res__1;
-             lvar _unconst (Tunion __3990 noattr) v_unconst;
+             lvar _unconst (Tunion __4050 noattr) v_unconst;
              lvar _effective_integer prim_type_s v_effective_integer;
              lvar _rval (Tstruct _asn_enc_rval_s noattr) v_rval; 
              temp __res res_p; temp _td td_p; 
@@ -131,7 +131,7 @@ Proof.
              temp _cb cb_p; temp _app_key app_key_p)
        SEP ((* Local vars *)
             data_at_ Tsh enc_rval_s v__res__1;
-            data_at_ Tsh (Tunion __3990 noattr) v_unconst;
+            data_at_ Tsh (Tunion __4050 noattr) v_unconst;
             data_at_ Tsh prim_type_s v_effective_integer;
             data_at_ Tsh (Tstruct _asn_enc_rval_s noattr) v_rval; 
             (* type descriptor *)
@@ -165,14 +165,14 @@ Proof.
                       temp _t'10 (Vint (Int.repr size));
                       temp _t'2 (Vptr buf_b buf_ofs); temp _st sptr_p;
                       lvar __res__1 enc_rval_s v__res__1; 
-                      lvar _unconst (Tunion __3990 noattr) v_unconst;
+                      lvar _unconst (Tunion __4050 noattr) v_unconst;
                       lvar _effective_integer prim_type_s v_effective_integer; 
                       lvar _rval enc_rval_s v_rval; temp _tag (Vint (Int.repr tag));
                       temp __res res_p; temp _td td_p; temp _sptr sptr_p;
                       temp _tag_mode (Vint (Int.repr tag_mode));
                       temp _cb cb_p; temp _app_key app_key_p)
                SEP (data_at_ Tsh enc_rval_s v__res__1; 
-                    data_at_ Tsh (Tunion __3990 noattr) v_unconst;
+                    data_at_ Tsh (Tunion __4050 noattr) v_unconst;
                     data_at_ Tsh prim_type_s v_effective_integer; 
                     data_at_ Tsh enc_rval_s v_rval;
                     data_at_ Tsh enc_rval_s res_p; data_at_ Tsh type_descriptor_s td_p;
@@ -193,14 +193,14 @@ Proof.
                       temp _buf (Vptr buf_b (Ptrofs.add buf_ofs (Ptrofs.repr z))); 
                       temp _t'2 (Vptr buf_b buf_ofs); temp _st sptr_p;
                       lvar __res__1 enc_rval_s v__res__1; 
-                      lvar _unconst (Tunion __3990 noattr) v_unconst;
+                      lvar _unconst (Tunion __4050 noattr) v_unconst;
                       lvar _effective_integer prim_type_s v_effective_integer; 
                       lvar _rval enc_rval_s v_rval; temp _tag (Vint (Int.repr tag));
                       temp __res res_p; temp _td td_p; temp _sptr sptr_p;
                       temp _tag_mode (Vint (Int.repr tag_mode));
                       temp _cb cb_p; temp _app_key app_key_p)
                SEP (data_at_ Tsh enc_rval_s v__res__1; 
-                    data_at_ Tsh (Tunion __3990 noattr) v_unconst;
+                    data_at_ Tsh (Tunion __4050 noattr) v_unconst;
                     data_at_ Tsh prim_type_s v_effective_integer; 
                     data_at_ Tsh enc_rval_s v_rval;
                     data_at_ Tsh enc_rval_s res_p; data_at_ Tsh type_descriptor_s td_p;
@@ -220,14 +220,14 @@ Proof.
                      temp _buf (Vptr buf_b (Ptrofs.add buf_ofs (Ptrofs.repr z))); 
                      temp _t'2 (Vptr buf_b buf_ofs); 
                      temp _st sptr_p; lvar __res__1 enc_rval_s v__res__1; 
-                     lvar _unconst (Tunion __3990 noattr) v_unconst;
+                     lvar _unconst (Tunion __4050 noattr) v_unconst;
                      lvar _effective_integer prim_type_s v_effective_integer; 
                      lvar _rval enc_rval_s v_rval; temp _tag (Vint (Int.repr tag));
                      temp __res res_p; temp _td td_p; temp _sptr sptr_p;
                      temp _tag_mode (Vint (Int.repr tag_mode));
                      temp _cb cb_p; temp _app_key app_key_p)
               SEP(data_at_ Tsh enc_rval_s v__res__1; 
-                  data_at_ Tsh (Tunion __3990 noattr) v_unconst;
+                  data_at_ Tsh (Tunion __4050 noattr) v_unconst;
                   data_at_ Tsh prim_type_s v_effective_integer; 
                   data_at_ Tsh enc_rval_s v_rval;
                   data_at_ Tsh enc_rval_s res_p; data_at_ Tsh type_descriptor_s td_p;
@@ -245,7 +245,7 @@ Proof.
       unfold test_order_ptrs, sameblock.
       destruct peq; try congruence.
       entailer!.
-      admit.
+      admit. (* weak valid pointer admit *)
 
       assert (Z : 0 < z + 1 < Zlength data).
       { unfold typed_true, strict_bool_val, sem_cmp_pp in H9; cbn in H9.
@@ -263,7 +263,7 @@ Proof.
         replace (Ptrofs.unsigned Ptrofs.one) with 1 in l by reflexivity.
         rewrite Ptrofs.unsigned_repr in l at 1.
         rewrite Ptrofs.unsigned_repr in l.
-        assert (T : forall p, (p + size - 1) = (p + size + (-1))) by lia; 
+        assert (T : forall p, (p + size - 1) = (p + size + (-1))) by (intros; lia);
           rewrite T in l; clear T.
         rewrite <-Z.add_assoc in l.
         apply Zplus_lt_reg_l with (n := z) (m := (size + -1)) 
@@ -306,14 +306,14 @@ Proof.
                  temp _buf (Vptr buf_b (Ptrofs.add buf_ofs (Ptrofs.repr z)));
                  temp _t'10 (Vint (Int.repr size)); temp _t'2 (Vptr buf_b buf_ofs); 
                  temp _st sptr_p; lvar __res__1 enc_rval_s v__res__1;
-                 lvar _unconst (Tunion __3990 noattr) v_unconst;
+                 lvar _unconst (Tunion __4050 noattr) v_unconst;
                  lvar _effective_integer prim_type_s v_effective_integer; 
                  lvar _rval enc_rval_s v_rval;
                  temp _tag (Vint (Int.repr tag)); temp __res res_p; temp _td td_p; 
                  temp _sptr sptr_p; temp _tag_mode (Vint (Int.repr tag_mode)); 
                  temp _cb cb_p; temp _app_key app_key_p)
           SEP (data_at_ Tsh enc_rval_s v__res__1; 
-               data_at_ Tsh (Tunion __3990 noattr) v_unconst; 
+               data_at_ Tsh (Tunion __4050 noattr) v_unconst; 
                data_at_ Tsh prim_type_s v_effective_integer; 
                data_at_ Tsh enc_rval_s v_rval; 
                data_at_ Tsh enc_rval_s res_p; data_at_ Tsh type_descriptor_s td_p; 
@@ -384,6 +384,7 @@ Proof.
       { (* default case *)
         forward.
         entailer!.
+        admit. (* FF *)
       }
       { (* break after switch *)
         forward.
@@ -412,7 +413,7 @@ Proof.
 
       forward_if.
       + (* shift <> 0 *)
-        admit.
+        admit. (* problem with union *)
 
       + (* shift = 0 *)
         forward.
@@ -422,6 +423,7 @@ Proof.
     forward.
     entailer!.
   * (* st->buf = null *)
+    admit.  (* unfinished, call to der_encode primitive *)
   
 Admitted.
 

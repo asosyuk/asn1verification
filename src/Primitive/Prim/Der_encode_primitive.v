@@ -10,7 +10,7 @@ Section Der_encode_primitive.
 
 Definition prim_enc_rval td li sptr_p := 
   match evalErrW (primitive_encoder td li) [] with
-  | Some v => mk_enc_rval (encoded v) Vzero
+  | Some v => mk_enc_rval v Vzero
   | None => mk_enc_rval (-1) sptr_p
   end.
 
@@ -83,8 +83,8 @@ Proof.
   start_function. 
   forward.
   forward_empty_loop.
-  forward_call (gv, td_p, td, 1, tag_mode, 0, tag, app_key_p, buf_b, buf_ofs, 
-                buf_size, computed_size, mem_size).
+ (* forward_call (gv, td_p, td, 1, tag_mode, 0, tag, app_key_p, buf_b, buf_ofs, 
+                buf_size, computed_size, mem_size). *)
 
 Admitted.
 
