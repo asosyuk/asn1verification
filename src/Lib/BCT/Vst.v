@@ -1,10 +1,10 @@
 Require Import Core.Core Core.Tactics Core.VstTactics Core.StructNormalizer
-      (*  Core.SepLemmas *)
+        Core.SepLemmas 
         VstLib ErrorWithWriter BCT.Exec.
 Require Import VST.floyd.proofauto.
 Require Import VST.ASN__STACK_OVERFLOW_CHECK (* BFT.Vst BFL.Vst *) Lib.Forward. 
 Require Import Core.VstTactics Core.Notations.
-Require Import ber_fetch_tag Clight.ber_decoder.
+Require Import ber_fetch_tag  Clight.ber_decoder.
 
 Definition Vprog : varspecs. mk_varspecs prog. Defined.
 Instance CompSpecs : compspecs. make_compspecs prog. Defined.
@@ -52,7 +52,7 @@ Instance Change3 : change_composite_env CompSpecs BFL.Vst.CompSpecs.
 Proof. make_cs_preserve CompSpecs BFL.Vst.CompSpecs. Defined.
 
 Instance Change4 : change_composite_env BFL.Vst.CompSpecs CompSpecs.
-Proof. make_cs_preserve BFL.Vst.CompSpecs CompSpecs. Defined. *)
+Proof. make_cs_preserve BFL.Vst.CompSpecs CompSpecs. Defined.  *)
 
 Definition ber_check_tags_spec : ident * funspec :=
   DECLARE _ber_check_tags
@@ -134,7 +134,7 @@ Definition ber_check_tags_spec : ident * funspec :=
 Definition Gprog := ltac:(with_library prog 
                                        [ber_check_tags_spec;
                                         ber_fetch_tag_spec;
-                                       (* ber_fetch_len_spec; *)
+                                        (* ber_fetch_len_spec; *)
                                         ASN__STACK_OVERFLOW_CHECK_spec]).
 
 Theorem bool_der_encode : 
@@ -274,9 +274,71 @@ Proof.
          ++ 
          (* ptr_b : block, ptr_ofs : ptrofs, ptr_v : list Z, size : Z, 
             tag_p : val, tag_v : Z *)
-            Time forward_call (ptr_p, size, v_tlv_tag).
-           Time forward_call (ptr_p, ptr, size, v_tlv_tag, 0).
-            repeat rewrite_if_b.
+            forward_call (ptr_p, size, v_tlv_tag).
+            change_compspecs ber_fetch_tag.CompSpecs.
+            match goal with
+            | [ _ : _ |- semax _ ?Pre ?C ?Post ] =>
+                forward_switch Pre
+              end. 
+
+            forward_call (ptr_p, ptr, size, v_tlv_tag, 0).
+            
+(*            Ltac forward_switch' := 
+ match goal with
+| |- semax ?Delta (PROPx ?P (LOCALx ?Q (SEPx ?R))) (Sswitch ?e _) _ => 
+  fail 1 "BLA"
+(*  let sign := constr:(signof e) in let sign := eval hnf in sign in
+   let HRE := fresh "H" in let v := fresh "v" in
+    evar (v: val);
+    do_compute_expr1 Delta P Q R e v HRE;
+    simpl in v;
+    let n := fresh "n" in evar (n: int); 
+    let H := fresh in assert (H: v=Vint n) by (unfold v,n; reflexivity);
+    let A := fresh in 
+    match goal with |- ?AA => set (A:=AA) end;
+    revert n H; normalize; intros n H; subst A;
+    let n' := fresh "n" in pose (n' := Int.unsigned n); 
+    let H' := fresh in assert (H': n = Int.repr n');
+    [try (symmetry; apply Int.repr_unsigned) 
+       | rewrite H,H' in HRE; clear H H';
+         subst n' n v; 
+         rewrite (Int.repr_unsigned (Int.repr _)) in HRE;
+          eapply semax_switch_PQR ; 
+           [reflexivity | check_typecheck | exact HRE 
+           | clear HRE; unfold select_switch at 1; unfold select_switch_default at 1;
+             try match goal with H := @abbreviate statement _ |- _ => clear H end;
+             process_cases sign ] 
+] *)
+
+| _ => fail 1 "Not found"
+
+end. *)
+
+Ltac forward_switch' := match goal with 
+                        | _ : _ |- _ => idtac
+                        end.
+
+            Ltac forward_switch post :=
+              check_Delta; check_POSTCONDITION;
+              repeat (apply -> seq_assoc; abbreviate_semax);
+              repeat apply -> semax_seq_skip;
+              first [ignore (post: environ->mpred)
+                    | fail 1 
+                           "Invariant (first argument to forward_if) 
+                           must have type (environ->mpred)"];
+              match goal with
+              | |- semax _ _ (Ssequence (Sswitch _ _) _) _ => 
+                apply semax_seq with post; 
+                forward_switch'
+(*
+                [forward_switch' 
+                | abbreviate_semax; 
+                  simpl_ret_assert (*autorewrite with ret_assert*)] *)
+                idtac
+              | |- semax _ _ (Sswitch _ _) _ =>
+                forward_switch'   
+end.
+            Forward.forward_switch (PROP()LOCAL()SEP()).
             match goal with
             | [ _ : _ |- semax _ ?Pre ?C ?Post ] =>
                 forward_switch Pre

@@ -121,11 +121,8 @@ Proof.
     erewrite memory_block_split.
     erewrite memory_block_split.
     entailer!.
-    all: try nia; rep_lia_setup;
-    try rep_lia.
+    all: try nia; rep_omega_setup;
+    try rep_omega.
     repeat rewrite Ptrofs.repr_unsigned; auto.
     repeat rewrite Ptrofs.repr_unsigned; normalize; simpl; entailer!.
-    simpl.
-    normalize.
-    entailer!.
-Admitted.
+Qed.

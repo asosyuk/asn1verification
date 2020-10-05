@@ -294,9 +294,6 @@ all: autorewrite with sublist list; auto.
 pose proof (Zlength_nonneg ls2); 
   pose proof (Zlength_nonneg ls1);
   try nia.
- remember (len ls1) as z1. (* BUG in VST 2.6 requires this *)
-  remember (len ls2) as z2.
-  nia.
 Qed.
 
 Lemma typed_true_ptr_ge : forall b ptr1 ptr2, 
