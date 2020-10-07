@@ -3,7 +3,9 @@ Require Import Core.Core Core.Tactics Core.VstTactics Core.StructNormalizer
         VstLib ErrorWithWriter BCT.Exec.
 Require Import VST.floyd.proofauto.
 Require Import Clight.ber_decoder.
-Require Import VST.ASN__STACK_OVERFLOW_CHECK ber_fetch_tag ber_fetch_length Lib.Forward. 
+Require Import VST.ASN__STACK_OVERFLOW_CHECK
+    BFT.Vst BFL.Vst   
+ (* ber_fetch_tag ber_fetch_length *) Lib.Forward. 
 Require Import Core.VstTactics Core.Notations.
 
 Definition Vprog : varspecs. mk_varspecs prog. Defined.
@@ -13,6 +15,19 @@ Open Scope Z.
 
 Section Ber_check_tags.
 
+Instance Change1 : change_composite_env CompSpecs BFT.Vst.CompSpecs.
+Proof. make_cs_preserve CompSpecs BFT.Vst.CompSpecs. Defined.
+
+Instance Change2 : change_composite_env  BFT.Vst.CompSpecs CompSpecs.
+Proof. make_cs_preserve  BFT.Vst.CompSpecs CompSpecs. Defined.
+
+Instance Change3 : change_composite_env CompSpecs BFL.Vst.CompSpecs.
+Proof. make_cs_preserve CompSpecs BFL.Vst.CompSpecs. Defined.
+
+Instance Change4 : change_composite_env BFL.Vst.CompSpecs CompSpecs.
+Proof. make_cs_preserve BFL.Vst.CompSpecs CompSpecs. Defined.
+
+(*
 Instance Change1 : change_composite_env CompSpecs ber_fetch_tag.CompSpecs.
 Proof. make_cs_preserve CompSpecs ber_fetch_tag.CompSpecs. Defined.
 
@@ -24,7 +39,7 @@ Proof. make_cs_preserve CompSpecs ber_fetch_length.CompSpecs. Defined.
 
 Instance Change4 : change_composite_env ber_fetch_length.CompSpecs CompSpecs.
 Proof. make_cs_preserve ber_fetch_length.CompSpecs CompSpecs. Defined.
-
+*)
 Definition ber_check_tags_spec : ident * funspec :=
   DECLARE _ber_check_tags
     WITH opt_codec_ctx_p : val, opt_codec_ctx : val,
@@ -47,7 +62,8 @@ Definition ber_check_tags_spec : ident * funspec :=
             (Znth 0 ptr) & 32 = 0;
             nullval = opt_ctx_p;
             nullval = opt_tlv_form_p;
-            1 = len (tags td))
+            1 = len (tags td);
+            isptr ptr_p)
       PARAMS (res_p; opt_codec_ctx_p; td_p; opt_ctx_p; ptr_p; 
                 Vint (Int.repr size);
                 Vint (Int.repr tag_mode); Vint (Int.repr last_tag_form);
@@ -61,7 +77,7 @@ Definition ber_check_tags_spec : ident * funspec :=
            field_at Tsh (Tstruct _asn_TYPE_descriptor_s noattr) 
                          [StructField _tags_count] 
                          (Vint (Int.repr (Zlength (tags td)))) td_p;
-           data_at Tsh (tarray tint (Zlength (tags td))) 
+           data_at Tsh (tarray tuint (Zlength (tags td))) 
                    (map Vint (map Int.repr (tags td))) tags_p;
            data_at_ Tsh asn_dec_rval_s res_p;
            data_at_ Tsh tint last_length_p;
@@ -77,7 +93,7 @@ Definition ber_check_tags_spec : ident * funspec :=
            field_at Tsh (Tstruct _asn_TYPE_descriptor_s noattr) 
                          [StructField _tags_count] 
                          (Vint (Int.repr (Zlength (tags td)))) td_p;
-           data_at Tsh (tarray tint (Zlength (tags td))) 
+           data_at Tsh (tarray tuint (Zlength (tags td))) 
                    (map Vint (map Int.repr (tags td))) tags_p;
            data_at Tsh (Tstruct _asn_codec_ctx_s noattr) 
                   (Vint (Int.repr (max_stack_size))) opt_codec_ctx_p;
@@ -95,7 +111,7 @@ Definition ber_check_tags_spec : ident * funspec :=
 Definition Gprog := ltac:(with_library prog 
                                        [ber_check_tags_spec;
                                         ber_fetch_tag_spec;
-                                        ber_fetch_length_spec;
+                                        ber_fetch_len_spec;
                                         ASN__STACK_OVERFLOW_CHECK_spec]).
 
 Theorem bool_der_encode : 
@@ -187,7 +203,20 @@ Proof.
            2:
              { forward.
                entailer!. } 
-           forward_call (ptr_p, size, v_tlv_tag).             
+           (* ptr_b : block, ptr_ofs : ptrofs, ptr_v : list Z, size : Z, 
+         tag_p : val, tag_v : Z *)
+           destruct ptr_p; try contradiction.
+           forward_call (b, i, ptr, size, v_tlv_tag). 
+           unfold Frame.
+           match goal with
+             | [ _ : _ |- ?S |-- _ ] => instantiate (1 := [S])
+           end.
+           simpl.
+           entailer!.
+           admit. (* remove valid_pointer from BFT *)
+           admit. (* BFT PRE *)
+           replace (fst (Exec.ber_fetch_tags ptr 0 size 0 (sizeof tuint)))
+             with 1. (* FIXME : forward switch doesn't work with complex terms *)
            match goal with
            | [ _ : _ |- semax _ ?Pre ?C ?Post ] =>
              forward_switch Pre
@@ -199,19 +228,20 @@ Proof.
     * forward.
       entailer!. (* break *)
     * remember (map Vubyte (map Byte.repr ptr)) as ptr'.
+      remember (Vptr b i) as ptr_p.
       assert_PROP (ptr_p = field_address (tarray tuchar (len ptr)) [ArraySubsc 0] ptr_p).
       { entailer!.
         rewrite field_address_offset.
         cbn.
-        admit.
+        normalize.
         econstructor.
         auto.
+        repeat split; auto; try nia.
         cbn.
-        repeat split; auto; cbn; try nia.
-        unfold size_compatible.
-        break_match; auto.
         admit.
-        admit.  }                 
+        constructor.
+        admit. }                 
+      Intros.
       forward.
       entailer!.
       repeat erewrite Znth_map; auto.
@@ -230,12 +260,8 @@ Proof.
              forward.
              entailer!.
              discriminate.
-             pose (t := Vzero).
-             replace (data_at_ Tsh tuint v_tlv_tag) 
-               with (data_at Tsh tuint Vzero v_tlv_tag).
-             (* FIXME: ber_fetch_tag modifies v_tlv_tag *)
-             forward. 
              forward.
+             forward. 
              normalize.
              assert_PROP (force_val (sem_add_ptr_int tuint Signed tags_p (Vint 0%int))
                            = field_address (tarray tuint (len (tags td)))
