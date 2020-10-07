@@ -58,7 +58,7 @@ Definition ber_check_tags_spec : ident * funspec :=
          tptr tvoid, tuint, tint, tint, tptr tint, tptr tint]
       PROP (tag_mode = 0;
             last_tag_form = 0;
-            len ptr = 1;
+            0 < len ptr;
             (Znth 0 ptr) & 32 = 0;
             nullval = opt_ctx_p;
             nullval = opt_tlv_form_p;
@@ -280,11 +280,6 @@ Proof.
                break_match; auto.
                admit.
                admit.  }  
-             replace (data_at Tsh (tarray tint (len (tags td))) 
-                              (map Vint (map Int.repr (tags td))) tags_p)
-             with (data_at Tsh (tarray tuint (len (tags td))) 
-                              (map Vint (map Int.repr (tags td))) tags_p).
-               
              forward.
              forward_if.
              ++ (* RC_FAIL case *) 
@@ -292,9 +287,6 @@ Proof.
                admit. (* as before *)
              ++ forward.
                 entailer!.
-                admit. (* fix tags_p type to tuint in PRE *)
-             ++ admit.
-             ++ admit.
          *** forward.
              forward_if True.
              ++++
@@ -313,10 +305,30 @@ Proof.
                   admit.
                   forward; entailer!.
              ++++ 
-                forward_call (0, offset_val 1 ptr_p, size - 1, v_tlv_len).
+              (* size : Z, data : list Z,
+         isc : Z, buf_b : block, buf_ofs : ptrofs, res_v : Z, res_ptr : val *)
+                forward_call (0, b, Ptrofs.add i 1%ptrofs, size - 1, 
+                             sublist 1 (len ptr) ptr, v_tlv_len).
                 entailer!.
+                replace (data_at Tsh (tarray tuchar (len ptr)) ptr' ptr_p)
+                        with
+                          (data_at Tsh tuchar 
+                                   (Znth 0 ptr') ptr_p).
+                unfold Frame.
+                match goal with
+                | [ _ : _ |- ?S |-- _ ] => instantiate (1 := [S])
+                end.
+                simpl.
+                entailer!.
+                admit. (* FIXME *) 
+                admit.
+                admit.
                 Intros v.
                 erewrite H4.
+                replace (fst
+                       (Exec.ber_fetch_len (sublist 1 (len ptr) ptr) 0 0 
+                          (size - 1) (sizeof tuint) 1))
+                  with 1.
                  match goal with
                  | [ _ : _ |- semax _ ?Pre ?C ?Post ] =>
                    forward_switch Pre
@@ -325,118 +337,77 @@ Proof.
                  admit. (* RC_FAIL *)
                  forward.
                  entailer!.
-                  replace (@data_at_ ber_fetch_length.CompSpecs Tsh tuint v_tlv_len) 
-                    with (data_at Tsh tuint Vzero v_tlv_len).
-             (* FIXME: ber_fetch_len modifies v_tlv_tag *)
                  forward.
+                 forward_if.
+                 (* no indefinite length; contradiction *)
+                 admit.
+                 forward_if True; try contradiction.
+                 forward.
+                 entailer!.
+                 forward_if True; try contradiction.
+                 forward.
+                 forward.
+                 forward_if.
+                 (* RC_FAIL *)
+                 admit.
+                 forward.
+                 entailer!.
+                 admit. (* FIXME *)
+                 discriminate.
+                 (* RETURN(RC_OK) *)
+                 match goal with
+                 | [ _ : _ |- semax _ ?Pre ?C ?Post ] =>
+                   forward_empty_while_break Pre
+                 end.
+                 repeat forward.
+                 entailer!.
                  admit.
                  forward_if.
-             admit. 
-             forward.
-             forward.
-             entailer!.
-             Intros.
-             forward.
-             admit.
-             forward_if (temp _t'16 Vzero).
-    * forward. admit.
-    * forward. admit.
-    * forward.
-      forward_if (temp _t'18 Vone).
-      ** forward. admit.
-      ** forward. admit.
-      ** forward_if True.
-         *** forward.
-             admit.
-         *** 
-           forward_if True.
-           forward.
-           admit.
-           admit.
-           forward.
-           forward.
-           assert ((force_val
-                      (both_int (fun n1 n2 : int => Some (Vint (Int.add n1 n2))) sem_cast_pointer
-                                sem_cast_pointer
-                                (if Memory.EqDec_val ctx_s_p nullval
-                                 then Vint (Int.repr 0)
-                                 else Vint (Int.repr step)) (Vint (Int.repr (-1))))) = Vzero) as V. admit.
-           rewrite V.
-           assert ((let (x, _) := let (_, y) := let (_, y) := let (_, y) := t in y in y in y in x) = buf_p) as VV. admit.
-           setoid_rewrite VV.
-           forward.
-           
-           forward.
-           forward.
-           
-           admit.
-           forward.
-           entailer!. (* break *)
-  + forward.
-    admit.
-    destruct (eq_dec ctx_s_p nullval).
-    forward.
-    admit.
-    deadvars!.
-    forward.
-    admit.
-    Time entailer!. 
-    admit.
-  + deadvars!.
-    
-    
-    
-    forward_if True.
-    admit.
-    admit.
-    forward.
-    entailer!.
-    admit.
-    
-    (* forward_if_add_sep (data_at Tsh (Tstruct _asn_struct_ctx_s noattr) c ctx_s_p) 
-                                     ctx_s_p. *)
-    forward_if True.
-    forward.
-    nia.
-    forward.
-    admit.
-    forward.
-    entailer!.
-    (* RETURN(RC_OK) *)
-    forward_empty_while.
-    forward_if True.
-    forward.
-    entailer!.
-    admit.
-    forward.
-    entailer!.
-    forward_if (temp _t'29 Vone).
-    forward.
-    entailer!.
-    discriminate.
-    forward_if True. (* change rval_16 - why 16??? *)
-    forward.
-    entailer!.
-    discriminate.
-    forward.
-    repeat forward.
-    (* postcondition *)
-    entailer!.
-    assert (ber_check_tags buf td ctx_Z tag_mode size step = Some 0) as S.
-    admit.
-    erewrite S.
-    entailer!.
-    
-    (*
-                    data_at Tsh (Tstruct _asn_dec_rval_s noattr) 
-                    (Vint (Int.repr 0), Vint (Int.repr 0)) v_rval__16 *)
-    
-    list_solve.
-    list_simplify
-      
-      admit.
-  + admit.
-  + 
+                 forward.
+                 entailer!.
+                 admit.
+                 admit.
+                 forward.
+                 entailer!.
+                 admit.
+                 admit.
+                 admit.
+    * admit.
+      +++ repeat forward.
+          entailer!.
+          admit.
+      +++ forward_if True; try contradiction.
+          forward.
+          entailer!.
+          forward_if True; try contradiction.
+          forward.
+          admit.
+          forward.
+          entailer!.
+          (* RETURN OK *)
+          forward_empty_while.
+          forward_if True; try contradiction.
+          forward.
+          entailer!.
+          forward_if (temp _t'25 Vone); try contradiction.
+          forward.
+          entailer!.
+          discriminate.
+          forward_if True. 
+          forward.
+          entailer!. (* change rval_12 *)
+          cbn.
+          admit.
+          forward.
+          entailer!.
+          cbn.
+          admit.
+          unfold MORE_COMMANDS.
+          unfold abbreviate.
+          repeat forward.
+          (* postcondition *)
+          entailer!.
+          admit.
 Admitted.
 
 End Ber_check_tags.
