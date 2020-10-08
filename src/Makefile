@@ -17,7 +17,8 @@ endef
 default: coq
 
 clight':
-	./../../CompCert/clightgen -normalize -fstruct-passing -flongdouble  \
+
+	./../../CompCert/clightgen -normalize -fstruct-passing -flongdouble \
 	-I $(ASN1C_DIR)/skeletons \
 	$(foreach FILE, $(ASN1C_FILES), $(call skel_path, $(FILE)))
 

@@ -17,7 +17,7 @@ Fixpoint aux_loop (ptr : list Z) (val skip size tclass tag sizeofval : Z) :=
 Definition bft_loop (ptr : list Z) (val size tclass tag sizeofval : Z) 
   := aux_loop (skipn 1 ptr) val 2 size tclass tag sizeofval.
 
-Definition ber_fetch_tags (ptr : list Z) (val size tag sizeofval : Z) :=
+Definition ber_fetch_tags (ptr : list Z) (size tag sizeofval : Z) :=
   if size =? 0
   then (0, tag)
   else let val := hd 0 ptr in 

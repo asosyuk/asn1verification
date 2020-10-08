@@ -92,6 +92,7 @@ Ltac replace_sep ls Q p :=
       | [] => constr:([Q])
       | ?h :: ?tl => match h with 
                    | data_at _ _ _ p => constr: (Q :: tl)
+                   | data_at_ _ _ p => constr: (Q :: tl)
                    | _ =>
                      let r := replace_sep tl Q p in
                      constr: (h :: r)
@@ -114,6 +115,38 @@ Ltac forward_if_add_sep Q p
                                          (@SEPx environ ?ls))) 
                        (Ssequence (Ssequence (Sifthenelse _ _ _) _) _) _ ]  =>
        let ls' := replace_sep ls Q p in
+       forward_if (@PROPx environ ps
+                          (LOCALx lcs
+                                  (@SEPx environ (ls'))))
+     end.
+
+Ltac replace_sep_list ls Qs ps :=
+  let rec replace_sep_list ls Qs ps :=
+      match Qs with
+      | [] => ls
+      | ?h1 :: ?tl1 => match ps with
+                     | [] => ls
+                     | ?h2 :: ?tl2 =>
+                       let ls' := replace_sep ls h1 h2 in
+                       replace_sep_list ls' tl1 tl2 
+                     end
+      end in replace_sep_list ls Qs ps.
+
+Ltac forward_if_add_sep_list Qs ps
+  := match goal with
+     | [ _ : _ |- semax _ (@PROPx environ ?ps 
+                                 (LOCALx ?lcs 
+                                         (@SEPx environ ?ls))) 
+                       (Ssequence (Sifthenelse _ _ _) _) _ ] => 
+       let ls' := replace_sep_list ls Qs ps in
+       forward_if (@PROPx environ ps
+                          (LOCALx lcs
+                                  (@SEPx environ (ls'))))
+     | [ _ : _ |- semax _ (@PROPx environ ?ps 
+                                 (LOCALx ?lcs 
+                                         (@SEPx environ ?ls))) 
+                       (Ssequence (Ssequence (Sifthenelse _ _ _) _) _) _ ]  =>
+       let ls' := replace_sep_list ls Qs ps in
        forward_if (@PROPx environ ps
                           (LOCALx lcs
                                   (@SEPx environ (ls'))))
