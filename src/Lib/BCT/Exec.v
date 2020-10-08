@@ -1,10 +1,30 @@
 Require Import Core.Core Core.Notations Core.Notations Types.
 Require Import ExtLib.Structures.Monad.
+Require Import BFT.Exec BFL.Exec VST.floyd.sublist.
 
 Import MonadNotation.
 
 (* assuming ctx is not null *)
 Parameter asn_stack_overflow_check : Z -> bool.
+
+Definition ber_check_tags_primitive ts td ctx size sizeofval sizemax: 
+  option Z :=
+  if asn_stack_overflow_check ctx 
+  then let (tag_len, tlv_tag) := ber_fetch_tags ts size 0 sizeofval in
+       if (tag_len =? -1) || (tag_len =? 0) then None 
+       else 
+         if negb (tlv_tag =? nth O (tags td) 0) then None 
+         else
+         let (len_len, tlv_len) := ber_fetch_len (sublist 1 (len ts) ts)
+                                                 0 0 (size - tag_len) sizeofval sizemax in
+       if (len_len =? -1) || (len_len =? 0) then None 
+       else 
+         let limit_len := tlv_len + tag_len + len_len in
+         if limit_len <? 0 then None
+         else Some (tag_len + len_len)
+  else None.
+
+(*
 Parameter ber_fetch_tag : Z -> Z.
 Parameter ber_fetch_length : bool-> Z -> Z.
 Parameter constructed : list Z -> bool.
@@ -68,4 +88,4 @@ Proof.
   rewrite T, T1.
   exists l0; reflexivity.
 Qed.
-*)
+*) *)

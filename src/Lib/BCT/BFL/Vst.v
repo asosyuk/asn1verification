@@ -24,7 +24,7 @@ Definition ber_fetch_len_spec : ident * funspec :=
                    (map Vubyte (map Byte.repr data)) buf_p;
            data_at_ Tsh tint res_ptr)
     POST [tint]
-      let r := ber_fetch_len data c 0 size (sizeof tuint) 1 in
+      let r := ber_fetch_len data c 0 size (sizeof tuint) Int.modulus in
       PROP ()
       LOCAL (temp ret_temp (Vint (Int.repr (fst r))))
       SEP (data_at Tsh (tarray tuchar (Zlength data)) 

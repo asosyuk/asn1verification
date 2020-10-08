@@ -27,7 +27,7 @@ Definition ber_fetch_tag_spec : ident * funspec :=
                    (map Vubyte (map Byte.repr ptr_v)) (Vptr ptr_b ptr_ofs);
            data_at_ Tsh tuint tag_p)
     POST [tint]
-      let r := ber_fetch_tags ptr_v 0 size 0 (sizeof tuint) in
+      let r := ber_fetch_tags ptr_v size 0 (sizeof tuint) in
       PROP ()
       LOCAL (temp ret_temp (Vint (Int.repr (fst r))))
       SEP (data_at Tsh (tarray tuchar (Zlength ptr_v)) 

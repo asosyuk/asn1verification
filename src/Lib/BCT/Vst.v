@@ -97,8 +97,8 @@ Definition ber_check_tags_spec : ident * funspec :=
                    (map Vint (map Int.repr (tags td))) tags_p;
            data_at Tsh (Tstruct _asn_codec_ctx_s noattr) 
                   (Vint (Int.repr (max_stack_size))) opt_codec_ctx_p;
-        match ber_check_tags ptr td max_stack_size
-                             tag_mode size 0 with
+        match ber_check_tags_primitive ptr td max_stack_size
+                             tag_mode size Int.modulus with
            | Some v => 
              data_at Tsh asn_dec_rval_s 
                      (mk_dec_rval 0 v) res_p *
@@ -145,7 +145,7 @@ Proof.
       try forward; try entailer!.
     repeat forward. 
     (* failing asn_overflow check *)
-    assert (ber_check_tags ptr td max_stack_size
+    assert (ber_check_tags_primitive ptr td max_stack_size
                            0 size 0 = None) as N.
        { admit. }
     erewrite N.
@@ -205,9 +205,9 @@ Proof.
                       continue: 
                                 (PROPx P (LOCALx Q (SEPx R)))
                              break: (
-     let (tag_len, tlv_tag) := Exec.ber_fetch_tags ptr 0 size 0 (sizeof tuint) in
+     let (tag_len, tlv_tag) := Exec.ber_fetch_tags ptr size 0 (sizeof tuint) in
      let (len_len, tlv_len) := Exec.ber_fetch_len (sublist 1 (len ptr) ptr) 0 0 
-                                                  (size - 1) (sizeof tuint) 1 in
+                                                  (size - 1) (sizeof tuint) Int.modulus in
      PROP (True)
      LOCAL (temp _t'10
               (force_val
@@ -451,12 +451,12 @@ Proof.
                  admit.
                  admit.
     * admit. *) admit.
-      +++ 
-          (* CONTINUE  to LI *)
-          forward.
+       +++  (* CONTINUE  to LI *)
+        (* forward.
           forward.
           entailer!.
-          admit.
+          admit. *)
+         admit.
       +++ repeat break_let.
           forward_if True; try contradiction.
           forward.
@@ -484,8 +484,27 @@ Proof.
           entailer!. 
           discriminate.
           repeat forward.
-          assert (ber_check_tags ptr td max_stack_size 0 size 0 = Some (z + z1)) as B.
-          admit.
+          assert (ber_check_tags_primitive
+                    ptr td max_stack_size size (sizeof tuint)
+                    Int.modulus = Some (z + z1)) as B.
+          {  unfold ber_check_tags_primitive.
+             erewrite Heqp.
+             replace z with 1.
+             erewrite Heqp0.
+             break_if.
+             cbn.
+             assert (negb (z0 =? nth 0 (tags td) 0) = false) as F.
+             (* add to forward_if *)
+             admit.
+             erewrite F.
+             break_if.
+             admit.
+             (* add to forward_if or loop *)
+             break_if.
+             admit.
+             auto. 
+             admit. 
+             admit. }
           erewrite B.
           entailer!.
           admit. (* change POSTC *)
