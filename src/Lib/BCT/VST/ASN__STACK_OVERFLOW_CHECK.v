@@ -6,13 +6,6 @@ Require Import Clight.ber_decoder.
 Definition Vprog : varspecs. mk_varspecs prog. Defined.
 Instance CompSpecs : compspecs. make_compspecs prog. Defined.
 
-Definition ASN__STACK_OVERFLOW_CHECK used_stack max_stack_size := 
-  if eq_dec max_stack_size 0 
-  then 0
-  else if  max_stack_size <? used_stack
-       then -1
-       else 0.
-
 Definition ASN__STACK_OVERFLOW_CHECK_spec : ident * funspec :=
   DECLARE _ASN__STACK_OVERFLOW_CHECK
     WITH ctx_p : val, max_stack_size : Z
@@ -29,7 +22,7 @@ Definition ASN__STACK_OVERFLOW_CHECK_spec : ident * funspec :=
                   (Int.repr 
                      (if eq_dec ctx_p nullval 
                       then 0
-                      else -1 (* placeholder *)))))
+                      else ASN__STACK_OVERFLOW_CHECK 0 max_stack_size ))))
       SEP (data_at Tsh (Tstruct _asn_codec_ctx_s noattr) 
                    (Vint (Int.repr max_stack_size)) ctx_p).
 

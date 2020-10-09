@@ -86,11 +86,11 @@ Definition ber_check_tags_spec : ident * funspec :=
            data_at Tsh (Tstruct _asn_codec_ctx_s noattr) 
                   (Vint (Int.repr (max_stack_size))) opt_codec_ctx_p;
         match ber_check_tags_primitive ptr td max_stack_size
-                             tag_mode size Int.modulus with
+                              size (sizeof tuint) Int.modulus with
            | Some v => 
              data_at Tsh asn_dec_rval_s 
-                     (mk_dec_rval 0 v) res_p *
-             data_at Tsh tint (Vint (Int.repr v)) last_length_p
+                     (mk_dec_rval 0 (snd v)) res_p *
+             data_at Tsh tint (Vint (Int.repr (fst v))) last_length_p
            | None => 
              data_at Tsh asn_dec_rval_s (mk_dec_rval 2 0) res_p *
              data_at_ Tsh tint last_length_p
@@ -116,13 +116,20 @@ Proof.
     entailer!.
   - forward.
     forward_call (opt_codec_ctx_p, max_stack_size).
-    forward_if (opt_codec_ctx_p <> nullval).
+      assert (-1 <= ASN__STACK_OVERFLOW_CHECK 0 max_stack_size <= 0) as A.
+    { unfold ASN__STACK_OVERFLOW_CHECK.
+      repeat break_if; lia. }
+    forward_if [opt_codec_ctx_p <> nullval;
+                (if eq_dec opt_codec_ctx_p nullval
+                 then 0
+                 else ASN__STACK_OVERFLOW_CHECK 0 max_stack_size) = 0].
+             (*  [opt_codec_ctx_p <> nullval (* \/ 
+                ASN__STACK_OVERFLOW_CHECK 0 max_stack_size =? 0 = false *)]. *)
   + forward_empty_while.
   assert (opt_codec_ctx_p <> nullval) as ON.
   { break_if; try nia.
     eassumption. }
-  rewrite_if_b. clear H H'.
-  remember (Int.sign_ext 16 (Int.repr 0)) as st. 
+  rewrite_if_b. 
   forward_if True; try contradiction.
   * forward.
     entailer!.
@@ -132,14 +139,22 @@ Proof.
        (Vint (Int.repr 2), Vint (Int.repr 0)) v_rval) v_rval; 
       try forward; try entailer!.
     repeat forward. 
-    (* failing asn_overflow check *)
     assert (ber_check_tags_primitive ptr td max_stack_size
-                           0 size 0 = None) as N.
-       { admit. }
+                            size (sizeof tuint) Int.modulus = None) as N.
+       { unfold ber_check_tags_primitive.
+         assert (ASN__STACK_OVERFLOW_CHECK 0 max_stack_size =? 0 = false) 
+           as AS by (Zbool_to_Prop;
+                    eassumption).
+         erewrite AS.
+         auto. }
     erewrite N.
     entailer!. 
-  + forward.
-    entailer!. 
+  + forward.    
+    entailer!.
+    apply repr_inj_signed.
+    repeat break_if; try rep_omega.
+    rep_omega.
+    eassumption.
   + forward_if
       (temp _t'4 Vzero); try congruence.
   -- forward.
@@ -159,16 +174,16 @@ Proof.
      ---
        Arguments eq_dec : simpl never.
        forward_if True.
-       cbn in H0.
-       unfold sem_cast_i2bool in H0.
-       unfold Val.of_bool in H0.
+       cbn in H3.
+       unfold sem_cast_i2bool in H3.
+       unfold Val.of_bool in H3.
        destruct (Int.repr 0 == Int.repr (len (tags td)))%int eqn : S.
-       cbn in H0.
+       cbn in H3.
        eapply int_eq_e in S.
        erewrite <- H5 in *.
        discriminate.
-       cbn in H0.
-       setoid_rewrite if_true in H0.
+       cbn in H3.
+       setoid_rewrite if_true in H3.
        discriminate.
        auto.
        forward.
@@ -196,7 +211,13 @@ Proof.
      let (tag_len, tlv_tag) := Exec.ber_fetch_tags ptr size 0 (sizeof tuint) in
      let (len_len, tlv_len) := Exec.ber_fetch_len (sublist 1 (len ptr) ptr) 0 0 
                                                   (size - 1) (sizeof tuint) Int.modulus in
-     PROP (True)
+     PROP (0 < tag_len;
+           0 < len_len;
+           0 < tlv_len;
+           tag_len <> 0;
+           len_len <> -1;
+           len_len <> 0;
+           tlv_tag = nth O (tags td) 0)
      LOCAL (temp _t'10
               (force_val
                  (sem_cast tint tbool
@@ -475,28 +496,28 @@ Proof.
           repeat forward.
           assert (ber_check_tags_primitive
                     ptr td max_stack_size size (sizeof tuint)
-                    Int.modulus = Some (z + z1)) as B.
-          {  unfold ber_check_tags_primitive.
+                    Int.modulus = Some (z2, z + z1)) as B.
+          {  unfold ber_check_tags_primitive.             
              erewrite Heqp.
              replace z with 1.
              erewrite Heqp0.
-             break_if.
+             repeat rewrite_if_b.
+             replace (ASN__STACK_OVERFLOW_CHECK 0 max_stack_size =? 0) with true.
              cbn.
-             assert (negb (z0 =? nth 0 (tags td) 0) = false) as F.
-             (* add to forward_if *)
-             admit.
-             erewrite F.
+             replace (nth 0 (tags td) 0 =? nth 0 (tags td) 0) with true.
+             cbn.
              break_if.
-             admit.
-             (* add to forward_if or loop *)
-             break_if.
-             admit.
-             auto. 
-             admit. 
+             destruct_orb_hyp;
+               repeat rewrite_if_b; Zbool_to_Prop; try lia.
+             break_if;
+             Zbool_to_Prop;
+             try lia; auto.
+             all: symmetry;
+             Zbool_to_Prop;
+             auto.
              admit. }
           erewrite B.
           entailer!.
-          admit. (* change POSTC *)
 Admitted.
 
 End Ber_check_tags.

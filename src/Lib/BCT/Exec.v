@@ -1,27 +1,35 @@
+Require Import VST.floyd.proofauto.
 Require Import Core.Core Core.Notations Core.Notations Types.
 Require Import ExtLib.Structures.Monad.
 Require Import BFT.Exec BFL.Exec VST.floyd.sublist.
 
-Import MonadNotation.
-
 (* assuming ctx is not null *)
-Parameter asn_stack_overflow_check : Z -> bool.
+
+Definition ASN__STACK_OVERFLOW_CHECK used_stack max_stack_size := 
+  if eq_dec max_stack_size 0 
+  then 0
+  else if  max_stack_size <? used_stack
+       then -1
+       else 0.
+
+Open Scope bool.
 
 Definition ber_check_tags_primitive ts td ctx size sizeofval sizemax: 
-  option Z :=
-  if asn_stack_overflow_check ctx 
+  option (Z * Z) :=
+  if ASN__STACK_OVERFLOW_CHECK 0 ctx =? 0
   then let (tag_len, tlv_tag) := ber_fetch_tags ts size 0 sizeofval in
        if (tag_len =? -1) || (tag_len =? 0) then None 
        else 
-         if negb (tlv_tag =? nth O (tags td) 0) then None 
-         else
-         let (len_len, tlv_len) := ber_fetch_len (sublist 1 (len ts) ts)
-                                                 0 0 (size - tag_len) sizeofval sizemax in
-       if (len_len =? -1) || (len_len =? 0) then None 
-       else 
-         let limit_len := tlv_len + tag_len + len_len in
-         if limit_len <? 0 then None
-         else Some (tag_len + len_len)
+         if (tlv_tag =? nth O (tags td) 0) 
+         then
+           let (len_len, tlv_len) := ber_fetch_len (sublist 1 (len ts) ts)
+                                                   0 0 (size - tag_len) sizeofval sizemax in
+           if (len_len =? -1) || (len_len =? 0) then None 
+           else 
+             let limit_len := tlv_len + tag_len + len_len in
+             if limit_len <? 0 then None
+             else Some (tlv_len, tag_len + len_len)
+         else None
   else None.
 
 (*
