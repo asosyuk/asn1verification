@@ -15,8 +15,8 @@ Definition ber_fetch_len_spec : ident * funspec :=
          res_ptr : val
     PRE [tint, tptr tvoid, tuint, tptr tint]
       PROP (isptr buf_p;
-            isptr res_ptr;
-            Zlength data = size;
+            (* isptr res_ptr;
+               Zlength data = size; *)
             0 <= size <= Int.max_unsigned)
       PARAMS (Vint (Int.repr c); buf_p; Vint (Int.repr size); res_ptr)
       GLOBALS ()

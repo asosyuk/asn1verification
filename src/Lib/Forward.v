@@ -42,7 +42,7 @@ Ltac forward_switch' :=
   let sign := constr:(signof e) in let sign := eval hnf in sign in
    let HRE := fresh "H" in let v := fresh "v" in
     evar (v: val);
-    do_compute_expr1 Delta P Q R e v HRE;
+    do_compute_expr Delta P Q R e v HRE;
     simpl in v;
     let n := fresh "n" in evar (n: int); 
     let H := fresh in assert (H: v=Vint n) by (unfold v,n; reflexivity);
