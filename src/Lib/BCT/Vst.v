@@ -112,8 +112,8 @@ Proof.
   repeat forward.
   forward_if (temp _t'1 Vzero).
   contradiction.
-  - forward.
-    entailer!.
+  - (* forward.
+    entailer!. *) admit.
   - forward.
     forward_call (opt_codec_ctx_p, max_stack_size).
       assert (-1 <= ASN__STACK_OVERFLOW_CHECK 0 max_stack_size <= 0) as A.
@@ -125,7 +125,7 @@ Proof.
                  else ASN__STACK_OVERFLOW_CHECK 0 max_stack_size) = 0].
              (*  [opt_codec_ctx_p <> nullval (* \/ 
                 ASN__STACK_OVERFLOW_CHECK 0 max_stack_size =? 0 = false *)]. *)
-  + forward_empty_while.
+  + admit. (* forward_empty_while.
   assert (opt_codec_ctx_p <> nullval) as ON.
   { break_if; try nia.
     eassumption. }
@@ -148,17 +148,17 @@ Proof.
          erewrite AS.
          auto. }
     erewrite N.
-    entailer!. 
-  + forward.    
+    entailer!. *)
+  + admit. (* forward.    
     entailer!.
     apply repr_inj_signed.
     repeat break_if; try rep_omega.
     rep_omega.
-    eassumption.
+    eassumption. *)
   + forward_if
       (temp _t'4 Vzero); try congruence.
-  -- forward.
-     entailer!.
+  -- admit. (* forward.
+     entailer!. *)
   -- forward.
      forward_if (temp _t'10 
                   ((force_val
@@ -168,9 +168,10 @@ Proof.
                        (Int.repr 0))
                     (eval_cast tuint tint (Vint (Int.repr (len (tags td))))))))
                    )); try discriminate.
-     --- forward.
+     --- admit. 
+     (* forward.
          forward.
-         entailer!. 
+         entailer!.  *)
      ---
        Arguments eq_dec : simpl never.
        forward_if True.
@@ -296,11 +297,11 @@ Proof.
                    (sem_cast tint tbool
                       (eval_binop Oeq tint tint (Vint (Int.repr 0))
                          (eval_cast tuint tint (Vint (Int.repr (len (tags td))))))));
-       temp _tagno (Vint (Int.repr 1)); temp _t'4 Vzero; temp _t'3 (Vint (Int.repr 0));
-       temp _step (Vint (Int.repr 1)); temp _t'1 Vzero;
+       temp _tagno (Vint (Int.repr 0)); temp _t'4 Vzero; temp _t'3 (Vint (Int.repr 0));
+       temp _step (Vint (Int.repr 0)); temp _t'1 Vzero;
        temp _tlv_constr (Vint (Int.repr (0)));
        temp _expect_00_terminators (Vint (Int.repr 0));
-       temp _limit_len (Vint (Int.repr ((tlv_len + tag_len + len_len)%Z)));
+       temp _limit_len (Vint (Int.repr ((tlv_len)%Z)));
        temp _consumed_myself (Vint (Int.repr ((tag_len + len_len)%Z)));
        lvar _rval__12 (Tstruct _asn_dec_rval_s noattr) v_rval__12;
        lvar _rval__11 (Tstruct _asn_dec_rval_s noattr) v_rval__11;
@@ -318,7 +319,9 @@ Proof.
        lvar _tlv_tag tuint v_tlv_tag; temp __res res_p; temp _opt_codec_ctx opt_codec_ctx_p;
        temp _td td_p; temp _opt_ctx nullval;
        temp _ptr (offset_val ((tag_len + len_len)%Z) ptr_p);
-       temp _size (Vint (Int.repr (size - ((tag_len + len_len)%Z))));
+       temp _size (Vint (Int.repr (if size - tag_len - len_len >? tlv_len
+                                   then tlv_len
+                                   else size - ((tag_len + len_len)%Z))));
        temp _tag_mode (Vint (Int.repr 0)); temp _last_tag_form (Vint (Int.repr 0));
        temp _last_length last_length_p; temp _opt_tlv_form nullval)
        SEP (data_at Tsh (Tstruct _asn_codec_ctx_s noattr) (Vint (Int.repr max_stack_size))
@@ -421,11 +424,11 @@ Proof.
      data_at_ Tsh tint last_length_p))
        end.
        +++ (* Pre -> LI *)
-         Exists 0.
+       (*  Exists 0.
          repeat rewrite_if_b.
          repeat break_let.
          entailer!.
-         apply derives_refl.
+         apply derives_refl. *) admit.
        +++ Intros z.
            repeat break_let.
            break_if.
@@ -449,8 +452,8 @@ Proof.
              admit.
            ***  (* RC_FAIL *)
              admit.
-           *** forward.
-               entailer!. 
+           *** admit. (* forward.
+               entailer!. *) 
            *** remember (map Vubyte (map Byte.repr ptr)) as ptr'.
                normalize.
                assert_PROP ((Vptr b i) = 
@@ -476,7 +479,7 @@ Proof.
                nia.
                forward_if (temp _t'13 Vzero).
              ** admit. (* contradiction *)
-             ** forward. entailer!.
+             ** admit. (* forward.  entailer!. *)
              ** forward.
                 forward_if
                   (temp _t'15 Vzero); try contradiction;
@@ -484,8 +487,8 @@ Proof.
                 forward_if True; try nia. (* TODO *)
                 forward_if True.
                 forward.
-                entailer!.
-                nia.
+                admit. (* entailer! *)
+                lia.
                 forward.
                 forward. 
                 normalize.
@@ -507,12 +510,12 @@ Proof.
                   admit.
                   admit. }  
                 forward.
-                forward_if.
+                forward_if. 
              ++ (* RC_FAIL case *) 
                forward_empty_while.
                admit. (* as before *)
-             ++ forward.
-                entailer!.
+             ++ admit. (* forward. 
+                entailer!. *) 
              ++  forward.
                  forward_if True.
                  ++++
@@ -520,17 +523,18 @@ Proof.
                **** (* RC_FAIL case *)
                  forward_empty_while.
                  admit.
-               ****
-                 forward.
-                 entailer!.
-             ++++ forward_if (temp _t'18 Vzero); try congruence.
+               **** admit.
+             (*    forward.
+                 admit.  entailer!. *)
+             ++++ admit. 
+                  (* forward_if (temp _t'18 Vzero); try congruence.
                   forward.
                   entailer!.
                   forward_if.
                   (* RC_FAIL *)
                   admit.
-                  forward; entailer!.
-             ++++ remember 65 as tag_len.
+                  forward;  entailer!. *)
+             ++++  remember 65 as tag_len.
               (* size : Z, data : list Z,
                  isc : Z, buf_b : block, buf_ofs : ptrofs,      
                  res_v : Z, res_ptr : val *)   
@@ -591,13 +595,13 @@ Proof.
                  admit. (* RC_FAIL *)
                  admit. (* RC_FAIL *)
                  forward.
-                 entailer!.
+                 admit. (* entailer! *)
                  forward.
                  forward_if.
                  admit. (* no indefinite length - see ber_fetch_length spec *)
                  forward_if True; try contradiction.
                  forward.
-                 entailer!.
+                 admit. (* entailer! *)
                  forward_if (temp _limit_len
            (Vint
               (Int.repr
@@ -621,45 +625,144 @@ Proof.
                  (* RC_FAIL *)
                  admit. (* as before *)
                  forward.
-                 entailer!.
-                 entailer!.
+                 admit. (* entailer! *)
+                 admit. (* entailer! *)
                  discriminate.
-                 (* ADVANCE *)
+                **** (* ADVANCE *)
                  match goal with
                  | [ _ : _ |- semax _ ?Pre ?C ?Post ] =>
-                   forward_empty_while_break Pre
+                   forward_empty_while_break 
+                     (PROP ( )
+  LOCAL (temp _consumed_myself (Vint (Int.repr 0 + (Int.repr tag_len + Int.repr 99))%int);
+  temp _size (Vint (Int.repr size - (Int.repr tag_len + Int.repr 99))%int);
+  temp _ptr
+    (Vptr b
+       (i +
+        Ptrofs.repr (sizeof tschar) * ptrofs_of_int Unsigned (Int.repr tag_len + Int.repr 99)%int)%ptrofs);
+  temp _num__2 (Vint (Int.repr tag_len + Int.repr 99)%int);
+  temp _limit_len
+    (Vint
+       (Int.repr
+          (Byte.unsigned
+             (Byte.repr
+                (snd
+                   (Exec.ber_fetch_len (sublist 1 (len ptr) ptr) 0 0 
+                      (size - tag_len) (sizeof tuint) Int.modulus)))) + 
+        Int.repr tag_len + Int.repr 99)%int);
+  temp _t'29
+    (Vubyte
+       (Byte.repr
+          (snd
+             (Exec.ber_fetch_len (sublist 1 (len ptr) ptr) 0 0 (size - tag_len) 
+                (sizeof tuint) Int.modulus)))); temp _len_len (Vint (Int.repr 99));
+  temp _t'30 (Vint (Int.repr (len (tags td)))); temp _t'15 Vzero; temp _tlv_constr (Vint 0%int);
+  temp _t'13 Vzero; temp _t'34 (Znth 0 (map Vubyte (map Byte.repr ptr)));
+  temp _tag_len (Vint (Int.repr tag_len)); temp _t'35 (Vint (Int.repr (len (tags td))));
+  temp _t'10 (Val.of_bool (Int.repr 0 == Int.repr (len (tags td)))%int);
+  temp _tagno (Vint (Int.repr z)); temp _t'4 Vzero; temp _t'3 (Vint (Int.repr 0));
+  temp _step (Vint (Int.repr z)); temp _t'1 Vzero;
+  temp _expect_00_terminators (Vint (Int.repr 0));
+  lvar _rval__12 (Tstruct _asn_dec_rval_s noattr) v_rval__12;
+  lvar _rval__11 (Tstruct _asn_dec_rval_s noattr) v_rval__11;
+  lvar _rval__10 (Tstruct _asn_dec_rval_s noattr) v_rval__10;
+  lvar _rval__9 (Tstruct _asn_dec_rval_s noattr) v_rval__9;
+  lvar _rval__8 (Tstruct _asn_dec_rval_s noattr) v_rval__8;
+  lvar _rval__7 (Tstruct _asn_dec_rval_s noattr) v_rval__7;
+  lvar _rval__6 (Tstruct _asn_dec_rval_s noattr) v_rval__6;
+  lvar _rval__5 (Tstruct _asn_dec_rval_s noattr) v_rval__5;
+  lvar _rval__4 (Tstruct _asn_dec_rval_s noattr) v_rval__4;
+  lvar _rval__3 (Tstruct _asn_dec_rval_s noattr) v_rval__3;
+  lvar _rval__2 (Tstruct _asn_dec_rval_s noattr) v_rval__2;
+  lvar _rval__1 (Tstruct _asn_dec_rval_s noattr) v_rval__1;
+  lvar _rval (Tstruct _asn_dec_rval_s noattr) v_rval; lvar _tlv_len tint v_tlv_len;
+  lvar _tlv_tag tuint v_tlv_tag; temp __res res_p; temp _opt_codec_ctx opt_codec_ctx_p;
+  temp _td td_p; temp _opt_ctx nullval; temp _tag_mode (Vint (Int.repr 0));
+  temp _last_tag_form (Vint (Int.repr 0)); temp _last_length last_length_p;
+  temp _opt_tlv_form nullval)
+  SEP (data_at Tsh (tarray tuchar (len (sublist 1 (len ptr) ptr)))
+         (map Vubyte (map Byte.repr (sublist 1 (len ptr) ptr)))
+         (Vptr b (i + Ptrofs.repr tag_len)%ptrofs);
+  data_at Tsh tint
+    (Vubyte
+       (Byte.repr
+          (snd
+             (Exec.ber_fetch_len (sublist 1 (len ptr) ptr) 0 0 (size - tag_len) 
+                (sizeof tuint) Int.modulus)))) v_tlv_len;
+  data_at Tsh tuchar (Vubyte (Byte.repr (Znth 0 ptr))) (Vptr b i);
+  data_at Tsh tuint (Vubyte (Byte.repr (snd (Exec.ber_fetch_tags ptr size 0 (sizeof tuint)))))
+    v_tlv_tag;
+  data_at Tsh (Tstruct _asn_codec_ctx_s noattr) (Vint (Int.repr max_stack_size)) opt_codec_ctx_p;
+  data_at_ Tsh (Tstruct _asn_dec_rval_s noattr) v_rval__12;
+  data_at_ Tsh (Tstruct _asn_dec_rval_s noattr) v_rval__11;
+  data_at_ Tsh (Tstruct _asn_dec_rval_s noattr) v_rval__10;
+  data_at_ Tsh (Tstruct _asn_dec_rval_s noattr) v_rval__9;
+  data_at_ Tsh (Tstruct _asn_dec_rval_s noattr) v_rval__8;
+  data_at_ Tsh (Tstruct _asn_dec_rval_s noattr) v_rval__7;
+  data_at_ Tsh (Tstruct _asn_dec_rval_s noattr) v_rval__6;
+  data_at_ Tsh (Tstruct _asn_dec_rval_s noattr) v_rval__5;
+  data_at_ Tsh (Tstruct _asn_dec_rval_s noattr) v_rval__4;
+  data_at_ Tsh (Tstruct _asn_dec_rval_s noattr) v_rval__3;
+  data_at_ Tsh (Tstruct _asn_dec_rval_s noattr) v_rval__2;
+  data_at_ Tsh (Tstruct _asn_dec_rval_s noattr) v_rval__1;
+  data_at_ Tsh (Tstruct _asn_dec_rval_s noattr) v_rval;
+  field_at Tsh (Tstruct _asn_TYPE_descriptor_s noattr) (DOT _tags) tags_p td_p;
+  field_at Tsh (Tstruct _asn_TYPE_descriptor_s noattr) (DOT _tags_count)
+    (Vint (Int.repr (len (tags td)))) td_p;
+  data_at Tsh (tarray tuint (len (tags td))) (map Vint (map Int.repr (tags td))) tags_p;
+  data_at_ Tsh asn_dec_rval_s res_p; data_at_ Tsh tint last_length_p))
                  end.
-                 unfold POSTCONDITION.
-                 unfold abbreviate.
                  repeat forward.
-                 entailer!.
-                 admit. (* ??? *)
+                 admit. (* entailer!. *)
                  forward_if.
+                 ***** 
+                   (* z3 < size - tag_len - len_len *) 
                  forward.
                  entailer!.
-                 admit. (* ??? *)
+                 repeat split; do 2 f_equal.
+                 (* true *)
+                 admit. 
                  (* true  *)
-                  admit.
+                 admit.
+                  (* true  *)
+                 admit.
+                 replace (size - z0 - z2 >? z3) with true by admit.
+                  (* true  *)
+                 admit.
+                   (* true  *)
+                 admit.
+                 *****
                  forward.
                  entailer!.
+                 repeat split; do 2 f_equal.
+                 (* true *)
+                 admit.
+                 (* true *)
                  admit.
                  (* true  *)
                  admit.
+                 replace (size - z0 - z2 >? z3)  with false by admit.
+                 (* true  *)
                  admit.
+                 (* true  *)
                  admit.
-                 *** admit.
+                **** admit.
+                **** admit.
+               *** admit.
            * Zbool_to_Prop.
              (* z <> 0 *)
-             admit.
+             admit. 
       +++  (* CONTINUE  to LI *)
           repeat break_let.
           forward.
           forward.
-          Exists 2.
+          Exists 1.
           repeat rewrite_if_b.
           repeat break_let.
           entailer!.
           break_if; Zbool_to_Prop; try lia.
+          (* fix limit_len in CONTINUE *)
+          admit.
+          break_if; Zbool_to_Prop; try lia.          
           entailer!.         
       +++ repeat break_let.
           forward_if True; try contradiction.
