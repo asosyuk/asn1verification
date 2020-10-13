@@ -34,7 +34,7 @@ Definition ber_check_tags_spec : ident * funspec :=
          td_p : val, td : TYPE_descriptor, 
          tags_p : val,
          opt_ctx_p : val,
-         ptr_p : val, ptr : list Z,
+         b : block, i : ptrofs, ptr : list Z,
          res_p : val,
          size : Z, tag_mode : Z, last_tag_form : Z,
          last_length_p : val,
@@ -46,19 +46,21 @@ Definition ber_check_tags_spec : ident * funspec :=
          tptr tvoid, tuint, tint, tint, tptr tint, tptr tint]
       PROP (tag_mode = 0;
             last_tag_form = 0;
-            0 < len ptr;
+            0 < len ptr <= Ptrofs.max_unsigned;
             (Znth 0 ptr) & 32 = 0;
             nullval = opt_ctx_p;
             nullval = opt_tlv_form_p;
             1 = len (tags td);
-            isptr ptr_p)
-      PARAMS (res_p; opt_codec_ctx_p; td_p; opt_ctx_p; ptr_p; 
+            0 <= Ptrofs.unsigned i + len ptr <= Ptrofs.max_unsigned;
+            Forall (fun x => 0 <= x <= Byte.max_unsigned) ptr;
+            0 <= size <= Int.max_unsigned)
+      PARAMS (res_p; opt_codec_ctx_p; td_p; opt_ctx_p; (Vptr b i); 
                 Vint (Int.repr size);
                 Vint (Int.repr tag_mode); Vint (Int.repr last_tag_form);
                   last_length_p; opt_tlv_form_p)
-      GLOBALS ()
+      GLOBALS ((fun _ : ident => Vint 0%int))
       SEP (data_at Tsh (tarray tuchar (len ptr)) 
-                   (map Vubyte (map Byte.repr ptr)) ptr_p;
+                   (map Vint (map Int.repr ptr)) (Vptr b i);
            field_at Tsh (Tstruct _asn_TYPE_descriptor_s noattr) 
                          [StructField _tags] 
                          tags_p td_p;
@@ -74,7 +76,8 @@ Definition ber_check_tags_spec : ident * funspec :=
     POST [tvoid]
       PROP ()
       LOCAL ()
-      SEP (data_at Tsh (tarray tuchar (len ptr)) (map Vubyte (map Byte.repr ptr)) ptr_p;
+      SEP (data_at Tsh (tarray tuchar (len ptr)) 
+                   (map Vint (map Int.repr ptr)) (Vptr b i);
            field_at Tsh (Tstruct _asn_TYPE_descriptor_s noattr) 
                          [StructField _tags] 
                          tags_p td_p;
@@ -96,8 +99,22 @@ Definition ber_check_tags_spec : ident * funspec :=
              data_at_ Tsh tint last_length_p
         end).
 
+Definition assert_spec {cs : compspecs} :=
+   WITH e : bool(* , str2 : val, str3 : val, func : val *)
+   PRE [ (tptr tschar), (tptr tschar), tuint, (tptr tschar)]
+       PROP ()
+       PARAMS (nullval; nullval; Vint (Int.repr 137); nullval) 
+       GLOBALS()
+       SEP ()
+    POST [ tvoid ] 
+       PROP (e = true)
+       LOCAL ()
+       SEP ().
+
+
 Definition Gprog := ltac:(with_library prog 
-                                       [ber_check_tags_spec;
+                                       [(___assert_fail, assert_spec);
+                                        ber_check_tags_spec;
                                         ber_fetch_tag_spec;
                                         ber_fetch_len_spec;
                                         ASN__STACK_OVERFLOW_CHECK_spec]).
@@ -123,16 +140,14 @@ Proof.
                 (if eq_dec opt_codec_ctx_p nullval
                  then 0
                  else ASN__STACK_OVERFLOW_CHECK 0 max_stack_size) = 0].
-             (*  [opt_codec_ctx_p <> nullval (* \/ 
-                ASN__STACK_OVERFLOW_CHECK 0 max_stack_size =? 0 = false *)]. *)
-  + admit. (* forward_empty_while.
+  + forward_empty_while.
   assert (opt_codec_ctx_p <> nullval) as ON.
   { break_if; try nia.
     eassumption. }
   rewrite_if_b. 
   forward_if True; try contradiction.
-  * forward.
-    entailer!.
+  * (* forward.
+    entailer!. *) admit.
   * forward_if (temp _t'2 Vzero);
       try forward; try entailer!.
     forward_if_add_sep (data_at Tsh (Tstruct _asn_dec_rval_s noattr)
@@ -148,7 +163,7 @@ Proof.
          erewrite AS.
          auto. }
     erewrite N.
-    entailer!. *)
+    entailer!. 
   + admit. (* forward.    
     entailer!.
     apply repr_inj_signed.
@@ -168,10 +183,9 @@ Proof.
                        (Int.repr 0))
                     (eval_cast tuint tint (Vint (Int.repr (len (tags td))))))))
                    )); try discriminate.
-     --- admit. 
-     (* forward.
+     --- forward.
          forward.
-         entailer!.  *)
+         entailer!. 
      ---
        Arguments eq_dec : simpl never.
        forward_if True.
@@ -191,7 +205,14 @@ Proof.
        forward_if True.
        forward.
        entailer!.
-       admit. (* assert_fail *)
+       Print globals.
+    (*   match goal with
+       | [ _ : _ |-  semax _ (PROPx ?P (LOCALx ?Q (SEPx ?R))) ?C ?Post ] =>
+         replace Q with (gvars (fun x : ident => nullval) :: Q)
+        end. *)
+       (* assert_fail *)
+       forward_call (true).
+       entailer!.
        entailer!.
      (* MAIN LOOP *)       
      (* match goal with
@@ -200,7 +221,6 @@ Proof.
          replace Q with Q'
         end. *)
        rewrite H0.
-
        match goal with
        | [ _ : _ |-  semax _ (PROPx ?P (LOCALx ?Q (SEPx ?R))) ?C ?Post ] =>
        (*  let Q' := remove_LOCAL _tagno Q in
@@ -253,7 +273,7 @@ Proof.
      lvar _tlv_tag tuint v_tlv_tag; 
      temp __res res_p; temp _opt_codec_ctx opt_codec_ctx_p;
      temp _td td_p; temp _opt_ctx nullval;
-     temp _ptr (offset_val cm  ptr_p);
+     temp _ptr (offset_val cm  (Vptr b i));
      temp _size (Vint (Int.repr (if z =? 0 
                                  then size - cm
                                  else if size - tag_len - len_len >? tlv_len
@@ -284,7 +304,7 @@ Proof.
      else (data_at Tsh tint (Vint (Int.repr tlv_len)) v_tlv_len *
                      data_at Tsh tuint (Vint (Int.repr tlv_tag)) v_tlv_tag);
      data_at Tsh (tarray tuchar (len ptr)) 
-             (map Vubyte (map Byte.repr ptr)) ptr_p;
+             (map Vint (map Int.repr ptr)) (Vptr b i);
      field_at Tsh (Tstruct _asn_TYPE_descriptor_s noattr) (DOT _tags) tags_p td_p;
      field_at Tsh (Tstruct _asn_TYPE_descriptor_s noattr) (DOT _tags_count)
        (Vint (Int.repr (len (tags td)))) td_p;
@@ -331,7 +351,7 @@ Proof.
        lvar _rval (Tstruct _asn_dec_rval_s noattr) v_rval; lvar _tlv_len tint v_tlv_len;
        lvar _tlv_tag tuint v_tlv_tag; temp __res res_p; temp _opt_codec_ctx opt_codec_ctx_p;
        temp _td td_p; temp _opt_ctx nullval;
-       temp _ptr (offset_val ((tag_len + len_len)%Z) ptr_p);
+       temp _ptr (offset_val ((tag_len + len_len)%Z) (Vptr b i));
        temp _size (Vint (Int.repr (if size - tag_len - len_len >? tlv_len
                                    then tlv_len
                                    else size - ((tag_len + len_len)%Z))));
@@ -353,7 +373,7 @@ Proof.
        data_at_ Tsh (Tstruct _asn_dec_rval_s noattr) v_rval;
         data_at Tsh tint (Vint (Int.repr tlv_len)) v_tlv_len ;
         data_at Tsh tuint (Vint (Int.repr tlv_tag)) v_tlv_tag;
-       data_at Tsh (tarray tuchar (len ptr)) (map Vubyte (map Byte.repr ptr)) ptr_p;
+       data_at Tsh (tarray tuchar (len ptr)) (map Vint (map Int.repr ptr)) (Vptr b i);
        field_at Tsh (Tstruct _asn_TYPE_descriptor_s noattr) (DOT _tags) tags_p td_p;
        field_at Tsh (Tstruct _asn_TYPE_descriptor_s noattr) (DOT _tags_count)
          (Vint (Int.repr (len (tags td)))) td_p;
@@ -401,7 +421,7 @@ Proof.
      lvar _tlv_tag tuint v_tlv_tag; 
      temp __res res_p; temp _opt_codec_ctx opt_codec_ctx_p;
      temp _td td_p; temp _opt_ctx nullval;
-     temp _ptr (offset_val (tag_len + len_len) ptr_p);
+     temp _ptr (offset_val (tag_len + len_len) (Vptr b i));
      temp _size (Vint (Int.repr ((if size - tag_len - len_len >? tlv_len
                                   then tlv_len
                                   else size - ((tag_len + len_len)%Z)))));
@@ -428,7 +448,7 @@ Proof.
      data_at Tsh tint (Vint (Int.repr tlv_len)) v_tlv_len;
      data_at Tsh tuint (Vint (Int.repr tlv_tag)) v_tlv_tag;
      data_at Tsh (tarray tuchar (len ptr)) 
-             (map Vubyte (map Byte.repr ptr)) ptr_p;
+             (map Vint (map Int.repr ptr)) (Vptr b i);
      field_at Tsh (Tstruct _asn_TYPE_descriptor_s noattr) (DOT _tags) tags_p td_p;
      field_at Tsh (Tstruct _asn_TYPE_descriptor_s noattr) (DOT _tags_count)
        (Vint (Int.repr (len (tags td)))) td_p;
@@ -451,10 +471,10 @@ Proof.
              Zbool_to_Prop.
              forward.
            forward_if.
-           2: (* LI -> break *) lia. 
-           destruct ptr_p; try contradiction.
+           2: (* LI -> break *) lia.
            forward_call (b, i, ptr, size, v_tlv_tag). 
-           admit. (* BFT PRE  - add to the BCT PRE *)  
+           { repeat split; try rep_omega.
+             eassumption. }
            assert (z0 = 65) as Z0 by admit.
            replace (fst (Exec.ber_fetch_tags ptr size 0 (sizeof tuint)))
              with z0. (* FIXME : forward switch doesn't work with complex terms *)
@@ -462,44 +482,121 @@ Proof.
            match goal with
            | [ _ : _ |- semax _ ?Pre ?C ?Post ] =>
              forward_switch Pre
-           end. clear Z0.
+           end; clear Z0.
            *** (* RC_FAIL  *)             
+              match goal with
+                 | [ _ : _ |- semax _ ?Pre ?C ?Post ] =>
+                   forward_empty_while_break Pre
+              end.
+              assert (opt_codec_ctx_p <> nullval) as ON.
+              { break_if; try nia;
+                eassumption. }
+              rewrite_if_b. 
+              forward_if True; try contradiction.
+              forward.
+              entailer!. 
+              forward_if (temp _t'12 Vzero);
+               try forward; try entailer!.
+             forward_if_add_sep (data_at Tsh 
+                                         (Tstruct _asn_dec_rval_s noattr)
+                                         (Vint (Int.repr 2), Vint (Int.repr 0))
+                                         v_rval__3) v_rval__3; 
+               try forward; try entailer!.
+             repeat forward. 
+             assert (ber_check_tags_primitive ptr td max_stack_size
+                                              size (sizeof tuint) Int.modulus = None) as N.
+             { unfold ber_check_tags_primitive.
+               erewrite H0.
+               erewrite Heqp.
+               simpl.
+               auto. }
+             erewrite N.
+             (* entailer!. *)
              admit.
-           ***  (* RC_FAIL *)
+           ***  (* RC_FAIL: same *)
+              match goal with
+                 | [ _ : _ |- semax _ ?Pre ?C ?Post ] =>
+                   forward_empty_while_break Pre
+              end.
+              assert (opt_codec_ctx_p <> nullval) as ON.
+              { break_if; try nia;
+                eassumption. }
+              rewrite_if_b. 
+              forward_if True; try contradiction.
+              forward.
+              entailer!. 
+              forward_if (temp _t'12 Vzero);
+               try forward; try entailer!.
+             forward_if_add_sep (data_at Tsh 
+                                         (Tstruct _asn_dec_rval_s noattr)
+                                         (Vint (Int.repr 2), Vint (Int.repr 0))
+                                         v_rval__3) v_rval__3; 
+               try forward; try entailer!.
+             repeat forward. 
+             assert (ber_check_tags_primitive ptr td max_stack_size
+                                              size (sizeof tuint) Int.modulus = None) as N.
+             { unfold ber_check_tags_primitive.
+               erewrite H0.
+               erewrite Heqp.
+               simpl.
+               auto. }
+             erewrite N.
+             (* entailer!. *)
              admit.
            *** admit. (* forward.
                entailer!. *) 
-           *** remember (map Vubyte (map Byte.repr ptr)) as ptr'.
+           *** remember (map Vint (map Int.repr ptr)) as ptr'.
                normalize.
                assert_PROP ((Vptr b i) = 
-                            field_address (tarray tuchar (len ptr)) [ArraySubsc 0] (Vptr b i)).
+                            field_address 
+                              (tarray tuchar (len ptr)) [ArraySubsc 0] (Vptr b i)).
                { entailer!.
-                 rewrite field_address_offset.
-                 cbn.
+                 rewrite field_address_offset; cbn.
                  normalize.
-                 econstructor.
+                 econstructor;
                  auto.
-                 repeat split; auto; try nia.
+                 repeat split; auto; 
+                   autorewrite with norm;  try rep_omega.
                  cbn.
-                 admit.
+                 autorewrite with norm.
+                 rep_omega.
                  constructor.
-                 admit. }                 
+                 intros.
+                 econstructor; auto; cbn.
+                 auto.
+                 eapply Z.divide_1_l. }
                Intros.
                normalize.
                forward.
                entailer!.
-               repeat erewrite Znth_map; auto.
-               cbn.
+               unfold is_int.
+               assert (0 <= Znth 0 ptr <= Byte.max_unsigned) as B.
+               { eapply Forall_Znth.
+                 lia.
+                 eassumption. }
+               repeat erewrite Znth_map; auto; try nia.
                strip_repr.
-               nia.
                forward_if (temp _t'13 Vzero).
-             ** admit. (* contradiction *)
+             ** assert ((Znth 0 ptr & 32) <> 0) as Z.
+                { generalize H10.
+                  subst.
+                  repeat erewrite Znth_map.
+                  simpl.
+                  autorewrite with norm.
+                  intro V.
+                  eapply typed_true_tint_Vint in V.
+                  eapply repr_neq_e in V.
+                  auto.
+                  lia.
+                  erewrite Zlength_map.
+                  lia. }
+                lia.
              ** admit. (* forward.  entailer!. *)
              ** forward.
                 forward_if
                   (temp _t'15 Vzero); try contradiction;
                   try forward; try entailer!; rewrite_if_b; try entailer!.
-                forward_if True; try nia. (* TODO *)
+                forward_if True; try nia.
                 forward_if True.
                 forward.
                 admit. (* entailer! *)
@@ -507,55 +604,68 @@ Proof.
                 forward.
                 forward. 
                 normalize.
-                assert_PROP (force_val (sem_add_ptr_int tuint Signed tags_p (Vint 0%int))
-                             = field_address (tarray tuint (len (tags td)))
-                                             [ArraySubsc 0] tags_p).
-                { entailer!.
-                  rewrite field_address_offset.
-                  unfold sem_add_ptr_int.
-                  unfold complete_type.
-                  unfold tuint.
-                  admit.
-                  econstructor.
-                  auto.
-                  cbn.
-                  repeat split; auto; cbn; try nia.
-                  unfold size_compatible.
-                  break_match; auto.
-                  admit.
-                  admit. }  
                 forward.
                 forward_if. 
              ++ (* RC_FAIL case *) 
                forward_empty_while.
-               admit. (* as before *)
+              rewrite_if_b. 
+              forward_if True; try contradiction.
+              forward.
+              entailer!. 
+              forward_if (temp _t'14 Vzero);
+               try forward; try entailer!.
+             forward_if_add_sep (data_at Tsh 
+                                         (Tstruct _asn_dec_rval_s noattr)
+                                         (Vint (Int.repr 2), Vint (Int.repr 0))
+                                         v_rval__4) v_rval__4; 
+               try forward; try entailer!.
+             repeat forward. 
+             assert (ber_check_tags_primitive ptr td max_stack_size
+                                              size (sizeof tuint) Int.modulus = None) as N.
+             { unfold ber_check_tags_primitive.
+               erewrite H0.
+               erewrite Heqp.
+               simpl.
+               assert (z1 <>
+                       (nth 0 (tags td) 0)) as O.
+               { replace z1 with (snd (Exec.ber_fetch_tags ptr size 0 4)).
+                 generalize H11.
+                 erewrite Byte.unsigned_repr.
+                 intro V.
+                 eapply repr_neq_e in V.
+                 easy.
+                 (* lemma: 0 <= snd (Exec.ber_fetch_tags ptr size 0 4)
+                    <= Byte.max_unsigned *)
+                 admit.
+                 cbn in Heqp.
+                 erewrite Heqp.
+                 easy.
+                  }
+               break_if; auto.
+               break_if.
+               Zbool_to_Prop.
+               lia.
+               auto. }
+             erewrite N.
+             entailer!.
              ++ admit. (* forward. 
                 entailer!. *) 
              ++  forward.
                  forward_if True.
-                 ++++
-               forward_if; try congruence.
-               **** (* RC_FAIL case *)
-                 forward_empty_while.
-                 admit.
-               **** admit.
-             (*    forward.
-                 admit.  entailer!. *)
-             ++++ admit. 
-                  (* forward_if (temp _t'18 Vzero); try congruence.
+                 lia.
+             ++++ forward_if (temp _t'18 Vzero); try congruence.
                   forward.
                   entailer!.
                   forward_if.
-                  (* RC_FAIL *)
-                  admit.
-                  forward;  entailer!. *)
+                  lia.
+                  forward;  entailer!. 
              ++++  
               (* size : Z, data : list Z,
                  isc : Z, buf_b : block, buf_ofs : ptrofs,      
                  res_v : Z, res_ptr : val *)   
-                erewrite   Heqptr'.
+               erewrite Heqptr'.
                replace (data_at Tsh (tarray tuchar (len ptr))
-                       (map Vubyte (map Byte.repr ptr)) (Vptr b i))
+                       (map Vint (map Int.repr ptr)) (Vptr b i))
                        with
                         (data_at Tsh tuchar (Vubyte (Byte.repr (Znth 0 ptr)))
                                    (Vptr b i) * 
@@ -564,6 +674,12 @@ Proof.
                                    (Vptr b (i + Ptrofs.repr z0)%ptrofs))%logic.             
                 forward_call (0, Vptr b (i + Ptrofs.repr z0)%ptrofs, size - z0, 
                              sublist 1 (len ptr) ptr, v_tlv_len).
+                entailer!.
+                cbn.
+                repeat f_equal; auto.
+                strip_repr.
+                (* need Int.min_signed <= z0 <= Int.max_signed *)
+                admit.
                 unfold Frame.
                 instantiate (1 := 
   [data_at Tsh tuchar (Vubyte (Byte.repr (Znth 0 ptr))) (Vptr b i) *
@@ -590,17 +706,14 @@ Proof.
      (Vint (Int.repr (len (tags td)))) td_p *
    data_at Tsh (tarray tuint (len (tags td))) (map Vint (map Int.repr (tags td))) tags_p *
    data_at_ Tsh asn_dec_rval_s res_p * data_at_ Tsh tint last_length_p]%logic).
-            (*    simpl.
+                simpl.
                 entailer!.
                 autorewrite with sublist.
                 entailer!.
-                repeat split.
-                admit. 
-                admit. (* add size restriction *) *)
-                admit.
+                (* need 0 <= size - z0 <= Int.max_unsigned *)
                 admit.
                 Intros v.
-                erewrite H8.
+                erewrite H10.
                 assert (z2 = 99) as Z2 by admit.
                 replace (fst
                        (Exec.ber_fetch_len (sublist 1 (len ptr) ptr) 0 0 
@@ -610,8 +723,35 @@ Proof.
                  | [ _ : _ |- semax _ ?Pre ?C ?Post ] =>
                    forward_switch Pre
                  end. clear Z2.
-                 admit. (* RC_FAIL *)
-                 admit. (* RC_FAIL *)
+                 {  match goal with
+                 | [ _ : _ |- semax _ ?Pre ?C ?Post ] =>
+                   forward_empty_while_break Pre
+              end.
+              rewrite_if_b. 
+              forward_if True; try contradiction.
+              forward.
+              entailer!. 
+              forward_if (temp _t'20 Vzero);
+               try forward; try entailer!.
+             forward_if_add_sep (data_at Tsh 
+                                         (Tstruct _asn_dec_rval_s noattr)
+                                         (Vint (Int.repr 2), Vint (Int.repr 0))
+                                         v_rval__7) v_rval__7; 
+               try forward; try entailer!.
+             repeat forward. 
+             assert (ber_check_tags_primitive ptr td max_stack_size
+                                              size (sizeof tuint) Int.modulus = None) as N.
+             { unfold ber_check_tags_primitive.
+               erewrite H0.
+               erewrite Heqp.
+               erewrite Heqp0.
+               simpl.
+               break_if; auto.
+               break_if; auto.
+               }
+             erewrite N.
+             admit. (* RC_FAIL *) }
+             admit. (* same *)
                  forward.
                  admit. (* entailer! *)
                  forward.
@@ -631,6 +771,8 @@ Proof.
                Int.repr z0 + Int.repr z2)%int)); try contradiction.
                  forward.
                  forward.
+                 entailer!.
+                 admit. (* bounds *)
                  forward_if (temp _limit_len
            (Vint
               (Int.repr
@@ -641,7 +783,47 @@ Proof.
                              (size - z0) (sizeof tuint) Int.modulus)))) + 
                Int.repr z0 + Int.repr z2)%int)); try contradiction.
                  (* RC_FAIL *)
-                 admit. (* as before *)
+                  {  forward_empty_while.
+              rewrite_if_b. 
+              forward_if True; try contradiction.
+              forward.
+              entailer!. 
+              forward_if (temp _t'23 Vzero);
+               try forward; try entailer!.
+             forward_if_add_sep (data_at Tsh 
+                                         (Tstruct _asn_dec_rval_s noattr)
+                                         (Vint (Int.repr 2), Vint (Int.repr 0))
+                                         v_rval__10) v_rval__10; 
+               try forward; try entailer!.
+             repeat forward. 
+             assert (ber_check_tags_primitive ptr td max_stack_size
+                                              size (sizeof tuint) Int.modulus = None) as N.
+             { unfold ber_check_tags_primitive.
+               erewrite H0.
+               erewrite Heqp.
+               erewrite Heqp0.
+               simpl.
+               break_if; auto.
+               break_if; auto.
+               generalize H14.
+               strip_repr.
+               erewrite Byte.unsigned_repr.
+               replace (snd (Exec.ber_fetch_len (sublist 1 (len ptr) ptr) 
+                                                0 0 (size - z0) 4 Int.modulus))
+                       with z3.
+               intro.
+               break_if; Zbool_to_Prop; try lia; auto.
+               Zbool_to_Prop.
+               lia.
+               simpl in Heqp0.
+               erewrite Heqp0.
+               easy.
+               (* bounds *)
+               admit.
+               admit.
+               }
+             erewrite N.
+             admit. }
                  forward.
                  admit. (* entailer! *)
                  admit. (* entailer! *)
@@ -679,7 +861,7 @@ Proof.
   temp _t'30 (Vint (Int.repr (len (tags td)))); 
   temp _t'15 Vzero; 
   temp _tlv_constr (Vint 0%int);
-  temp _t'13 Vzero; temp _t'34 (Znth 0 (map Vubyte (map Byte.repr ptr)));
+  temp _t'13 Vzero; temp _t'34 (Znth 0 (map Vint (map Int.repr ptr)));
   temp _tag_len (Vint (Int.repr z0)); temp _t'35 (Vint (Int.repr (len (tags td))));
   temp _t'10 (Val.of_bool (Int.repr 0 == Int.repr (len (tags td)))%int);
   temp _tagno (Vint (Int.repr z)); temp _t'4 Vzero; 

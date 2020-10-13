@@ -18,20 +18,20 @@ Definition ber_fetch_tag_spec : ident * funspec :=
       PROP (0 <= size <= Int.max_unsigned;
            (* Zlength ptr_v = size; *)
             Forall (fun x => 0 <= x <= Byte.max_unsigned) ptr_v;
-            Ptrofs.unsigned ptr_ofs + (Zlength ptr_v) < Ptrofs.modulus;
+            Ptrofs.unsigned ptr_ofs + (Zlength ptr_v) < Ptrofs.modulus
            (* 0 <= tag_v <= Int.max_unsigned; *)
-            isptr tag_p)
+           )
       PARAMS ((Vptr ptr_b ptr_ofs); Vint (Int.repr size); tag_p)
       GLOBALS ()
       SEP (data_at Tsh (tarray tuchar (Zlength ptr_v)) 
-                   (map Vubyte (map Byte.repr ptr_v)) (Vptr ptr_b ptr_ofs);
+                   (map Vint (map Int.repr ptr_v)) (Vptr ptr_b ptr_ofs);
            data_at_ Tsh tuint tag_p)
     POST [tint]
       let r := ber_fetch_tags ptr_v size 0 (sizeof tuint) in
       PROP ()
       LOCAL (temp ret_temp (Vint (Int.repr (fst r))))
       SEP (data_at Tsh (tarray tuchar (Zlength ptr_v)) 
-                   (map Vubyte (map Byte.repr ptr_v)) (Vptr ptr_b ptr_ofs);
+                   (map Vint (map Int.repr ptr_v)) (Vptr ptr_b ptr_ofs);
            data_at Tsh tuint (Vubyte (Byte.repr (snd r))) tag_p).
 
 Definition Gprog := ltac:(with_library prog [ber_fetch_tag_spec]).

@@ -56,7 +56,7 @@ Ltac Zbool_to_Prop :=
         || rewrite Z.eqb_eq in * 
         || rewrite Z.eqb_neq in * 
         || rewrite Z.ltb_ge in * 
-        || rewrite Z.ltb_lt in *|
+        || rewrite Z.ltb_lt in *
         ||  erewrite Z.gtb_lt in *).
 
 
@@ -69,7 +69,7 @@ Ltac Zbool_to_Prop :=
           let Q' := remove_LOCAL2 constr:(cons postL nil) Q in
           constr:(cons postL Q')
       end
-  | list localdef =>
+  | list localdef =>c
       match goal with
       | |- semax _ (PROPx (?P) (LOCALx ?Q ?R)) _ _ =>
           let Q' := remove_LOCAL2 postL Q in

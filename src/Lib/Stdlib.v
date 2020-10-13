@@ -2,6 +2,18 @@ Require Import Core.Core.
 Require Import VST.floyd.proofauto.
 Require Import VST.floyd.library. (* contains malloc, exit and free specs *)
 
+Definition assert_spec {cs : compspecs} :=
+   WITH e : bool
+   PRE [ tuint ]
+       PROP ()
+       PARAMS (Val.of_bool e) 
+       GLOBALS()
+       SEP ()
+    POST [ tvoid ] 
+       PROP (e = true)
+       LOCAL ()
+       SEP ().
+
 Definition calloc_spec {cs : compspecs} :=
    WITH m : Z, n : Z, t : type
    PRE [ size_t, size_t ]
