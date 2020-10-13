@@ -210,15 +210,18 @@ Proof.
      let (tag_len, tlv_tag) := Exec.ber_fetch_tags ptr size 0 (sizeof tuint) in
      let (len_len, tlv_len) := Exec.ber_fetch_len (sublist 1 (len ptr) ptr) 0 0 
                                                   (size - tag_len) (sizeof tuint) Int.modulus in
-     let ll := if z =? 0 then -1 else (tlv_len + tag_len + len_len)%Z in
+     let ll := if z =? 0 then -1 else (tlv_len)%Z in (* + tag_len + len_len *)
      let cm := if z =? 0 then 0 else (tag_len + len_len)%Z in 
-     PROP ((* 0 < tag_len;
-           0 < len_len;
-           0 < tlv_len;
-           tag_len <> 0;
-           len_len <> -1;
-           len_len <> 0;
-           tlv_tag = nth O (tags td) 0 *))
+     PROP ( 0 <= z <= 1;
+            if z =? 0 then
+              True else
+           0 < tag_len /\
+           0 < len_len /\
+           0 < tlv_len /\
+           tag_len <> 0 /\
+           len_len <> -1 /\
+           len_len <> 0 /\ 
+           tlv_tag = nth O (tags td) 0)
      LOCAL (temp _t'10
               (force_val
                  (sem_cast tint tbool
@@ -251,7 +254,11 @@ Proof.
      temp __res res_p; temp _opt_codec_ctx opt_codec_ctx_p;
      temp _td td_p; temp _opt_ctx nullval;
      temp _ptr (offset_val cm  ptr_p);
-     temp _size (Vint (Int.repr (size - cm)));
+     temp _size (Vint (Int.repr (if z =? 0 
+                                 then size - cm
+                                 else if size - tag_len - len_len >? tlv_len
+                                   then tlv_len
+                                   else size - ((tag_len + len_len)%Z))));
      temp _tag_mode (Vint (Int.repr 0));
      temp _last_tag_form (Vint (Int.repr 0));
      temp _last_length last_length_p;
@@ -291,7 +298,13 @@ Proof.
        let (len_len, tlv_len) :=
          Exec.ber_fetch_len (sublist 1 (len ptr) ptr) 0 0 (size - tag_len) 
            (sizeof tuint) Int.modulus in
-       PROP ( )
+       PROP (0 < tag_len;
+           0 < len_len;
+           0 < tlv_len;
+           tag_len <> 0;
+           len_len <> -1;
+           len_len <> 0;
+           tlv_tag = nth O (tags td) 0)
        LOCAL (temp _t'10
                 (force_val
                    (sem_cast tint tbool
@@ -364,13 +377,12 @@ Proof.
                        (eval_cast tuint tint (Vint (Int.repr (len (tags td))))))));
      temp _tagno (Vint (Int.repr 1));
      temp _t'4 Vzero;
-     temp _t'3 (Vint (Int.repr (if eq_dec opt_codec_ctx_p nullval 
-                                then 0 else -1)));
+     temp _t'3 (Vint (Int.repr 0));
      temp _step (Vint (Int.repr 1)); 
      temp _t'1 Vzero; 
      temp _tlv_constr (Vint (Int.repr 0));
      temp _expect_00_terminators (Vint (Int.repr 0));
-     temp _limit_len (Vint (Int.neg (Int.repr (tlv_len + tag_len + len_len)))); 
+     temp _limit_len (Vint ((Int.repr (tlv_len (* + tag_len + len_len *))))); 
      temp _consumed_myself (Vint (Int.repr (tag_len + len_len)));
      lvar _rval__12 (Tstruct _asn_dec_rval_s noattr) v_rval__12;
      lvar _rval__11 (Tstruct _asn_dec_rval_s noattr) v_rval__11;
@@ -390,7 +402,9 @@ Proof.
      temp __res res_p; temp _opt_codec_ctx opt_codec_ctx_p;
      temp _td td_p; temp _opt_ctx nullval;
      temp _ptr (offset_val (tag_len + len_len) ptr_p);
-     temp _size (Vint (Int.repr (size - tag_len - len_len)));
+     temp _size (Vint (Int.repr ((if size - tag_len - len_len >? tlv_len
+                                  then tlv_len
+                                  else size - ((tag_len + len_len)%Z)))));
      temp _tag_mode (Vint (Int.repr 0));
      temp _last_tag_form (Vint (Int.repr 0));
      temp _last_length last_length_p;
@@ -424,7 +438,7 @@ Proof.
      data_at_ Tsh tint last_length_p))
        end.
        +++ (* Pre -> LI *)
-       (*  Exists 0.
+        (* Exists 0.
          repeat rewrite_if_b.
          repeat break_let.
          entailer!.
@@ -440,14 +454,15 @@ Proof.
            2: (* LI -> break *) lia. 
            destruct ptr_p; try contradiction.
            forward_call (b, i, ptr, size, v_tlv_tag). 
-           admit. (* BFT PRE  - add to the BCT PRE *)           
+           admit. (* BFT PRE  - add to the BCT PRE *)  
+           assert (z0 = 65) as Z0 by admit.
            replace (fst (Exec.ber_fetch_tags ptr size 0 (sizeof tuint)))
-             with 65. (* FIXME : forward switch doesn't work with complex terms *)
+             with z0. (* FIXME : forward switch doesn't work with complex terms *)
            (* in VST 2.6 forward_switch needs change and can fail here *)
            match goal with
            | [ _ : _ |- semax _ ?Pre ?C ?Post ] =>
              forward_switch Pre
-           end. 
+           end. clear Z0.
            *** (* RC_FAIL  *)             
              admit.
            ***  (* RC_FAIL *)
@@ -534,7 +549,7 @@ Proof.
                   (* RC_FAIL *)
                   admit.
                   forward;  entailer!. *)
-             ++++  remember 65 as tag_len.
+             ++++  
               (* size : Z, data : list Z,
                  isc : Z, buf_b : block, buf_ofs : ptrofs,      
                  res_v : Z, res_ptr : val *)   
@@ -546,8 +561,8 @@ Proof.
                                    (Vptr b i) * 
                          data_at Tsh (tarray tuchar (len ptr - 1)) 
                                  (map Vubyte (map Byte.repr (sublist 1 (len ptr) ptr)))
-                                   (Vptr b (i + Ptrofs.repr tag_len)%ptrofs))%logic.             
-                forward_call (0, Vptr b (i + Ptrofs.repr tag_len)%ptrofs, size - tag_len, 
+                                   (Vptr b (i + Ptrofs.repr z0)%ptrofs))%logic.             
+                forward_call (0, Vptr b (i + Ptrofs.repr z0)%ptrofs, size - z0, 
                              sublist 1 (len ptr) ptr, v_tlv_len).
                 unfold Frame.
                 instantiate (1 := 
@@ -575,23 +590,26 @@ Proof.
      (Vint (Int.repr (len (tags td)))) td_p *
    data_at Tsh (tarray tuint (len (tags td))) (map Vint (map Int.repr (tags td))) tags_p *
    data_at_ Tsh asn_dec_rval_s res_p * data_at_ Tsh tint last_length_p]%logic).
-                simpl.
+            (*    simpl.
                 entailer!.
                 autorewrite with sublist.
                 entailer!.
                 repeat split.
                 admit. 
-                admit. (* add size restriction *)
+                admit. (* add size restriction *) *)
+                admit.
+                admit.
                 Intros v.
-                erewrite H7.
+                erewrite H8.
+                assert (z2 = 99) as Z2 by admit.
                 replace (fst
                        (Exec.ber_fetch_len (sublist 1 (len ptr) ptr) 0 0 
-                          (size - tag_len) (sizeof tuint) Int.modulus))
-                  with 99.
+                          (size - z0) (sizeof tuint) Int.modulus))
+                  with z2.
                  match goal with
                  | [ _ : _ |- semax _ ?Pre ?C ?Post ] =>
                    forward_switch Pre
-                 end.
+                 end. clear Z2.
                  admit. (* RC_FAIL *)
                  admit. (* RC_FAIL *)
                  forward.
@@ -609,8 +627,8 @@ Proof.
                     (Byte.repr
                        (snd
                           (Exec.ber_fetch_len (sublist 1 (len ptr) ptr) 0 0 
-                             (size - tag_len) (sizeof tuint) Int.modulus)))) + 
-               Int.repr tag_len + Int.repr 99)%int)); try contradiction.
+                             (size - z0) (sizeof tuint) Int.modulus)))) + 
+               Int.repr z0 + Int.repr z2)%int)); try contradiction.
                  forward.
                  forward.
                  forward_if (temp _limit_len
@@ -620,8 +638,8 @@ Proof.
                     (Byte.repr
                        (snd
                           (Exec.ber_fetch_len (sublist 1 (len ptr) ptr) 0 0 
-                             (size - tag_len) (sizeof tuint) Int.modulus)))) + 
-               Int.repr tag_len + Int.repr 99)%int)); try contradiction.
+                             (size - z0) (sizeof tuint) Int.modulus)))) + 
+               Int.repr z0 + Int.repr z2)%int)); try contradiction.
                  (* RC_FAIL *)
                  admit. (* as before *)
                  forward.
@@ -632,14 +650,16 @@ Proof.
                  match goal with
                  | [ _ : _ |- semax _ ?Pre ?C ?Post ] =>
                    forward_empty_while_break 
-                     (PROP ( )
-  LOCAL (temp _consumed_myself (Vint (Int.repr 0 + (Int.repr tag_len + Int.repr 99))%int);
-  temp _size (Vint (Int.repr size - (Int.repr tag_len + Int.repr 99))%int);
+                     (PROP (0 < z0; 0 < z2; 0 < z3; z0 <> 0; z2 <> -1;
+                            z2 <> 0; z1 = nth 0 (tags td) 0)
+  LOCAL (temp _consumed_myself (Vint (Int.repr 0 + (Int.repr z0 + Int.repr z2))%int);
+  temp _size (Vint (Int.repr size - (Int.repr z0 + Int.repr z2))%int);
   temp _ptr
     (Vptr b
        (i +
-        Ptrofs.repr (sizeof tschar) * ptrofs_of_int Unsigned (Int.repr tag_len + Int.repr 99)%int)%ptrofs);
-  temp _num__2 (Vint (Int.repr tag_len + Int.repr 99)%int);
+        Ptrofs.repr (sizeof tschar) * 
+        ptrofs_of_int Unsigned (Int.repr z0 + Int.repr z2)%int)%ptrofs);
+  temp _num__2 (Vint (Int.repr z0 + Int.repr z2)%int);
   temp _limit_len
     (Vint
        (Int.repr
@@ -647,19 +667,23 @@ Proof.
              (Byte.repr
                 (snd
                    (Exec.ber_fetch_len (sublist 1 (len ptr) ptr) 0 0 
-                      (size - tag_len) (sizeof tuint) Int.modulus)))) + 
-        Int.repr tag_len + Int.repr 99)%int);
+                      (size - z0) (sizeof tuint) Int.modulus)))) + 
+        Int.repr z0 + Int.repr z2)%int);
   temp _t'29
     (Vubyte
        (Byte.repr
           (snd
-             (Exec.ber_fetch_len (sublist 1 (len ptr) ptr) 0 0 (size - tag_len) 
-                (sizeof tuint) Int.modulus)))); temp _len_len (Vint (Int.repr 99));
-  temp _t'30 (Vint (Int.repr (len (tags td)))); temp _t'15 Vzero; temp _tlv_constr (Vint 0%int);
+             (Exec.ber_fetch_len (sublist 1 (len ptr) ptr) 0 0 (size - z0) 
+                (sizeof tuint) Int.modulus)))); 
+  temp _len_len (Vint (Int.repr z2));
+  temp _t'30 (Vint (Int.repr (len (tags td)))); 
+  temp _t'15 Vzero; 
+  temp _tlv_constr (Vint 0%int);
   temp _t'13 Vzero; temp _t'34 (Znth 0 (map Vubyte (map Byte.repr ptr)));
-  temp _tag_len (Vint (Int.repr tag_len)); temp _t'35 (Vint (Int.repr (len (tags td))));
+  temp _tag_len (Vint (Int.repr z0)); temp _t'35 (Vint (Int.repr (len (tags td))));
   temp _t'10 (Val.of_bool (Int.repr 0 == Int.repr (len (tags td)))%int);
-  temp _tagno (Vint (Int.repr z)); temp _t'4 Vzero; temp _t'3 (Vint (Int.repr 0));
+  temp _tagno (Vint (Int.repr z)); temp _t'4 Vzero; 
+  temp _t'3 (Vint (Int.repr 0));
   temp _step (Vint (Int.repr z)); temp _t'1 Vzero;
   temp _expect_00_terminators (Vint (Int.repr 0));
   lvar _rval__12 (Tstruct _asn_dec_rval_s noattr) v_rval__12;
@@ -681,12 +705,12 @@ Proof.
   temp _opt_tlv_form nullval)
   SEP (data_at Tsh (tarray tuchar (len (sublist 1 (len ptr) ptr)))
          (map Vubyte (map Byte.repr (sublist 1 (len ptr) ptr)))
-         (Vptr b (i + Ptrofs.repr tag_len)%ptrofs);
+         (Vptr b (i + Ptrofs.repr z0)%ptrofs);
   data_at Tsh tint
     (Vubyte
        (Byte.repr
           (snd
-             (Exec.ber_fetch_len (sublist 1 (len ptr) ptr) 0 0 (size - tag_len) 
+             (Exec.ber_fetch_len (sublist 1 (len ptr) ptr) 0 0 (size - z0) 
                 (sizeof tuint) Int.modulus)))) v_tlv_len;
   data_at Tsh tuchar (Vubyte (Byte.repr (Znth 0 ptr))) (Vptr b i);
   data_at Tsh tuint (Vubyte (Byte.repr (snd (Exec.ber_fetch_tags ptr size 0 (sizeof tuint)))))
@@ -713,23 +737,70 @@ Proof.
                  end.
                  repeat forward.
                  admit. (* entailer!. *)
+                 clear Z0 Z2.
                  forward_if.
                  ***** 
-                   (* z3 < size - tag_len - len_len *) 
+                   (* z3 < size - z0 - z2 *) 
                  forward.
                  entailer!.
                  repeat split; do 2 f_equal.
-                 (* true *)
-                 admit. 
-                 (* true  *)
+                 rewrite Byte.unsigned_repr.
+                 erewrite Heqp0.
+                 cbn.
+                 lia.
+                 assert (ber_fetch_len_bounds :
+                           forall (ptr : list Z) (isc len_r size sizeofval rssizem : Z),
+                          0 <=  len_r <= 255 ->
+                         Forall (fun x => 0 <= x <= Byte.max_unsigned) ptr ->
+                         snd (Exec.ber_fetch_len ptr isc len_r size sizeofval rssizem) <> -1 ->
+                        0 <= snd (Exec.ber_fetch_len ptr isc len_r size sizeofval rssizem) 
+                        <= Byte.max_unsigned).
+                 { intros.
+                   unfold Exec.ber_fetch_len in H46.
+                    unfold Exec.ber_fetch_len.
+                   repeat break_if; cbn; try lia.
+                   admit.
+                   admit.
+                   repeat break_let.
+                   admit. }
+                 eapply ber_fetch_len_bounds.
+                 lia.
+                 (* add to PRE:
+                   Forall (fun x : Z => 0 <= x <= Byte.max_unsigned) ptr
+                  also precondition to fetch length *)
                  admit.
-                  (* true  *)
+                 eapply repr_neq_e in H9.
+                 generalize H9.
+                 rewrite Byte.unsigned_repr.
+                 easy.
                  admit.
-                 replace (size - z0 - z2 >? z3) with true by admit.
+                 cbn.
+                 f_equal.
+                 strip_repr.
+                 (* NEED: 0 <= z0 + z2 <= Int.max_unsigned *)
+                 admit.
+                 replace (size - z0 - z2 >? z3) with true. 
                   (* true  *)
                  admit.
                    (* true  *)
+                 symmetry.
+                 generalize H17.
+                 rewrite Byte.unsigned_repr.
+                 simpl in Heqp0.
+                 erewrite Heqp0.
+                 strip_repr.
+                 intro.
+                 erewrite Z.gtb_lt.
+                 lia.
+                 (* Int.min_signed <= size - (z0 + z2) <= Int.max_signed *)
                  admit.
+                 admit.
+                 erewrite Heqp0.
+                 erewrite Heqp.
+                 simpl.
+                 entailer!.
+                 admit.
+                 (* check Bytes and Int *)
                  *****
                  forward.
                  entailer!.
@@ -738,19 +809,33 @@ Proof.
                  admit.
                  (* true *)
                  admit.
-                 (* true  *)
-                 admit.
                  replace (size - z0 - z2 >? z3)  with false by admit.
+                 lia.
                  (* true  *)
                  admit.
                  (* true  *)
-                 admit.
+                 
                 **** admit.
                 **** admit.
                *** admit.
            * Zbool_to_Prop.
-             (* z <> 0 *)
-             admit. 
+              simpl.
+             Intros.
+             Zbool_to_Prop.
+             forward.
+           forward_if.
+           generalize H3.
+           strip_repr.
+           intro.
+           lia.
+         (*  unfold POSTCONDITION.
+           unfold abbreviate.
+           simpl. *)
+           forward.
+           assert (z = 1) as Z by lia.
+           erewrite Z.
+           entailer!.
+           (* do 2 f_equal. try lia. *)
       +++  (* CONTINUE  to LI *)
           repeat break_let.
           forward.
@@ -760,11 +845,10 @@ Proof.
           repeat break_let.
           entailer!.
           break_if; Zbool_to_Prop; try lia.
-          (* fix limit_len in CONTINUE *)
-          admit.
           break_if; Zbool_to_Prop; try lia.          
           entailer!.         
-      +++ repeat break_let.
+      +++ (* BREAK to rest *)
+          repeat break_let.
           forward_if True; try contradiction.
           forward.
           entailer!.
