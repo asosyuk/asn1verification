@@ -140,7 +140,7 @@ Proof.
                 (if eq_dec opt_codec_ctx_p nullval
                  then 0
                  else ASN__STACK_OVERFLOW_CHECK 0 max_stack_size) = 0].
-  + forward_empty_while.
+  + admit. (* forward_empty_while.
   assert (opt_codec_ctx_p <> nullval) as ON.
   { break_if; try nia.
     eassumption. }
@@ -163,7 +163,7 @@ Proof.
          erewrite AS.
          auto. }
     erewrite N.
-    entailer!. 
+    entailer!.  *)
   + admit. (* forward.    
     entailer!.
     apply repr_inj_signed.
@@ -183,9 +183,10 @@ Proof.
                        (Int.repr 0))
                     (eval_cast tuint tint (Vint (Int.repr (len (tags td))))))))
                    )); try discriminate.
-     --- forward.
+     --- admit. 
+         (* forward.
          forward.
-         entailer!. 
+         entailer!. *) 
      ---
        Arguments eq_dec : simpl never.
        forward_if True.
@@ -204,16 +205,15 @@ Proof.
        forward.
        forward_if True.
        forward.
-       entailer!.
-       Print globals.
+       admit. (* entailer!. *)
     (*   match goal with
        | [ _ : _ |-  semax _ (PROPx ?P (LOCALx ?Q (SEPx ?R))) ?C ?Post ] =>
          replace Q with (gvars (fun x : ident => nullval) :: Q)
         end. *)
        (* assert_fail *)
        forward_call (true).
-       entailer!.
-       entailer!.
+       admit. (* entailer!. *)
+       admit. (* entailer!. *)
      (* MAIN LOOP *)       
      (* match goal with
        | [ _ : _ |-  semax _ (PROPx ?P (LOCALx ?Q (SEPx ?R))) ?C ?Post ] =>
@@ -483,7 +483,7 @@ Proof.
            | [ _ : _ |- semax _ ?Pre ?C ?Post ] =>
              forward_switch Pre
            end; clear Z0.
-           *** (* RC_FAIL  *)             
+           *** admit. (* (* RC_FAIL  *)             
               match goal with
                  | [ _ : _ |- semax _ ?Pre ?C ?Post ] =>
                    forward_empty_while_break Pre
@@ -494,7 +494,7 @@ Proof.
               rewrite_if_b. 
               forward_if True; try contradiction.
               forward.
-              entailer!. 
+              admit. (* entailer!. *) 
               forward_if (temp _t'12 Vzero);
                try forward; try entailer!.
              forward_if_add_sep (data_at Tsh 
@@ -512,8 +512,8 @@ Proof.
                auto. }
              erewrite N.
              (* entailer!. *)
-             admit.
-           ***  (* RC_FAIL: same *)
+             admit. *)
+           *** admit. (* (* RC_FAIL: same *)
               match goal with
                  | [ _ : _ |- semax _ ?Pre ?C ?Post ] =>
                    forward_empty_while_break Pre
@@ -524,7 +524,7 @@ Proof.
               rewrite_if_b. 
               forward_if True; try contradiction.
               forward.
-              entailer!. 
+              admit. (* entailer!. *) 
               forward_if (temp _t'12 Vzero);
                try forward; try entailer!.
              forward_if_add_sep (data_at Tsh 
@@ -542,11 +542,12 @@ Proof.
                auto. }
              erewrite N.
              (* entailer!. *)
-             admit.
+             admit. *)
            *** admit. (* forward.
                entailer!. *) 
            *** remember (map Vint (map Int.repr ptr)) as ptr'.
                normalize.
+               Intros. 
                assert_PROP ((Vptr b i) = 
                             field_address 
                               (tarray tuchar (len ptr)) [ArraySubsc 0] (Vptr b i)).
@@ -565,8 +566,6 @@ Proof.
                  econstructor; auto; cbn.
                  auto.
                  eapply Z.divide_1_l. }
-               Intros.
-               normalize.
                forward.
                entailer!.
                unfold is_int.
@@ -577,7 +576,8 @@ Proof.
                repeat erewrite Znth_map; auto; try nia.
                strip_repr.
                forward_if (temp _t'13 Vzero).
-             ** assert ((Znth 0 ptr & 32) <> 0) as Z.
+             ** admit. 
+                (* assert ((Znth 0 ptr & 32) <> 0) as Z.
                 { generalize H10.
                   subst.
                   repeat erewrite Znth_map.
@@ -590,7 +590,7 @@ Proof.
                   lia.
                   erewrite Zlength_map.
                   lia. }
-                lia.
+                lia. *)
              ** admit. (* forward.  entailer!. *)
              ** forward.
                 forward_if
@@ -606,12 +606,13 @@ Proof.
                 normalize.
                 forward.
                 forward_if. 
-             ++ (* RC_FAIL case *) 
+             ++ admit. 
+                (* (* RC_FAIL case *) 
                forward_empty_while.
               rewrite_if_b. 
               forward_if True; try contradiction.
               forward.
-              entailer!. 
+              admit. (* entailer!. *) 
               forward_if (temp _t'14 Vzero);
                try forward; try entailer!.
              forward_if_add_sep (data_at Tsh 
@@ -647,7 +648,7 @@ Proof.
                lia.
                auto. }
              erewrite N.
-             entailer!.
+             admit. (* entailer!. *) *)
              ++ admit. (* forward. 
                 entailer!. *) 
              ++  forward.
@@ -655,10 +656,10 @@ Proof.
                  lia.
              ++++ forward_if (temp _t'18 Vzero); try congruence.
                   forward.
-                  entailer!.
+                  admit. (* entailer!. *)
                   forward_if.
                   lia.
-                  forward;  entailer!. 
+                  forward;  admit. (* entailer!. *) 
              ++++  
               (* size : Z, data : list Z,
                  isc : Z, buf_b : block, buf_ofs : ptrofs,      
@@ -723,6 +724,7 @@ Proof.
                  | [ _ : _ |- semax _ ?Pre ?C ?Post ] =>
                    forward_switch Pre
                  end. clear Z2.
+             admit. (* (* RC FAIL 
                  {  match goal with
                  | [ _ : _ |- semax _ ?Pre ?C ?Post ] =>
                    forward_empty_while_break Pre
@@ -730,7 +732,7 @@ Proof.
               rewrite_if_b. 
               forward_if True; try contradiction.
               forward.
-              entailer!. 
+              admit. (* entailer!. *) 
               forward_if (temp _t'20 Vzero);
                try forward; try entailer!.
              forward_if_add_sep (data_at Tsh 
@@ -750,7 +752,7 @@ Proof.
                break_if; auto.
                }
              erewrite N.
-             admit. (* RC_FAIL *) }
+             admit. (* RC_FAIL *) } *) *)
              admit. (* same *)
                  forward.
                  admit. (* entailer! *)
@@ -783,11 +785,11 @@ Proof.
                              (size - z0) (sizeof tuint) Int.modulus)))) + 
                Int.repr z0 + Int.repr z2)%int)); try contradiction.
                  (* RC_FAIL *)
-                  {  forward_empty_while.
+            admit. (*      {  forward_empty_while.
               rewrite_if_b. 
               forward_if True; try contradiction.
               forward.
-              entailer!. 
+              admit. (* entailer!. *) 
               forward_if (temp _t'23 Vzero);
                try forward; try entailer!.
              forward_if_add_sep (data_at Tsh 
@@ -823,7 +825,7 @@ Proof.
                admit.
                }
              erewrite N.
-             admit. }
+             admit. } *)
                  forward.
                  admit. (* entailer! *)
                  admit. (* entailer! *)
@@ -917,9 +919,10 @@ Proof.
   data_at Tsh (tarray tuint (len (tags td))) (map Vint (map Int.repr (tags td))) tags_p;
   data_at_ Tsh asn_dec_rval_s res_p; data_at_ Tsh tint last_length_p))
                  end.
+                 admit.
                  repeat forward.
                  admit. (* entailer!. *)
-                 clear Z0 Z2.
+                 admit.
                  forward_if.
                  ***** 
                    (* z3 < size - z0 - z2 *) 
@@ -951,8 +954,9 @@ Proof.
                    Forall (fun x : Z => 0 <= x <= Byte.max_unsigned) ptr
                   also precondition to fetch length *)
                  admit.
-                 eapply repr_neq_e in H9.
-                 generalize H9.
+                 
+                 eapply repr_neq_e in H11.
+                 generalize H11.
                  rewrite Byte.unsigned_repr.
                  easy.
                  admit.
