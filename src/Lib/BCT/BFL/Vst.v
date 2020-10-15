@@ -131,7 +131,6 @@ Proof.
   entailer!.
 Qed.
 
-
 (* Indefinite length branch:  
 - forward_if (temp _t'1 Vzero); try contradiction.
   + admit.
