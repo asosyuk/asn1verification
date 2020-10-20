@@ -9,21 +9,24 @@ Instance CompSpecs : compspecs. make_compspecs prog. Defined.
  
 Open Scope int.
  
-Fixpoint bft_loop (ptr : list int) val skip size tclass sizeofval := 
-  if skip <=? size then
-  match ptr with
-  | oct :: xs => if eq_dec (oct & Int.repr 128) 0
-                then let val' := (val << Int.repr 7) or oct in
-                     let tag_r := (val' << Int.repr 2) or tclass in
-                     (Int.repr skip, tag_r)
-                else let val' := (val << Int.repr 7) or (oct & Int.repr 127) in
-                     if eq_dec (val >> Int.repr (8 * sizeofval - 9)) 0
-                     then bft_loop xs val' (skip + 1)%Z size tclass sizeofval
-                     else (Int.neg 1, val') 
-                
-  | [] => (0, val)
-  end
-  else (Int.repr skip, val).
+(*Fixpoint bft_loop n (ptr : list int) size tclass sizeofval : (int * int) := 
+  match n with
+    | S m =>
+       let skip := (len ptr - Z.of_nat n)%Z in
+       let (s, val) := bft_loop m ptr size tclass sizeofval in
+       if skip <=? size then
+      if eq_dec (nth n ptr 0 & Int.repr 128) 0
+      then let val' := (val << Int.repr 7) or (nth n ptr 0) in
+           let tag_r := (val' << Int.repr 2) or tclass in
+           (Int.repr skip, tag_r)
+      else 
+        let val' := (val << Int.repr 7) or (nth n ptr 0 & Int.repr 127) in
+        if eq_dec (val' >> Int.repr (8 * sizeofval - 9)) 0
+        then (s, val')
+        else (Int.neg 1, val') 
+       else (Int.repr skip, val)               
+  | O => (0, 0)
+  end.
 
 Definition ber_fetch_tags (ptr : list int) size sizeofval  :=
   if eq_dec size 0%Z
@@ -31,8 +34,39 @@ Definition ber_fetch_tags (ptr : list int) size sizeofval  :=
   else let val := Znth 0 ptr in 
        let tclass := val >> Int.repr 6 in 
        if eq_dec (val & Int.repr 31) (Int.repr 31)
-       then bft_loop (skipn 1 ptr) 0 2 size tclass sizeofval    
-       else (1, ((val & Int.repr 31) << Int.repr 2) or tclass).
+       then bft_loop (length ptr) (skipn 1 ptr) size tclass sizeofval    
+       else (1, ((val & Int.repr 31) << Int.repr 2) or tclass). *)
+
+Fixpoint bft_loop v (ptr : list int) skip (size : Z) tclass (sizeofval : Z)  := 
+  match ptr with
+    | [] => (0%Z, v)
+    | h :: tl => 
+      if skip <=? size then
+      if eq_dec (h & Int.repr 128) 0 
+      then (skip, (v << Int.repr 7) or h)
+      else 
+        let v := (v << Int.repr 7) or (h & Int.repr 127) in 
+        if eq_dec (v >> Int.repr (8 * sizeofval - 9)) 0
+        then let (r, v) := bft_loop v tl (skip + 1)%Z size tclass sizeofval in
+             (r, v << Int.repr 2 or tclass)
+        else (-1, v)
+      else (0%Z, v)
+  end.          
+
+Definition ber_fetch_tags (ptr : list int) size sizeofval  :=
+  if eq_dec size 0%Z
+  then (0%Z, 0)
+  else let val := Znth 0 ptr in 
+       let tclass := val >> Int.repr 6 in 
+       if eq_dec (val & Int.repr 31) (Int.repr 31)
+       then bft_loop 0 (skipn 1 ptr) 2 size tclass sizeofval    
+       else (1%Z, ((val & Int.repr 31) << Int.repr 2) or tclass).
+
+Eval cbv in (Int.repr (2^23 ) >> Int.repr 23).
+
+Eval cbv in ((1 or Int.repr 128)).
+Eval cbv in ber_fetch_tags [Int.repr 31; Int.repr 128 or Int.repr 123; Int.repr 128 or 0]
+                           32 (sizeof tuint).
 
 Open Scope Z.
 
@@ -56,10 +90,10 @@ Definition ber_fetch_tag_spec : ident * funspec :=
     POST [tint]
       let r := ber_fetch_tags data size (sizeof tuint) in
       PROP ()
-      LOCAL (temp ret_temp (Vint (fst r)))
+      LOCAL (temp ret_temp (Vint (Int.repr (fst r))))
       SEP (data_at Tsh (tarray tuchar (Zlength data)) 
                    (map Vint data) (Vptr b i);
-           if eq_dec (fst r) 1%int 
+           if eq_dec (fst r) 1 
            then data_at Tsh tuint (Vint ((snd r))) tag_p
            else data_at_ Tsh tuint tag_p).
 
@@ -113,9 +147,8 @@ Proof.
   match goal with
   | [ _ : _ |-  semax _ ?P ?C ?Post ] =>
     forward_loop (
-               EX j : Z, 
-                 let v := snd (bft_loop (sublist 0 j data)
-                                        0 j size tclass (sizeof tuint)) in
+               EX j : Z, EX v : int, EX k : Z,
+                 let v := snd (bft_loop v (sublist 1 j data) k size tclass (sizeof tuint)) in
                  PROP (0 <= j + 1 < len data)
                  LOCAL (temp _skipped (Vint (Int.repr (2 + j)));
                         temp _ptr (Vptr b (i + Ptrofs.repr j + 1)%ptrofs);
@@ -154,16 +187,14 @@ Proof.
   end.
   -- (* PRE to LI *) 
     Arguments eq_dec : simpl never.
-    Exists 0%Z.
+    Exists 0%Z 0 2.
     autorewrite with sublist.
     entailer!.
-    split.
     admit.
-    cbn; repeat break_if; try easy.
     erewrite data_at_zero_array_eq; auto.
     entailer!. 
   -- (* LI C LI *)
-    Intros j.
+    Intros j v k.
     forward_if.
     ++ 
             assert (data_at Tsh (tarray tuchar (len data - j - 1))
@@ -209,7 +240,7 @@ Proof.
        admit.
      --- (* end the loop *)
        repeat forward.
-       Exists (j + 1)%Z.
+       Exists (j + 1)%Z v (k - 1)%Z.
        entailer!.
        repeat split; try lia.
        admit.
@@ -219,6 +250,32 @@ Proof.
        cbn. 
        admit.
        f_equal.
+       assert (forall ls v j a size tclass, 
+                  bft_loop v (ls ++ [a]) 
+                      (j + 1) size tclass (sizeof tuint) = (r, v) ->
+                   (bft_loop v ls j size tclass (sizeof tuint) <<
+                     Int.repr 7) or (a & Int.repr 127))%int as K.
+       { induction ls.
+         - intros. 
+           autorewrite with sublist.
+           cbn.
+           admit.
+         - intros.
+           cbn.
+           cbn in IHls.
+           erewrite IHls.
+      
+       remember ((snd
+           (bft_loop v (sublist 1 j data) (j + 2) size (Znth 0 data >> Int.repr 6) (sizeof tuint)) <<
+         Int.repr 7) or (Znth (j + 1) data & Int.repr 127)) as val.
+       
+       replace (Z.to_nat (j + 1)) with (S (Z.to_nat j)).
+       simpl.
+       replace (j + 1 <=? size) with true.
+       clear D2.
+       rewrite if_false.
+       
+       
        assert (forall j data a ls size tclass, 
                   data = ls ++ [a] ->
                   snd (bft_loop data
