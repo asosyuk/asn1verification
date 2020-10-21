@@ -8,37 +8,6 @@ Definition Vprog : varspecs. mk_varspecs prog. Defined.
 Instance CompSpecs : compspecs. make_compspecs prog. Defined.
  
 Open Scope int.
- 
-(*Fixpoint bft_loop n (ptr : list int) size tclass sizeofval : (int * int) := 
-  match n with
-    | S m =>
-       let skip := (len ptr - Z.of_nat n)%Z in
-       let (s, val) := bft_loop m ptr size tclass sizeofval in
-       if skip <=? size then
-      if eq_dec (nth n ptr 0 & Int.repr 128) 0
-      then let val' := (val << Int.repr 7) or (nth n ptr 0) in
-           let tag_r := (val' << Int.repr 2) or tclass in
-           (Int.repr skip, tag_r)
-      else 
-        let val' := (val << Int.repr 7) or (nth n ptr 0 & Int.repr 127) in
-        if eq_dec (val' >> Int.repr (8 * sizeofval - 9)) 0
-        then (s, val')
-        else (Int.neg 1, val') 
-       else (Int.repr skip, val)               
-  | O => (0, 0)
-  end.
-
-Definition ber_fetch_tags (ptr : list int) size sizeofval  :=
-  if eq_dec size 0%Z
-  then (0, 0)
-  else let val := Znth 0 ptr in 
-       let tclass := val >> Int.repr 6 in 
-       if eq_dec (val & Int.repr 31) (Int.repr 31)
-       then bft_loop (length ptr) (skipn 1 ptr) size tclass sizeofval    
-       else (1, ((val & Int.repr 31) << Int.repr 2) or tclass). *)
-
-Print fold_left.
-
 
 Fixpoint range n :=
   match n with 
@@ -46,11 +15,35 @@ Fixpoint range n :=
   | S m => range m ++ [n]
   end.
 
-Definition aux ts := fold_left 
-                       (fun x y => (x << Int.repr 7) or (nth y ts 0 & Int.repr 127))
-                       (range (length ts - 1)%nat) 0.
+Fixpoint index {A} (f : A -> bool) ls l :=
+  match ls with
+  | [] => None
+  | x :: tl => if f x then Some (l - len tl)%Z else index f tl l
+  end.
 
-Eval cbn in (aux [1; Int.repr 2; Int.repr 3]).
+Definition append_val ls size := (fun x y => 
+                                    if Z.of_nat y <=? size 
+                                    then
+                                      (x << Int.repr 7)
+                                        or (nth y ls 0 & Int.repr 127)
+                                    else x). 
+
+Eval cbn in (let ls := [0; 1; Int.repr 2; Int.repr 3] in
+             fold_left (append_val ls 4) (range (length ls - 1)%nat) 0).
+
+Definition bft_loop ls size tclass := 
+  let n := index (fun h => (h & Int.repr 128) == 0) 
+              ls (len ls - 1)%Z in
+  match n with
+    | None => (0%Z, fold_left (append_val ls size) (range (length ls - 1)%nat) 0)
+    | Some n => let v := fold_left (append_val ls size) (range (Z.to_nat n + 1)) 0 in
+                if n <=? size
+                then               
+                (n, v << Int.repr 2 or tclass)
+                else (0%Z, v)
+  end.
+
+Eval cbv in (bft_loop [1 or Int.repr 128; 1 ; Int.repr 2]).
 
 Fixpoint bft_loop v (ptr : list int) skip (size : Z) tclass (sizeofval : Z)  := 
   match ptr with
@@ -184,16 +177,18 @@ Proof.
                               (Vptr b (i + Ptrofs.repr j + Ptrofs.repr 1)%ptrofs);
                       data_at_ Tsh tuint tag_p))
             break:
-             (EX j : Z, EX v : int,
-               let val := (Int.or (v << Int.repr 7) (Znth j data)) in
-               PROP (v >> Int.repr (8 * (sizeof tuint) - 9) <> 0) 
-                LOCAL (temp _skipped (Vint (Int.repr 2));
-                        temp _ptr (Vptr b (i + Ptrofs.repr j)%ptrofs);
-                        temp _val (Vint val);
-                        temp _t'1 (Vint (Znth 0 data & Int.repr 31)%int);
-                        temp _tclass (Vint (Znth 0 data >> Int.repr 6)%int);
-                        temp _size (Vint (Int.repr size));
-                        temp _tag_r tag_p)
+             (EX j : Z,
+             let val := fold_left 
+                       (fun x y => (x << Int.repr 7) or (nth y data 0 & Int.repr 127))
+                       (range (Z.to_nat j)) 0 in
+               PROP (j > size \/ j = len data) 
+               LOCAL (temp _skipped (Vint (Int.repr (len data)));
+                      temp _ptr (Vptr b (i + Ptrofs.repr j)%ptrofs);
+                      temp _val (Vint val);
+                      temp _t'1 (Vint (Znth 0 data & Int.repr 31)%int);
+                      temp _tclass (Vint (Znth 0 data >> Int.repr 6)%int);
+                      temp _size (Vint (Int.repr size));
+                      temp _tag_r tag_p)
                  SEP (data_at Tsh tuchar (Vint (Znth 0 data)) (Vptr b i);
                       data_at Tsh (tarray tuchar (len data - 1)) 
                               (sublist 1 (len data) (map Vint data))
@@ -292,13 +287,15 @@ Proof.
      erewrite sepcon_comm.
      erewrite sepcon_assoc.
      erewrite <- D2.
-     erewrite <- D.
      entailer!.
+     admit.
     ++ forward.
-       entailer!.
+       admit.
   --  (* BREAK rest POST *)
+    Intros j.
     forward.
     entailer!.
+    
     (* return 0 *)
     admit.
     rewrite if_false by admit.
