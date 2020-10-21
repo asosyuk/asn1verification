@@ -37,6 +37,21 @@ Definition ber_fetch_tags (ptr : list int) size sizeofval  :=
        then bft_loop (length ptr) (skipn 1 ptr) size tclass sizeofval    
        else (1, ((val & Int.repr 31) << Int.repr 2) or tclass). *)
 
+Print fold_left.
+
+
+Fixpoint range n :=
+  match n with 
+  | O => []
+  | S m => range m ++ [n]
+  end.
+
+Definition aux ts := fold_left 
+                       (fun x y => (x << Int.repr 7) or (nth y ts 0 & Int.repr 127))
+                       (range (length ts - 1)%nat) 0.
+
+Eval cbn in (aux [1; Int.repr 2; Int.repr 3]).
+
 Fixpoint bft_loop v (ptr : list int) skip (size : Z) tclass (sizeofval : Z)  := 
   match ptr with
     | [] => (0%Z, v)
@@ -147,9 +162,11 @@ Proof.
   match goal with
   | [ _ : _ |-  semax _ ?P ?C ?Post ] =>
     forward_loop (
-               EX j : Z, EX v : int, EX k : Z,
-                 let v := snd (bft_loop v (sublist 1 j data) k size tclass (sizeof tuint)) in
-                 PROP (0 <= j + 1 < len data)
+               EX j : Z, EX v : int, 
+                 let v := fold_left 
+                       (fun x y => (x << Int.repr 7) or (nth y data 0 & Int.repr 127))
+                       (range (Z.to_nat j)) 0 in
+                 PROP (0 < j + 1 <= len data)
                  LOCAL (temp _skipped (Vint (Int.repr (2 + j)));
                         temp _ptr (Vptr b (i + Ptrofs.repr j + 1)%ptrofs);
                         temp _val (Vint v);
@@ -187,24 +204,23 @@ Proof.
   end.
   -- (* PRE to LI *) 
     Arguments eq_dec : simpl never.
-    Exists 0%Z 0 2.
+    Exists 0%Z 0.
     autorewrite with sublist.
     entailer!.
-    admit.
     erewrite data_at_zero_array_eq; auto.
     entailer!. 
   -- (* LI C LI *)
-    Intros j v k.
+    Intros j v.
     forward_if.
     ++ 
-            assert (data_at Tsh (tarray tuchar (len data - j - 1))
+      assert (data_at Tsh (tarray tuchar (len data - j - 1))
                       (sublist (j + 1) (len data) (map Vint data))
                       (Vptr b (i + Ptrofs.repr j + 1)%ptrofs) =
-          (data_at Tsh tuchar (Vint (Znth (j + 1) data)) 
+              (data_at Tsh tuchar (Vint (Znth (j + 1) data)) 
                    (Vptr b (i + Ptrofs.repr j + 1)%ptrofs) *
-          data_at Tsh (tarray tuchar (len data - j - 2)) 
-                  (sublist (j + 1 + 1) (len data) (map Vint data))
-                  (Vptr b (i + Ptrofs.repr j + 1 + 1)%ptrofs))%logic) as D2.
+               data_at Tsh (tarray tuchar (len data - j - 2)) 
+                       (sublist (j + 1 + 1) (len data) (map Vint data))
+                       (Vptr b (i + Ptrofs.repr j + 1 + 1)%ptrofs))%logic) as D2.
   { erewrite split_non_empty_list 
       with (i := Vint (Znth (j + 1) data)) 
            (j2 := (len data - j - 2)%Z) 
@@ -212,7 +228,9 @@ Proof.
     auto. repeat erewrite <- map_sublist.
     erewrite <- map_cons.
     f_equal. erewrite Znth_0_cons_sublist; try lia; auto.
+    admit.
     all: autorewrite with sublist; strip_repr.
+    admit.
     admit.
   }
   replace (Ptrofs.repr 1) with 1%ptrofs by auto with ptrofs.
@@ -221,6 +239,7 @@ Proof.
   forward.
   entailer!.
   eapply Forall_Znth with (i0 := (j + 1)%Z) in H0; try lia.
+  admit.
   forward_if.
   ** forward.
      forward_if.
@@ -240,7 +259,7 @@ Proof.
        admit.
      --- (* end the loop *)
        repeat forward.
-       Exists (j + 1)%Z v (k - 1)%Z.
+       Exists (j + 1)%Z v.
        entailer!.
        repeat split; try lia.
        admit.
@@ -250,44 +269,19 @@ Proof.
        cbn. 
        admit.
        f_equal.
-       assert (forall ls v j a size tclass, 
-                  bft_loop v (ls ++ [a]) 
-                      (j + 1) size tclass (sizeof tuint) = (r, v) ->
-                   (bft_loop v ls j size tclass (sizeof tuint) <<
-                     Int.repr 7) or (a & Int.repr 127))%int as K.
-       { induction ls.
-         - intros. 
-           autorewrite with sublist.
-           cbn.
-           admit.
-         - intros.
-           cbn.
-           cbn in IHls.
-           erewrite IHls.
-      
-       remember ((snd
-           (bft_loop v (sublist 1 j data) (j + 2) size (Znth 0 data >> Int.repr 6) (sizeof tuint)) <<
-         Int.repr 7) or (Znth (j + 1) data & Int.repr 127)) as val.
-       
-       replace (Z.to_nat (j + 1)) with (S (Z.to_nat j)).
+       replace ((Z.to_nat (j + 1))) with (S (Z.to_nat j)).
        simpl.
-       replace (j + 1 <=? size) with true.
-       clear D2.
-       rewrite if_false.
-       
-       
-       assert (forall j data a ls size tclass, 
-                  data = ls ++ [a] ->
-                  snd (bft_loop data
-                      0 (j + 1) size tclass (sizeof tuint)) =
-               ((snd (bft_loop ls 0 j size tclass (sizeof tuint)) <<
-                     Int.repr 7) or (a & Int.repr 127))) as K.
-       { intros. 
-         admit. (* need app spec *)
-         }
-       erewrite K.
+       erewrite fold_left_app.
+       cbn.
+       replace (nth (S (Z.to_nat j)) data 0) with (Znth (j + 1) data).
        auto.
+       erewrite <- nth_Znth.
+       erewrite <- Z2Nat.inj_succ.
+       auto.
+       lia.
        admit.
+        erewrite <- Z2Nat.inj_succ; auto.
+       lia.
        entailer!.
        admit.
   ** (* return skipped case *)
