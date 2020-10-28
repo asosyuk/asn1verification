@@ -14,7 +14,15 @@ Ltac strip_repr :=
          try erewrite Int.unsigned_zero in *;
          repeat rewrite Int.unsigned_repr;  
          repeat rewrite Int.signed_repr;     
-         try rep_omega; auto. 
+         try rep_omega; auto;
+         autorewrite with norm;
+       unfold Ptrofs.add; unfold Ptrofs.mul; unfold Ptrofs.neg;
+       unfold Ptrofs.sub;
+       try erewrite Ptrofs.unsigned_one in *;
+         try erewrite Ptrofs.unsigned_zero in *;
+         repeat rewrite Ptrofs.unsigned_repr;  
+         repeat rewrite Ptrofs.signed_repr;     
+         try rep_omega; auto.
 
 Ltac rewrite_if_b := 
   try rewrite if_true in * by (reflexivity || assumption); 
