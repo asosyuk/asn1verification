@@ -24,79 +24,34 @@ Fixpoint index {A} (f : A -> bool) ls l :=
 Definition append_val ls 
   := (fun x y => (x << Int.repr 7) or (Znth (Z.of_nat y) ls & Int.repr 127)). 
   
+Eval cbn in fold_left  (fun x y => (x << Int.repr 7)
+                                  or (Znth (Z.of_nat y) [1;0;Int.repr 2] & Int.repr 127))
+                       (range 3) 0.
+
+Eval cbn in (index (fun x => x =? 2) [1;0;2;1]%Z 4).
+
 Definition bft_loop ls size tclass := 
-  let n := index (fun h => (h & Int.repr 128) == 0) 
-              ls (len ls - 1) in
-  let v := fold_left (append_val ls)
-                     (range (Z.to_nat size)) 0 in
-  match n with
+  let i := index (fun h => (h & Int.repr 128) == 0) ls (len ls) in
+  let v := fold_left (append_val ls) (range (Z.to_nat size)) 0 in
+  match i with
+    | Some i =>
+      if i <=? size then
+      let v := fold_left (append_val ls) (range (Z.to_nat i)) 0 in
+      ((i + 1)%Z, v << Int.repr 2 or tclass)
+      else (0%Z, v)
     | None => (0%Z, v)
-    | Some n => if (n + 2) <=? size
-                then               
-                ((n + 2)%Z, v << Int.repr 2 or tclass)
-                else (0%Z, v)
   end.
 
-(*
-Definition append_val ls size sizeofval 
-  := (fun x y => 
-        if ((Z.of_nat y <=? size) ||
-             ((x >> Int.repr (8 * sizeofval - 9))%int == 0))%bool
-        then
-          (x << Int.repr 7)
-            or (nth y ls 0 & Int.repr 127)
-        else x). 
+(*Parameter tclass : int.
 
-Eval cbn in (let ls := [0; 1; Int.repr 2; Int.repr 3] in
-             fold_left (append_val ls 4 (sizeof tuint)) 
-                       (range (length ls - 1)%nat) 0).
-
-Definition bft_loop ls size tclass := 
-  let n := index (fun h => (h & Int.repr 128) == 0) 
-              ls (size - 1)%Z in
-  let v := fold_left (append_val ls size (sizeof tuint))
-                             (range (Z.to_nat size - 1)%nat) 0 in
-  if eq_dec (v >> Int.repr (8 * sizeof tuint - 9)) 0%int 
-  then 
-  match n with
-    | None => (0%Z, v)
-    | Some n => if n <=? size
-                then               
-                (n, v << Int.repr 2 or tclass)
-                else (0%Z, v)
-  end
-  else (-1, v).
-
-
-Fixpoint bft_loop' v (ptr : list int) skip (size : Z) tclass (sizeofval : Z)  := 
-  match ptr with
-    | [] => (0%Z, v)
-    | h :: tl => 
-      if skip <=? size then
-      if eq_dec (h & Int.repr 128) 0 
-      then (skip, (v << Int.repr 7) or h)
-      else 
-        let v := (v << Int.repr 7) or (h & Int.repr 127) in 
-        if eq_dec (v >> Int.repr (8 * sizeofval - 9)) 0
-        then let (r, v) := bft_loop' v tl (skip + 1)%Z size tclass sizeofval in
-             (r, v << Int.repr 2 or tclass)
-        else (-1, v)
-      else (0%Z, v)
-  end. 
-
-Lemma fold_left_zero : forall n size,
-    fold_left (append_val [] size 4) (range n) 0 = 0.
-Proof.
-  induction n; intros.
-  - auto.
-  - simpl.
-    erewrite fold_left_app.
-    erewrite IHn.
-    cbn.
-    unfold append_val.
-    break_if; auto.
-Qed.
-*) 
+Goal exists v, v = (bft_loop [1 or Int.repr 128; 0 or Int.repr 128; Int.repr 2]
+                        3 tclass).
+eexists.
+unfold bft_loop.
+simpl.
+unfold append_val.
+cbn.
+*)
 
 Definition ber_fetch_tags (ptr : list int) size   :=
   if eq_dec size 0%Z
@@ -104,7 +59,7 @@ Definition ber_fetch_tags (ptr : list int) size   :=
   else let val := Znth 0 ptr in 
        let tclass := val >> Int.repr 6 in 
        if eq_dec (val & Int.repr 31) (Int.repr 31)
-       then bft_loop (sublist 1 (len ptr) ptr) size tclass     
+       then bft_loop (sublist 1 (len ptr) ptr) (size - 1) tclass     
        else (1%Z, ((val & Int.repr 31) << Int.repr 2) or tclass).
 
 Open Scope Z.
@@ -209,17 +164,17 @@ Proof.
                               (map Vint (sublist (j + 1) (len data) data))
                               (Vptr b (i + Ptrofs.repr j + Ptrofs.repr 1)%ptrofs);
                       data_at_ Tsh tuint tag_p))
-            break:
+            break:            
              (EX j : Z,
-             let val := fold_left 
-                        (append_val data)
+               let val := fold_left 
+                        (append_val data')
                               (range (Z.to_nat size - 1)) 0 in
-               PROP (j + 2 > size;
-                    (fold_left (append_val data)
+               PROP (size = (j + 1)%Z;
+                     (fold_left (append_val data')
                                  (range (Z.to_nat size - 1)) 0
                                  >> Int.repr (8 * sizeof tuint - 9)) = 0;
                     (index (fun h : int => (h & Int.repr 128) == 0) 
-                           (data) (len data - 1) = None)) 
+                           (data') (len data') = None)) 
                LOCAL (temp _skipped (Vint (Int.repr (2 + j)));
                       temp _ptr (Vptr b (i + Ptrofs.repr j + 1)%ptrofs);
                       temp _val (Vint val);
@@ -421,17 +376,16 @@ Proof.
           erewrite Znth_pos_cons; try lia.
           repeat f_equal; lia.
           eassumption.
-           }
-      
+           }      
       replace (sublist 1 (len data) data)
         with (sublist 1 (j + 1)%Z data ++
                       (Znth (j + 1)%Z data ::
                             sublist (j + 2) (len data) data)).
       erewrite index_spec_Some.
       autorewrite with sublist.
-       replace (j +  Z.succ (len data - (j + 2)) - 1 - (len data - (j + 2)))%Z
-         with (j )%Z by lia.
-      replace (j + 2 <=? size) with true by (symmetry; Zbool_to_Prop; lia).
+       replace (j +  Z.succ (len data - (j + 2)) - (len data - (j + 2)))%Z
+         with (j + 1)%Z by lia.
+      replace (j + 1 <=? size - 1) with true by (symmetry; Zbool_to_Prop; lia).
       cbn.
       lia.
       intros.
@@ -467,22 +421,13 @@ Proof.
      entailer!. 
      admit.
     ++ (* LI to BREAK *) 
-     (* forward.
-      Exists (j)%Z.
+      forward.
+      Exists j.
+      assert (size = j + 1)%Z by admit.
       entailer!.
-      repeat split.
-      generalize H8.
-      strip_repr.
-      lia.
-      (* 0 <= 2 + j <= Int.max_unsigned *)
-      admit.
-      eapply H6.
-      admit.
-      (* fold_left (append_val data size (sizeof tuint)) (range (Z.to_nat j)) 0 <> 0 *)
-      (* change LI *)
       assert (index_spec : forall data j,
-                (0 <= len data)%Z ->
-                (forall i : Z, 0 <= i < len data -> (Znth i data & Int.repr 128) <> 0) ->
+                 (0 <= len data)%Z ->
+                 (forall i : Z, 0 <= i < len data -> (Znth i data & Int.repr 128) <> 0) ->
                   index (fun h : int => (h & Int.repr 128) == 0) 
                         data j = None).
       { induction data0; intros until j0; intros J B.
@@ -507,20 +452,31 @@ Proof.
           list_solve.
           erewrite Znth_pos_cons; try lia.
           repeat f_equal; lia. }
-
+      replace (Z.to_nat (j + 1) - 1)%nat with (Z.to_nat j).
+      repeat split;
+       try eassumption.
       eapply index_spec.
       list_solve.
       clear H6.
       intros.
       eapply H7.
-      (* need to connect len data and j - change break *)
-      admit.    *) 
-      admit. 
+      autorewrite with sublist in H6.
+      split.
+      lia.
+      (* need 0 <= i0 < j *)
+      admit.      
+      erewrite Z2Nat.inj_add.
+      replace (Z.to_nat 1) with 1%nat by auto with arith.
+      omega.
+      lia.
+      lia.
+      (* data_at *)
+      admit.
   --  (* BREAK rest POST *)
     Intros j.
     forward.
     (* return 0 *)
-    assert (0%Z = fst (ber_fetch_tags data size)) as BF.
+    assert (0%Z = fst (ber_fetch_tags data (j + 1))) as BF.
     { unfold ber_fetch_tags.
       repeat rewrite_if_b.
       unfold bft_loop.
