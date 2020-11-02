@@ -94,7 +94,8 @@ Proof.
                  PROP (v >> Int.repr 23 = 0;
                        forall i, (0 <= i < j)%Z -> (Znth i data' & Int.repr 128) <> 0;
                        0 <= j + 2 <= Int.max_unsigned;
-                       (0 <= j)%Z)
+                       (0 <= j)%Z;
+                       (0 <= j + 1 <= size)%Z)
                  LOCAL (temp _skipped (Vint (Int.repr (2 + j)));
                         temp _ptr (Vptr b (i + 1 + Ptrofs.repr j)%ptrofs);
                         temp _val (Vint v);
@@ -119,7 +120,7 @@ Proof.
                      (fold_left (append_val data')
                                  (range (Z.to_nat size - 1)) 0
                                  >> Int.repr (8 * sizeof tuint - 9)) = 0;
-                    (index (fun h : int => (h & Int.repr 128) == 0) 
+                    (index (fun h : int => (h & Int.repr 128) == 0) size
                            (data') (len data') = None)) 
                LOCAL (temp _skipped (Vint (Int.repr (2 + j)));
                       temp _ptr (Vptr b (i + Ptrofs.repr j + 1)%ptrofs);
@@ -339,18 +340,18 @@ Proof.
       omega.
       lia.
       lia.
+      list_solve.
       intros.
       replace (Znth i0 (sublist 1 (j + 1) data)) with 
           (Znth i0  (sublist 1 (len data) data)).
       subst.
       eapply H7.
-      all: try autorewrite with sublist in H24; autorewrite with sublist;
+      all: try autorewrite with sublist in H25; autorewrite with sublist;
         auto; try lia.
-      erewrite <- H11.
+      erewrite <- H12.
       subst.
       erewrite Znth_sublist; try lia; auto. }
-  
-     assert ( 2 + j = fst (ber_fetch_tags data size))%Z as F.
+      assert ( 2 + j = fst (ber_fetch_tags data size))%Z as F.
      { erewrite RES. auto. }
      assert (0 <? fst (ber_fetch_tags data size) = true) as T
      by (Zbool_to_Prop; erewrite <- F; lia).
@@ -386,13 +387,31 @@ Proof.
     ++ (* LI to BREAK *) 
       forward.
       Exists j.
-      assert (size = j + 1)%Z by admit.
+      assert (size = j + 1)%Z by lia.
       entailer!.
-      
       replace (Z.to_nat (j + 1) - 1)%nat with (Z.to_nat j).
       repeat split;
        try eassumption.
-      eapply index_spec_None.
+      replace (sublist 1 (len data) data) with
+          ((sublist 1 j data) ++ (sublist j (len data) data)) at 1.
+      eapply index_app.
+      econstructor.
+      autorewrite with sublist.
+      eapply index_spec_None in M.
+      assert (index_app : forall A (ls1 ls2 ls : list A) f size j,
+                 index f size ls1 j = None -> 
+                 index f size (ls1 ++ ls2) j = None). 
+      { induction ls1.
+        - admit. 
+        - intros.
+          simpl in *.
+          break_if; auto.
+          
+          eapply IHls2 in H12.
+          simpl.
+          
+
+      eapply index_spec_None in H7.
       list_solve.
       clear H6.
       intros.
@@ -401,7 +420,10 @@ Proof.
       split.
       lia.
       (* need 0 <= i0 < j *)
-      admit.      
+      admit.
+      strip_repr.
+      do 2 f_equal.
+      lia.
       erewrite Z2Nat.inj_add.
       replace (Z.to_nat 1) with 1%nat by auto with arith.
       omega.

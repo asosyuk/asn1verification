@@ -1,4 +1,5 @@
 Require Import Core.Core  Types VST.floyd.proofauto Core.Notations.
+Require Import Core.Tactics.
 
 Open Scope int.
 
@@ -8,24 +9,26 @@ Fixpoint range n :=
   | S m => range m ++ [m]
   end.
 
-Fixpoint index {A} (f : A -> bool) ls l :=
+Fixpoint index {A} (f : A -> bool) size ls l :=
   match ls with
   | [] => None
-  | x :: tl => if f x then Some (l - len tl)%Z else index f tl l
+  | x :: tl => 
+    let i := (l - len tl)%Z in
+    if i <=? size 
+    then (if f x then Some i else index f size tl l)
+    else None
   end.
 
 Definition append_val ls 
   := (fun x y => (x << Int.repr 7) or (Znth (Z.of_nat y) ls & Int.repr 127)). 
   
 Definition bft_loop ls size tclass := 
-  let i := index (fun h => (h & Int.repr 128) == 0) ls (len ls) in
+  let i := index (fun h => (h & Int.repr 128) == 0) size ls (len ls) in
   let v := fold_left (append_val ls) (range (Z.to_nat size)) 0 in
   match i with
     | Some i =>
-      if i <=? size then
       let v := fold_left (append_val ls) (range (Z.to_nat i - 1)) 0 in
       ((i + 1)%Z, ((v << Int.repr 7) or Znth (i - 1) ls) << Int.repr 2 or tclass)
-      else (0%Z, v)
     | None => (0%Z, v)
   end.
 
@@ -38,27 +41,69 @@ Definition ber_fetch_tags (ptr : list int) size   :=
        then bft_loop (sublist 1 (len ptr) ptr) (size - 1) tclass     
        else (1%Z, ((val & Int.repr 31) << Int.repr 2) or tclass).
 
-Lemma index_spec_Some : forall data1 data2 b j,
+Lemma index_app : forall A (ls1 ls2 ls : list A) f size j,
+                 (size < j - len ls2)%Z -> 
+                 index f size ls1 (j - len ls2) = None -> 
+                 index f size (ls1 ++ ls2) j = None. 
+Proof.
+  induction ls1; intros.
+    - induction ls2.
+      + auto.
+      + simpl.
+        replace (j - len ls2 <=? size) with false.
+        auto.
+        symmetry.
+        Zbool_to_Prop.
+        autorewrite with sublist in *.
+        list_solve.
+    - intros.
+      simpl in *.
+      break_if; auto.
+      replace (j - len ls2 - len ls1 <=? size) with true in *.
+      break_if.
+      congruence.
+      eapply IHls1.
+      econstructor.
+      lia.
+      auto.
+      symmetry.
+      Zbool_to_Prop.
+      autorewrite with sublist in *.
+      list_solve.
+Qed.
+
+Lemma index_spec_Some : forall data1 data2 size b j,
+    (j - len data2 <= size)%Z ->
     (forall i : Z, 0 <= i < len data1 -> (Znth i data1 & Int.repr 128) <> 0) ->
     (b & Int.repr 128) = 0 ->
-    index (fun h : int => (h & Int.repr 128) == 0)%int 
+    index (fun h : int => (h & Int.repr 128) == 0)%int size
           (data1 ++ (b :: data2)) j 
     = Some (j - len data2)%Z.
-  { induction data1; intros until j; intros (* L *) B Z.
+  { induction data1; intros until j; intros S B Z.
     - unfold index.
       cbn -[len].
-      erewrite Z. simpl. f_equal.
+      erewrite Z. simpl.
+      break_if.
+      auto.
+      Require Import Core.Tactics.
+      Zbool_to_Prop.
+      lia.
     - simpl.
       erewrite IHdata1.
       replace ((a & Int.repr 128) == 0) with false.
+      break_if.
       auto.
+      Zbool_to_Prop.
+      autorewrite with sublist in Heqb0.
+      list_solve.
       symmetry.
       eapply Int.eq_false.
       replace a with (Znth 0 (a :: data1)).
       eapply B.
       autorewrite with sublist. list_solve.
       auto.
-      intros. 
+      auto.
+      intros.
       replace (Znth i data1) with (Znth (i + 1) (a :: data1)).
       eapply B.
       list_solve.
@@ -68,17 +113,17 @@ Lemma index_spec_Some : forall data1 data2 b j,
   }
 Qed.
 
-Lemma index_spec_None : forall data j,
+Lemma index_spec_None : forall data size j,
                  (0 <= len data)%Z ->
                  (forall i : Z, 0 <= i < len data -> (Znth i data & Int.repr 128) <> 0) ->
-                 index (fun h : int => (h & Int.repr 128) == 0) 
+                 index (fun h : int => (h & Int.repr 128) == 0) size 
                         data j = None.
   { induction data; intros until j; intros J B.
     - auto.
     - simpl.
       erewrite IHdata.
       replace ((a & Int.repr 128) == 0) with false.
-      auto.
+      break_if; auto.
       symmetry.
       eapply Int.eq_false.
       replace a with (Znth 0 (a :: data)).
