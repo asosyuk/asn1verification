@@ -1,67 +1,12 @@
 Require Import Core.Core Core.StructNormalizer VstLib.
 Require Import VST.floyd.proofauto.
-(* Require Import BFT.Exec. *)
+ Require Import BFT.Exec. 
 Require Import Clight.ber_tlv_tag.
 Require Import Core.Notations Core.SepLemmas Core.Tactics Core.VstTactics.
 
 Definition Vprog : varspecs. mk_varspecs prog. Defined.
 Instance CompSpecs : compspecs. make_compspecs prog. Defined.
  
-Open Scope int.
-
-Fixpoint range n :=
-  match n with 
-  | O => []
-  | S m => range m ++ [m]
-  end.
-
-Fixpoint index {A} (f : A -> bool) ls l :=
-  match ls with
-  | [] => None
-  | x :: tl => if f x then Some (l - len tl)%Z else index f tl l
-  end.
-
-Definition append_val ls 
-  := (fun x y => (x << Int.repr 7) or (Znth (Z.of_nat y) ls & Int.repr 127)). 
-  
-Eval cbn in fold_left  (fun x y => (x << Int.repr 7)
-                                  or (Znth (Z.of_nat y) [1;0;Int.repr 2] & Int.repr 127))
-                       (range 3) 0.
-
-Eval cbn in (index (fun x => x =? 2) [1;0;2;1]%Z 4).
-
-Definition bft_loop ls size tclass := 
-  let i := index (fun h => (h & Int.repr 128) == 0) ls (len ls) in
-  let v := fold_left (append_val ls) (range (Z.to_nat size)) 0 in
-  match i with
-    | Some i =>
-      if i <=? size then
-      let v := fold_left (append_val ls) (range (Z.to_nat i)) 0 in
-      ((i + 1)%Z, v << Int.repr 2 or tclass)
-      else (0%Z, v)
-    | None => (0%Z, v)
-  end.
-
-(*Parameter tclass : int.
-
-Goal exists v, v = (bft_loop [1 or Int.repr 128; 0 or Int.repr 128; Int.repr 2]
-                        3 tclass).
-eexists.
-unfold bft_loop.
-simpl.
-unfold append_val.
-cbn.
-*)
-
-Definition ber_fetch_tags (ptr : list int) size   :=
-  if eq_dec size 0%Z
-  then (0%Z, 0)
-  else let val := Znth 0 ptr in 
-       let tclass := val >> Int.repr 6 in 
-       if eq_dec (val & Int.repr 31) (Int.repr 31)
-       then bft_loop (sublist 1 (len ptr) ptr) (size - 1) tclass     
-       else (1%Z, ((val & Int.repr 31) << Int.repr 2) or tclass).
-
 Open Scope Z.
 
 Section Ber_fetch_tag.
@@ -88,7 +33,7 @@ Definition ber_fetch_tag_spec : ident * funspec :=
       LOCAL (temp ret_temp (Vint (Int.repr (fst r))))
       SEP (data_at Tsh (tarray tuchar (Zlength data)) 
                    (map Vint data) (Vptr b i);
-           if eq_dec (fst r) 1 
+           if 0 <? (fst r) 
            then data_at Tsh tuint (Vint ((snd r))) tag_p
            else data_at_ Tsh tuint tag_p).
 
@@ -134,6 +79,7 @@ Proof.
   erewrite <- D.
   unfold ber_fetch_tags.
   repeat rewrite_if_b.
+  simpl.
   entailer!.
   repeat forward.
   (* Loop *)
@@ -150,7 +96,7 @@ Proof.
                        0 <= j + 2 <= Int.max_unsigned;
                        (0 <= j)%Z)
                  LOCAL (temp _skipped (Vint (Int.repr (2 + j)));
-                        temp _ptr (Vptr b (i + Ptrofs.repr j + 1)%ptrofs);
+                        temp _ptr (Vptr b (i + 1 + Ptrofs.repr j)%ptrofs);
                         temp _val (Vint v);
                         temp _t'1 (Vint (Znth 0 data & Int.repr 31)%int);
                         temp _tclass (Vint (Znth 0 data >> Int.repr 6)%int);
@@ -162,7 +108,7 @@ Proof.
                               (Vptr b (i + 1)%ptrofs);
                       data_at Tsh (tarray tuchar (len data - j - 1)) 
                               (map Vint (sublist (j + 1) (len data) data))
-                              (Vptr b (i + Ptrofs.repr j + Ptrofs.repr 1)%ptrofs);
+                              (Vptr b (i + 1 + Ptrofs.repr j)%ptrofs);
                       data_at_ Tsh tuint tag_p))
             break:            
              (EX j : Z,
@@ -186,9 +132,7 @@ Proof.
                       data_at Tsh (tarray tuchar (len data - 1)) 
                               (sublist 1 (len data) (map Vint data))
                               (Vptr b (i + 1)%ptrofs);
-                      data_at Tsh tuint
-                              (Vint ((val << Int.repr 2) or
-                                 (Znth 0 data >> Int.repr 6)%int)) tag_p))
+                      data_at_ Tsh tuint tag_p))
   end.
   -- (* PRE to LI *) 
     Arguments eq_dec : simpl never.
@@ -204,16 +148,20 @@ Proof.
     Intros j v.
     forward_if.
     erewrite  Heqdata'.
+    assert (Znth j (sublist 1 (len data) data) =
+                 (Znth (j + 1) data)) as ZNTH.
+    autorewrite with sublist.
+    auto.
     ++ 
       assert (data_at Tsh (tarray tuchar (len data - j - 1))
                       (sublist (j + 1) (len data) (map Vint data))
-                      (Vptr b (i + Ptrofs.repr j + 1)%ptrofs) =
+                      (Vptr b (i + 1 + Ptrofs.repr j)%ptrofs) =
               (data_at Tsh tuchar
                    (Vint (Znth j (sublist 1 (len data) data))) 
-                   (Vptr b (i + Ptrofs.repr j + 1)%ptrofs) *
+                   (Vptr b (i + 1 + Ptrofs.repr j)%ptrofs) *
                data_at Tsh (tarray tuchar (len data - j - 2)) 
                        (sublist (j + 1 + 1) (len data) (map Vint data))
-                       (Vptr b (i + Ptrofs.repr j + 1 + 1)%ptrofs))%logic) as D2.
+                       (Vptr b (i + 1 + Ptrofs.repr j + 1)%ptrofs))%logic) as D2.
   { erewrite split_non_empty_list 
       with (i := Vint ((Znth j (sublist 1 (len data) data)))) 
            (j2 := (len data - j - 2)%Z) 
@@ -221,11 +169,9 @@ Proof.
     auto. repeat erewrite <- map_sublist.
     erewrite <- map_cons.
     f_equal. 
-    replace (Znth j (sublist 1 (len data) data)) with
-                 (Znth (j + 1) data).
+    erewrite ZNTH.
     erewrite Znth_0_cons_sublist; try lia; auto.
-    autorewrite with sublist.
-    auto.
+    
     all: autorewrite with sublist; strip_repr.
 
      }
@@ -315,11 +261,6 @@ Proof.
     do 2 f_equal.
     lia.
     f_equal.
-    cbn. 
-    strip_repr.
-    f_equal.
-    lia.
-    f_equal.
     replace ((Z.to_nat (j + 1))) with (S (Z.to_nat j)).
     simpl.
     erewrite fold_left_app.
@@ -340,122 +281,118 @@ Proof.
       erewrite Z2Nat.id.
       all: try lia. } *)
     entailer!.
+    autorewrite with sublist.
     (* data_at combine proof *) 
-    admit.
+    { erewrite <- ZNTH.
+      erewrite sepcon_assoc.
+      erewrite <- D2.
+      erewrite <- data_at_app_gen.
+      erewrite <- data_at_app_gen.
+      entailer!.
+       all: autorewrite with sublist; try lia; auto; try list_solve.
+       strip_repr.
+       erewrite sublist_map.
+       erewrite <- map_app.
+       f_equal.
+       autorewrite with sublist.
+       auto.
+       strip_repr. }
   ** (* return skipped case *)
      repeat forward.
-     entailer!.
-     { do 2 f_equal.
-       unfold ber_fetch_tags.
+        
+       remember (((((fold_left (append_val (sublist 1 (len data)  data))) (range (Z.to_nat j))
+                           0 << Int.repr 7) or Znth j (sublist 1 (len data)  data)) <<
+                Int.repr 2) or (Znth 0 data >> Int.repr 6)) as val.
+     assert (ber_fetch_tags data size = (2 + j, val))%Z as RES.
+     { unfold ber_fetch_tags.
        repeat rewrite_if_b.
-       unfold bft_loop.       
-       assert (index_spec_Some : forall data1 data2 b j,
-                (forall i : Z, 0 <= i < len data1 -> (Znth i data1 & Int.repr 128) <> 0) ->
-                 (b & Int.repr 128) = 0 ->
-                  index (fun h : int => (h & Int.repr 128) == 0) 
-                        (data1 ++ (b :: data2)) j 
-                  = Some (j - len data2)%Z).
-      { induction data1; intros until j0; intros (* L *) B Z.
-        - unfold index.
-          cbn -[len].
-          erewrite Z. simpl. f_equal.
-        - simpl.
-          erewrite IHdata1.
-          replace ((a & Int.repr 128) == 0) with false.
-          auto.
-          symmetry.
-          eapply Int.eq_false.
-          replace a with (Znth 0 (a :: data1)).
-          eapply B.
-          autorewrite with sublist. list_solve.
-          auto.
-          intros. 
-          replace (Znth i0 data1) with (Znth (i0 + 1) (a :: data1)).
-          eapply B.
-          list_solve.
-          erewrite Znth_pos_cons; try lia.
-          repeat f_equal; lia.
-          eassumption.
-           }      
-      replace (sublist 1 (len data) data)
-        with (sublist 1 (j + 1)%Z data ++
+       unfold bft_loop.    
+            
+      assert ((sublist 1 (len data) data) =
+         (sublist 1 (j + 1)%Z data ++
                       (Znth (j + 1)%Z data ::
-                            sublist (j + 2) (len data) data)).
+                            sublist (j + 2) (len data) data))) as DT.
+      {  replace (j + 2)%Z with (j + 1 + 1)%Z by lia.
+         erewrite Znth_0_cons_sublist.
+         autorewrite with sublist.
+         auto.
+         lia. }
+      erewrite DT at 1 2.
       erewrite index_spec_Some.
       autorewrite with sublist.
        replace (j +  Z.succ (len data - (j + 2)) - (len data - (j + 2)))%Z
          with (j + 1)%Z by lia.
       replace (j + 1 <=? size - 1) with true by (symmetry; Zbool_to_Prop; lia).
-      cbn.
+      unfold snd.
+      replace (Z.to_nat (j + 1) - 1)%nat with ((Z.to_nat j)).
+      simpl.
+      replace (Znth (j + 1) data) with
+          (Znth j (sublist 1 (len data) data)).
+      subst.
+      auto.
+      autorewrite with sublist.
+      f_equal.
+      lia.
+      autorewrite with sublist. auto.
+      erewrite Z2Nat.inj_add.
+      replace (Z.to_nat 1) with 1%nat by auto with arith.
+      omega.
+      lia.
       lia.
       intros.
       replace (Znth i0 (sublist 1 (j + 1) data)) with 
           (Znth i0  (sublist 1 (len data) data)).
+      subst.
       eapply H7.
-      autorewrite with sublist in H31.
-      lia.
-      erewrite Znth_sublist.
-      autorewrite with sublist.
-      erewrite Znth_sublist.
-      auto.
-      lia.
-      autorewrite with sublist in H31.      
-      lia.
-      lia.
-      autorewrite with sublist in H31.
-      lia.
+      all: try autorewrite with sublist in H24; autorewrite with sublist;
+        auto; try lia.
       erewrite <- H11.
-      erewrite Znth_sublist.
-      auto.
-      lia.
-      lia.
-      replace (j + 2)%Z with (j + 1 + 1)%Z by lia.
-      erewrite Znth_0_cons_sublist.
-      autorewrite with sublist.
-      auto.
-      lia. }
-     rewrite if_false by admit.
-     erewrite sepcon_comm.
-     erewrite sepcon_assoc.
-     erewrite <- D2.
-     entailer!. 
-     admit.
+      subst.
+      erewrite Znth_sublist; try lia; auto. }
+  
+     assert ( 2 + j = fst (ber_fetch_tags data size))%Z as F.
+     { erewrite RES. auto. }
+     assert (0 <? fst (ber_fetch_tags data size) = true) as T
+     by (Zbool_to_Prop; erewrite <- F; lia).
+     erewrite  T.
+     erewrite <- F.
+     remember (sublist 1 (len data) data) as data'.
+     assert (val = snd (ber_fetch_tags data size)) as G.
+     { erewrite RES. auto. }
+     erewrite G.
+     entailer!.
+     (*
+       (data_at Tsh tuchar (Vint (Znth 0 data)) (Vptr b i) *
+   data_at Tsh (tarray tuchar j) (sublist 1 (j + 1) (map Vint data)) (Vptr b (i + 1)%ptrofs) *
+   data_at Tsh (tarray tuchar (len data - j - 1)) (sublist (j + 1) (len data) (map Vint data))
+     (Vptr b (i + Ptrofs.repr j + 1)%ptrofs))%logic
+  |-- data_at Tsh (tarray tuchar (len data)) (map Vint data) (Vptr b i)
+      *)
+     { 
+       erewrite sepcon_comm.
+       erewrite sepcon_comm.
+       erewrite sepcon_assoc.     
+       erewrite sepcon_assoc.
+       erewrite <- D2.
+       replace (i + Ptrofs.repr j + 1)%ptrofs with (((i + 1) + Ptrofs.repr j)%ptrofs).
+       erewrite <- data_at_app_gen.
+       erewrite <- D.
+       entailer!.
+       all: autorewrite with sublist; try lia; auto; try list_solve.
+       strip_repr.
+       strip_repr.
+       f_equal.
+       lia. }
     ++ (* LI to BREAK *) 
       forward.
       Exists j.
       assert (size = j + 1)%Z by admit.
       entailer!.
-      assert (index_spec : forall data j,
-                 (0 <= len data)%Z ->
-                 (forall i : Z, 0 <= i < len data -> (Znth i data & Int.repr 128) <> 0) ->
-                  index (fun h : int => (h & Int.repr 128) == 0) 
-                        data j = None).
-      { induction data0; intros until j0; intros J B.
-        - auto.
-        - simpl.
-          erewrite IHdata0.
-          replace ((a & Int.repr 128) == 0) with false.
-          auto.
-          symmetry.
-          eapply Int.eq_false.
-          replace a with (Znth 0 (a :: data0)).
-          eapply B.
-          autorewrite with sublist.
-          list_solve.
-          auto.
-          list_solve.
-          intros. 
-          assert (0 <= i0 < len (a :: data0)) as I.
-          list_solve.
-          replace (Znth i0 data0) with (Znth (i0 + 1) (a :: data0)).
-          eapply B.
-          list_solve.
-          erewrite Znth_pos_cons; try lia.
-          repeat f_equal; lia. }
+      
       replace (Z.to_nat (j + 1) - 1)%nat with (Z.to_nat j).
       repeat split;
        try eassumption.
-      eapply index_spec.
+      eapply index_spec_None.
       list_solve.
       clear H6.
       intros.
@@ -471,7 +408,20 @@ Proof.
       lia.
       lia.
       (* data_at *)
-      admit.
+      { replace (i + Ptrofs.repr (j + 1))%ptrofs with 
+            (i + 1 + Ptrofs.repr j)%ptrofs.
+        erewrite <- data_at_app_gen.
+        entailer!.
+        all: autorewrite with sublist; try lia; auto; try list_solve.
+        erewrite sublist_map.
+        erewrite <- map_app.
+        f_equal.
+        autorewrite with sublist.
+        auto.
+       strip_repr.
+       strip_repr.
+       f_equal.
+       lia.  }
   --  (* BREAK rest POST *)
     Intros j.
     forward.
@@ -484,7 +434,7 @@ Proof.
       erewrite H8.
       auto. }
     erewrite <- BF.
-    rewrite if_false by lia.
+    simpl.
     erewrite sepcon_comm.
     erewrite <- D.
     entailer!.
