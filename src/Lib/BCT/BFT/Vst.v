@@ -393,34 +393,28 @@ Proof.
       repeat split;
        try eassumption.
       replace (sublist 1 (len data) data) with
-          ((sublist 1 j data) ++ (sublist j (len data) data)).
+          ((sublist 1 (j + 1) data) ++ (sublist (j + 1) (len data) data)).
       eapply index_app.
       econstructor.
-      repeat erewrite Zlength_sublist.
-      admit.
-      admit.
+      autorewrite with sublist.
       lia.
       eapply index_spec_None.
       list_solve.
-      erewrite Zlength_sublist.
+      autorewrite with sublist.
       intros.
-      replace (Znth i0 (sublist 1 j data)) with (Znth i0 (sublist 1 (len data) data)).
-      eapply H7.
-      lia.
+      replace (Znth i0 (sublist 1 (j + 1) data))
+        with (Znth i0 (sublist 1 (len data) data)).
+      eapply H7; try lia.
       autorewrite with sublist.
       auto.
-      admit.
-      lia.
       autorewrite with sublist.
-      admit.
+      auto.
       strip_repr.
       do 2 f_equal.
       lia.
-      erewrite Z2Nat.inj_add.
+      erewrite Z2Nat.inj_add; try lia.
       replace (Z.to_nat 1) with 1%nat by auto with arith.
       omega.
-      lia.
-      lia.
       (* data_at *)
       { replace (i + Ptrofs.repr (j + 1))%ptrofs with 
             (i + 1 + Ptrofs.repr j)%ptrofs.
