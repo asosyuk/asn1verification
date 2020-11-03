@@ -41,8 +41,8 @@ Definition ber_fetch_tags (ptr : list int) size   :=
        then bft_loop (sublist 1 (len ptr) ptr) (size - 1) tclass     
        else (1%Z, ((val & Int.repr 31) << Int.repr 2) or tclass).
 
-Lemma index_app : forall A (ls1 ls2 ls : list A) f size j,
-                 (size < j - len ls2)%Z -> 
+Lemma index_app_gen : forall A (ls1 ls2 ls : list A) f size j,
+                 (size < (j - len ls2) + 1)%Z -> 
                  index f size ls1 (j - len ls2) = None -> 
                  index f size (ls1 ++ ls2) j = None. 
 Proof.
@@ -70,6 +70,19 @@ Proof.
       Zbool_to_Prop.
       autorewrite with sublist in *.
       list_solve.
+Qed.
+
+Lemma index_app : forall A (ls1 ls2 ls : list A) f size,
+                 (size < len ls1 + 1)%Z -> 
+                 index f size ls1 (len ls1) = None -> 
+                 index f size (ls1 ++ ls2) (len (ls1 ++ ls2)) = None. 
+Proof.
+  intros.
+  eapply index_app_gen.
+  auto.
+  list_solve.
+  autorewrite with sublist.
+  auto.
 Qed.
 
 Lemma index_spec_Some : forall data1 data2 size b j,

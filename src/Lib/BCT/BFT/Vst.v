@@ -120,7 +120,7 @@ Proof.
                      (fold_left (append_val data')
                                  (range (Z.to_nat size - 1)) 0
                                  >> Int.repr (8 * sizeof tuint - 9)) = 0;
-                    (index (fun h : int => (h & Int.repr 128) == 0) size
+                    (index (fun h : int => (h & Int.repr 128) == 0) (size - 1)
                            (data') (len data') = None)) 
                LOCAL (temp _skipped (Vint (Int.repr (2 + j)));
                       temp _ptr (Vptr b (i + Ptrofs.repr j + 1)%ptrofs);
@@ -393,33 +393,25 @@ Proof.
       repeat split;
        try eassumption.
       replace (sublist 1 (len data) data) with
-          ((sublist 1 j data) ++ (sublist j (len data) data)) at 1.
+          ((sublist 1 j data) ++ (sublist j (len data) data)).
       eapply index_app.
       econstructor.
-      autorewrite with sublist.
-      eapply index_spec_None in M.
-      assert (index_app : forall A (ls1 ls2 ls : list A) f size j,
-                 index f size ls1 j = None -> 
-                 index f size (ls1 ++ ls2) j = None). 
-      { induction ls1.
-        - admit. 
-        - intros.
-          simpl in *.
-          break_if; auto.
-          
-          eapply IHls2 in H12.
-          simpl.
-          
-
-      eapply index_spec_None in H7.
-      list_solve.
-      clear H6.
-      intros.
-      eapply H7.
-      autorewrite with sublist in H6.
-      split.
+      repeat erewrite Zlength_sublist.
+      admit.
+      admit.
       lia.
-      (* need 0 <= i0 < j *)
+      eapply index_spec_None.
+      list_solve.
+      erewrite Zlength_sublist.
+      intros.
+      replace (Znth i0 (sublist 1 j data)) with (Znth i0 (sublist 1 (len data) data)).
+      eapply H7.
+      lia.
+      autorewrite with sublist.
+      auto.
+      admit.
+      lia.
+      autorewrite with sublist.
       admit.
       strip_repr.
       do 2 f_equal.
