@@ -19,15 +19,37 @@ Fixpoint index {A} (f : A -> bool) size ls l :=
     else None
   end.
 
+
+(* let v := fold_left (append_val data') (range (Z.to_nat j)) 0 in
+                 PROP (v >> Int.repr 23 = 0; *)
+
 Definition append_val ls 
-  := (fun x y => (x << Int.repr 7) or (Znth (Z.of_nat y) ls & Int.repr 127)). 
-  
+  := (fun x y =>
+        (x << Int.repr 7) or (Znth (Z.of_nat y) ls & Int.repr 127)). 
+
+(*Definition append_val ls 
+  := (fun x y =>
+        if x >> Int.repr 23 == 0 
+        then (x << Int.repr 7) or (Znth (Z.of_nat y) ls & Int.repr 127)
+        else x). *)
+
+Eval cbv in (fold_left ((fun ls x y =>
+        if x >> Int.repr 23 == 0 
+        then (x << Int.repr 7) or (Znth (Z.of_nat y) ls & Int.repr 127)
+        else x) [1]) (range 3%nat) (Int.repr Int.max_unsigned)).  
+
 Definition bft_loop ls size tclass := 
   let i := index (fun h => (h & Int.repr 128) == 0) size ls (len ls) in
   let v := fold_left (append_val ls) (range (Z.to_nat size)) 0 in
+  let r := match i with | Some i => i | None => (size + 1)%Z end in 
+  let ex := existsb (fun n => 
+                let v' := fold_left (append_val ls) (range n) 0 in
+                negb (v' >> Int.repr 23 == 0))
+              (range (Z.to_nat r)) in
+  if ex then (-1, v) else 
   match i with
     | Some i =>
-      let v := fold_left (append_val ls) (range (Z.to_nat i - 1)) 0 in
+      let v := fold_left (append_val ls) (range (Z.to_nat i - 1)) 0 in     
       ((i + 1)%Z, ((v << Int.repr 7) or Znth (i - 1) ls) << Int.repr 2 or tclass)
     | None => (0%Z, v)
   end.

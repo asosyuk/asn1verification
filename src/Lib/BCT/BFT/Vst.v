@@ -188,51 +188,93 @@ Proof.
      forward_if.
      ---
      forward.
-     entailer!.
+     assert (fst (ber_fetch_tags data size) = -1) as F.
      (* -1 case *)
      { unfold ber_fetch_tags.
        repeat rewrite_if_b.
-       clear D.
+       clear D.   
        unfold bft_loop.
-    (*   rewrite if_false.
-       auto.
-       assert (j + 1 <= size - 1)%Z by lia.
-     
-              
-       assert (bft_loop_monotonicity : forall data size j m,
-                  (j <= m)%Z ->
-                  ((fold_left (append_val data size 4) (range (Z.to_nat j)) 0) 
-                      >> Int.repr (8 * 4 - 9)) <> 0 ->
-                   (fold_left (append_val data size 4) 
-                              (range (Z.to_nat m)) 0 >> Int.repr (8 * 4 - 9)) <> 0).
-       { admit. }
-       replace (Z.to_nat size - 1)%nat with (Z.to_nat (size -1)).
-       eapply bft_loop_monotonicity with (j := (j + 1)%Z).
+       replace (Z.to_nat (size - 1) + 1)%nat with (Z.to_nat size).
+        assert (range_In : forall n m, (0 <= n < m)%nat -> (0 < m)%nat -> In n (range (m))). 
+         { (*induction m; intros N.
+           - simpl.
+             assert (n = 0)%nat as M by lia.
+             erewrite M.
+             lia.
+           - simpl.
+             erewrite in_app.
+             destruct (Nat.eq_dec n (S m))%nat.
+             + right.
+               erewrite e.
+               econstructor.
+               auto.
+             + left.
+               eapply IHm; try lia. *)
+           admit.
+               }
+         assert (existsb
+        (fun n : nat =>
+         negb ((fold_left (append_val (sublist 1 (len data) data)) 
+                       (range n) 0 >> Int.repr 23) == 0))
+        (range (Z.to_nat (size))) = true) as E.
+       { erewrite existsb_exists.
+         exists (Z.to_nat (j + 1)).
+         split.
+        
+       eapply range_In.
+       split.
        lia.
-       replace (Z.to_nat (j + 1)) with (S (Z.to_nat j)).
+       eapply Z2Nat.inj_lt; try lia.
+       replace 0%nat with (Z.to_nat 0).
+       eapply Z2Nat.inj_lt; lia.
+       auto.
+       erewrite negb_true_iff.
+       erewrite Int.eq_false.
+       auto.
+       replace (Z.to_nat (j + 1)) with (S ((Z.to_nat (j)))).
        simpl.
        erewrite fold_left_app.
        simpl.
        unfold append_val at 1.
-       cbn in H6.
-       setoid_rewrite H6.
-       break_if.
-       * replace (nth (S (Z.to_nat j)) data 0) with (Znth (j + 1) data). 
-         cbn.
-         eassumption.
-         admit.
-       * destruct_orb_hyp.
-         discriminate.
-       * admit.
-       * admit.
-       * admit. } 
-       rewrite if_false by admit.
-       erewrite sepcon_comm.
-       erewrite sepcon_assoc.
+       generalize H13.
+       replace (8 * 4 - 9)%Z with 23 by lia.
+       erewrite Z2Nat.id.
+       auto.
+       lia.
+       erewrite <- Z2Nat.inj_succ.
+       auto.
+       lia. }
+       destruct (index (fun h : int => (h & Int.repr 128) == 0) (size - 1)
+                  (sublist 1 (len data) data) (len (sublist 1 (len data) data))).
+       --  assert (existsb
+        (fun n : nat =>
+         negb ((fold_left (append_val (sublist 1 (len data) data)) 
+                       (range n) 0 >> Int.repr 23) == 0))
+        (range (Z.to_nat z)) = true) as E'.
+       { (* follows from z <= size -1 *) admit. }
+       erewrite E'.
+       auto.
+       --
+       replace (size - 1 + 1)%Z with size by lia.
+       erewrite E.
+       auto.
+       --
+       replace 1%nat with (Z.to_nat 1).
+       erewrite <- Z2Nat.inj_add.
+       f_equal.
+       all: try lia.
+       auto. }
+       rewrite F. 
+       simpl.
+       entailer!.
+     { erewrite sepcon_assoc.
        erewrite <- D2.
-       admit. *)
-       admit. }
-     admit.
+       erewrite sepcon_assoc.
+       erewrite <- data_at_app_gen.
+       erewrite <- D.
+       entailer!.
+        all: autorewrite with sublist; try lia; auto; strip_repr;
+          try list_solve. }
      --- (* end the loop *)
        repeat forward.
        Exists (j + 1)%Z v.
@@ -290,14 +332,13 @@ Proof.
       erewrite <- data_at_app_gen.
       erewrite <- data_at_app_gen.
       entailer!.
-       all: autorewrite with sublist; try lia; auto; try list_solve.
-       strip_repr.
+       all: autorewrite with sublist; try lia; auto; strip_repr;
+          try list_solve.
        erewrite sublist_map.
        erewrite <- map_app.
        f_equal.
        autorewrite with sublist.
-       auto.
-       strip_repr. }
+       auto. }
   ** (* return skipped case *)
      repeat forward.
         
@@ -323,18 +364,27 @@ Proof.
       autorewrite with sublist.
        replace (j +  Z.succ (len data - (j + 2)) - (len data - (j + 2)))%Z
          with (j + 1)%Z by lia.
-      replace (j + 1 <=? size - 1) with true by (symmetry; Zbool_to_Prop; lia).
-      unfold snd.
-      replace (Z.to_nat (j + 1) - 1)%nat with ((Z.to_nat j)).
-      simpl.
+      assert (existsb
+      (fun n : nat =>
+       negb
+         ((fold_left (append_val (sublist 1 (len data) data)) (range n) 0 >> Int.repr 23) == 0))
+      (range (Z.to_nat (j + 1))) = false) as E by admit.
+      erewrite E.
+       erewrite DT at 1 2.
+      erewrite index_spec_Some.
+      autorewrite with sublist.
+       replace (j +  Z.succ (len data - (j + 2)) - (len data - (j + 2)))%Z
+         with (j + 1)%Z by lia.
+       f_equal.
+       lia.
+       subst.
+       assert ((len data - 1 - (len data - (j + 2))) = j + 1)%Z as J.
+       lia.
+       erewrite J.
+        replace (Z.to_nat (j + 1) - 1)%nat with ((Z.to_nat j)).
       replace (Znth (j + 1) data) with
           (Znth j (sublist 1 (len data) data)).
-      subst.
       auto.
-      autorewrite with sublist.
-      f_equal.
-      lia.
-      autorewrite with sublist. auto.
       erewrite Z2Nat.inj_add.
       replace (Z.to_nat 1) with 1%nat by auto with arith.
       omega.
@@ -350,7 +400,19 @@ Proof.
         auto; try lia.
       erewrite <- H12.
       subst.
-      erewrite Znth_sublist; try lia; auto. }
+      erewrite Znth_sublist; try lia; auto.
+       intros.
+      replace (Znth i0 (sublist 1 (j + 1) data)) with 
+          (Znth i0  (sublist 1 (len data) data)).
+      subst.
+      eapply H7.
+      all: try autorewrite with sublist in H25; autorewrite with sublist;
+        auto; try lia.
+      erewrite <- H12.
+      subst.
+      erewrite Znth_sublist; try lia; auto.
+     
+ }
       assert ( 2 + j = fst (ber_fetch_tags data size))%Z as F.
      { erewrite RES. auto. }
      assert (0 <? fst (ber_fetch_tags data size) = true) as T
@@ -440,6 +502,17 @@ Proof.
       unfold bft_loop.
       repeat rewrite_if_b.
       erewrite H8.
+      replace ((j + 1 - 1 + 1))%Z with (j + 1)%Z by lia.
+      assert (existsb
+        (fun n : nat =>
+         negb
+           ((fold_left (append_val (sublist 1 (len data) data)) (range n) 0 >> Int.repr 23) == 0))
+        (range (Z.to_nat (j + 1))) = false) as G.
+      { Search forallb.
+        
+      admit.
+      erewrite G.
+      
       auto. }
     erewrite <- BF.
     simpl.
