@@ -1,6 +1,24 @@
 Require Import VST.floyd.proofauto Psatz.
 Require Import StructTact.StructTactics Psatz Core.Notations.
 
+
+Lemma upd_Znth_idem: forall {A} j ls (a b : A),
+                 0 <= j < len ls ->           
+                 
+                 upd_Znth j (upd_Znth j ls b) a = upd_Znth j ls a).
+Proof.
+ intros.
+ erewrite upd_Znth_unfold.
+ erewrite sublist_upd_Znth_l.
+ erewrite sublist_upd_Znth_r.
+ erewrite upd_Znth_Zlength.
+ erewrite upd_Znth_unfold.
+ auto.
+ all: try nia.
+ erewrite upd_Znth_Zlength; try nia.
+ erewrite upd_Znth_Zlength; try nia. 
+Qed.
+
 Lemma Zlength_default_val : forall {cs} n t, 
     0 <= n -> 
     len (@default_val cs (tarray t n)) = n.

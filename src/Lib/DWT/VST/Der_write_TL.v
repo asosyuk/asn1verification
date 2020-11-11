@@ -67,7 +67,7 @@ Definition der_write_TL_spec : ident * funspec :=
         then emp
         else (func_ptr' dummy_callback_spec cb *
               data_at_ Tsh enc_key_s app_key);
-        valid_pointer cb)
+              valid_pointer cb)
   POST[tint]
     let size := if Val.eq cb nullval then 0 else 32 in
     PROP() 
@@ -80,8 +80,8 @@ Definition der_write_TL_spec : ident * funspec :=
     SEP(if Val.eq cb nullval 
         then emp
         else (func_ptr' dummy_callback_spec cb *
-              data_at_ Tsh enc_key_s app_key);
-        valid_pointer cb).
+              data_at_ Tsh enc_key_s app_key *
+              valid_pointer cb)).
 
 Definition Gprog := ltac:(with_library prog [der_write_TL_spec;
                                              ber_tlv_tag_serialize_spec; 
@@ -89,6 +89,7 @@ Definition Gprog := ltac:(with_library prog [der_write_TL_spec;
                                              (_cb, dummy_callback_spec)]).
 
 Open Scope Z.
+
 (*
 Theorem der_write_TL_serialize_correct: 
   semax_body Vprog Gprog (normalize_function f_der_write_TL composites)
@@ -651,4 +652,5 @@ data_at Tsh (tarray tuchar (len (map Vint tl) - 1))
       erewrite <- sublist_list_repeat with (k := 32); auto; nia.
       nia.
 Qed.
+
 *)
