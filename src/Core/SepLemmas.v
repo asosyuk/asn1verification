@@ -2,10 +2,16 @@ Require Import VST.floyd.proofauto Psatz.
 Require Import StructTact.StructTactics Psatz Core.Notations.
 
 
+Lemma default_val_app :
+  forall { cs : compspecs } t l1 l2, 
+               (default_val (tarray t l1) ++
+                default_val (tarray t l2)) = default_val (tarray t (l1 + l2)).
+Admitted.  
+
 Lemma upd_Znth_idem: forall {A} j ls (a b : A),
                  0 <= j < len ls ->           
                  
-                 upd_Znth j (upd_Znth j ls b) a = upd_Znth j ls a).
+                 upd_Znth j (upd_Znth j ls b) a = upd_Znth j ls a.
 Proof.
  intros.
  erewrite upd_Znth_unfold.

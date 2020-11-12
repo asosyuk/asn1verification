@@ -162,11 +162,11 @@ Proof.
   remember (len ts) as tags_count.
   forward_loop (
   EX j : Z, EX overall_length : Z, EX lens : list Z,
-  PROP (0 <= tags_count - j - 1 <= tags_count;
-        exists ls, der_write_tags_loop1 (sublist (tags_count - j) 
+  PROP (exists ls, der_write_tags_loop1 (sublist (tags_count - j) 
                                             tags_count ts) struct_len [] [] 
               = inr (ls, (lens, encode overall_length));
-       len lens = j)
+       len lens = j;
+       j <= tags_count)
   LOCAL (
   temp _tags tags_p;  
   temp _i (Vint (Int.repr tags_count - Int.repr j - 1)%int);
@@ -199,7 +199,8 @@ Proof.
   (EX lens : list Z, EX overall_length : Z, EX j : Z,
   PROP (j < 0;
         exists ls, der_write_tags_loop1 ts struct_len [] [] 
-              = inr (ls, (lens, encode overall_length)))
+              = inr (ls, (lens, encode overall_length));
+       len lens = len (tags td))
   LOCAL (temp _tags tags_p;
   temp _i (Vint (Int.repr j));
   temp _overall_length (Vint (Int.repr overall_length)); (* changed *)
@@ -234,19 +235,19 @@ Proof.
     repeat split.
     eexists. cbn. auto.
     strip_repr.
-    assert (forall { cs : compspecs } t l1 l2, 
-               (default_val (tarray t l1) ++
-                default_val (tarray t l2)) = default_val (tarray t (l1 + l2))) as DV.
-    admit. (* add lemma *)
-    repeat erewrite DV.
-    autorewrite with sublist.
+    repeat erewrite default_val_app.
     replace (len (tags td) + (16 - len (tags td))) with 16 by list_solve.
     entailer!.
   + Intros j overall_length lens.
     forward_if.
-    assert ((0 <= Int.unsigned (Int.repr (tags_count - j) - 1)%int 
+    assert (len (tags td) - len lens - 1 >= 0) as JJ.
+    { generalize H8.
+    strip_repr. intro. subst. list_solve. }
+     assert ((0 <= Int.unsigned (Int.repr (len (tags td) - j) - 1)%int 
              < len (map Int.repr (tags td)))) as TJ.
-    { erewrite Zlength_map; subst; strip_repr. }
+    { subst.
+      erewrite Zlength_map.
+      strip_repr. }
 (*    assert (tags_count - j - 1 >= 0) as TJ. 
     { generalize H8; strip_repr;
         subst;
@@ -255,20 +256,9 @@ Proof.
              < len ((tags td)))) as TJ'.
     { try erewrite Zlength_map; subst; strip_repr. }
     forward.
-  (*  entailer!.
     strip_repr.
-    entailer!.
-    erewrite app_Znth1.
-    erewrite Znth_map.
-    auto.
-    1-2: try (strip_repr;
-              list_solve).
-    erewrite app_Znth1.
-    strip_repr. *)
-    strip_repr.
-    (* erewrite zlist_hint_db.Znth_map_Vint. *)
     remember (Int.repr (Znth (tags_count - j - 1) ((ts)))) as fi.
-    destruct H6 as [ls Loop].
+    destruct H5 as [ls Loop].
     forward_call (fi, Int.repr overall_length, nullval, nullval, Int.zero, ls).
     entailer!. 
     rewrite_if_b.
@@ -291,13 +281,15 @@ Proof.
     repeat rewrite_if_b.
     Intros.
     forward.
+    entailer!.
     forward.
+    entailer!.
     entailer!.
     erewrite upd_Znth_same.
     cbn. auto.
     unfold default_val; cbn; try nia.
     autorewrite with sublist.
-    nia.
+    list_solve.
     erewrite upd_Znth_same.
     repeat rewrite_if_b.
     forward_if.
@@ -313,13 +305,13 @@ Proof.
     { Require Import Der_write_tags_lemmas.
       eapply eval_DWT_opt_to_Z.
       erewrite Heqts in *.
-      setoid_rewrite H6. auto. }
+      setoid_rewrite H5. auto. }
     destruct E as [err E].    
     unfold der_write_tags.
     assert (exists k, der_write_tags_loop1 (tags td) struct_len [] [] = inl k) as EEE.
     { erewrite Heqts in *. 
       exists err.
-      eapply write_TL_to_loop1_sublist with (j := len lens); 
+      eapply write_TL_to_loop1_sublist with (j := len lens); (* QED *)
       try list_solve;
       eassumption.
       }
@@ -335,13 +327,14 @@ Proof.
     intro.
     pose proof (Zlength_nonneg (tags td)).
     nia.
-    rewrite H6 in *.
+    rewrite H5 in *.
     erewrite EEE.
     congruence. } 
   }
     abbreviate_semax.
     deadvars!.
     forward.  
+    entailer!.
     entailer!.
     autorewrite with sublist.
     erewrite upd_Znth_same.
@@ -351,31 +344,32 @@ Proof.
     repeat rewrite Zlength_list_repeat;
     subst;
     generalize H8;
-    strip_repr; nia.
+    strip_repr; intro; try list_solve.
     repeat erewrite upd_Znth_same.
     forward.
     forward.
+    entailer!.
     entailer!.
     erewrite upd_Znth_same.
     auto.
     autorewrite with sublist.
     unfold default_val; simpl;
-    repeat rewrite Zlength_list_repeat; nia.
+    repeat rewrite Zlength_list_repeat; try list_solve.
     erewrite upd_Znth_same.
     forward.
+    entailer!.
     forward.
     assert (exists v, der_write_TL_m 
                    fi (Int.repr overall_length) 0 0%int ls = inr v) as I.
-    { eapply eval_DWT_opt_inr' in H6.
+    { eapply eval_DWT_opt_inr' in H5.
       eassumption. }
     destruct I as [v I].
-    unfold evalErrW in H6.
-    setoid_rewrite I in H6.
+    unfold evalErrW in H5.
+    setoid_rewrite I in H5.
     break_let.
     Exists (j + 1) (encoded a + overall_length) (overall_length :: lens).
     entailer!.
-    split. 
-    admit. (* 0 <= len (tags td) - (len lens + 1) - 1 <= len (tags td) *)
+    repeat split; auto; try list_solve.
     assert (exists ls', der_write_TL_m
                     (Int.repr (Znth (len (tags td) - len lens - 1) 
                            (tags td)))
@@ -385,7 +379,6 @@ Proof.
       unfold evalErrW.
       erewrite I.
       auto. }  
-    repeat split; auto; try list_solve.
     destruct E as [ls' TL].
     eexists.
     eapply write_TL_to_loop1_sublist_inr with (j := len lens).
@@ -436,19 +429,18 @@ Proof.
       erewrite upd_Znth_unfold.
       setoid_rewrite (Zlength_default_val).      
       autorewrite with sublist.
-      subst.
-      all: admit. (* default list manipulations *)     
-    }
+      replace (len (tags td) - Z.succ (len lens)) with 0 by list_solve.
+      autorewrite with sublist.
+      auto.
+      all: cbn; try list_solve. }
     setoid_rewrite U.
     entailer!.
     all: autorewrite with sublist.
     1-3: 
     setoid_rewrite Zlength_default_val;
-     try setoid_rewrite Zlength_default_val with (t := tint) (n := (16 - (tags_count - 1)));
-       try nia.
-    list_solve.
-    strip_repr.
-    list_solve.
+     try setoid_rewrite Zlength_default_val with (t := tint) (n := (16 - (tags_count)));
+       subst; try list_solve.
+    subst. strip_repr.
     ++ (* BREAK *)
     forward.
     Exists lens overall_length (tags_count - j - 1).
@@ -457,7 +449,7 @@ Proof.
     generalize H8.
     strip_repr.
     remember (len lens) as j.
-    destruct H6.
+    destruct H5.
     erewrite sublist_same_gen in H.
     eexists.
     eassumption.
@@ -466,6 +458,10 @@ Proof.
     intro.
     lia.
     lia.
+    generalize H8;
+      strip_repr;
+      intro;
+      list_solve.
     strip_repr.       
   + Intros lens overall_length j.
     forward_if.
@@ -474,14 +470,13 @@ Proof.
   {  
   destruct H6 as [ls Loop].
   forward_loop ( 
-  EX j : Z, EX l : Z, EX k : Z,
+  EX j : Z, EX l : Z, 
   PROP (0 <= j <= tags_count;
-        len lens = tags_count; (* Do we need this ? *)
-        exists ls, der_write_tags_loop2 (sublist 0 j ts)
+        exists ls', der_write_tags_loop2 (sublist 0 j ts)
                                   (sublist 0 j (map Int.repr lens)) 
-                                  k
+                                  j
                                   (if Val.eq cb nullval then 0 else 32)
-                                  struct_len [] = inr (ls, encode l))
+                                  last_tag_form ls = inr (ls', encode l))
   LOCAL (
   temp _i (Vint (Int.repr j));
   temp _tags tags_p;
@@ -509,10 +504,9 @@ Proof.
        func_ptr' dummy_callback_spec cb; data_at_ Tsh enc_key_s app_key; valid_pointer cb))%assert
 
   break: 
-  (EX l : Z,                     
-  PROP (exists ls', der_write_tags_loop2 ts (map Int.repr lens) 0
-                        (if Val.eq cb nullval then 0 else 32)
-                        last_tag_form ls = inr (ls', encode l))
+  (PROP (exists ls', der_write_tags_loop2 ts (map Int.repr lens) (len (tags td))
+                       (if Val.eq cb nullval then 0 else 32)
+                        last_tag_form ls = inr (ls', encode overall_length))
   LOCAL (temp _i (Vint (Int.repr tags_count)); 
          temp _tags tags_p;
          temp _overall_length (Vint (Int.repr overall_length));
@@ -540,16 +534,15 @@ Proof.
        data_at_ Tsh enc_key_s app_key; 
        valid_pointer cb))%assert.
   ++ forward.
-     Exists 0 0 0.
+     Exists 0 0.
      entailer!.
-      repeat split.
-     admit. (*  len lens = len (tags td) *)
-     exists []; auto.
- ++ Intros i l k.
+     exists ls; auto.
+ ++ Intros i l.
     forward_if. 
     { forward_if
-        (temp _t'4 ((Val.of_bool
-                            (Int.repr i < Int.repr (tags_count - 1))%int))).
+        (temp _t'4 
+              ((Val.of_bool
+                  (Int.repr i < Int.repr (tags_count - 1))%int))).
       congruence.
       forward.
       entailer!.
@@ -558,38 +551,40 @@ Proof.
       forward.
       assert ( (0 <= i < len (tags td))) as K' by (subst; list_solve).
       forward.
+      replace (len (tags td) - len lens) with 0 by list_solve.
+      autorewrite with sublist.
       forward.
       entailer!.
-      erewrite app_Znth1.
-      auto.
-      admit. (*  (Znth i (default_val (tarray tint (len (tags td) - len lens)))) *)
       autorewrite with sublist.
-      admit. (*  i < len (default_val (tarray tint (len (tags td) - len lens))) *) 
+      auto.
       erewrite app_Znth1.
-    forward_call (Int.repr (Znth i ts),
+      forward_call (Int.repr (Znth i ts),
                   Int.repr (Znth i lens),
-                  cb, app_key, 
-                  force_int (Val.of_bool (Int.repr i < Int.repr (len (tags td) - 1))%int), ls).
+                  cb, app_key, 0%int, ls).
     entailer!.
     cbn.
-    unfold force_int;
-    unfold Val.of_bool.
     repeat f_equal.
-    (* Znth i (list_repeat (Z.to_nat (len (tags td) - len lens)) Vundef) =
-  Vint (Int.repr (Znth i lens)) *)   
-    admit.
+    autorewrite with sublist.
+    auto.
     break_if; auto.
+    generalize Heqb.
+    unfold Int.lt.
+    strip_repr.
+    break_if; try lia.
+    congruence.
+    rewrite_if_b.
     unfold Frame.
-      instantiate
+    instantiate
       (1 :=
-         [(data_at Tsh (tarray tint 16)
-     (default_val (tarray tint (len (tags td) - len lens)) ++
-      map Vint (map Int.repr lens) ++ default_val (tarray tint (16 - len (tags td)))) v_lens *
+         [(@data_at CompSpecs Tsh (tarray tint 16)
+     (map Vint (map Int.repr lens) ++
+          default_val (tarray tint (16 - len (tags td)))) v_lens *
    data_at_ Tsh (tarray tuint 16) v_tags_buf_scratch *
    field_at Tsh (Tstruct _asn_TYPE_descriptor_s noattr) (DOT _tags) tags_p td_p *
    field_at Tsh (Tstruct _asn_TYPE_descriptor_s noattr) (DOT _tags_count)
-     (Vint (Int.repr (len (tags td)))) td_p *
-   data_at Tsh (tarray tuint (len (tags td))) (map Vint (map Int.repr (tags td))) tags_p)%logic]).
+            (Vint (Int.repr (len (tags td)))) td_p *
+   data_at Tsh (tarray tuint (len (tags td)))
+           (map Vint (map Int.repr (tags td))) tags_p)%logic]).
     unfold fold_right_sepcon.
     rewrite_if_b.
     entailer!.
@@ -605,121 +600,101 @@ Proof.
     forward.
     rewrite_if_b.
     entailer!.
-    remember (tags td) as ts.    
+    remember (tags td) as ts.   
+     assert (i = 0) as II by lia.
+    erewrite II in *.
       assert (exists e, der_write_TL_m
-                   (Int.repr (Znth i ts))
-                   (Int.repr (Znth i lens)) 32 (force_int
-                    (Val.of_bool (Int.repr i < Int.repr (len ts - 1))%int
-                     )) ls = inl e) as E.
+                   (Int.repr (Znth 0 ts))
+                   (Int.repr (Znth 0 lens)) 32 0%int ls = inl e) as E.
     { eapply eval_DWT_opt_to_Z.
       erewrite Heqts in *.
+      subst.
       setoid_rewrite H11. auto. }
     destruct E as [err E].  
     destruct H9 as [e2 Loop2].
-    assert (der_write_tags_loop2 
-              (sublist 0 (i + 1) ts)
-              (sublist 0 (i + 1) (map Int.repr lens)) (i)
-              32 0 ls = inl err) as EEE.
-    { admit. }
-    eapply write_TL_to_loop2_sublist in EEE.
-    replace i with (len ts) in EEE by admit.
-    unfold evalErrW.
-    rewrite_if_b.
-    repeat f_equal.
-    unfold der_write_tags.
-    cbn.
-    break_if. auto.
-    break_if.
-    Zbool_to_Prop.
-    list_solve.
-    subst.
-    erewrite Loop.
-    simpl.
-    erewrite EEE. auto.
-    entailer!.
-    (* change_compspecs CompSpecs. - not working - debug *)
+    { unfold der_write_tags.
+      break_if; Zbool_to_Prop; try list_solve.
+      subst; list_solve.
+      unfold evalErrW.
+      cbn.
+      break_if; Zbool_to_Prop; try list_solve.
+      subst.
+      erewrite Loop.
+      simpl.
+      replace (tags td) with [Znth 0 (tags td)].
+      replace (lens) with [Znth 0 lens].
+      simpl.
+      erewrite E.
+      auto.  
+      all: erewrite <- sublist_one with (hi := len lens);
+      try list_solve; 
+      autorewrite with sublist; auto. }
+     (* change_compspecs CompSpecs. - not working - debug *)
     admit. }
     forward.
-    Exists (i + 1).
+    Exists 1.
+    assert (i = 0) as II by lia.
+    erewrite II in *.
     assert (O := H11).
     eapply (eval_DWT_opt_inr
-              (Int.repr (Znth i ts))
-              (Int.repr (Znth i lens))
+              (Int.repr (Znth 0 ts))
+              (Int.repr (Znth 0 lens))
               (if Val.eq cb nullval then 0 else 32)
-              (force_int
-                 (if eq_dec (Int.repr last_tag_form) 0%int
-                  then Val.of_bool (Int.repr i < Int.repr (len (tags td) - 1))%int
-                  else Vone)) ls) in O.
+               0%int ls) in O.
     destruct O as [lso O].
+    
     break_match; try contradiction.
     break_match.
     Exists encoded.
-    Exists (k + 1).
     repeat rewrite_if_b.
     entailer!.
     destruct H9 as [ls' E].
     eexists.
-    rewrite_if_b.
-    assert (write_TL_to_loop2_sublist_inr : 
-               forall ts ll  ls1 ls2 j s i ltf v1 v2 ii,
-                 der_write_tags_loop2
-                   (sublist 0 j ts) 
-                   (sublist 0 j ll) (i - 1) s ltf ii = inr (ls1, v1) ->
-                 der_write_TL_m (Int.repr (Znth j ts))
-                                (Znth j ll) s 
-                   (if (negb (ltf =? 0) || (i - 1 <? len ts - 1))%bool
-                    then 1%int 
-                    else 0%int) ls1 = inr (ls2, v2) ->
-                 
-                 der_write_tags_loop2 
-                   (sublist 0 (j + 1) ts)
-                   (sublist 0 (j + 1) ll) 
-                   i s ltf ii = inr (ls2, v2)). admit.
-    eapply write_TL_to_loop2_sublist_inr.
-    replace (k + 1 - 1) with k by nia.
-    eassumption.
-    instantiate (1 := lso).
-    admit. (* from O *)
+    autorewrite with sublist.
+    { replace (tags td) with [Znth 0 (tags td)].
+      replace (lens) with [Znth 0 lens].
+      simpl.
+      erewrite O.
+      repeat f_equal.
+      lia.
+      all: erewrite <- sublist_one with (hi := len lens);
+        try list_solve; 
+        autorewrite with sublist; auto. }
+    replace (len (tags td) - len lens) with 0 by list_solve.
     entailer!.
     admit. (* change CompSpecs *)
-    rewrite_if_b.
-    rewrite if_true.
+    rewrite_if_b.   
     reflexivity.
     subst. auto.
-    admit. (* len (default_val) *)  }
+    list_solve. }
     (* loop break *)
     forward.
-    Exists l.
     entailer!.
     rewrite_if_b.
     split.
     generalize H9.
     autorewrite with sublist.
     auto.
-    (* remove k - change exec spec to reflect the restrictions *)
-    admit. 
+    (* l should become overall_length *)
+    admit.
     repeat f_equal.
     lia.
  ++ (* after loop *)
-    Intros l.
     forward.
     entailer!.
-    * destruct H6 as [a Loop2].
-      cbn.
-      unfold der_write_tags.
-      break_if. Zbool_to_Prop. lia.
-      repeat rewrite_if_b.
-      break_if; Zbool_to_Prop; try lia.
-      break_if; Zbool_to_Prop; try lia.
-      cbn.
-      unfold evalErrW.
-      erewrite Loop.
-      simpl.
-      replace (len (tags td)) with 0 by admit. (* why len here? - check exec *)
-      erewrite Loop2.
-      do 2 f_equal.
-      simpl.
-      admit.
+    destruct H6 as [ls' Loop2].
+    cbn.
+    unfold der_write_tags.
+    break_if. Zbool_to_Prop. lia.
+    repeat rewrite_if_b.
+    break_if; Zbool_to_Prop; try lia.
+    break_if; Zbool_to_Prop; try lia.
+    cbn.
+    unfold evalErrW.
+    erewrite Loop.
+    simpl.
+    erewrite Loop2.
+    do 2 f_equal.
 Admitted.
 
     
