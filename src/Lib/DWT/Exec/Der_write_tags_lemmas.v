@@ -94,22 +94,6 @@ Proof.
   nia.
 Qed.
 
-Lemma loop2_app_singleton : 
-  forall ts ll e s i ltf t l ls v b ii,
-    der_write_tags_loop2 ts ll i s ltf ii = inr (ls, v) ->
-    der_write_TL_m (Int.repr t) l s 
-                   (if negb (ltf =? 0) || (i <? len (ts ++ [b]) - 1)
-                    then 1%int 
-                    else 0%int) ls = inl e ->
-    der_write_tags_loop2 (ts ++ [b]) (ll ++ [Int.repr b]) i s ltf ii = inl e.
-Proof.
-Admitted.
-
-Lemma write_TL_to_loop2_sublist : 
-  forall ts ll j e s i ltf ii,
-    der_write_tags_loop2 (sublist 0 j ts) (sublist 0 j ll) i s ltf ii = inl e ->
-    der_write_tags_loop2 ts ll (len ts) s ltf ii = inl e.
-Admitted.
 
 Require Import Ber_tlv_tag_serialize_m.
 Require Import Ber_tlv_length_serialize_m.
@@ -140,37 +124,6 @@ Proof.
   congruence.
   reflexivity.
 Admitted.
-
-Lemma AUX : forall i i' t l s c e, 
-    der_write_TL_m t l s c i = inl e -> 
-    der_write_TL_m t l s c i' = inl e.
-Proof.
-  intros.
-  cbn in H.
-  destruct (tag_serialize t (Int.repr s) i) eqn : L.
-  inversion H.
-  cbn.
-  erewrite a with (i' := i').
-  auto.
-  subst.
-  eassumption.
-  cbn.
-  cbn in H.
-Admitted.
-
-(*Lemma AUX : forall i' i t l s c e , 
-    der_write_TL_m t l s c i = inl e -> 
-    der_write_TL_m t l s c (i ++ i') = inl e.
-Proof.
-  induction i'; intros until e; intro T.
-  - autorewrite with sublist.
-    auto.
-  - replace (i ++ a :: i') with ((i ++ [a]) ++ i').
-    eapply IHi'.
-    cbn.
-    repeat break_match; auto; try congruence.
-    1-3: admit.
-Admitted.  *)
 
 Parameter TL : Z -> option Z.
 
@@ -509,7 +462,7 @@ Proof.
   intros.
   unfold der_write_TL_m in H.
   cbn in H.
-  repeat break_match;
+(*  repeat break_match;
     try congruence;
   subst;
   inversion H;
@@ -533,10 +486,9 @@ Proof.
   try erewrite Zmod_small in H0;
   try nia;
   try rep_omega;
-  try eassumption. 
-Qed.
+  try eassumption. *)
+Admitted.
   
-
 Lemma eval_DWT_opt_to_Z : forall t l s c i,
   (Int.repr
     match
@@ -597,5 +549,4 @@ Proof.
   inversion H.
   auto.
 Qed.
-
 

@@ -7,7 +7,7 @@ Require Import Clight.dummy Lib.Callback.Dummy Exec.Der_write_TL_m.
 Require Import Ber_tlv_length_serialize
         Ber_tlv_tag_serialize.
 Require Import Exec.Ber_tlv_tag_serialize
-        Exec.Ber_tlv_length_serialize.
+        Exec.Ber_tlv_length_serialize Types.
 
 Definition composites :=
   composites ++ (match find_cs dummy._dummy dummy.composites with
@@ -83,8 +83,8 @@ Definition der_write_TL_spec : ident * funspec :=
     SEP(if Val.eq cb nullval 
         then emp
         else (func_ptr' dummy_callback_spec cb *
-              data_at_ Tsh enc_key_s app_key *
-              valid_pointer cb)).
+              data_at_ Tsh enc_key_s app_key);
+              valid_pointer cb).
 
 Definition Gprog := ltac:(with_library prog [der_write_TL_spec;
                                              ber_tlv_tag_serialize_spec; 
@@ -93,7 +93,7 @@ Definition Gprog := ltac:(with_library prog [der_write_TL_spec;
 
 Open Scope Z.
 
-(*
+
 Theorem der_write_TL_serialize_correct: 
   semax_body Vprog Gprog (normalize_function f_der_write_TL composites)
              der_write_TL_spec.
@@ -118,64 +118,92 @@ Proof.
          temp _cb cb; temp _app_key app_key;
          temp _constructed (Vint constructed))
   SEP (data_at_ Tsh (tarray tuchar 32) v_buf;
-       data_at_ Tsh enc_key_s app_key; valid_pointer cb;
-       func_ptr' dummy_callback_spec cb)).
+       
+       if Val.eq cb nullval 
+       then emp
+       else (data_at_ Tsh enc_key_s app_key *
+            func_ptr' dummy_callback_spec cb) ; valid_pointer cb)).
   - forward.
     unfold isptr in H.
-    repeat break_match;
+    repeat break_match; try contradiction.
     entailer!.
     discriminate.
+    entailer!.
     edestruct HPv_buf.    
-    subst. cbv. auto.
+    subst.
+    cbv. auto.
   - forward.
     entailer!.
+    edestruct HPv_buf.    
+    subst.
+    cbv. auto.
+    repeat rewrite_if_b. auto.
   - repeat forward.
     unfold isptr in *.
     destruct v_buf; try contradiction.
     cbn in H.
     break_if.
     (* cb = nullval *)
-    +  destruct (tag_serialize tag (Int.repr (0))) as [tl zt] eqn : TS. 
+    + destruct (tag_serialize tag (Int.repr (0))) as [tl zt] eqn : TS. 
       forward_call (tag, b, i, 0%Z, 32).
-      repeat split; try rep_omega.      
-      forward_if ((temp _t'3 (if eq_dec (Int.repr zt) (Int.repr (-1)) 
-                    then Vint (Int.one)
-                    else
-           (force_val
-         (sem_cast_i2bool
-            (Val.of_bool
-               (Int.repr 32 < Int.repr 
-                                (snd (tag_serialize tag (Int.repr 0))))%int)))))). 
-      1-2: repeat forward;
-           entailer!;
-           rewrite_if_b;
-           auto;
-           break_if; entailer!. 
+      repeat split; try rep_omega.
       assert (zt = -1) as Z. 
       { generalize TS.
         unfold tag_serialize.
             break_if;
               rewrite_if_b; intro HH; inversion HH;
                 auto. }
-      break_if; try congruence.
-      forward_if.
-      unfold POSTCONDITION.
-      unfold abbreviate.
+      erewrite TS.
+      erewrite Z.
+      rewrite_if_b.
+      simpl.
+      forward_if. congruence.
+      forward.
+      forward_if (temp _t'3 Vzero). congruence.
+      forward.
+      entailer!.
+      forward.
+          repeat forward;
+             entailer!. *)
+    
+      unfold evalErrW.
+      unfold der_write_TL_m.
+      erewrite TS.
+      break_let.
+      erewrite Z.
+      cbn.
+      auto.
+      break_let; break_if; entailer!.
+      forward.
+       forward_if ((temp _t'3 
+                        (if eq_dec (Int.repr zt) (Int.repr (-1)) 
+                    then Vint (Int.one)
+                    else
+           (force_val
+         (sem_cast_i2bool
+            (Val.of_bool
+               (Int.repr 32 < Int.repr 
+                                (snd (tag_serialize tag (Int.repr 0))))%int)))))).
+       
+          repeat forward;
+             entailer!.
       rewrite TS.
       assert (tag_serialize tag (Int.repr 0) = ([], -1)) as B.
       { unfold tag_serialize.
         break_if;
           rewrite_if_b;
           reflexivity. }
-      assert (der_write_TL tag l 0 constructed = ([], -1)) as L.
-      { unfold der_write_TL.
+      assert (der_write_TL_m tag l 0 constructed [] = inl (CustomError DWT_Error))  as L.
+      { unfold der_write_TL_m.
         repeat break_let.
         inversion B.
         cbn. auto. }  
-      rewrite L in *.
       rewrite_if_b.
-      forward.     
-      discriminate. 
+      forward.  
+      entailer!.
+      admit.
+      admit.
+      admit.
     + (* cb <> nullval *)
       unfold POSTCONDITION.
       unfold abbreviate.
@@ -656,4 +684,3 @@ data_at Tsh (tarray tuchar (len (map Vint tl) - 1))
       nia.
 Qed.
 
-*)

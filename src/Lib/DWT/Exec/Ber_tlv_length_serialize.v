@@ -112,40 +112,38 @@ Proof.
   repeat break_if; autorewrite with norm; nia.
 Qed.
 
-
 Definition length_serialize len size : list int * Z :=
    if (127 >=? Int.signed len)%Z then
     if eq_dec size 0%int 
-    then ([], -1%Z)
+    then ([], 1%Z)
     else ([Int.zero_ext 8 len], 1%Z) 
   else let r := required_size len in 
        if (r <? Int.unsigned size)%Z 
        then (serialize_length_app len, (r + 1)%Z) 
-       else ([], -1).
+       else ([], r + 1).
 
-Lemma length_serialize_req_size : forall l s, 
+Lemma tag_serialize_req_size : forall l s, 
     let (ls, z) := length_serialize l s in
-    z <> -1 -> len ls = z.
+    len ls <= z.
 Proof.
 intros.
 unfold length_serialize.
-repeat break_if; auto; try nia.
-intros.
 pose proof (req_size_32 l).
-unfold serialize_length_app.
+repeat break_if; auto; try list_solve.
 autorewrite with sublist list.
-erewrite  loop_len_req_size .
+unfold serialize_length_app.
+autorewrite with sublist.
+setoid_rewrite loop_len_req_size.
 erewrite Z2Nat.id; try nia.
 Qed.
 
 Lemma length_serialize_req_size_gt0 : forall l s, 
-    snd (length_serialize l s) <> -1 -> 0 < snd (length_serialize l s).
+     0 < snd (length_serialize l s).
 Proof.
 intros l s.
 unfold length_serialize.
-repeat break_if; auto; unfold snd in *; try nia.
 pose proof (req_size_32 l).
-nia.
+repeat break_if; auto; unfold snd in *; try nia.
 Qed.
 
 Lemma shr_lt_zero_32: 

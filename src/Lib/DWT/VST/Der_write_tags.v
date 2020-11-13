@@ -1,17 +1,23 @@
 Require Import Core.Core Core.StructNormalizer VstLib Exec.Der_write_tags 
         ErrorWithWriter Clight.dummy Callback.Dummy.
 Require Import VST.floyd.proofauto.
-Require Import Clight.der_encoder Types.
+
+
+
 Require Import VstTactics.
  Require Import Core.Tactics Core.Notations Core.SepLemmas.
+ Require Import VST.Der_write_TL Types. 
 
-(* Require Import VST.Der_write_TL. *)
+Require Import Clight.der_encoder .
 
 Definition composites :=
   composites ++ (match find_cs dummy._dummy dummy.composites with
                  | Some r => [r]
                  | None => []
-                 end).
+                 end) ++ (match find_cs dummy._application_specific_key dummy.composites with
+                 | Some r => [r]
+                 | None => []
+                 end) .
 
 Definition Vprog : varspecs. 
 Proof.
@@ -41,58 +47,18 @@ Proof. make_cs_preserve Dummy.CompSpecs CompSpecs. Defined.
 Instance Change2 : change_composite_env CompSpecs Dummy.CompSpecs.
 Proof. make_cs_preserve CompSpecs Dummy.CompSpecs. Defined.
 
+Instance Change4 : change_composite_env CompSpecs Der_write_TL.CompSpecs.
+Proof. make_cs_preserve CompSpecs Der_write_TL.CompSpecs. Defined.
+
+
+Instance Change3 : change_composite_env Der_write_TL.CompSpecs CompSpecs.
+Proof. make_cs_preserve Der_write_TL.CompSpecs CompSpecs. Defined.
+
+
 Open Scope Z.
 
 Section Der_write_tags.
-
-Definition type_descr_composites :=
-  ((_name, (tptr tschar)) :: (_xml_tag, (tptr tschar)) ::
-    (_op, (tptr (Tstruct _asn_TYPE_operation_s noattr))) ::
-    (_tags, (tptr tuint)) :: (_tags_count, tuint) ::
-    (_all_tags, (tptr tuint)) :: (_all_tags_count, tuint) ::
-    (_encoding_constraints, (Tstruct _asn_encoding_constraints_s noattr)) ::
-    (_elements, (tptr (Tstruct _asn_TYPE_member_s noattr))) ::
-    (_elements_count, tuint) :: (_specifics, (tptr tvoid)) :: nil).
-
-
-Fixpoint mk_TYPE_descriptor_repr (ls : list (ident * type))  :=
-  match ls with
-    | [] => val
-    | [h] => let (_, t) := h in reptype t
-    | h :: tl => let (_, t) := h in
-                (reptype t * mk_TYPE_descriptor_repr tl)%type
-  end.  
-
-Definition type_descr := mk_TYPE_descriptor_repr type_descr_composites.
-
-Definition get_tags_count (v : type_descr) :=
-  let (_, y) := v in
-  let (_, y) := y in
-  let (_, y) := y in
-  let (_, y) := y in
-  let (x, y) := y in
-        x. 
-
-Definition get_tags (v : type_descr) :=
-  let (_, y) := v in
-  let (_, y) := y in
-  let (_, y) := y in
-  let (x, y) := y in
-        x.
-
-(* from ber_check_tags
-   (tag_mode = 0;
-   last_tag_form = 0;
-   0 < len ptr <= Ptrofs.max_unsigned;
-   (Znth 0 ptr) & 32 = 0;
-   nullval = opt_ctx_p;
-   nullval = opt_tlv_form_p;
-   1 = len (tags td);
-   0 <= Ptrofs.unsigned i + len ptr <= Ptrofs.max_unsigned;
-   Forall (fun x => 0 <= x <= Byte.max_unsigned) ptr;
-   0 <= size <= Int.max_unsigned) *)
-
-           
+     
 Definition der_write_tags_spec : ident * funspec :=
   DECLARE _der_write_tags
   WITH td_p : val, td : TYPE_descriptor,
@@ -101,46 +67,50 @@ Definition der_write_tags_spec : ident * funspec :=
        tags_p : val
   PRE[tptr type_descriptor_s, tuint, tint, tint, tuint, 
       tptr cb_type, tptr tvoid]
-    PROP(tag_mode = 0;
+  PROP(tag_mode = 0;
          last_tag_form = 0;
          1 = len (tags td); (* primitive tag *)
          isptr tags_p;
          0 <= len (tags td) + 1 <= 16) 
-    PARAMS(td_p; Vint (Int.repr struct_len); Vint (Int.repr tag_mode);
+  PARAMS(td_p; Vint (Int.repr struct_len); Vint (Int.repr tag_mode);
            Vint (Int.repr last_tag_form); Vint (Int.repr tag); cb; app_key)
-    GLOBALS()
-    SEP(field_at Tsh (Tstruct _asn_TYPE_descriptor_s noattr) 
-                         [StructField _tags] 
-                         tags_p td_p;
-          field_at Tsh (Tstruct _asn_TYPE_descriptor_s noattr) 
-                         [StructField _tags_count] 
-                         (Vint (Int.repr (len (tags td)))) td_p;
+  GLOBALS()
+  SEP(field_at Tsh (Tstruct _asn_TYPE_descriptor_s noattr) 
+               [StructField _tags] 
+               tags_p td_p;
+        field_at Tsh (Tstruct _asn_TYPE_descriptor_s noattr) 
+                 [StructField _tags_count] 
+                 (Vint (Int.repr (len (tags td)))) td_p;
         data_at Tsh (tarray tuint (len (tags td))) (map Vint (map Int.repr (tags td))) tags_p;
         func_ptr' dummy_callback_spec cb;
         data_at_ Tsh enc_key_s app_key;
         valid_pointer cb)
-    POST[tint]
-    let size := if Val.eq cb nullval then 0 else 32 in
-      PROP()
+  POST[tint]
+  let size := if Val.eq cb nullval then 0 else 32 in
+  PROP()
       LOCAL(temp ret_temp 
-                 (Vint (Int.repr (match evalErrW 
-                 (der_write_tags td struct_len tag_mode last_tag_form tag size) [] with
-                                  | Some w => encoded w
-                                  | None => -1
-                                  end))))
+                 (Vint (Int.repr 
+                          (match evalErrW 
+                                   (der_write_tags td struct_len tag_mode
+                                                   last_tag_form tag size) [] with
+                           | Some w => encoded w
+                           | None => -1
+                           end))))
       SEP(field_at Tsh (Tstruct _asn_TYPE_descriptor_s noattr) 
-                         [StructField _tags] 
-                         tags_p td_p;
-         field_at Tsh (Tstruct _asn_TYPE_descriptor_s noattr) 
-                  [StructField _tags_count] 
-                  (Vint (Int.repr (Zlength (tags td)))) td_p;
-          data_at Tsh (tarray tuint (len (tags td))) 
-                  (map Vint (map Int.repr (tags td))) tags_p;
-          func_ptr' dummy_callback_spec cb;
-          data_at_ Tsh enc_key_s app_key;
-          valid_pointer cb).
+                   [StructField _tags] 
+                   tags_p td_p;
+            field_at Tsh (Tstruct _asn_TYPE_descriptor_s noattr) 
+                     [StructField _tags_count] 
+                     (Vint (Int.repr (Zlength (tags td)))) td_p;
+            data_at Tsh (tarray tuint (len (tags td))) 
+                    (map Vint (map Int.repr (tags td))) tags_p;
+            func_ptr' dummy_callback_spec cb;
+            data_at_ Tsh enc_key_s app_key;
+            valid_pointer cb).
 
-Definition Gprog := ltac:(with_library prog [der_write_tags_spec]).
+
+Definition Gprog := ltac:(with_library prog [der_write_tags_spec;
+                                             der_write_TL_spec]).
 
 Theorem bool_der_encode : semax_body Vprog Gprog 
                                      (normalize_function 
@@ -148,418 +118,587 @@ Theorem bool_der_encode : semax_body Vprog Gprog
                                      der_write_tags_spec.
 Proof.
   start_function.
-  repeat break_let.
+  change_compspecs Der_write_TL.CompSpecs.
   forward.
-  rewrite H1.
   forward_if True.
-  *
   forward.
   entailer!.
-  *
   forward.
   entailer!.
-  *
   forward_if (
        PROP ( )
-  LOCAL (temp _tags_count (Vint (Int.repr (len (tags td)))); temp _tags tags_p;
-  temp _t'17 (Vint (Int.repr (len (tags td)))); lvar _lens (tarray tint 16) v_lens;
-  lvar _tags_buf_scratch (tarray tuint 16) v_tags_buf_scratch; temp _sd td_p;
-  temp _struct_length (Vint (Int.repr struct_len)); temp _tag_mode (Vint (Int.repr tag_mode));
-  temp _last_tag_form (Vint (Int.repr last_tag_form)); temp _tag (Vint (Int.repr tag));
-  temp _cb cb; temp _app_key app_key)
+  LOCAL (temp _tags_count (Vint (Int.repr (len (tags td)))); 
+         temp _tags tags_p;
+         temp _t'17 (Vint (Int.repr (len (tags td)))); 
+         lvar _lens (tarray tint 16) v_lens;
+         lvar _tags_buf_scratch (tarray tuint 16) v_tags_buf_scratch; 
+         temp _sd td_p;
+         temp _struct_length (Vint (Int.repr struct_len));
+         temp _tag_mode (Vint (Int.repr tag_mode));
+         temp _last_tag_form (Vint (Int.repr last_tag_form));
+         temp _tag (Vint (Int.repr tag));
+         temp _cb cb; temp _app_key app_key)
   SEP (data_at_ Tsh (tarray tint 16) v_lens; 
-       data_at_ Tsh (tarray tuint 16) v_tags_buf_scratch;
+       data_at_ Tsh (tarray tuint 16) v_tags_buf_scratch; 
        field_at Tsh (Tstruct _asn_TYPE_descriptor_s noattr) (DOT _tags) tags_p td_p;
        field_at Tsh (Tstruct _asn_TYPE_descriptor_s noattr) (DOT _tags_count)
                 (Vint (Int.repr (len (tags td)))) td_p;
-       data_at Tsh (tarray tuint (len (tags td))) (map Vint (map Int.repr (tags td))) tags_p;
-       func_ptr' dummy_callback_spec cb; data_at_ Tsh enc_key_s app_key; valid_pointer cb)).
-
- (* PROP ()
-  LOCAL (
-  temp _tags_count (Vint (Int.repr (len (tags td))));
-  temp _tags_buf v_tags_buf_scratch;
-  temp _t'17 (Vint (Int.repr (len (tags td))));
-  lvar _lens (tarray tint 16) v_lens;
-  lvar _tags_buf_scratch (tarray tuint 16) v_tags_buf_scratch; 
-  temp _sd td_p;
-  temp _struct_length (Vint (Int.repr struct_len)); 
-  temp _tag_mode (Vint (Int.repr tag_mode));
-  temp _last_tag_form (Vint (Int.repr last_tag_form));
-  temp _tag (Vint (Int.repr tag));
-  temp _cb cb;
-  temp _app_key app_key)
-  SEP (data_at_ Tsh (tarray tint 16) v_lens;
        data_at Tsh (tarray tuint (len (tags td)))
                (map Vint (map Int.repr (tags td))) tags_p;
-       data_at Tsh (tarray tuint 16) 
-                ((if ((Int.repr tag_mode == (Int.neg (Int.repr 1)))%int)%bool
-                then upd_Znth 0 (map Vint (map Int.repr (tags td))) (Vint (Int.repr tag)) 
-                else (Vint (Int.repr tag) :: (map Vint (map Int.repr (tags td))))) ++
-                default_val (tarray tuint (16 - (len (tags td)) - 1))) 
-               v_tags_buf_scratch;    
-  field_at Tsh (Tstruct _asn_TYPE_descriptor_s noattr) 
-                         [StructField _tags] 
-                         tags_p td_p;
-         field_at Tsh (Tstruct _asn_TYPE_descriptor_s noattr) 
-                  [StructField _tags_count] 
-                  (Vint (Int.repr (Zlength (tags td)))) td_p;
-  func_ptr' dummy_callback_spec cb; data_at_ Tsh enc_key_s app_key; valid_pointer cb)). *)
+       func_ptr' dummy_callback_spec cb; data_at_ Tsh enc_key_s app_key; 
+       valid_pointer cb)).
   congruence.
-  repeat forward.
+  forward.
+  forward.
   entailer!.
   forward_if.
   lia.
   forward.
-  (* loop 1 *)
-  deadvars!.
-  remember (Int.unsigned t1) as stag_offset.
-  remember (tags td) as tags.
-  forward_loop  (
-  EX i : Z,
-  PROP (0 <= i <= len tags + 1 - stag_offset) 
-  LOCAL (temp _i (Vint (Int.repr (i + 1)));
-  temp _stag_offset (Vint (Int.repr (- (1)) + t1))%int;
-  temp _tags_count (Vint (Int.repr (len tags + 1) - t1)%int); 
-  temp _tags_buf v_tags_buf_scratch;
-  temp _t'17 (Vint (Int.repr (len tags)));
+  Require Import Exec.Der_write_TL_m.
+  remember (tags td) as ts.
+  remember (len ts) as tags_count.
+  forward_loop (
+  EX j : Z, EX overall_length : Z, EX lens : list Z,
+  PROP (exists ls, der_write_tags_loop1 (sublist (tags_count - j) 
+                                            tags_count ts) struct_len [] [] 
+              = inr (ls, (lens, encode overall_length));
+       len lens = j;
+       j <= tags_count)
+  LOCAL (
+  temp _tags tags_p;  
+  temp _i (Vint (Int.repr tags_count - Int.repr j - 1)%int);
+  temp _overall_length (Vint (Int.repr overall_length));
+  temp _tags_count (Vint (Int.repr tags_count));
+  temp _t'17 (Vint (Int.repr tags_count));
   lvar _lens (tarray tint 16) v_lens;
   lvar _tags_buf_scratch (tarray tuint 16) v_tags_buf_scratch; 
   temp _sd td_p;
   temp _struct_length (Vint (Int.repr struct_len)); 
   temp _tag_mode (Vint (Int.repr tag_mode));
-  temp _last_tag_form (Vint (Int.repr last_tag_form));
+  temp _last_tag_form (Vint (Int.repr last_tag_form)); 
   temp _tag (Vint (Int.repr tag));
-  temp _cb cb;
-  temp _app_key app_key)
-  SEP (data_at_ Tsh (tarray tint 16) v_lens;
-       data_at Tsh (tarray tuint (len tags)) 
-               (map Vint (map Int.repr tags)) tags_p;
-       data_at Tsh (tarray tuint 16) 
-       (if ((Int.repr tag_mode == (Int.neg (Int.repr 1)))%int &&
-               (negb (Int.eq (Int.repr (len tags)) Int.zero)))%bool 
-        then map Vint (map Int.repr (tag :: sublist 1 (i + 1) tags))
-                      ++ default_val (tarray tuint (16 - i - 1)) 
-        else (map Vint (map Int.repr (tag :: sublist 0 i tags))) 
-         ++ default_val (tarray tuint (16 - i - 1))) 
-       v_tags_buf_scratch;
-  data_at Tsh type_descriptor_s 
-          (r, (r0, (r1, (tags_p, (Vint (Int.repr (len tags)), m3))))) td_p;
-  func_ptr' dummy_callback_spec cb;
-  data_at_ Tsh enc_key_s app_key; 
-  valid_pointer cb))%assert
-               
-break:  
- (PROP ()
-  LOCAL (temp _i (Vint (Int.repr (len tags + 1) - t1)%int);
-  temp _stag_offset (Vint (Int.repr (- (1)) + t1))%int;
-  temp _tags_count (Vint (Int.repr (len tags + 1) - t1)%int); 
-  temp _tags_buf v_tags_buf_scratch;
-  temp _t'17 (Vint (Int.repr (len tags)));
-  lvar _lens (tarray tint 16) v_lens;
-  lvar _tags_buf_scratch (tarray tuint 16) v_tags_buf_scratch; 
-  temp _sd td_p;
-  temp _struct_length (Vint (Int.repr struct_len)); 
-  temp _tag_mode (Vint (Int.repr tag_mode));
-  temp _last_tag_form (Vint (Int.repr last_tag_form));
-  temp _tag (Vint (Int.repr tag));
-  temp _cb cb;
-  temp _app_key app_key)
-  SEP (data_at_ Tsh (tarray tint 16) v_lens;
-       data_at Tsh (tarray tuint (len tags))
-               (map Vint (map Int.repr tags)) tags_p;
-       data_at Tsh (tarray tuint 16) 
-                ((if ((Int.repr tag_mode == (Int.neg (Int.repr 1)))%int &&
-               (negb (Int.eq (Int.repr (Zlength (tags))) Int.zero)))%bool
-                then upd_Znth 0 (map Vint (map Int.repr tags)) (Vint (Int.repr tag)) 
-                else (Vint (Int.repr tag) :: (map Vint (map Int.repr tags)))) ++
-                default_val (tarray tuint (16 - (len tags) - 1))) 
-               v_tags_buf_scratch;
-  data_at Tsh type_descriptor_s (r, (r0, (r1, (tags_p, (Vint (Int.repr (len tags)), m3))))) td_p;
-  func_ptr' dummy_callback_spec cb; data_at_ Tsh enc_key_s app_key; valid_pointer cb)).
-  + forward.
-    Exists 0.
-    entailer!.
-    Ltac strip_repr :=
-      autorewrite with norm;
-      unfold Int.add; unfold Int.mul; unfold Int.neg;
-      unfold Int.sub;
-      try erewrite Int.unsigned_zero;
-      try erewrite Int.unsigned_one;
-      repeat rewrite Int.unsigned_repr;  
-      repeat rewrite Int.signed_repr;     
-      try rep_omega; auto. 
-    repeat break_if; strip_repr.
-    repeat break_if;
-      try erewrite sublist_nil;
-      repeat erewrite upd_Znth_unfold;
-      try erewrite Int.unsigned_zero;
-      try erewrite Int.unsigned_one;
-      pose proof (Zlength_nonneg (tags td));
-      cbn; try nia; entailer!.    
-  + Intro i.
-    forward_if.
-    assert (i + 1 < len tags + 1 - Int.unsigned t1) as S.
-    { generalize H5.
-      subst.
-      repeat break_if; strip_repr. }
-    forward.
-    unfold isptr in H.
-    destruct tags_p; try contradiction. 
-    assert ((0 <= Int.unsigned (Int.repr (i + 1) +
-                               (Int.repr (-1) + t1))%int
-             < len tags)) as S1.
-    { subst.
-      repeat break_if;
-        normalize;
-        try rep_omega.
-      replace 1%int with (Int.repr 1) by auto with ints.
-      normalize.
-      erewrite Int.unsigned_one in *.
-      rep_omega. }
-    forward.
-    entailer!.
-    repeat break_if; strip_repr.
-    forward.
-    entailer!.
-    forward.
-    Exists (i + 1).
-    entailer!.
-    break_if.
-    { replace (Int.unsigned (Int.repr (i + 1) + (Int.repr (-1) + 1))%int)
-        with (i + 1) in *.
-      erewrite upd_Znth_unfold.
-      replace (sublist 0 (i + 1)
-       ((Vint (Int.repr tag) ::
-              map Vint (map Int.repr (sublist 1 (i + 1) (tags td)))) ++
-        default_val (tarray tuint (16 - i - 1)))) with
-          ((Vint (Int.repr tag) ::
-                 map Vint (map Int.repr (sublist 1 (i + 1) (tags td))))).
-      replace ((len
-          ((Vint (Int.repr tag) ::
-                 map Vint (map Int.repr (sublist 1 (i + 1) (tags td)))) ++
-           default_val (tarray tuint (16 - i - 1))))) with 16.
-      autorewrite with sublist.
-      assert (sublist 1 (16 - Z.succ i) (default_val (tarray tuint (16 - i - 1)))
-        =  (default_val (tarray tuint (16 - i - 1 - 1)))) as B.
-      { 
-      unfold default_val; simpl.
-        erewrite sublist_list_repeat.
-         replace (16 - Z.succ i - 1) with (16 - i - 1 - 1) by nia.
-         all: try nia.
-      auto. }
-      setoid_rewrite B.
-      assert ((map Vint (map Int.repr (sublist 1 (i + 1) (tags td)))) ++
-     [Vint (Int.repr (Znth (i + 1) (tags td)))] =
-        (map Vint (map Int.repr (sublist 1 (i + 1 + 1) (tags td))))).
-      replace [Vint (Int.repr (Znth (i + 1) (tags td)))] 
-        with (map Vint (map Int.repr [Znth (i + 1) (tags td)])).
-      do 2 erewrite <- map_app.
-      do 2 f_equal.
-      erewrite <- sublist_last_1.
-      reflexivity.
-      1-2: try nia.
-      reflexivity.
-      setoid_rewrite <- H1.
-      replace (16 - (i + 1) - 1) with (16 - i - 1 - 1) by nia.
-      erewrite app_assoc.
-      entailer!.
-      autorewrite with sublist.
-      autorewrite with sublist.
-      unfold default_val; simpl. rewrite Zlength_list_repeat; nia.
-      erewrite sublist_app1.
-      setoid_rewrite sublist_same with (lo := 0) (hi := i + 1).
-      repeat f_equal.
-      nia.
-       all:
-        try erewrite Int.unsigned_one in *;
-      autorewrite with sublist;
-      try nia.
-        unfold default_val; simpl. rewrite Zlength_list_repeat; nia.
-        unfold Int.add.
-        normalize. }
-
-    assert (upd_Znth (i + 1)
-       ((Vint (Int.repr tag) :: map Vint (map Int.repr (sublist 0 i (tags td)))) ++
-        default_val (tarray tuint (16 - i - 1)))
-       (Vint
-          (Int.repr (Znth (Int.unsigned (Int.repr (i + 1)
-                                         + (Int.repr (-1) + 0))%int) (tags td)))) =
-           ((Vint (Int.repr tag) :: map Vint (map Int.repr (sublist 0 (i + 1) (tags td)))) ++
-         default_val (tarray tuint (16 - (i + 1) - 1)))).
-    { erewrite upd_Znth_unfold.
-      replace (sublist 0 (i + 1)
-       ((Vint (Int.repr tag) :: map Vint (map Int.repr (sublist 0 i (tags td)))) ++
-        default_val (tarray tuint (16 - i - 1)))) with
-          ((Vint (Int.repr tag) :: map Vint (map Int.repr (sublist 0 i (tags td))))).
-      replace ( (len
-          ((Vint (Int.repr tag) :: map Vint (map Int.repr (sublist 0 i (tags td)))) ++
-           default_val (tarray tuint (16 - i - 1))))) with 16.
-      replace (sublist (i + 1 + 1) 16
-       ((Vint (Int.repr tag) :: map Vint (map Int.repr (sublist 0 i (tags td)))) ++
-        default_val (tarray tuint (16 - i - 1)))) 
-        with (default_val (tarray tuint (16 - i - 1 - 1))).
-      replace (Int.unsigned (Int.repr (i + 1) + (Int.repr (-1) + 0))%int) with (i).
-      assert ((map Vint (map Int.repr (sublist 0 i (tags td)))) ++
-     [Vint (Int.repr (Znth i (tags td)))] =
-        (map Vint (map Int.repr (sublist 0 (i + 1) (tags td))))).
-      replace [Vint (Int.repr (Znth i (tags td)))] 
-        with (map Vint (map Int.repr [Znth i (tags td)])).
-        try erewrite Int.unsigned_zero in *.
-
-      do 2 erewrite <- map_app.
-      do 2 f_equal.
-      erewrite <- sublist_last_1.
-      reflexivity.
-      
-      1-2: try nia.
-      reflexivity.
-      setoid_rewrite <- H1.
-      replace (16 - (i + 1) - 1) with (16 - i - 1 - 1) by nia.
-      erewrite app_assoc.
-      auto.
-      normalize.
-      nia.
-      erewrite sublist_app2.
-      autorewrite with sublist.
-      cbn -[sublist].
-      erewrite sublist_list_repeat.
-        try erewrite Int.unsigned_zero in *.
-        replace (16 - i - 1 - 1)  with (16 - Z.succ i - 1) by nia.
-         autorewrite with sublist.
-      reflexivity.
-       try erewrite Int.unsigned_zero in *.
-       autorewrite with sublist.
-       nia.
-       all:  replace (Int.repr (len (tags td)) == 0)%int with false in * by admit;
-        try erewrite Int.unsigned_zero in *;
-      autorewrite with sublist;
-      try nia.
-      unfold default_val; simpl; rewrite Zlength_list_repeat; nia.
-      setoid_rewrite sublist_same with (lo := 0) (hi := i + 1).
-      reflexivity.
-      nia.
-       autorewrite with sublist;
-      try nia.
-         unfold default_val; simpl; rewrite Zlength_list_repeat; try nia. }
-    erewrite H1.
-    entailer!.
-    forward.
-    entailer!.
-    remember  (if
-            ((Int.repr tag_mode == Int.repr (- (1)))
-               && negb (Int.repr (len (tags td)) == 0))%bool
-           then 1
-           else 0)%int as t1.
-    assert (i + 1 =
-       Int.signed
-         (Int.repr (len (tags td) + 1) - t1)%int).
-    { generalize H5.
-      subst.
-      break_if;
-      strip_repr;
-      try nia.
-      intro.
-      all: 
-        try erewrite Int.unsigned_zero in *;
-        try erewrite Int.unsigned_one in *;
-        try nia. 
-      admit.
-      admit.
-      
-}
-    erewrite H1.
-    erewrite Int.repr_signed.
-    auto.
-    remember (if
-            ((Int.repr tag_mode == Int.repr (- (1)))%int
-               && negb (Int.repr (len (tags td)) == 0)%int)%bool
-           then 1
-           else 0) as t1.
-
-    assert (i + 1  = Int.signed (Int.repr (len (tags td) + 1) - (Int.repr t1))%int).
-    { generalize H5.
-      subst.
-      repeat break_if;
-      strip_repr;
-      try nia.
-      all: try erewrite Int.unsigned_zero in *;
-        try erewrite Int.unsigned_one in *;
-        try nia. all: admit. }
-    erewrite H1.
-    break_if;
-    normalize.
-    { replace (Int.signed (Int.repr (len (tags td) + 1) - 1)%int)
-              with (len (tags td)) by strip_repr.
-      erewrite upd_Znth0_old.
-      autorewrite with sublist list norm.
-      replace i with (len (tags td)).
-      repeat erewrite map_sublist.
-      entailer!.
-      admit. 
-      admit.
-      admit. }
-    { replace i with (len (tags td)).
-      erewrite sublist_same; try nia.
-      entailer!; nia.
-      admit. }
-  + forward.
-    rewrite_if_b.
-    repeat f_equal.
-    strip_repr.
-    entailer!.
-    admit.
-  ** (* tag_mode = 0 *)
-  repeat forward.
-  rewrite_if_b.
-  entailer!.
-  **
-  forward_if.
-  forward.
-  entailer!.
-  admit.
-  repeat forward.
-  (* loop 2 *)
-  forward_loop (PROP ( )
-  LOCAL (temp _i
-           (Vint
-              (Int.repr
-                 (if eq_dec (Int.repr tag_mode) 0
-                  then len (tags td)
-                  else (len (tags td) + 1 - Int.unsigned t1)%Z) - Int.repr 1)%int);
-  temp _overall_length (Vint (Int.repr struct_len));
-  temp _tags_count
-    (Vint
-       (Int.repr
-          (if eq_dec (Int.repr tag_mode) 0%int
-           then len (tags td)
-           else len (tags td) + 1 - Int.unsigned t1)));
-  temp _t'17 (Vint (Int.repr (len (tags td)))); lvar _lens (tarray tint 16) v_lens;
-  lvar _tags_buf_scratch (tarray tuint 16) v_tags_buf_scratch; temp _sd td_p;
-  temp _struct_length (Vint (Int.repr struct_len)); temp _tag_mode (Vint (Int.repr tag_mode));
-  temp _last_tag_form (Vint (Int.repr last_tag_form)); temp _tag (Vint (Int.repr tag));
   temp _cb cb; temp _app_key app_key)
-  SEP (data_at_ Tsh (tarray tint 16) v_lens; data_at_ Tsh (tarray tuint 16) v_tags_buf_scratch;
-  data_at Tsh type_descriptor_s (r, (r0, (r1, (r2, (Vint (Int.repr (len (tags td))), m3))))) td_p;
+  SEP (data_at Tsh (tarray tint 16)
+                (default_val (tarray tint (tags_count - len lens)) ++ 
+                 map Vint (map Int.repr lens) ++ 
+                 (default_val (tarray tint (16 - (tags_count))))) 
+               v_lens; 
+   data_at_ Tsh (tarray tuint 16) v_tags_buf_scratch; 
+   field_at Tsh (Tstruct _asn_TYPE_descriptor_s noattr) (DOT _tags) tags_p td_p;
+   field_at Tsh (Tstruct _asn_TYPE_descriptor_s noattr) (DOT _tags_count)
+                (Vint (Int.repr (len (tags td)))) td_p;
   data_at Tsh (tarray tuint (len (tags td))) (map Vint (map Int.repr (tags td))) tags_p;
-  func_ptr' dummy_callback_spec cb; data_at_ Tsh enc_key_s app_key; valid_pointer cb)) 
-               break: (PROP()LOCAL()SEP()).
-  + repeat forward.
+  func_ptr' dummy_callback_spec cb;
+  data_at_ Tsh enc_key_s app_key;
+  valid_pointer cb))%assert 
+
+ break:
+  (EX lens : list Z, EX overall_length : Z, EX j : Z,
+  PROP (j < 0;
+        exists ls, der_write_tags_loop1 ts struct_len [] [] 
+              = inr (ls, (lens, encode overall_length));
+       len lens = len (tags td))
+  LOCAL (temp _tags tags_p;
+  temp _i (Vint (Int.repr j));
+  temp _overall_length (Vint (Int.repr overall_length)); (* changed *)
+  temp _tags_count (Vint (Int.repr tags_count));
+  temp _t'17 (Vint (Int.repr tags_count));
+  lvar _lens (tarray tint 16) v_lens; 
+  lvar _tags_buf_scratch (tarray tuint 16) v_tags_buf_scratch;
+  temp _sd td_p;
+  temp _struct_length (Vint (Int.repr struct_len)); 
+  temp _tag_mode (Vint (Int.repr tag_mode));
+  temp _last_tag_form (Vint (Int.repr last_tag_form)); 
+  temp _tag (Vint (Int.repr tag));
+  temp _cb cb; temp _app_key app_key)
+  SEP (data_at Tsh (tarray tint 16)
+               (default_val (tarray tint (len (tags td) - len lens)) ++
+                            map Vint (map Int.repr lens)
+                            ++ default_val (tarray tint (16 - len (tags td))))
+               v_lens;
+       data_at_ Tsh (tarray tuint 16) v_tags_buf_scratch; 
+       field_at Tsh (Tstruct _asn_TYPE_descriptor_s noattr) (DOT _tags) tags_p td_p;
+       field_at Tsh (Tstruct _asn_TYPE_descriptor_s noattr) (DOT _tags_count)
+                (Vint (Int.repr (len (tags td)))) td_p;
+       data_at Tsh (tarray tuint (len (tags td)))
+               (map Vint (map Int.repr (tags td))) tags_p;
+       func_ptr' dummy_callback_spec cb;
+       data_at_ Tsh enc_key_s app_key;
+       valid_pointer cb))%assert.
+  + forward.    
+    Exists 0 struct_len (@nil Z).
+    autorewrite with sublist.
     entailer!.
+    repeat split.
+    eexists. cbn. auto.
+    strip_repr.
+    repeat erewrite default_val_app.
+    replace (len (tags td) + (16 - len (tags td))) with 16 by list_solve.
+    entailer!.
+  + Intros j overall_length lens.
+    forward_if.
+    assert (len (tags td) - len lens - 1 >= 0) as JJ.
+    { generalize H8.
+    strip_repr. intro. subst. list_solve. }
+     assert ((0 <= Int.unsigned (Int.repr (len (tags td) - j) - 1)%int 
+             < len (map Int.repr (tags td)))) as TJ.
+    { subst.
+      erewrite Zlength_map.
+      strip_repr. }
+(*    assert (tags_count - j - 1 >= 0) as TJ. 
+    { generalize H8; strip_repr;
+        subst;
+        repeat break_if; strip_repr. } *)
+    assert ((0 <= Int.unsigned (Int.repr (tags_count - j) - 1)%int 
+             < len ((tags td)))) as TJ'.
+    { try erewrite Zlength_map; subst; strip_repr. }
+    forward.
+    strip_repr.
+    remember (Int.repr (Znth (tags_count - j - 1) ((ts)))) as fi.
+    destruct H5 as [ls Loop].
+    forward_call (fi, Int.repr overall_length, nullval, nullval, Int.zero, ls).
+    entailer!. 
+    rewrite_if_b.
+    unfold Frame.
+    instantiate
+    (1 :=
+       [(data_at Tsh (tarray tint 16)
+     (default_val (tarray tint (tags_count - len lens)) ++
+      map Vint (map Int.repr lens) ++ default_val (tarray tint (16 - tags_count))) v_lens *
+   data_at_ Tsh (tarray tuint 16) v_tags_buf_scratch *
+   field_at Tsh (Tstruct _asn_TYPE_descriptor_s noattr) (DOT _tags) tags_p td_p *
+   field_at Tsh (Tstruct _asn_TYPE_descriptor_s noattr) (DOT _tags_count)
+     (Vint (Int.repr (len (tags td)))) td_p *
+   data_at Tsh (tarray tuint (len (tags td))) (map Vint (map Int.repr (tags td))) tags_p *
+   func_ptr' dummy_callback_spec cb * data_at_ Tsh enc_key_s app_key * 
+   valid_pointer cb)%logic]).
+    unfold fold_right_sepcon.
+    entailer!.
+    eapply valid_pointer_null.
+    repeat rewrite_if_b.
+    Intros.
+    forward.
+    entailer!.
+    forward.
+    entailer!.
+    entailer!.
+    erewrite upd_Znth_same.
+    cbn. auto.
+    unfold default_val; cbn; try nia.
+    autorewrite with sublist.
+    list_solve.
+    erewrite upd_Znth_same.
+    repeat rewrite_if_b.
+    forward_if.
+  { forward.
+    entailer!.
+    Require Import Exec.Der_write_tags.
+    { (* return - 1 *)
+      remember (tags td) as ts.    
+      assert (exists e, der_write_TL_m
+                   (Int.repr (Znth (len (tags td) - len lens - 1) 
+                         ((tags td))))
+                   (Int.repr overall_length) 0 0%int ls = inl e) as E.
+    { Require Import Der_write_tags_lemmas.
+      eapply eval_DWT_opt_to_Z.
+      erewrite Heqts in *.
+      setoid_rewrite H5. auto. }
+    destruct E as [err E].    
+    unfold der_write_tags.
+    assert (exists k, der_write_tags_loop1 (tags td) struct_len [] [] = inl k) as EEE.
+    { erewrite Heqts in *. 
+      exists err.
+      eapply write_TL_to_loop1_sublist with (j := len lens); (* QED *)
+      try list_solve;
+      eassumption.
+      }
+    destruct EEE as [k EEE].
+    unfold evalErrW.
+    cbn. 
+    break_if; auto.
+    break_match; auto.
+    generalize Heqo.
+    break_if.
+    generalize Heqb0.
+    Zbool_to_Prop.
+    intro.
+    pose proof (Zlength_nonneg (tags td)).
+    nia.
+    rewrite H5 in *.
+    erewrite EEE.
+    congruence. } 
+  }
+    abbreviate_semax.
+    deadvars!.
+    forward.  
+    entailer!.
+    entailer!.
+    autorewrite with sublist.
+    erewrite upd_Znth_same.
+    auto.
+    autorewrite with sublist.
+    unfold default_val; simpl;
+    repeat rewrite Zlength_list_repeat;
+    subst;
+    generalize H8;
+    strip_repr; intro; try list_solve.
+    repeat erewrite upd_Znth_same.
+    forward.
+    forward.
+    entailer!.
+    entailer!.
+    erewrite upd_Znth_same.
+    auto.
+    autorewrite with sublist.
+    unfold default_val; simpl;
+    repeat rewrite Zlength_list_repeat; try list_solve.
+    erewrite upd_Znth_same.
+    forward.
+    entailer!.
+    forward.
+    assert (exists v, der_write_TL_m 
+                   fi (Int.repr overall_length) 0 0%int ls = inr v) as I.
+    { eapply eval_DWT_opt_inr' in H5.
+      eassumption. }
+    destruct I as [v I].
+    unfold evalErrW in H5.
+    setoid_rewrite I in H5.
+    break_let.
+    Exists (j + 1) (encoded a + overall_length) (overall_length :: lens).
+    entailer!.
+    repeat split; auto; try list_solve.
+    assert (exists ls', der_write_TL_m
+                    (Int.repr (Znth (len (tags td) - len lens - 1) 
+                           (tags td)))
+                    (Int.repr overall_length) 0 0%int ls 
+                   = inr (ls', {| encoded := (encoded a) |})) as E.
+    { eapply eval_DWT_opt_inr; auto.
+      unfold evalErrW.
+      erewrite I.
+      auto. }  
+    destruct E as [ls' TL].
+    eexists.
+    eapply write_TL_to_loop1_sublist_inr with (j := len lens).
+    list_solve.
+    erewrite Loop.
+    auto.
+    eassumption.
+    do 2 f_equal.
+    strip_repr.
+    f_equal.
+    lia.
+    unfold evalErrW.
+    erewrite I.
+    unfold encoded.   
+    normalize.
+    do 2 f_equal.
+    lia.
+    unfold evalErrW.
+    erewrite I.
+    remember (len lens) as j.
+    destruct a.
+    assert ( (upd_Znth (len (tags td) - j - 1)
+       (upd_Znth (len (tags td) - j - 1)
+          (default_val (tarray tint (len (tags td) - j)) ++
+           map Vint (map Int.repr lens) ++ default_val (tarray tint (16 - len (tags td))))
+          (Vint (Int.repr encoded))) (Vint (Int.repr (overall_length + encoded - encoded)))) = 
+         (default_val (tarray tint (len (tags td) - len (overall_length :: lens))) ++
+         (Vint (Int.repr overall_length) :: map Vint (map Int.repr lens)) ++
+         default_val (tarray tint (16 - len (tags td))))) as U.
+    { replace (overall_length + encoded - encoded) with overall_length by nia.
+      assert (upd_Znth_idem: forall {A} j ls (a b : A),
+                 0 <= j < len ls ->           
+                 
+                 upd_Znth j (upd_Znth j ls b) a = upd_Znth j ls a).
+      { intros.
+        erewrite upd_Znth_unfold.
+        erewrite sublist_upd_Znth_l.
+        erewrite sublist_upd_Znth_r.
+        erewrite upd_Znth_Zlength.
+        erewrite upd_Znth_unfold.
+        auto.
+        all: try nia.
+         erewrite upd_Znth_Zlength; try nia.
+          erewrite upd_Znth_Zlength; try nia. }
+
+      erewrite upd_Znth_idem.
+      erewrite upd_Znth_app1.
+      erewrite upd_Znth_unfold.
+      setoid_rewrite (Zlength_default_val).      
+      autorewrite with sublist.
+      replace (len (tags td) - Z.succ (len lens)) with 0 by list_solve.
+      autorewrite with sublist.
+      auto.
+      all: cbn; try list_solve. }
+    setoid_rewrite U.
+    entailer!.
+    all: autorewrite with sublist.
+    1-3: 
+    setoid_rewrite Zlength_default_val;
+     try setoid_rewrite Zlength_default_val with (t := tint) (n := (16 - (tags_count)));
+       subst; try list_solve.
+    subst. strip_repr.
+    ++ (* BREAK *)
+    forward.
+    Exists lens overall_length (tags_count - j - 1).
+    entailer!.
+    repeat split.
+    generalize H8.
+    strip_repr.
+    remember (len lens) as j.
+    destruct H5.
+    erewrite sublist_same_gen in H.
+    eexists.
+    eassumption.
+    generalize H8.
+    strip_repr.
+    intro.
+    lia.
+    lia.
+    generalize H8;
+      strip_repr;
+      intro;
+      list_solve.
+    strip_repr.       
+  + Intros lens overall_length j.
+    forward_if.
+  { forward. }
+    (* 3d loop *)
+  {  
+  destruct H6 as [ls Loop].
+  forward_loop ( 
+  EX j : Z, EX l : Z, 
+  PROP (0 <= j <= tags_count;
+        exists ls', der_write_tags_loop2 (sublist 0 j ts)
+                                  (sublist 0 j (map Int.repr lens)) 
+                                  j
+                                  (if Val.eq cb nullval then 0 else 32)
+                                  last_tag_form ls = inr (ls', encode l))
+  LOCAL (
+  temp _i (Vint (Int.repr j));
+  temp _tags tags_p;
+  temp _overall_length (Vint (Int.repr overall_length));
+  temp _tags_count (Vint (Int.repr tags_count));
+  temp _t'17 (Vint (Int.repr tags_count)); 
+  lvar _lens (tarray tint 16) v_lens;
+  lvar _tags_buf_scratch (tarray tuint 16) v_tags_buf_scratch; 
+  temp _sd td_p;
+  temp _struct_length (Vint (Int.repr struct_len));
+  temp _tag_mode (Vint (Int.repr tag_mode));
+  temp _last_tag_form (Vint (Int.repr last_tag_form));
+  temp _tag (Vint (Int.repr tag));
+  temp _cb cb; temp _app_key app_key)
+  SEP (data_at Tsh (tarray tint 16)
+                (default_val (tarray tint (len (tags td) - len lens)) 
+                 ++ map Vint (map Int.repr lens) ++
+                 default_val (tarray tint (16 - len (tags td)))) v_lens;
+       data_at_ Tsh (tarray tuint 16) v_tags_buf_scratch ;
+        
+       field_at Tsh (Tstruct _asn_TYPE_descriptor_s noattr) (DOT _tags) tags_p td_p;
+       field_at Tsh (Tstruct _asn_TYPE_descriptor_s noattr) (DOT _tags_count)
+                (Vint (Int.repr (len (tags td)))) td_p;
+       data_at Tsh (tarray tuint (len (tags td))) (map Vint (map Int.repr (tags td))) tags_p;
+       func_ptr' dummy_callback_spec cb; data_at_ Tsh enc_key_s app_key; valid_pointer cb))%assert
+
+  break: 
+  (PROP (exists l ls', der_write_tags_loop2 ts (map Int.repr lens) (len (tags td))
+                       (if Val.eq cb nullval then 0 else 32)
+                        last_tag_form ls = inr (ls', encode l))
+  LOCAL (temp _i (Vint (Int.repr tags_count)); 
+         temp _tags tags_p;
+         temp _overall_length (Vint (Int.repr overall_length));
+         temp _tags_count (Vint (Int.repr tags_count));
+         temp _t'17 (Vint (Int.repr tags_count));
+         lvar _lens (tarray tint 16) v_lens;
+         lvar _tags_buf_scratch (tarray tuint 16) v_tags_buf_scratch; 
+         temp _sd td_p;
+         temp _struct_length (Vint (Int.repr struct_len));
+         temp _tag_mode (Vint (Int.repr tag_mode));
+         temp _last_tag_form (Vint (Int.repr last_tag_form)); 
+         temp _tag (Vint (Int.repr tag));
+         temp _cb cb; temp _app_key app_key)
+  SEP (data_at Tsh (tarray tint 16)
+                (default_val (tarray tint (len (tags td) - len lens)) ++
+         map Vint (map Int.repr lens) ++
+         default_val (tarray tint (16 - len (tags td)))) v_lens;
+        data_at_ Tsh (tarray tuint 16) v_tags_buf_scratch;
+       field_at Tsh (Tstruct _asn_TYPE_descriptor_s noattr) (DOT _tags) tags_p td_p;
+       field_at Tsh (Tstruct _asn_TYPE_descriptor_s noattr) (DOT _tags_count)
+                (Vint (Int.repr (len (tags td)))) td_p;
+       data_at Tsh (tarray tuint (len (tags td)))
+               (map Vint (map Int.repr (tags td))) tags_p;
+       func_ptr' dummy_callback_spec cb;
+       data_at_ Tsh enc_key_s app_key; 
+       valid_pointer cb))%assert.
+  ++ forward.
+     Exists 0 0.
+     entailer!.
+     exists ls; auto.
+ ++ Intros i l.
+    forward_if. 
+    { forward_if
+        (temp _t'4 
+              ((Val.of_bool
+                  (Int.repr i < Int.repr (tags_count - 1))%int))).
+      congruence.
+      forward.
+      entailer!.
+      assert ((0 <= i < len (map Int.repr (tags td)))) as K.
+      { erewrite Zlength_map. subst. lia. }
+      forward.
+      assert ( (0 <= i < len (tags td))) as K' by (subst; list_solve).
+      forward.
+      replace (len (tags td) - len lens) with 0 by list_solve.
+      autorewrite with sublist.
+      forward.
+      entailer!.
+      autorewrite with sublist.
+      auto.
+      erewrite app_Znth1.
+      forward_call (Int.repr (Znth i ts),
+                  Int.repr (Znth i lens),
+                  cb, app_key, 0%int, ls).
+    entailer!.
+    cbn.
+    repeat f_equal.
+    autorewrite with sublist.
+    auto.
+    break_if; auto.
+    generalize Heqb.
+    unfold Int.lt.
+    strip_repr.
+    break_if; try lia.
+    congruence.
+    rewrite_if_b.
+    unfold Frame.
+    instantiate
+      (1 :=
+         [(data_at Tsh (tarray tint 16)
+     (map Vint (map Int.repr lens) ++
+          default_val (tarray tint (16 - len (tags td)))) v_lens *
+   data_at_ Tsh (tarray tuint 16) v_tags_buf_scratch *
+   field_at Tsh (Tstruct _asn_TYPE_descriptor_s noattr) (DOT _tags) tags_p td_p *
+   field_at Tsh (Tstruct _asn_TYPE_descriptor_s noattr) (DOT _tags_count)
+            (Vint (Int.repr (len (tags td)))) td_p *
+   data_at Tsh (tarray tuint (len (tags td)))
+           (map Vint (map Int.repr (tags td))) tags_p)%logic]).
+    unfold fold_right_sepcon.
+    rewrite_if_b.
+    entailer!.
+    erewrite data_at__change_composite.
+    entailer!.
+    (*  cs_preserve_type CompSpecs Der_write_TL.CompSpecs
+        (coeq CompSpecs Der_write_TL.CompSpecs)
+    enc_key_s = true doesn't hold *)
     admit.
+    (* change_compspecs CompSpecs. - not working - debug *)
+    rewrite_if_b.
+    Intros.
+    forward.
+    abbreviate_semax.
+    forward_if.
+   { (* return -1 *)
+     rewrite_if_b.
+    forward.
+    rewrite_if_b.
     entailer!.
-  + forward_if.
-    repeat forward.
-  admit. (* tags_p should be a pointer *)
-  entailer!.
-  admit.
-  **
-  forward_if.
-  forward.
-  entailer!.
-  admit. (* fix spec *)
-  repeat forward.
-  (* loop 1 *) *)
+    remember (tags td) as ts.   
+     assert (i = 0) as II by lia.
+    erewrite II in *.
+      assert (exists e, der_write_TL_m
+                   (Int.repr (Znth 0 ts))
+                   (Int.repr (Znth 0 lens)) 32 0%int ls = inl e) as E.
+    { eapply eval_DWT_opt_to_Z.
+      erewrite Heqts in *.
+      subst.
+      setoid_rewrite H11. auto. }
+    destruct E as [err E].  
+    destruct H9 as [e2 Loop2].
+    { unfold der_write_tags.
+      break_if; Zbool_to_Prop; try list_solve.
+      subst; list_solve.
+      unfold evalErrW.
+      cbn.
+      break_if; Zbool_to_Prop; try list_solve.
+      subst.
+      erewrite Loop.
+      simpl.
+      replace (tags td) with [Znth 0 (tags td)].
+      replace (lens) with [Znth 0 lens].
+      simpl.
+      erewrite E.
+      auto.  
+      all: erewrite <- sublist_one with (hi := len lens);
+      try list_solve; 
+      autorewrite with sublist; auto. }
+     (* change_compspecs CompSpecs. - not working - debug *)
+    admit. }
+    forward.
+    Exists 1.
+    assert (i = 0) as II by lia.
+    erewrite II in *.
+    assert (O := H11).
+    eapply (eval_DWT_opt_inr
+              (Int.repr (Znth 0 ts))
+              (Int.repr (Znth 0 lens))
+              (if Val.eq cb nullval then 0 else 32)
+               0%int ls) in O.
+    destruct O as [lso O].
+    
+    break_match; try contradiction.
+    break_match.
+    Exists encoded.
+    repeat rewrite_if_b.
+    entailer!.
+    destruct H9 as [ls' E].
+    eexists.
+    autorewrite with sublist.
+    { replace (tags td) with [Znth 0 (tags td)].
+      replace (lens) with [Znth 0 lens].
+      simpl.
+      erewrite O.
+      repeat f_equal.
+      lia.
+      all: erewrite <- sublist_one with (hi := len lens);
+        try list_solve; 
+        autorewrite with sublist; auto. }
+    replace (len (tags td) - len lens) with 0 by list_solve.
+    entailer!.
+    admit. (* change CompSpecs *)
+    rewrite_if_b.   
+    reflexivity.
+    subst. auto.
+    list_solve. }
+    (* loop break *)
+    forward.
+    entailer!.
+    rewrite_if_b.
+    split.
+    generalize H9.
+    autorewrite with sublist.
+    intro K.
+    eexists.
+    replace i with (len (tags td)) in * by list_solve.
+    eassumption.
+    repeat f_equal.
+    lia.
+ ++ (* after loop *)
+    forward.
+    entailer!.
+    destruct H6 as [ls' Loop2].
+    cbn.
+    unfold der_write_tags.
+    break_if. Zbool_to_Prop. lia.
+    repeat rewrite_if_b.
+    break_if; Zbool_to_Prop; try lia.
+    break_if; Zbool_to_Prop; try lia.
+    cbn.
+    unfold evalErrW.
+    erewrite Loop.
+    simpl.
+    destruct Loop2 as [ls'' Loop2].
+    erewrite Loop2.
+    do 2 f_equal.
 Admitted.
 
-End Der_write_tags.
+    

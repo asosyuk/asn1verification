@@ -1,5 +1,5 @@
 Require Import Core.Core Core.Notations Core.Tactics Types
-        Exec.Der_write_tags BCT.Exec.
+        Exec.Der_write_tags (* BCT.Exec *).
 From ExtLib.Structures Require Import Monad MonadWriter.
 From ExtLib.Data Require Import Monads.OptionMonad.
 
@@ -9,7 +9,7 @@ From ExtLib.Data Require Export Monads.OptionMonad.
 
 Open Scope monad.
 
-Definition primitive_decoder td ls : option (list int * Z) :=
+(*Definition primitive_decoder td ls : option (list int * Z) :=
     match ls with
     | [] => None
     | _ => ber_check_tags td ls >>=
@@ -19,7 +19,7 @@ Definition primitive_decoder td ls : option (list int * Z) :=
                               then None 
                               else let y := skipn (Z.to_nat c) ls in
                                     Some (y, c + 1)    
-    end.
+    end.*)
 
 (* writes tags, copies ls and outputs the number of encoded bytes *)
 (* Definition primitive_encoder td ls : errW1 asn_enc_rval :=
