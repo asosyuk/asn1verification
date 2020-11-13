@@ -13,7 +13,10 @@ Definition composites :=
   composites ++ (match find_cs dummy._dummy dummy.composites with
                  | Some r => [r]
                  | None => []
-                 end).
+                 end) ++ (match find_cs dummy._application_specific_key dummy.composites with
+                 | Some r => [r]
+                 | None => []
+                 end) .
 
 Definition Vprog : varspecs. 
 Proof.

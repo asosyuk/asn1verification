@@ -2,17 +2,22 @@ Require Import Core.Core Core.StructNormalizer VstLib Exec.Der_write_tags
         ErrorWithWriter Clight.dummy Callback.Dummy.
 Require Import VST.floyd.proofauto.
 
- Require Import VST.Der_write_TL. 
 
-Require Import Clight.der_encoder Types.
+
 Require Import VstTactics.
  Require Import Core.Tactics Core.Notations Core.SepLemmas.
+ Require Import VST.Der_write_TL Types. 
+
+Require Import Clight.der_encoder .
 
 Definition composites :=
   composites ++ (match find_cs dummy._dummy dummy.composites with
                  | Some r => [r]
                  | None => []
-                 end).
+                 end) ++ (match find_cs dummy._application_specific_key dummy.composites with
+                 | Some r => [r]
+                 | None => []
+                 end) .
 
 Definition Vprog : varspecs. 
 Proof.
@@ -42,29 +47,18 @@ Proof. make_cs_preserve Dummy.CompSpecs CompSpecs. Defined.
 Instance Change2 : change_composite_env CompSpecs Dummy.CompSpecs.
 Proof. make_cs_preserve CompSpecs Dummy.CompSpecs. Defined.
 
+Instance Change4 : change_composite_env CompSpecs Der_write_TL.CompSpecs.
+Proof. make_cs_preserve CompSpecs Der_write_TL.CompSpecs. Defined.
+
 
 Instance Change3 : change_composite_env Der_write_TL.CompSpecs CompSpecs.
 Proof. make_cs_preserve Der_write_TL.CompSpecs CompSpecs. Defined.
 
-Instance Change4 : change_composite_env CompSpecs Der_write_TL.CompSpecs.
-Proof. make_cs_preserve CompSpecs Der_write_TL.CompSpecs. Defined.
 
 Open Scope Z.
 
 Section Der_write_tags.
-
-(* from ber_check_tags
-   (tag_mode = 0;
-   last_tag_form = 0;
-   0 < len ptr <= Ptrofs.max_unsigned;
-   (Znth 0 ptr) & 32 = 0;
-   nullval = opt_ctx_p;
-   nullval = opt_tlv_form_p;
-   1 = len (tags td);
-   0 <= Ptrofs.unsigned i + len ptr <= Ptrofs.max_unsigned;
-   Forall (fun x => 0 <= x <= Byte.max_unsigned) ptr;
-   0 <= size <= Int.max_unsigned) *)
-           
+     
 Definition der_write_tags_spec : ident * funspec :=
   DECLARE _der_write_tags
   WITH td_p : val, td : TYPE_descriptor,
@@ -73,44 +67,46 @@ Definition der_write_tags_spec : ident * funspec :=
        tags_p : val
   PRE[tptr type_descriptor_s, tuint, tint, tint, tuint, 
       tptr cb_type, tptr tvoid]
-    PROP(tag_mode = 0;
+  PROP(tag_mode = 0;
          last_tag_form = 0;
          1 = len (tags td); (* primitive tag *)
          isptr tags_p;
          0 <= len (tags td) + 1 <= 16) 
-    PARAMS(td_p; Vint (Int.repr struct_len); Vint (Int.repr tag_mode);
+  PARAMS(td_p; Vint (Int.repr struct_len); Vint (Int.repr tag_mode);
            Vint (Int.repr last_tag_form); Vint (Int.repr tag); cb; app_key)
-    GLOBALS()
-    SEP(field_at Tsh (Tstruct _asn_TYPE_descriptor_s noattr) 
-                         [StructField _tags] 
-                         tags_p td_p;
-          field_at Tsh (Tstruct _asn_TYPE_descriptor_s noattr) 
-                         [StructField _tags_count] 
-                         (Vint (Int.repr (len (tags td)))) td_p;
+  GLOBALS()
+  SEP(field_at Tsh (Tstruct _asn_TYPE_descriptor_s noattr) 
+               [StructField _tags] 
+               tags_p td_p;
+        field_at Tsh (Tstruct _asn_TYPE_descriptor_s noattr) 
+                 [StructField _tags_count] 
+                 (Vint (Int.repr (len (tags td)))) td_p;
         data_at Tsh (tarray tuint (len (tags td))) (map Vint (map Int.repr (tags td))) tags_p;
         func_ptr' dummy_callback_spec cb;
         data_at_ Tsh enc_key_s app_key;
         valid_pointer cb)
-    POST[tint]
-    let size := if Val.eq cb nullval then 0 else 32 in
-      PROP()
+  POST[tint]
+  let size := if Val.eq cb nullval then 0 else 32 in
+  PROP()
       LOCAL(temp ret_temp 
-                 (Vint (Int.repr (match evalErrW 
-                 (der_write_tags td struct_len tag_mode last_tag_form tag size) [] with
-                                  | Some w => encoded w
-                                  | None => -1
-                                  end))))
+                 (Vint (Int.repr 
+                          (match evalErrW 
+                                   (der_write_tags td struct_len tag_mode
+                                                   last_tag_form tag size) [] with
+                           | Some w => encoded w
+                           | None => -1
+                           end))))
       SEP(field_at Tsh (Tstruct _asn_TYPE_descriptor_s noattr) 
-                         [StructField _tags] 
-                         tags_p td_p;
-         field_at Tsh (Tstruct _asn_TYPE_descriptor_s noattr) 
-                  [StructField _tags_count] 
-                  (Vint (Int.repr (Zlength (tags td)))) td_p;
-          data_at Tsh (tarray tuint (len (tags td))) 
-                  (map Vint (map Int.repr (tags td))) tags_p;
-          func_ptr' dummy_callback_spec cb;
-          data_at_ Tsh enc_key_s app_key;
-          valid_pointer cb).
+                   [StructField _tags] 
+                   tags_p td_p;
+            field_at Tsh (Tstruct _asn_TYPE_descriptor_s noattr) 
+                     [StructField _tags_count] 
+                     (Vint (Int.repr (Zlength (tags td)))) td_p;
+            data_at Tsh (tarray tuint (len (tags td))) 
+                    (map Vint (map Int.repr (tags td))) tags_p;
+            func_ptr' dummy_callback_spec cb;
+            data_at_ Tsh enc_key_s app_key;
+            valid_pointer cb).
 
 
 Definition Gprog := ltac:(with_library prog [der_write_tags_spec;
@@ -122,6 +118,7 @@ Theorem bool_der_encode : semax_body Vprog Gprog
                                      der_write_tags_spec.
 Proof.
   start_function.
+  change_compspecs Der_write_TL.CompSpecs.
   forward.
   forward_if True.
   forward.
@@ -504,9 +501,9 @@ Proof.
        func_ptr' dummy_callback_spec cb; data_at_ Tsh enc_key_s app_key; valid_pointer cb))%assert
 
   break: 
-  (PROP (exists ls', der_write_tags_loop2 ts (map Int.repr lens) (len (tags td))
+  (PROP (exists l ls', der_write_tags_loop2 ts (map Int.repr lens) (len (tags td))
                        (if Val.eq cb nullval then 0 else 32)
-                        last_tag_form ls = inr (ls', encode overall_length))
+                        last_tag_form ls = inr (ls', encode l))
   LOCAL (temp _i (Vint (Int.repr tags_count)); 
          temp _tags tags_p;
          temp _overall_length (Vint (Int.repr overall_length));
@@ -576,7 +573,7 @@ Proof.
     unfold Frame.
     instantiate
       (1 :=
-         [(@data_at CompSpecs Tsh (tarray tint 16)
+         [(data_at Tsh (tarray tint 16)
      (map Vint (map Int.repr lens) ++
           default_val (tarray tint (16 - len (tags td)))) v_lens *
    data_at_ Tsh (tarray tuint 16) v_tags_buf_scratch *
@@ -588,6 +585,11 @@ Proof.
     unfold fold_right_sepcon.
     rewrite_if_b.
     entailer!.
+    erewrite data_at__change_composite.
+    entailer!.
+    (*  cs_preserve_type CompSpecs Der_write_TL.CompSpecs
+        (coeq CompSpecs Der_write_TL.CompSpecs)
+    enc_key_s = true doesn't hold *)
     admit.
     (* change_compspecs CompSpecs. - not working - debug *)
     rewrite_if_b.
@@ -674,9 +676,10 @@ Proof.
     split.
     generalize H9.
     autorewrite with sublist.
-    auto.
-    (* l should become overall_length *)
-    admit.
+    intro K.
+    eexists.
+    replace i with (len (tags td)) in * by list_solve.
+    eassumption.
     repeat f_equal.
     lia.
  ++ (* after loop *)
@@ -693,6 +696,7 @@ Proof.
     unfold evalErrW.
     erewrite Loop.
     simpl.
+    destruct Loop2 as [ls'' Loop2].
     erewrite Loop2.
     do 2 f_equal.
 Admitted.

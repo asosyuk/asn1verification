@@ -1,7 +1,7 @@
 Require Import Core.Core.
 Require Import VST.floyd.proofauto.
 Require Import Clight.asn_codecs_prim Clight.asn_application.
-Require Import Lib.
+Require Import Clight.dummy.
 
 Require Export Lib.
 
@@ -22,7 +22,10 @@ Definition asn_dec_rval_s := Tstruct _asn_dec_rval_s noattr.
 Definition mk_dec_rval code consumed := 
   (Vint (Int.repr code), Vint (Int.repr consumed)).
 
+Definition enc_key_s := Tstruct _application_specific_key noattr.
+
+
 (* Overrun callback key *)
-Definition enc_key_s := Tstruct _overrun_encoder_key noattr.
+(* Definition enc_key_s := Tstruct _overrun_encoder_key noattr. *)
 Definition mk_enc_key (buf : val) size comp_size := 
   (buf, (Vint (Int.repr size), Vint (Int.repr comp_size))). 
