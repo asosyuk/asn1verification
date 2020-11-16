@@ -110,43 +110,39 @@ Definition tag_serialize (tag size : int): list int * Z :=
   let tval := tag >>u (Int.repr 2) in
   if 30 >=? Int.unsigned tval then
     if eq_dec size 0%int 
-    then ([], -1)
+    then ([], 1)
     else ([Int.zero_ext 8 ((tclass << Int.repr 6) or tval)]%int, 1)
   else 
     let r := required_size tval in
-    if eq_dec size 0%int 
-       then ([], -1)
-       else let t := (Int.zero_ext 8 ((tclass << Int.repr 6) or Int.repr 31))%int in
-            if Int.unsigned size - 1 <? r
-            then ([t], -1)
-            else
-            (t :: (serialize_tag tval), r + 1).
+    let t := (Int.zero_ext 8 ((tclass << Int.repr 6) or Int.repr 31))%int in
+    if Int.unsigned size - 1 <? r
+    then (if eq_dec size 0%int then [] else [t], r + 1)
+    else
+      (t :: (serialize_tag tval), r + 1).
 
 Lemma tag_serialize_req_size : forall l s, 
     let (ls, z) := tag_serialize l s in
-    z <> -1 -> len ls = z.
+    len ls <= z.
 Proof.
 intros.
 unfold tag_serialize.
-repeat break_if; auto; try nia.
-intros.
 pose proof (req_size_32 (l >>u Int.repr 2)).
+repeat break_if; auto; try list_solve.
+autorewrite with sublist list.
 unfold serialize_tag.
-autorewrite with sublist list;
-erewrite loop_len_req_size;
+autorewrite with sublist.
+setoid_rewrite loop_len_req_size.
 erewrite Z2Nat.id; try nia.
 Qed.
 
 Lemma tag_serialize_req_size_gt0 : forall l s, 
     let (ls, z) := tag_serialize l s in
-    z <> -1 -> 0 < z.
+     0 < z.
 Proof.
 intros.
+pose proof (req_size_32 (l >>u Int.repr 2)).
 unfold tag_serialize.
 repeat break_if; auto; try nia.
-intros.
-pose proof (req_size_32 (l >>u Int.repr 2)).
-nia.
 Qed.
 
 Lemma shr_lt_zero_35: 
