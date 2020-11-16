@@ -40,7 +40,7 @@ Definition ber_tlv_tag_serialize_spec : ident * funspec :=
 Definition Gprog := ltac:(with_library prog [ber_tlv_tag_serialize_spec]).
 
 Open Scope IntScope.
-
+(*
 Theorem ber_tlv_tag_serialize_correct : 
   semax_body Vprog Gprog (normalize_function f_ber_tlv_tag_serialize composites)
              ber_tlv_tag_serialize_spec.
@@ -82,7 +82,6 @@ Proof.
      inversion Heqp.
      entailer!.
      autorewrite with sublist.
-     Search sublist 0%Z.
      erewrite sublist_same_gen.
      entailer!.
      lia.
@@ -743,3 +742,4 @@ Proof.
              *** subst. rep_omega.
 Admitted.
 
+*)

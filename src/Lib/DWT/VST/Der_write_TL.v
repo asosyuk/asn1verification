@@ -147,7 +147,7 @@ Proof.
     + destruct (tag_serialize tag (Int.repr (0))) as [tl zt] eqn : TS. 
       forward_call (tag, b, i, 0%Z, 32).
       repeat split; try rep_omega.
-      assert (zt = -1) as Z. 
+      assert (zt = 1) as Z. 
       { generalize TS.
         unfold tag_serialize.
             break_if;
