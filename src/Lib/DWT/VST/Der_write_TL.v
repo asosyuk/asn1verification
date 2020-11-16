@@ -65,7 +65,7 @@ Definition der_write_TL_spec : ident * funspec :=
   PRE[tuint, tint, tptr cb_type, tptr tvoid, tint]
     PROP()
     PARAMS(Vint tag; Vint l; cb; app_key; Vint constructed)
-    GLOBALS()
+    GLOBALS(constructed = 0)
     SEP(if Val.eq cb nullval 
         then emp
         else (func_ptr' dummy_callback_spec cb *
@@ -145,7 +145,7 @@ Proof.
     break_if.
     (* cb = nullval *)
     + destruct (tag_serialize tag (Int.repr (0))) as [tl zt] eqn : TS. 
-      forward_call (tag, b, i, 0%Z, 32).
+      forward_call (tag, b, i, 0%Z).
       repeat split; try rep_omega.
       assert (zt = 1) as Z. 
       { generalize TS.
