@@ -34,6 +34,7 @@ Definition der_tlv_length_serialize_spec : ident * funspec :=
 
 Definition Gprog := ltac:(with_library prog [der_tlv_length_serialize_spec]).
 
+(*
 Theorem ber_tlv_length_serialize_correct : 
   semax_body Vprog Gprog (normalize_function f_der_tlv_length_serialize composites)
              der_tlv_length_serialize_spec.
@@ -497,4 +498,4 @@ Proof.
        * lia.
 Qed.        
         
-
+*)
