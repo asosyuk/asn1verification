@@ -360,9 +360,9 @@ Proof.
            forward_loop (
                EX v : Z, EX ls : list int,
                PROP ((Int.unsigned Int.zero <= v)%Z; 
-                     (v <= r)%Z;
+                     (v + 1 <= r)%Z;
                      ls = 
-                     serialize_tag_loop (r - v)%Z (Z.to_nat v) tval)
+                     serialize_tag_loop (r - v - 1)%Z (Z.to_nat v) tval)
                LOCAL (temp _tval (Vint tval);
                       temp _i (Vint (Int.repr ((r * 7) - (v + 1) * 7)%Z));
                       temp _required_size (Vint (Int.repr r));
@@ -371,22 +371,22 @@ Proof.
                       temp _end
                       (Vptr buf_b
                             (buf_ofs +
-                             Ptrofs.repr (1 + required_size (tag >>u Int.repr 2))
-                             - Ptrofs.repr 1)%ptrofs))
+                                    Ptrofs.repr (1 + 
+                                                 required_size (tag >>u Int.repr 2))
+                                    - Ptrofs.repr 1)%ptrofs))
                SEP (data_at Tsh (tarray tuchar 1) [Vint e1] (Vptr buf_b buf_ofs);
                     data_at Tsh (tarray tuchar v) (map Vint ls)
                             (offset_val 1 (Vptr buf_b buf_ofs));
                     data_at Tsh (tarray tuchar (buf_size - v - 1)) 
                                     (sublist (v + 1) buf_size default_list) 
                                     (offset_val (v + 1) (Vptr buf_b buf_ofs))))
-          break: (EX ls : list int, EX j: int, 
-                 PROP (let n := (Z.to_nat r) in
-                       ls = serialize_tag_loop 0 n tval)
+          break: (let ls := serialize_tag_loop 0 (Z.to_nat r - 1) tval in
+                 PROP ()
                  LOCAL (temp _tval (Vint (tag >>u Int.repr 2));
-                        temp _i (Vint j);
+                        temp _i (Vint 0%int);
                         temp _required_size (Vint (Int.repr r));
                         temp _size (Vint (Int.repr (buf_size - 1)));
-                        temp _buf__1 (offset_val (len ls + 1) (Vptr buf_b buf_ofs));
+                        temp _buf__1 (offset_val r (Vptr buf_b buf_ofs));
                         temp _end
                              (Vptr buf_b
                                    (buf_ofs +
@@ -414,17 +414,15 @@ Proof.
               entailer!.
               all: try setoid_rewrite LB;
                 autorewrite with sublist norm; cbn; auto;
-                  try rep_omega.
+                  try rep_omega. 
           ***
             Intros v ls.
             forward_if.
            +++
-           (*  assert (0 <= v + 1 <= (required_size (tag >>u Int.repr 2))) as VR.
-               { rewrite Int.unsigned_repr in H2; try rep_omega.
-               by admit. *)
              rewrite Int.unsigned_repr in H2; try rep_omega.
+             replace (Int.unsigned 0%int) with 0%Z in * by auto with ints.
              assert (0 <= v + 1 <= (required_size (tag >>u Int.repr 2))) as VR.
-                    admit. 
+             { lia. } 
              unfold test_order_ptrs.
              unfold sameblock.
              subst.
@@ -464,7 +462,7 @@ Proof.
                          (buf_ofs + Ptrofs.repr r)%ptrofs) as PTR.
                  {  ptrofs_compute_add_mul; try rep_omega.
                     f_equal.
-                    rep_omega.}
+                    rep_omega. }
                  rewrite PTR.
                  assert (sizeof (tarray tuchar (len default_list -  r)) > 0).
                  { simpl.
@@ -487,10 +485,11 @@ Proof.
                  f_equal.
                  nia.
                  rep_omega.  }
-               entailer!. }
-           +++
+               entailer!. } 
+           +++ 
+             Open Scope Z.
              rewrite Int.unsigned_repr in H2; try rep_omega.
-             replace (Int.unsigned 0%int) with 0 in * by auto with ints.
+             replace (Int.unsigned 0%int) with 0%Z in * by auto with ints.
              eapply typed_true_ptr_lt in H6.
              assert ( Ptrofs.unsigned buf_ofs +  v + 1 <
                       Ptrofs.unsigned buf_ofs + 1 +
@@ -524,9 +523,10 @@ Proof.
                (Int.zero_ext 8
                              (Int.repr 128
                                        or (((tag >>u Int.repr 2) >>u
-                                                                 Int.repr ((required_size (tag >>u Int.repr 2) - (len ls + 1)) * 7)) & Int.repr 127))%int)%int
+                                                                 Int.repr ((required_size (tag >>u Int.repr 2) - (len ls)) * 7)) & Int.repr 127))%int)%int
                as e_v.
-             Exists (v + 1) (ls ++ [e_v]).
+             Exists (v + 1) (ls ++ [(Int.zero_ext 8
+          (Int.repr 128 or ((tval >>u Int.repr (r * 7 - (v + 1) * 7)) & Int.repr 127))%int)]).
              assert (v = len ls) as VLS.
              { subst.
                erewrite loop_len_req_size.
@@ -537,10 +537,11 @@ Proof.
              erewrite Z.add_1_r at 3.
              erewrite Z2Nat.inj_succ.       
              simpl. f_equal. rewrite H5 at 1. 
-             replace (required_size (tag >>u Int.repr 2)  - len ls) 
-               with (required_size (tag >>u Int.repr 2)  - (len ls + 1) + 1) by nia.
+             replace (required_size (tag >>u Int.repr 2)  - len ls - 1) 
+               with (required_size (tag >>u Int.repr 2) - (len ls + 1) - 1 + 1) by list_solve.
              reflexivity.
-             normalize.
+             admit.
+             lia.
              do 2 f_equal. nia.
              replace (required_size (tag >>u Int.repr 2) * 7 - (len ls + 1) * 7)
                with
@@ -579,8 +580,9 @@ Proof.
              erewrite sublist_len_1.
              reflexivity.
              all: try setoid_rewrite LB; try nia.
-             subst. rep_omega.
+             subst. rep_omega. 
            +++
+             Open Scope Z.
              eapply typed_false_ptr_lt in H6.
              replace (Int.unsigned 0%int) with 0 in * by auto with ints.
              rewrite Int.unsigned_repr in H2; try rep_omega.
@@ -595,72 +597,47 @@ Proof.
              assert (required_size tval < buf_size) by (subst; nia).
              assert (v + 1 >= required_size tval)%Z. 
              { subst; lia. } 
-             repeat forward.
-             assert (v = r \/ v + 1 = r) as V by nia.
-             inversion V as [V1 | V2].
-             { rewrite V1.
-             rewrite Heqr.  
-             Exists ls (Int.repr ((r * 7) - (r + 1) * 7)%Z).
-             replace (required_size tval - required_size tval)%Z with 0%Z by nia.
+             assert (v + 1 = r) as V by nia.
+             rewrite V.
+             forward.
+             erewrite <- V in *.
+             replace (v + 1 - v - 1) with 0 in *.
+             replace (Z.to_nat (v + 1) - 1)%nat with (Z.to_nat v) in *.
+             erewrite <- H5.
              entailer!.
-             split.
-             replace (required_size (tag >>u Int.repr 2) 
-                      - required_size (tag >>u Int.repr 2))%Z with 0%Z by nia.
-             reflexivity.
-             erewrite Zlength_map in H12.
-             setoid_rewrite H12.
-             reflexivity.
-             replace (required_size (tag >>u Int.repr 2) -
-                      required_size (tag >>u Int.repr 2))%Z with 0%Z in * by nia.
-             remember (tag >>u Int.repr 2) as tval.
-             remember (serialize_tag_loop 0 (Z.to_nat (required_size tval)) tval) as ls.
-             assert (required_size tval = len ls) as L.
-             {  erewrite Zlength_map in H12.
-                subst.
-                rewrite <- H12 at 1.
-                reflexivity. }
-             rewrite L.
-             entailer!. }
-
-            { (* erewrite V2 in *.
-              rewrite Heqr.  
-              lia.
-              Exists ls (Int.repr ((r * 7) - r * 7)%Z).   
-              replace (required_size tval * 7 - required_size tval * 7)
-                with 0%Z by nia.
-              erewrite H5 at 2.
-              entailer!.
-              assert (required_size (tag >>u Int.repr 2) = len ls + 1) as L.
-             {  subst. 
-                erewrite Zlength_map in V2.
-                lia. }
-             split.
-             admit. (* ls ??? *)
-             split.
-              replace (required_size (tag >>u Int.repr 2) * 7
-                       - required_size (tag >>u Int.repr 2) * 7)
-                 with 0%Z by nia.
-              auto.
-             f_equal.
+             replace 0%int with (Int.repr 0) by auto with ints.
+             do 2 f_equal.
              lia.
-             erewrite Zlength_map in H14.           
-              assert (required_size (tag >>u Int.repr 2) = len ls + 1) as L.
-             {  subst. 
-                erewrite Zlength_map in V2.
-                lia. }
-             rewrite L.
-             repeat erewrite Zlength_map.
-             entailer!.   *) admit. }
-            subst; rep_omega.
-             *** 
-               Intros ls j.
+             erewrite Zlength_map.
+             entailer!.
+(*             f_equal.
+             unfold Ptrofs.sub.
+               ptrofs_compute_add_mul;
+                 rep_omega_setup; auto with ints; 
+                 autorewrite with norm; try rep_omega; try nia.
+               f_equal.
+               lia.
+               erewrite Zlength_map.
+               entailer!. *)
+               replace 1%nat with (Z.to_nat 1) by auto with arith.
+               erewrite <- Z2Nat.inj_sub.
+               f_equal.
+               all: subst; try strip_repr.
+             ***
+               simpl.
                rewrite Int.unsigned_repr in H2; try rep_omega.
                unfold offset_val.
+               remember (serialize_tag_loop 0 (Z.to_nat r - 1) tval) as ls.
                erewrite split_non_empty_list
                  with (ls' := sublist (len ls + 1 + 1) buf_size default_list)
                       (j2 := (buf_size - (len ls + 1 + 1))%Z)
                       (ofs := (buf_ofs + Ptrofs.repr (len ls + 1))%ptrofs).
                Intros.
+                assert (r = len ls + 1) as RLS.
+             { subst.
+               erewrite loop_len_req_size.
+               admit. }
+               erewrite RLS in *.
                forward.
                unfold POSTCONDITION.
                unfold abbreviate.
@@ -691,36 +668,54 @@ Proof.
                erewrite <- data_at_app.
                replace (len ls + 1 + 1 + (buf_size - (len ls + 1 + 1))) with buf_size by nia.
                unfold serialize_tag.
-               admit.
+               assert ((Z.to_nat (required_size (tag >>u Int.repr 2) - 1)) = 
+                       (Z.to_nat (len ls + 1) - 1)%nat) as RLS by admit.
+               erewrite RLS in *.
+               erewrite <- Heqls.
+               erewrite <- Heqe_n.
+               autorewrite with sublist.
+               assert  (([Vint e0] ++ map Vint ls) ++ [Vint e_n] = map Vint (e0 :: ls ++ [e_n]))
+                       as V. admit.
+               setoid_rewrite V.
+               
+               entailer!.               
                all: (autorewrite with sublist;
                      try nia; auto).
                all: try erewrite Zlength_sublist_correct;
                  try nia.
-               Focus 7.
+               Focus 4.
                instantiate (1 := Znth (len ls + 1) default_list).
                erewrite sublist_split with (mid := len ls + 1 + 1).
                erewrite sublist_len_1.
                reflexivity.
                all: try setoid_rewrite LB; try  rep_omega.
-               all:  try (simpl in H3;
-                      subst;
-                      erewrite loop_len_req_size;
-                      erewrite Z2Nat_id';
-                      erewrite Zmax0r;
-                      repeat rep_omega).
-               all: try setoid_rewrite LB;
-                 try (simpl in H3;
-                      subst;
-                      erewrite loop_len_req_size;
-                      erewrite Z2Nat_id';
-                      erewrite Zmax0r;
-                      repeat rep_omega).
+                simpl in H1.
+                subst.
+                erewrite loop_len_req_size.
+                replace 1%nat with (Z.to_nat 1) by auto with arith.
+                erewrite <- Z2Nat.inj_sub.
+                erewrite Z2Nat_id'.
+                erewrite Zmax0r;
+                  repeat rep_omega.
+                lia.
+                subst.
+                erewrite loop_len_req_size.
+                replace 1%nat with (Z.to_nat 1) by auto with arith.
+                erewrite <- Z2Nat.inj_sub.
+                erewrite Z2Nat_id'.
+                erewrite Zmax0r;
+                  repeat rep_omega.
+                lia.
+                do 2 f_equal.
+                all: try lia.
                all: repeat ptrofs_compute_add_mul. 
                replace (Ptrofs.unsigned 1%ptrofs) with 1%Z by auto with ptrofs.
-               all: subst; rep_omega_setup; auto with ints; 
+               all: rep_omega_setup; auto with ints; 
                  autorewrite with norm; try rep_omega; try nia.
                f_equal.
                lia.
+               all:  try assert (r = len ls + 1) as RLS by admit; try erewrite <- RLS; try lia.
+               subst. lia.
              *** subst. rep_omega.
 Admitted.
 
