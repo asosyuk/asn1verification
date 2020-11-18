@@ -122,19 +122,24 @@ Definition length_serialize len size : list int * Z :=
        then (serialize_length_app len, (r + 1)%Z) 
        else ([], r + 1).
 
-Lemma tag_serialize_req_size : forall l s, 
+Lemma length_serialize_req_size : forall l s, 
+    Int.unsigned s <> 0 ->
+    (required_size l < Int.unsigned s)%Z -> 
     let (ls, z) := length_serialize l s in
-    len ls <= z.
+    len ls = z.
 Proof.
 intros.
 unfold length_serialize.
-pose proof (req_size_32 l).
-repeat break_if; auto; try list_solve.
-autorewrite with sublist list.
+pose proof (req_size_32 (l)).
+repeat break_if; autorewrite with sublist list; auto;  try list_solve; try congruence.
+erewrite e in *. 
+Require Import Tactics.
+strip_repr.
 unfold serialize_length_app.
 autorewrite with sublist.
 setoid_rewrite loop_len_req_size.
 erewrite Z2Nat.id; try nia.
+Zbool_to_Prop. lia.
 Qed.
 
 Lemma length_serialize_req_size_gt0 : forall l s, 

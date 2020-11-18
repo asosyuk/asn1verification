@@ -14,7 +14,7 @@ Definition der_tlv_length_serialize_spec : ident * funspec :=
   DECLARE _der_tlv_length_serialize
   WITH l : int, buf_b : block, buf_ofs : ptrofs, buf_size : Z
   PRE[tint, tptr tvoid, tuint]
-    PROP(buf_size = 0 \/ buf_size = 32;
+    PROP(0 <= buf_size <= 32;
          Ptrofs.unsigned buf_ofs + buf_size < Ptrofs.modulus)
     PARAMS(Vint l; (Vptr buf_b buf_ofs); Vint (Int.repr buf_size))
     GLOBALS()

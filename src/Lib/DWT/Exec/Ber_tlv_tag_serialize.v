@@ -121,14 +121,18 @@ Definition tag_serialize (tag size : int): list int * Z :=
       (t :: (serialize_tag tval), r + 1).
 
 Lemma tag_serialize_req_size : forall l s, 
+    s <> 0%int ->
+    (Int.unsigned s - 1 >= required_size (l >>u Int.repr 2))%Z -> 
     let (ls, z) := tag_serialize l s in
-    len ls <= z.
+    len ls = z.
 Proof.
 intros.
 unfold tag_serialize.
 pose proof (req_size_32 (l >>u Int.repr 2)).
-repeat break_if; auto; try list_solve.
-autorewrite with sublist list.
+repeat break_if; autorewrite with sublist list; auto;  try list_solve; try congruence.
+Require Import Tactics.
+Zbool_to_Prop.
+lia.
 unfold serialize_tag.
 autorewrite with sublist.
 setoid_rewrite loop_len_req_size.
