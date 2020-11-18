@@ -7,7 +7,7 @@ Open Scope Z.
 
 Definition der_write_TL tag len size constructed := 
   let (tl, t) := tag_serialize tag (Int.repr size) in
-  let (ll, l) := length_serialize len (Int.repr (size - t)) in
+  let (ll, l) := length_serialize len (Int.repr (if eq_dec size 0 then size else size - t)) in
   let ls := if eq_dec constructed 0%int 
             then tl ++ ll 
             else (upd_Znth 0 tl (Znth 0 tl or (Int.repr 32))%int) ++ ll in
@@ -38,7 +38,7 @@ Qed.
 Lemma der_write_TL_serialize_sum : 
   forall t l s c, 
     let (tls, tl) := tag_serialize t (Int.repr s)  in
-    let (lls, ll) := length_serialize l (Int.repr (s - tl)) in
+    let (lls, ll) := length_serialize l (Int.repr (if eq_dec s 0 then s else s - tl)) in
     tl <> -1 ->
     ll <> -1 ->
     tl <= 32 ->
@@ -55,13 +55,15 @@ Proof.
   repeat break_if; try destruct_orb_hyp;
   repeat Zbool_to_Prop; try nia.
   intuition.
+  intuition.
+  congruence.
   congruence.
 Qed.
 
 Lemma der_write_TL_serialize_sum_c : 
   forall t l s c, 
-    let (tls, tl) := tag_serialize t (Int.repr s)  in
-    let (lls, ll) := length_serialize l (Int.repr (s - tl)) in
+     let (tls, tl) := tag_serialize t (Int.repr s)  in
+    let (lls, ll) := length_serialize l (Int.repr (if eq_dec s 0 then s else s - tl)) in
     tl <> -1 ->
     ll <> -1 ->
     tl <= 32 ->
@@ -76,9 +78,9 @@ Proof.
   erewrite Heqp.
   erewrite Heqp0.
   repeat break_if; try destruct_orb_hyp;
-  repeat Zbool_to_Prop; try rep_omega.
-  erewrite e in C.
-  congruence.
+  repeat Zbool_to_Prop; try rep_omega;
+  try erewrite e in C;
+  try congruence;
   intuition.
 Qed.
 

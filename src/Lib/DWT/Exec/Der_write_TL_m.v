@@ -25,7 +25,7 @@ Open Scope Z.
 Definition der_write_TL_m tag len size constructed : errW1 asn_enc_rval := 
  pass
    (let (tl, t) := tag_serialize tag (Int.repr size) in
-    let (ll, l) := length_serialize len (Int.repr (size - t)) in
+    let (ll, l) := length_serialize len (Int.repr (if size =? 0 then 0 else size - t)) in
     if (32 <? t) || (32 <? t + l) 
     then raise (CustomError DWT_Error)
     else if negb (constructed == 0%int) 
@@ -33,7 +33,7 @@ Definition der_write_TL_m tag len size constructed : errW1 asn_enc_rval :=
          else ret (encode (t + l), fun ls =>
                              (upd_Znth 0 ls (Znth 0 ls or (Int.repr 32))%int))).
 
-Lemma tag_serialize_bounds : forall t l, -1 <= snd (tag_serialize t l) <= 6.
+Lemma tag_serialize_bounds : forall t l, 1 <= snd (tag_serialize t l) <= 6.
   { unfold tag_serialize.
     intros.
     cbn.
@@ -41,7 +41,7 @@ Lemma tag_serialize_bounds : forall t l, -1 <= snd (tag_serialize t l) <= 6.
 Qed.
 
 Lemma length_serialize_bounds : 
-  forall t l, -1 <= snd (length_serialize t l) <= 6.
+  forall t l, 1 <= snd (length_serialize t l) <= 6.
   { unfold length_serialize.
     intros.
     cbn.
