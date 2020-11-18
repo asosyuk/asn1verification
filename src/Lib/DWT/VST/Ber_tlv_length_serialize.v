@@ -34,7 +34,7 @@ Definition der_tlv_length_serialize_spec : ident * funspec :=
 
 Definition Gprog := ltac:(with_library prog [der_tlv_length_serialize_spec]).
 
-(*
+
 Theorem ber_tlv_length_serialize_correct : 
   semax_body Vprog Gprog (normalize_function f_der_tlv_length_serialize composites)
              der_tlv_length_serialize_spec.
@@ -196,8 +196,8 @@ Proof.
        intro. lia.
        inversion Heqp.
        autorewrite with sublist.
-       assert (buf_size = 0) by lia.
-       entailer!.
+       erewrite sublist_same_gen; auto.
+       setoid_rewrite LB. lia.
        erewrite <- Heqdefault_list.
        rewrite  <- LB.     
        erewrite split_data_at_sublist_tuchar with (j := 1%Z).
@@ -205,7 +205,7 @@ Proof.
        erewrite data_at_tuchar_singleton_array_eq.
        all: try nia.
        Intros. 
-       assert (buf_size = 32) as BUF by lia.
+        assert (buf_size <> 0) as BUF by lia. 
        repeat forward.
        normalize.
        erewrite Int.zero_ext_idem.
@@ -254,16 +254,20 @@ Proof.
       * Exists 0%Z.
         Exists (@nil int).                
         erewrite data_at_tuchar_zero_array_eq.
+         
         entailer!.
-        replace (len (default_val (tarray tuchar 32))) 
-          with 32 by (erewrite LB; lia).
+        replace (len (default_val (tarray tuchar buf_size))) 
+           with buf_size by (setoid_rewrite LB; lia).
+        auto.
+        replace (len (default_val (tarray tuchar buf_size))) 
+           with buf_size by (setoid_rewrite LB; lia).
         entailer!.
         cbn; auto.
       * Intros v ls.
         forward_if; try nia.
         entailer!.
-         assert (0 < (32 - v - 1)) as LD by lia.
-        assert (sizeof (tarray tuchar (len (default_val (tarray tuchar 32)) - v - 1)) > 0).
+         assert (0 < (buf_size - v - 1)) as LD by admit.
+        assert (sizeof (tarray tuchar (len (default_val (tarray tuchar buf_size)) - v - 1)) > 0).
         { simpl.
           erewrite Zmax0r.
           setoid_rewrite LB. 
@@ -280,31 +284,30 @@ Proof.
                        (Vptr buf_b (buf_ofs + Ptrofs.repr (1 + v))%ptrofs)).
         entailer!.
         apply valid_pointer_weak.
-     (*    eapply sepcon_valid_pointer2.
-        eapply data_at_valid_ptr; auto.
-        cbn. *
-        
-        entailer!. *)
         apply derives_trans 
           with (Q := valid_pointer 
                        (Vptr buf_b (buf_ofs
                                     + Ptrofs.repr (1 + required_size l))%ptrofs)).
         eapply sepcon_valid_pointer2.
-        remember (default_val (tarray tuchar 32)) as default_list.
+        remember (default_val (tarray tuchar buf_size)) as default_list.
         remember (required_size l) as r.
         erewrite data_at_app_gen
           with (j1 := 1 + r - (v + 1))
-               (j2 := 32 - (1 + r))
+               (j2 := buf_size - (1 + r))
                (ls1 := sublist (v + 1) (1 + r) default_list)
-               (ls2 := sublist (1 + r) 32 default_list). 
+               (ls2 := sublist (1 + r) buf_size default_list). 
         assert ((buf_ofs + Ptrofs.repr (1 + v) + Ptrofs.repr (1 + r - (v + 1)))%ptrofs =
         (buf_ofs + Ptrofs.repr (1 + r))%ptrofs) as PTR.
         {  ptrofs_compute_add_mul; try rep_omega.
            f_equal.
            rep_omega. }
         rewrite PTR.
+        assert (0 < ((buf_size - r - 1))) as LDD by admit.
+        assert (sizeof (tarray tuchar (buf_size - r - 1)) > 0).
+        { simpl.
+          erewrite Zmax0r; nia. }
         entailer!.
-        1-5:  replace (Int.unsigned 0%int) with 0%Z in * by auto with ints;
+        1-5: replace (Int.unsigned 0%int) with 0%Z in * by auto with ints;
           subst; try setoid_rewrite LB; autorewrite with sublist; try list_solve. 
         auto.
         ptrofs_compute_add_mul; try rep_omega.
@@ -312,7 +315,7 @@ Proof.
         ++
         erewrite split_non_empty_list with 
             (j2 := (len default_list - (v + 1) - 1)%Z)
-            (ls' := (sublist (v + 1 + 1) (len default_list) default_list)).
+            (ls' := (sublist (v + 1 + 1) buf_size default_list)).
         eapply typed_true_ptr_lt in H7.
         assert (v < required_size l)%Z.
         { replace (Int.unsigned 0%int) with 0 in * by auto with ints.
@@ -321,7 +324,7 @@ Proof.
             autorewrite with norm; try rep_omega; try nia. }
         Intros.
         assert (len default_list - (v + 1) - 1 =
-                len (sublist (v + 1 + 1) 32 default_list)) as LEN.
+                len (sublist (v + 1 + 1) buf_size default_list)) as LEN.
         { erewrite Zlength_sublist_correct.
           nia.
           replace (Int.unsigned 0%int) with 0%Z in * by auto with ints.
@@ -360,6 +363,7 @@ Proof.
         do 3 f_equal. nia.
         do 2 f_equal. nia.
         repeat erewrite Int.zero_ext_idem.
+        
         replace ((required_size l - ((len ls) + 1)) * 8)%Z with 
                (required_size l * 8 - ((len ls) + 1) * 8)%Z by nia. 
         remember
@@ -370,7 +374,7 @@ Proof.
         simpl.
         replace (1 + (len ls)) with ((len ls) + 1) by nia.
         erewrite <- data_at_tuchar_singleton_array_eq.
-        remember (default_val (tarray tuchar 32)) as default_list.
+        remember (default_val (tarray tuchar buf_size)) as default_list.
 
         replace (buf_ofs + Ptrofs.repr (1 + ((len ls) + 1)))%ptrofs with
             (buf_ofs + 1 + Ptrofs.repr ((len ls) + 1))%ptrofs. 
@@ -384,11 +388,14 @@ Proof.
         erewrite <- data_at_app.
         erewrite <- data_at_app.
         erewrite map_app.
+        replace buf_size with  (len default_list). 
+        
         entailer!.
         autorewrite with list sublist.
         nia.
         setoid_rewrite <- LEN.
         lia.
+        
         all: try setoid_rewrite <- LEN.
         all: replace (Int.unsigned 0%int) with 0%Z in * by (autorewrite with norm; auto);
           autorewrite with  sublist;
@@ -398,16 +405,36 @@ Proof.
           replace (Ptrofs.unsigned 1%ptrofs) with 1 by auto with ptrofs;
           autorewrite with norm;
           try nia; try rep_omega; f_equal; try nia.
-          setoid_rewrite <- LEN.
-          lia.
-           setoid_rewrite <- LEN.
-           lia.
          instantiate (1 := Znth (v + 1) default_list).
          erewrite sublist_split with (mid := v + 1 + 1).
          erewrite sublist_len_1.
          reflexivity.
          all: try setoid_rewrite LB; try lia.
-         ++
+          eapply typed_true_ptr_lt in H7.
+        assert (v < required_size l)%Z.
+        { replace (Int.unsigned 0%int) with 0 in * by auto with ints.
+          generalize H7. ptrofs_compute_add_mul. subst. nia.
+          all: subst; rep_omega_setup; auto with ints; 
+            autorewrite with norm; try rep_omega; try nia. }
+        lia.
+        
+         eapply typed_true_ptr_lt in H7.
+        assert (v < required_size l)%Z.
+        { replace (Int.unsigned 0%int) with 0 in * by auto with ints.
+          generalize H7. ptrofs_compute_add_mul. subst. nia.
+          all: subst; rep_omega_setup; auto with ints; 
+            autorewrite with norm; try rep_omega; try nia. } 
+        lia.
+         eapply typed_true_ptr_lt in H7.
+        assert (v < required_size l)%Z.
+        { replace (Int.unsigned 0%int) with 0 in * by auto with ints.
+          generalize H7. ptrofs_compute_add_mul. subst. nia.
+          all: subst; rep_omega_setup; auto with ints; 
+            autorewrite with norm; try rep_omega; try nia. }
+         erewrite Zlength_sublist_correct. lia.
+        all: try lia.
+        setoid_rewrite LB. lia.
+         ++ 
         eapply typed_false_ptr_lt in H7.
          assert (required_size l < buf_size) by nia.
         assert (v >= required_size l)%Z. 
@@ -467,16 +494,15 @@ Proof.
         erewrite <- data_at_app.
         setoid_rewrite <- H4.
         replace (len ls + 1 +
-                 (len (default_val (tarray tuchar 32))
+                 (buf_size
                   - len ls - 1))%Z
-          with 32.
-        replace (len ((Int.repr 128 or (Int.repr (required_size l)))%int :: ls)) with 
+          with buf_size.
+        replace (len (Int.zero_ext 8 (Int.repr 128 or Int.repr (required_size l))%int :: ls)) with 
             (len ls + 1)%Z by
             (autorewrite with sublist list norm;
              nia).
-        normalize.
-        entailer!.
         autorewrite with sublist.
+        normalize.
         entailer!.
          all: (autorewrite with sublist list norm;
                      try nia; auto).
@@ -496,6 +522,6 @@ Proof.
         erewrite Zmax0r.
         all: rep_omega.
        * lia.
-Qed.        
+Admitted.
         
-*)
+
