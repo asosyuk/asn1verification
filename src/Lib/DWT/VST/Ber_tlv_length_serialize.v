@@ -34,6 +34,7 @@ Definition der_tlv_length_serialize_spec : ident * funspec :=
 
 Definition Gprog := ltac:(with_library prog [der_tlv_length_serialize_spec]).
 
+(*
 
 Theorem ber_tlv_length_serialize_correct : 
   semax_body Vprog Gprog (normalize_function f_der_tlv_length_serialize composites)
@@ -254,7 +255,6 @@ Proof.
       * Exists 0%Z.
         Exists (@nil int).                
         erewrite data_at_tuchar_zero_array_eq.
-         
         entailer!.
         replace (len (default_val (tarray tuchar buf_size))) 
            with buf_size by (setoid_rewrite LB; lia).
@@ -266,6 +266,7 @@ Proof.
       * Intros v ls.
         forward_if; try nia.
         entailer!.
+        
          assert (0 < (buf_size - v - 1)) as LD by admit.
         assert (sizeof (tarray tuchar (len (default_val (tarray tuchar buf_size)) - v - 1)) > 0).
         { simpl.
@@ -524,4 +525,4 @@ Proof.
        * lia.
 Admitted.
         
-
+*)

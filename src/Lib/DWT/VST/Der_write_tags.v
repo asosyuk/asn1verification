@@ -274,7 +274,6 @@ Proof.
    valid_pointer cb)%logic]).
     unfold fold_right_sepcon.
     entailer!.
-    eapply valid_pointer_null.
     repeat rewrite_if_b.
     Intros.
     forward.
@@ -326,7 +325,7 @@ Proof.
     nia.
     rewrite H5 in *.
     erewrite EEE.
-    congruence. } 
+    congruence. }
   }
     abbreviate_semax.
     deadvars!.

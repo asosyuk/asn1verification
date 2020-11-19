@@ -8,6 +8,15 @@ Lemma default_val_app :
                 default_val (tarray t l2)) = default_val (tarray t (l1 + l2)).
 Admitted.  
 
+Lemma valid_pointer_weak_minus:
+ forall a, valid_pointer a |-- weak_valid_pointer (offset_val 1 a).
+Proof.
+intros.
+unfold valid_pointer, weak_valid_pointer.
+change predicates_hered.orp with orp. (* delete me *)
+apply orp_right2.
+Admitted.
+
 Lemma upd_Znth_idem: forall {A} j ls (a b : A),
                  0 <= j < len ls ->           
                  
