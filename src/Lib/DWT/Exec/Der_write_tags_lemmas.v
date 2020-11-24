@@ -94,107 +94,6 @@ Proof.
   nia.
 Qed.
 
-
-Require Import Ber_tlv_tag_serialize_m.
-Require Import Ber_tlv_length_serialize_m.
-
-Lemma a : forall t s i i' e, 
-    tag_serialize t s i = inl e -> tag_serialize t s i' = inl e.
-Proof.
-  intros.
-  all: unfold tag_serialize in *;
-    repeat break_if; cbn in *; try congruence.
-Qed.
-
-Lemma b : forall t s i i' e, 
-    length_serialize t s i = inl e -> length_serialize t s i' = inl e.
-Proof.
-  intros.
-  all: unfold length_serialize in *;
-    repeat break_if; cbn in *; try congruence.
-Qed.
-
-Lemma b' : forall t s i i' e, 
-    length_serialize t s i = inr e -> exists e, length_serialize t s i' = inr e.
-Proof.
-  intros.
-  eexists.
-  unfold length_serialize in *;
-    repeat break_if; cbn in *. 
-  congruence.
-  reflexivity.
-Admitted.
-
-Parameter TL : Z -> option Z.
-
-Fixpoint loop ls :=
-  match ls with
-  | [] => Some 0
-  | h :: tl => let x := TL h in
-              let y := loop tl in
-              match x, y with
-                | Some x, Some y => Some (x + y)
-                | _, _ => None
-              end
-  end.
-
-Lemma loop_app :
-  forall ts b v, 
-    loop ts = Some v ->
-    TL b = None ->
-    loop (ts ++ [b]) = None.
-Proof.
-  induction ts; intros until v; intros Loop TLb; simpl in *.
-  - erewrite TLb. auto.
-  - generalize Loop.
-    break_match; auto.
-    break_match; try congruence.
-    erewrite IHts; auto.
-Qed.
-
-Parameter TL' : Z -> errW1 Z.
-
-Fixpoint loop' ls :=
-  match ls with
-  | [] => ret 0
-  | h :: tl => x <- TL' h ;;
-              y <- loop' tl ;;
-              ret (x + y)
-  end.
-
-(*
-Lemma loop_app' :
-  forall ts ls b i v e, 
-    loop' ts i = inr (ls, v) ->
-    TL' b [] = inl e ->
-    loop' (ts ++ [b]) [] = inl e.
-Proof.
-  induction ts; intros until e; intros Loop TLb; simpl in *.
-  - inversion Loop.
-    erewrite TLb.
-    auto.
-  - generalize Loop.
-    break_match; try congruence.
-    break_let.
-    break_match; try congruence.
-    break_let.
-    erewrite IHts; auto.
-    eassumption.
-Qed.  
-     eassumption.
-Admitted.
-    
-   
-  
-Lemma rev_app_cons : forall {A} (a : A) ls, rev (a :: ls) = rev ls ++ [a].
-  Proof.
-    intros.
-    replace [a0] with (rev [a0]) by reflexivity.
-    erewrite <- rev_app_distr.
-    reflexivity.
-Qed.
- *)
-
 Lemma write_TL_to_loop2_inl_left :  forall e s ht hl tll tlt  i ltf ii,
       der_write_TL_m (Int.repr ht) hl s 
                      (if negb (ltf =? 0) || (i <? len (ht :: tlt) - 1)
@@ -229,174 +128,15 @@ Qed.
 
 
 Require Import Core.Tactics.
-(*
-Lemma loop2_app_singleton' : 
-  forall ts e s i ltf t l ls v ii,
-    der_write_tags_loop2' ts i s ltf ii = inr (ls, v) ->
-    der_write_TL_m (Int.repr t) (Int.repr l) s 
-                   (if negb (ltf =? 0) || (i <? len (ts ++ [(t, l)]) - 1)
-                    then 1%int 
-                    else 0%int) ls = inl e ->
-    der_write_tags_loop2' (ts ++ [(t,l)]) i s ltf ii = inl e.
-Proof.
-  induction ts; intros until ii; intros Loop TL.
-  - simpl in *.
-    inversion Loop.
-    erewrite TL.
-    auto.
- - simpl in Loop.
-   simpl.
-   break_let.
-   generalize Loop.
-   assert ((if negb (ltf =? 0) || (i <? len ((z, z0) :: ts ++ [(t, l)]) - 1) then 1%int else 0%int) =
-           (if negb (ltf =? 0) || (i <? len ((z, z0) :: ts) - 1) then 1%int else 0%int)) as P.
-   admit.
-   rewrite P.
-   break_match.
-   congruence.
-   intro.
-   break_let.
-   break_match.
-   erewrite IHts.
-   auto.
-   erewrite <- Loop0.
-   break_match.
-   auto.
-   break_let.
-   break_match.
-   admit.
-   admit.
-Admitted.
-     
-Lemma write_TL_to_loop2_sublist_j' : 
-  forall ts j e s i ltf ii,
-    der_write_tags_loop2' (sublist j (len ts) ts) i s ltf ii = inl e ->
-    exists e, der_write_tags_loop2' ts i s ltf ii = inl e.
-Proof.
-Admitted.            
-    
-Lemma write_TL_to_loop2_sublist' : 
-  forall ts j e s i ltf ii,
-    der_write_tags_loop2' (sublist 0 j ts) i s ltf ii = inl e ->
-    der_write_tags_loop2' ts i s ltf ii = inl e.
-Proof.
-  induction ts; intros until ii; intro D.
-  - admit.
-  - simpl.
-    break_let.
-     assert ((if negb (ltf =? 0) || (i <? len ((z, z0) :: ts) - 1) then 1%int else 0%int)
-              = 
-              (if negb (ltf =? 0) || (i <? len ((z, z0) :: sublist 0 (j - 1) ts) - 1)
-               then 1%int
-               else 0%int)) as B.
-    admit.
-    assert (sublist 0 j ((z, z0) :: ts)  = (z, z0) :: sublist 0 (j - 1) ts) as F.
-      admit.
-      setoid_rewrite F in D.
-      simpl in D.
-    break_match.
-    * 
-    rewrite <- B in D.
-    break_if;
-      erewrite Heqs0 in D;
-      inversion D;
-      auto.
-    * break_let.
-      break_match.
-      rewrite <- B in D.
-      erewrite IHts.
-      auto.
-       break_if.
-      erewrite Heqs0 in D.
-      clear B.
-      break_match.
-      inversion D.
-      erewrite H0 in *.
-      eassumption.
-      break_let.
-      break_match.
-      congruence.
 
-      erewrite Heqs0 in D.
-      clear B.
-      break_match.
-      inversion D.
-      erewrite H0 in *.
-      eassumption.
-      break_let.
-      break_match.
-      congruence.
-Admitted.
-      
-    
 
-Lemma write_TL_to_loop2_inl : 
-  forall tl1 tl2 e s i ltf ls v ii,
-    i < len (tl1 ++ tl2) ->
-    der_write_tags_loop2' tl1 i s ltf ii = inr (ls, v) ->
-    der_write_tags_loop2' tl2 (i - len tl1) s ltf ls = inl e ->
-    der_write_tags_loop2' (tl1 ++ tl2) i s ltf ii = inl e.
-Proof.
-  induction tl1; intros until ii; intros C TL1 TL2.
-  - cbn in *.
-    inversion TL1.
-    subst.
-    replace (i - 0) with i in * by nia.
-    auto.
-  - simpl.
-    break_let.
-    break_match.
-    + simpl in TL1.
-      break_if.
-      destruct_orb_hyp.
-      erewrite H in *.
-      simpl in TL1.
-      erewrite Heqs0 in TL1.
-      congruence.
-      replace (i <? len ((z, z0) :: tl1) - 1)  with true in *.
-      simpl in TL1.
-      replace (negb (ltf =? 0) || true) with true in *.
-      erewrite Heqs0 in TL1.
-      congruence.
-      admit.
-      admit.
-      admit.
-    + break_let.
-      break_match.
-      erewrite IHtl1.
-      auto.
-      autorewrite with sublist in *.
-      nia.
-      simpl in TL1.
-      assert (negb (ltf =? 0) || (i <? len ((z, z0) :: tl1 ++ tl2) - 1) =
-              negb (ltf =? 0) || (i <? len ((z, z0) :: tl1) - 1)) as L.
-      admit.
-      erewrite <- L in TL1.
-      erewrite Heqs0 in TL1.
-      generalize TL1.
-      break_match.
-      congruence.
-      break_let.
-      break_match.
-      admit.
-      instantiate (1 := ls).
-      generalize TL2.
-      replace (i - len ((z, z0) :: tl1)) with (i - 1 - len tl1).
-      auto.
-      autorewrite with sublist.
-      nia.
-Admitted.
-                                                                                       
-*)
-Require Import Ber_tlv_tag_serialize_m Ber_tlv_length_serialize_m.
-
-Lemma TS_inr_not_one : forall t s ls e i,
-  tag_serialize t (Int.repr s) i
-  = inr (ls, {| encoded := e |}) ->
+Lemma TS_inr_not_one : forall t s ls e ,
+  Ber_tlv_tag_serialize.tag_serialize t (Int.repr s)
+  = (ls, e) ->
   0 <= e <= 6.
 Proof.
   intros.
-  unfold tag_serialize in H.
+  unfold Ber_tlv_tag_serialize.tag_serialize in H.
   repeat break_if; cbn in H; try congruence.
   inversion H as [A].
   nia.
@@ -407,13 +147,13 @@ Proof.
     nia.
 Qed.
 
-Lemma TS_inr_not_int_one : forall t s ls e i,
-  tag_serialize t (Int.repr s) i
-  = inr (ls, e) ->
-  Int.repr (encoded e) <> Int.repr (-1).
+Lemma TS_inr_not_int_one : forall t s ls e,
+  Ber_tlv_tag_serialize.tag_serialize t (Int.repr s)
+  = (ls, e) ->
+  Int.repr (e) <> Int.repr (-1).
 Proof.
   intros.
-  unfold tag_serialize in H.
+  unfold Ber_tlv_tag_serialize.tag_serialize in H.
   repeat break_if; cbn in H; try congruence.
   inversion H as [A].
   discriminate.
@@ -425,34 +165,28 @@ Proof.
     try discriminate.
 Qed.
 
-Lemma LS_inr_not_int_one : forall t s ls e i,
-  length_serialize t (Int.repr s) i
-  = inr (ls, e) ->
-  Int.repr (encoded e) <> Int.repr (-1).
+Lemma LS_inr_not_int_one : forall t s ls e,
+  Ber_tlv_length_serialize.length_serialize t (Int.repr s)
+  = (ls, e) ->
+  Int.repr (e) <> Int.repr (-1).
 Proof.
   intros.
-  unfold length_serialize in H.
-  repeat break_if; cbn in H; try congruence.
-  inversion H as [A].
+  unfold Ber_tlv_length_serialize.length_serialize  in H.
+  repeat break_if; cbn in H; try congruence; 
+  repeat break_if; try inversion H as [A];
   discriminate.
-  repeat break_if;
-    inversion H as [A];
-    discriminate.
 Qed.
 
-Lemma LS_inr_not_one : forall t s ls e i,
-  length_serialize t (Int.repr s) i
-  = inr (ls, {| encoded :=  e |}) ->
+Lemma LS_inr_not_one : forall t s ls e,
+  Ber_tlv_length_serialize.length_serialize t (Int.repr s)
+  = (ls, e) ->
   0 <= e <= 5.
 Proof.
   intros.
-  unfold length_serialize in H.
-  repeat break_if; cbn in H; try congruence.
-  inversion H as [A].
-  nia.
-  repeat break_if;
-    inversion H as [A];
-    nia.
+  unfold Ber_tlv_length_serialize.length_serialize  in H.
+  repeat break_if; cbn in H; try congruence; 
+  repeat break_if; try inversion H as [A];
+  try lia.
 Qed.
 
 Lemma DWT_inr_not_one : forall t l s c ls e i,
@@ -548,5 +282,131 @@ Proof.
   exists l0.
   inversion H.
   auto.
+Qed.
+
+Lemma write_tags_loop1_encoded :  forall tl l ls sl ln i ii,
+      der_write_tags_loop1 tl sl i ii = inr (ls, (ln, l)) ->
+      sl <= encoded l.
+Proof.
+  induction tl; intros.
+  - simpl in H. inversion H. simpl. lia.
+  - cbn in H.
+    break_match; try congruence.
+    repeat break_let.
+    break_if; try congruence.
+    break_if.
+    discriminate.
+    inversion H.
+    simpl.
+    assert (sl <= Types.encoded {| encoded := encoded |}).
+    { eapply IHtl.
+      eassumption. }
+    eapply TS_inr_not_one in Heqp2.
+    eapply LS_inr_not_one in Heqp3.
+    simpl in *.
+    lia. 
+Qed.
+
+Lemma eval_DWT_opt_to_Z_inv : forall td struct_len s c b  size i ls v,
+    der_write_tags td struct_len s c b size i
+    = inr (ls, encode v) ->
+     v <> -1.
+Proof.
+ intros until v.
+ unfold der_write_tags.
+ cbn.
+ repeat break_match; intro K; try congruence; try inversion K; simpl; try lia.
+ eapply write_tags_loop1_encoded in Heqs0.
+ lia.
+ eapply write_tags_loop1_encoded in Heqs0.
+ lia.
+Qed.
+
+Lemma eval_DWT_opt_to_Z_inv_int : forall td struct_len s c b  size i ls v,
+    Int.min_signed <= v <= Int.max_signed ->
+    der_write_tags td struct_len s c b size i
+    = inr (ls, encode v) ->
+     Int.repr v <> Int.repr (-1).
+Proof.
+  intros.
+  eapply eval_DWT_opt_to_Z_inv in H0.
+  Search Int.repr (_ <> _).
+  unfold not.
+  intro K.
+  eapply repr_inj_signed in K; rep_omega. 
+Qed.
+
+Lemma DWT_bounds : forall td struct_len s c b a size i ls v,
+    tags td = [a] ->
+    der_write_tags td struct_len s c b size i
+    = inr (ls, v) ->
+    Int.min_signed <= encoded v <= Int.max_signed.
+Proof.
+  intros until v.
+  unfold der_write_tags.
+  cbn.
+  repeat break_match; intro K; try congruence; try inversion K; simpl; try lia.
+  Zbool_to_Prop. list_solve.
+  Zbool_to_Prop. erewrite K in *. autorewrite with sublist in *. list_solve.
+  intro P. inversion P.
+  generalize Heqs0.
+  erewrite K.
+  cbn.
+  repeat break_let.
+  eapply TS_inr_not_one in Heqp3.
+  eapply LS_inr_not_one in Heqp4.
+  break_if; try congruence.
+  break_if; try discriminate.
+  intro J. inversion J. clear J.
+  simpl. lia. 
+  intro J. inversion J. clear J. 
+  simpl. 
+  generalize Heqs0.
+  erewrite K.
+  cbn.
+  repeat break_let.
+  eapply TS_inr_not_one in Heqp3.
+  eapply LS_inr_not_one in Heqp4.
+  break_if; try congruence.
+  break_if; try discriminate.
+  intro J. inversion J. clear J.
+  simpl. lia.
+Qed.
+
+Lemma DWT_bounds_concrete : forall td struct_len s c b a size i ls v,
+    tags td = [a] ->
+    der_write_tags td struct_len s c b size i
+    = inr (ls, v) ->
+    0 <= encoded v <= 11.
+Proof.
+  intros until v.
+  unfold der_write_tags.
+  cbn.
+  repeat break_match; intro K; try congruence; try inversion K; simpl; try lia.
+  Zbool_to_Prop. list_solve.
+  Zbool_to_Prop. erewrite K in *. autorewrite with sublist in *. list_solve.
+  intro P. inversion P.
+  generalize Heqs0.
+  erewrite K.
+  cbn.
+  repeat break_let.
+  eapply TS_inr_not_one in Heqp3.
+  eapply LS_inr_not_one in Heqp4.
+  break_if; try congruence.
+  break_if; try discriminate.
+  intro J. inversion J. clear J.
+  simpl. lia. 
+  intro J. inversion J. clear J. 
+  simpl. 
+  generalize Heqs0.
+  erewrite K.
+  cbn.
+  repeat break_let.
+  eapply TS_inr_not_one in Heqp3.
+  eapply LS_inr_not_one in Heqp4.
+  break_if; try congruence.
+  break_if; try discriminate.
+  intro J. inversion J. clear J.
+  simpl. lia.
 Qed.
 

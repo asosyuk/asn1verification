@@ -10,7 +10,7 @@ Section Der_encode_primitive.
 
 Definition prim_enc_rval td sl buf_size li td_p sptr_p := 
   match evalErrW (primitive_encoder td sl buf_size li) [] with
-  | Some v => mk_enc_rval v td_p Vzero
+  | Some v => mk_enc_rval v Vzero Vzero
   | None => mk_enc_rval (-1) td_p sptr_p
   end.
 
@@ -21,7 +21,7 @@ Definition prim_enc_res td  sl buf_size li :=
   end.
 
 Definition prim_type_s := (Tstruct _ASN__PRIMITIVE_TYPE_s noattr).
-Definition mk_prim_type_s (buf_p : val) size := (buf_p, Vint (Int.repr size)).
+Definition mk_prim_type_s (buf_p : val) struct_len := (buf_p, Vint (Int.repr struct_len)).
 
 Instance Change1 : change_composite_env Callback.Dummy.CompSpecs CompSpecs.
 Proof. make_cs_preserve Dummy.CompSpecs CompSpecs. Defined.
@@ -32,7 +32,6 @@ Proof. make_cs_preserve CompSpecs Dummy.CompSpecs. Defined.
 Instance Change4 : change_composite_env CompSpecs Der_write_tags.CompSpecs.
 Proof. make_cs_preserve CompSpecs Der_write_tags.CompSpecs. Defined.
 
-
 Instance Change3 : change_composite_env Der_write_tags.CompSpecs CompSpecs.
 Proof. make_cs_preserve Der_write_tags.CompSpecs CompSpecs. Defined.
 
@@ -40,15 +39,15 @@ Definition der_primitive_encoder_spec : ident * funspec :=
   DECLARE _der_encode_primitive
     WITH res_p : val,  
          sptr_p : val, buf_b : block, buf_ofs : ptrofs, 
-         size : Z,
+         struct_len : Z,
          td_p : val, td : TYPE_descriptor,
          tag_mode : Z,
          cb_p : val, app_key_p : val
     PRE [tptr enc_rval_s, tptr type_descriptor_s, tptr tvoid, tint, tuint, 
           tptr cb_type, tptr tvoid]
-    PROP ( tag_mode = 0;
-             1 = Zlength (tags td);
-         0 <= size <= Int.max_unsigned)
+    PROP (tag_mode = 0;
+          1 = Zlength (tags td);
+          0 <= struct_len <= Int.max_signed - 11)
       PARAMS (res_p; td_p; sptr_p; Vint (Int.repr tag_mode);
               Vint (Int.repr 0); cb_p; app_key_p)
       GLOBALS ()
@@ -61,7 +60,7 @@ Definition der_primitive_encoder_spec : ident * funspec :=
            data_at Tsh (tarray tuint (Zlength (tags td))) (map Vint (map Int.repr (tags td)))
                    (Vptr buf_b buf_ofs);
            field_at Tsh prim_type_s (DOT _buf) (Vptr buf_b buf_ofs) sptr_p;
-           field_at Tsh prim_type_s (DOT _size) (Vint (Int.repr size)) sptr_p;
+           field_at Tsh prim_type_s (DOT _size) (Vint (Int.repr struct_len)) sptr_p;
            (* Callback *)
            data_at_ Tsh enc_key_s app_key_p;
            func_ptr' dummy_callback_spec cb_p;
@@ -78,9 +77,9 @@ Definition der_primitive_encoder_spec : ident * funspec :=
                    (map Vint (map Int.repr (tags td)))
                    (Vptr buf_b buf_ofs);
            field_at Tsh prim_type_s (DOT _buf) (Vptr buf_b buf_ofs) sptr_p;
-           field_at Tsh prim_type_s (DOT _size) (Vint (Int.repr size)) sptr_p;
+           field_at Tsh prim_type_s (DOT _size) (Vint (Int.repr struct_len)) sptr_p;
            (* Result *)
-           data_at Tsh enc_rval_s (prim_enc_rval td size buf_size (map Int.repr (tags td))
+           data_at Tsh enc_rval_s (prim_enc_rval td struct_len buf_size (map Int.repr (tags td))
                                                  td_p sptr_p ) res_p;
            (* Callback *)
            valid_pointer cb_p;
@@ -101,15 +100,21 @@ Theorem der_encode_primitive : semax_body Vprog Gprog
                                           der_primitive_encoder_spec.
 Proof.
   start_function. 
+  assert (exists a, tags td = [a]) as E.
+    { exists (Znth 0 (tags td)).
+      erewrite <- sublist_one with (hi := 1).
+      autorewrite with sublist; auto; try list_solve; lia.
+      all: try list_solve. }
+      destruct E as [e E].
   forward.
   forward_empty_loop.
-  forward_call (td_p, td, size, 0, 0, cb_p, app_key_p, Vptr buf_b buf_ofs).
+  forward_call (td_p, td, struct_len, 0, 0, cb_p, app_key_p, Vptr buf_b buf_ofs).
   entailer!.
   unfold Frame.
   instantiate (1 := [data_at_ Tsh (Tstruct _asn_enc_rval_s noattr) v_erval ;
                      data_at_ Tsh enc_rval_s res_p;
                      field_at Tsh prim_type_s (DOT _buf) (Vptr buf_b buf_ofs) sptr_p ;
-                     field_at Tsh prim_type_s (DOT _size) (Vint (Int.repr size)) sptr_p ]).
+                     field_at Tsh prim_type_s (DOT _size) (Vint (Int.repr struct_len)) sptr_p ]).
   simpl.
   change_compspecs Der_write_tags.CompSpecs.
   entailer!.
@@ -117,7 +122,7 @@ Proof.
   repeat split; auto; try lia.
   forward.
   forward_empty_loop.
-  destruct (((Der_write_tags.der_write_tags td size 0 0 0
+  destruct (((Der_write_tags.der_write_tags td struct_len 0 0 0
                    (if Val.eq cb_p nullval then 0 else 32)) []
               )) eqn : DWT. 
   unfold evalErrW.
@@ -127,13 +132,13 @@ Proof.
     repeat forward.
     entailer!.
     assert ((Vint (Int.repr (-1)), (td_p, sptr_p))  =
-            (prim_enc_rval td size (if eq_dec cb_p nullval then 0 else 32) 
+            (prim_enc_rval td struct_len (if eq_dec cb_p nullval then 0 else 32) 
            (map Int.repr (tags td)) td_p sptr_p)) as P.
     { unfold prim_enc_rval.
       unfold evalErrW.
       cbn.
       break_if.
-      erewrite e0 in *.
+      erewrite e1 in *.
       erewrite if_true in DWT by auto.
       erewrite DWT.
       auto.
@@ -149,40 +154,83 @@ Proof.
     erewrite DWT.
     break_let.
     forward_if.
-    admit. (* return not -1 - see lemma *) 
-    forward_if  [temp _t'11 (Vptr buf_b buf_ofs);
-                      temp _t'4 Vone].
+    Require Import Der_write_tags_lemmas.
+    inversion DWT.
+    replace a with {| encoded := encoded a |} in DWT.
+    eapply eval_DWT_opt_to_Z_inv in DWT.
+    autorewrite with norm in H2.
+    eapply repr_inj_signed in H2.
+    normalize.
+    unfold repable_signed.    
+    eapply DWT_bounds;
+    eassumption.
+    rep_omega.
+    cbv. break_match. auto.
+    forward_if [temp _t'4 (if eq_dec cb_p nullval then Vzero else Vone)].
     + (* isptr cb *)
       forward.
       forward.
-      break_let.
+      Require Import VstTactics.
+      rewrite if_false.
       entailer!.
-    + admit. (* cb_p = nullval *)
-    + forward_if [temp _t'9 (Vptr buf_b buf_ofs);
-                  temp _t'10  (Vint (Int.repr size));
+      destruct cb_p; auto. discriminate.
+    + forward.
+      entailer!.
+    + break_if.
+      * forward_if [temp _t'3 Vone]. lia.
+        forward.
+        forward_if [temp _t'3 Vone].
+        forward. entailer!. discriminate.
+        forward_if. forward. entailer!. discriminate.
+        repeat forward.
+        match goal with
+        | [ _ : _ |- semax _ ?Pre _ _ ] =>
+          forward_loop Pre
+        end. 
+        entailer!.
+        repeat forward.
+     * forward_if [temp _t'9 (Vptr buf_b buf_ofs);
+                  temp _t'10  (Vint (Int.repr struct_len));
                   temp _t'2  Vzero]; try congruence.
-      *
+      **
       repeat forward.
-      forward_call ((Vptr buf_b buf_ofs), size, app_key_p).
-      replace (size <? 0) with false by admit.
+      forward_call ((Vptr buf_b buf_ofs), struct_len, app_key_p).
+      Require Import Tactics.
+      rep_omega.
+      replace (struct_len <? 0) with false.
       forward_if. congruence.
       forward.
       entailer!.
-      * discriminate.
-      *
+      symmetry. Zbool_to_Prop. lia.
+      ** discriminate.
+      **
       repeat forward.
       entailer!.
-      (* Int.min_signed <= Int.signed (Int.repr (encoded a)) + Int.signed (Int.repr size) <=
-  Int.max_signed *) admit.
-       match goal with
+      eapply DWT_bounds_concrete in DWT.
+      strip_repr.
+      eassumption.
+      match goal with
       | [ _ : _ |- semax _ ?Pre _ _ ] =>
-          forward_loop Pre break: Pre 
+        forward_loop Pre
       end. 
-       entailer!.
-       repeat forward.
-       entailer!.
-       { admit. (* func correctness *) }
-       admit.
+      entailer!.
+      repeat forward.
+      entailer!.
+      { assert ((Vint (Int.repr (encoded a + struct_len)),
+                 (Vint (Int.repr 0), Vint (Int.repr 0))) =
+                (prim_enc_rval td struct_len (if eq_dec cb_p nullval then 0 else 32) 
+                               (map Int.repr (tags td)) td_p sptr_p)) as RES.
+        { unfold prim_enc_rval.
+          unfold evalErrW.
+          cbn.
+          break_if; try erewrite if_true in DWT by auto;
+            try erewrite if_false in DWT by auto;
+            try erewrite e in *;
+            erewrite DWT; auto. }
+        erewrite RES.
+        entailer!.
+        admit. (* change compspecs - same as in der_write_TL *)
+      }
 Admitted.
 
 End Der_encode_primitive.

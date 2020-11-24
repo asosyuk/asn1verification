@@ -29,20 +29,6 @@ Fixpoint der_write_tags_loop2 (ts : list Z) (ls : list int)
   | _, _ => ret (encode 0)
   end.
 
-Lemma aux : forall t sl (ls : list int) size l z,
-    der_write_tags_loop1 [t] sl [] [] = inr (ls, ([l], z)) ->
-    exists ls', der_write_tags_loop2 [t] [Int.repr l] 1 size 0 ls = inr (ls', z).
-Proof.
-  intros until z.
-  simpl.
-  break_match.
-  congruence.
-  break_let.
-  break_match.
-  intro H.
-  inversion H.
-  eexists.
-Admitted.
                                                                           
 Definition der_write_tags (td : TYPE_descriptor) 
            (struct_len : Z) (tag_mode : Z)
@@ -62,20 +48,6 @@ Definition der_write_tags (td : TYPE_descriptor)
          '(ls, z) <- der_write_tags_loop1 ts struct_len [] ;;
           _ <- der_write_tags_loop2 ts (map Int.repr ls) l size last_tag_form ;;
           ret (encode (encoded z - struct_len)).
-
-(* Definition der_write_tags_primitive (td : TYPE_descriptor) 
-           (struct_len : Z) (tag_mode : Z)
-           (last_tag_form : Z) (tag : Z)
-           (size : Z) : errW1 asn_enc_rval :=
-
-  let ts := tags td in
-  let l := len ts in
-  '(encode x) <- der_write_TL_m (Int.repr h) (Int.repr y) 0 0%int;;
-                ret (y :: l, encode (x + y))
-
-  '(ls, _) <- der_write_tags_loop1 ts struct_len [] ;;
-   z <- der_write_tags_loop2 ts (map Int.repr ls) l size last_tag_form ;;
-   ret (encode (encoded z - struct_len)). *)
 
 
 

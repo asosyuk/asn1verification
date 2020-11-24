@@ -9,7 +9,7 @@ Section Encoder.
 Definition primitive_encoder td struct_len buf_size ls : errW1 Z :=
   der_write_tags td struct_len 0 0 0 buf_size >>= 
                  fun x => tell ls >>= 
-                            fun _ => ret (len ls + encoded x).
+                            fun _ => ret (encoded x + struct_len).
 
 End Encoder.
 
