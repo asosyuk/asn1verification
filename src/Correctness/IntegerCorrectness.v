@@ -1,4 +1,4 @@
-Require Import Int.Exec AbstractSpec Lib Prim.Exec.
+(*       Require Import Int.Exec AbstractSpec Lib Prim.Exec.
 Require Import Core.Core Core.Notations Core.Tactics.
 From ExtLib.Structures Require Import Monad MonadWriter Monoid.
 From ExtLib.Data Require Import Monads.OptionMonad List.
@@ -8,7 +8,7 @@ Import MonadNotation.
 Open Scope monad.
 
 (* Exec spec *)
-(*
+
 Parameter int_to_byte : Z -> list byte.
 Parameter int_of_byte : list byte -> Z.
 

@@ -14,8 +14,8 @@ Definition asn_codec_ctx_s := Tstruct _asn_codec_ctx_s noattr.
 
 (* Encoder return struct *)
 Definition enc_rval_s := Tstruct _asn_enc_rval_s noattr.
-Definition mk_enc_rval encoded (sptr : val) := 
-  (Vint (Int.repr encoded), (Vundef, sptr)).
+Definition mk_enc_rval encoded (td_p sptr : val) := 
+  (Vint (Int.repr encoded), (td_p, sptr)).
 
 (* Decoder return struct *)
 Definition asn_dec_rval_s := Tstruct _asn_dec_rval_s noattr.

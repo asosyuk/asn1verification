@@ -1,4 +1,4 @@
-Require Import Core.Core Core.Notations Lib.Lib Prim.Exec.
+(*Require Import Core.Core Core.Notations Lib.Lib Prim.Exec.
 From ExtLib.Structures Require Import Monad MonadWriter MonadExc.
 From ExtLib.Data Require Import Monads.OptionMonad.
 
@@ -49,3 +49,4 @@ Section Decoder.
 Definition int_decoder := primitive_decoder.
 
 End Decoder.
+*)

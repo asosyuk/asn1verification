@@ -62,7 +62,7 @@ Section Der_write_tags.
 Definition der_write_tags_spec : ident * funspec :=
   DECLARE _der_write_tags
   WITH td_p : val, td : TYPE_descriptor,
-       struct_len: Z, tag_mode : Z, last_tag_form : Z, tag : Z, 
+       struct_len: Z, tag_mode : Z, last_tag_form : Z, 
        cb : val, app_key : val,
        tags_p : val
   PRE[tptr type_descriptor_s, tuint, tint, tint, tuint, 
@@ -73,7 +73,7 @@ Definition der_write_tags_spec : ident * funspec :=
          isptr tags_p;
          0 <= len (tags td) + 1 <= 16) 
   PARAMS(td_p; Vint (Int.repr struct_len); Vint (Int.repr tag_mode);
-           Vint (Int.repr last_tag_form); Vint (Int.repr tag); cb; app_key)
+           Vint (Int.repr last_tag_form); Vint (Int.repr 0); cb; app_key)
   GLOBALS()
   SEP(field_at Tsh (Tstruct _asn_TYPE_descriptor_s noattr) 
                [StructField _tags] 
@@ -81,7 +81,8 @@ Definition der_write_tags_spec : ident * funspec :=
         field_at Tsh (Tstruct _asn_TYPE_descriptor_s noattr) 
                  [StructField _tags_count] 
                  (Vint (Int.repr (len (tags td)))) td_p;
-        data_at Tsh (tarray tuint (len (tags td))) (map Vint (map Int.repr (tags td))) tags_p;
+        data_at Tsh (tarray tuint (len (tags td)))
+                (map Vint (map Int.repr (tags td))) tags_p;
         func_ptr' dummy_callback_spec cb;
         data_at_ Tsh enc_key_s app_key;
         valid_pointer cb)
@@ -92,7 +93,7 @@ Definition der_write_tags_spec : ident * funspec :=
                  (Vint (Int.repr 
                           (match evalErrW 
                                    (der_write_tags td struct_len tag_mode
-                                                   last_tag_form tag size) [] with
+                                                   last_tag_form 0 size) [] with
                            | Some w => encoded w
                            | None => -1
                            end))))
@@ -108,7 +109,7 @@ Definition der_write_tags_spec : ident * funspec :=
             data_at_ Tsh enc_key_s app_key;
             valid_pointer cb).
 
-
+(*
 Definition Gprog := ltac:(with_library prog [der_write_tags_spec;
                                              der_write_TL_spec]).
 
@@ -700,4 +701,5 @@ Proof.
     do 2 f_equal.
 Admitted.
 
-    
+    *)
+End Der_write_tags.

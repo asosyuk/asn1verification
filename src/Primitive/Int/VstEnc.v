@@ -1,4 +1,4 @@
-Require Import Core.Core Lib.Lib Core.StructNormalizer 
+(*Require Import Core.Core Lib.Lib Core.StructNormalizer 
         VstLib Int.Exec Lib.Callback.Dummy Lib.DWT.Vst. 
 Require Import VST.floyd.proofauto.
 Require Import Clight.dummy Clight.INTEGER.
@@ -428,3 +428,4 @@ Proof.
 Admitted.
 
 End Integer_der_encode.
+*)
