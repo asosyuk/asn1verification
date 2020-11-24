@@ -1,5 +1,5 @@
 Require Import Core Notations Tactics Int Ptr.
-
+(*
 Proposition addr_ge_to_sem_cmp_lt : forall b m b1 b2 i1 i2,
     addr_ge m (b1, i1) (b2, i2) = Some b ->
     sem_cmp Clt (Vptr b1 i1) (tptr tschar) (Vptr b2 i2) (tptr tschar) m = 
@@ -419,3 +419,4 @@ Proof.
     destruct zlt; intuition.
 Qed.
 
+*)
