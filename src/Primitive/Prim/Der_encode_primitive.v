@@ -39,6 +39,8 @@ Definition der_primitive_encoder_spec : ident * funspec :=
   DECLARE _der_encode_primitive
     WITH res_p : val,  
          sptr_p : val, buf_b : block, buf_ofs : ptrofs, 
+         sptr_b : block, sptr_ofs : ptrofs,
+         data : list Z,
          struct_len : Z,
          td_p : val, td : TYPE_descriptor,
          tag_mode : Z,
@@ -59,8 +61,11 @@ Definition der_primitive_encoder_spec : ident * funspec :=
                     (DOT der_encoder._tags_count) (Vint (Int.repr (Zlength (tags td)))) td_p;
            data_at Tsh (tarray tuint (Zlength (tags td))) (map Vint (map Int.repr (tags td)))
                    (Vptr buf_b buf_ofs);
-           field_at Tsh prim_type_s (DOT _buf) (Vptr buf_b buf_ofs) sptr_p;
+           data_at Tsh (tarray tuint (Zlength data)) (map Vint (map Int.repr data))
+                   (Vptr sptr_b sptr_ofs);
+           field_at Tsh prim_type_s (DOT _buf) (Vptr sptr_b sptr_ofs) sptr_p;
            field_at Tsh prim_type_s (DOT _size) (Vint (Int.repr struct_len)) sptr_p;
+           valid_pointer (Vptr sptr_b sptr_ofs);
            (* Callback *)
            data_at_ Tsh enc_key_s app_key_p;
            func_ptr' dummy_callback_spec cb_p;
@@ -76,10 +81,13 @@ Definition der_primitive_encoder_spec : ident * funspec :=
            data_at Tsh  (tarray tuint (Zlength (tags td)))
                    (map Vint (map Int.repr (tags td)))
                    (Vptr buf_b buf_ofs);
-           field_at Tsh prim_type_s (DOT _buf) (Vptr buf_b buf_ofs) sptr_p;
+           data_at Tsh (tarray tuint (Zlength data)) (map Vint (map Int.repr data))
+                   (Vptr sptr_b sptr_ofs);
+           field_at Tsh prim_type_s (DOT _buf)  (Vptr sptr_b sptr_ofs) sptr_p;
            field_at Tsh prim_type_s (DOT _size) (Vint (Int.repr struct_len)) sptr_p;
+            valid_pointer (Vptr sptr_b sptr_ofs);
            (* Result *)
-           data_at Tsh enc_rval_s (prim_enc_rval td struct_len buf_size (map Int.repr (tags td))
+           data_at Tsh enc_rval_s (prim_enc_rval td struct_len buf_size (map Int.repr data)
                                                  td_p sptr_p ) res_p;
            (* Callback *)
            valid_pointer cb_p;
@@ -113,8 +121,11 @@ Proof.
   unfold Frame.
   instantiate (1 := [data_at_ Tsh (Tstruct _asn_enc_rval_s noattr) v_erval ;
                      data_at_ Tsh enc_rval_s res_p;
-                     field_at Tsh prim_type_s (DOT _buf) (Vptr buf_b buf_ofs) sptr_p ;
-                     field_at Tsh prim_type_s (DOT _size) (Vint (Int.repr struct_len)) sptr_p ]).
+                     field_at Tsh prim_type_s (DOT _buf)  (Vptr sptr_b sptr_ofs) sptr_p ;
+                     field_at Tsh prim_type_s (DOT _size) (Vint (Int.repr struct_len)) sptr_p;
+                     data_at Tsh (tarray tuint (Zlength data)) (map Vint (map Int.repr data))
+                             (Vptr sptr_b sptr_ofs); 
+                     valid_pointer (Vptr sptr_b sptr_ofs)]).
   simpl.
   change_compspecs Der_write_tags.CompSpecs.
   entailer!.
@@ -189,12 +200,12 @@ Proof.
         end. 
         entailer!.
         repeat forward.
-     * forward_if [temp _t'9 (Vptr buf_b buf_ofs);
+     * forward_if [temp _t'9 (Vptr sptr_b sptr_ofs);
                   temp _t'10  (Vint (Int.repr struct_len));
                   temp _t'2  Vzero]; try congruence.
       **
       repeat forward.
-      forward_call ((Vptr buf_b buf_ofs), struct_len, app_key_p).
+      forward_call ((Vptr sptr_b sptr_ofs), struct_len, app_key_p).
       Require Import Tactics.
       rep_omega.
       replace (struct_len <? 0) with false.
@@ -219,7 +230,7 @@ Proof.
       { assert ((Vint (Int.repr (encoded a + struct_len)),
                  (Vint (Int.repr 0), Vint (Int.repr 0))) =
                 (prim_enc_rval td struct_len (if eq_dec cb_p nullval then 0 else 32) 
-                               (map Int.repr (tags td)) td_p sptr_p)) as RES.
+                               (map Int.repr data) td_p sptr_p)) as RES.
         { unfold prim_enc_rval.
           unfold evalErrW.
           cbn.
@@ -228,6 +239,7 @@ Proof.
             try erewrite e in *;
             erewrite DWT; auto. }
         erewrite RES.
+        rewrite_if_b.
         entailer!.
         admit. (* change compspecs - same as in der_write_TL *)
       }

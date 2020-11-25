@@ -1,7 +1,7 @@
-(*Require Import Core.Core Lib.Lib Core.StructNormalizer 
-        VstLib Int.Exec Lib.Callback.Dummy Lib.DWT.Vst. 
+Require Import Core.Core Lib.Lib Core.StructNormalizer 
+        VstLib Int.Exec Lib.Callback.Dummy Lib.DWT.VST.Der_write_tags. 
 Require Import VST.floyd.proofauto.
-Require Import Clight.dummy Clight.INTEGER.
+Require Import Clight.dummy Clight.INTEGER Prim.Der_encode_primitive.
 
 Instance CompSpecs : compspecs. Proof. make_compspecs prog. Defined.
 Definition Vprog : varspecs. Proof. mk_varspecs prog. Defined.
@@ -11,72 +11,100 @@ Section Integer_der_encode.
 Definition prim_type_s := (Tstruct _ASN__PRIMITIVE_TYPE_s noattr).
 Definition mk_prim_type_s (buf_p : val) size := (buf_p, Vint (Int.repr size)).
 
-Definition int_enc_rval td li sptr_p := 
-  match evalErrW (int_encoder td li) [] with
-  | Some v => mk_enc_rval ( v) Vzero
-  | None => mk_enc_rval (-1) sptr_p
+
+Definition int_enc_rval td li buf_size td_p sptr_p := 
+  match evalErrW (int_encoder td buf_size li) [] with
+  | Some v => mk_enc_rval (v) Vzero Vzero
+  | None => mk_enc_rval (-1) td_p sptr_p
   end.
 
-Definition int_enc_res td li := 
-  match execErrW (int_encoder td li) [] with
+Definition int_enc_res td buf_size li := 
+  match execErrW (int_encoder td buf_size li) [] with
   | Some v => v
   | None => []
   end.
 
+Definition Z_of_val v := 
+  match v with
+  | Vptr b i => Ptrofs.unsigned i 
+  | _ => 0
+  end.
+
+Instance Change1 : change_composite_env Callback.Dummy.CompSpecs CompSpecs.
+Proof. make_cs_preserve Dummy.CompSpecs CompSpecs. Defined.
+
+Instance Change2 : change_composite_env CompSpecs Dummy.CompSpecs.
+Proof. make_cs_preserve CompSpecs Dummy.CompSpecs. Defined.
+
+Instance Change4 : change_composite_env CompSpecs Der_encode_primitive.CompSpecs.
+Proof. make_cs_preserve CompSpecs Der_encode_primitive.CompSpecs. Defined.
+
+Instance Change3 : change_composite_env Der_encode_primitive.CompSpecs CompSpecs.
+Proof. make_cs_preserve Der_encode_primitive.CompSpecs CompSpecs. Defined.
+
+
 Definition int_der_encode_spec : ident * funspec :=
   DECLARE _INTEGER_encode_der
     WITH res_p : val,  
-         sptr_p : val, buf_b : block, buf_ofs : ptrofs, 
+         sptr_p : val, st : val, buf_b : block, buf_ofs : ptrofs, 
          size : Z, data : list byte,
          td_p : val, td : TYPE_descriptor,
-         tag_mode : Z, tag : Z,
+         tag_mode : Z,
          cb_p : val, app_key_p : val
     PRE [tptr enc_rval_s, tptr type_descriptor_s, tptr tvoid, tint, tuint, 
           tptr cb_type, tptr tvoid]
-      PROP (decoder_type td = BOOLEAN_t;
+      PROP (decoder_type td = INTEGER_t;
+            tag_mode = 0;
             1 < size <= Int.max_unsigned;
             size = Zlength data;
-            Forall (fun x => Int.unsigned (Int.repr (Byte.signed x)) <= 
-                          Byte.max_unsigned) data;
-            (* if sptr_p is null, then encoder will crush *)
-            sptr_p <> nullval;
-            is_pointer_or_null (Vptr buf_b buf_ofs);
-            is_pointer_or_null (Vptr buf_b (Ptrofs.add buf_ofs (Ptrofs.repr size)));
-            0 <= Ptrofs.unsigned buf_ofs + size <= Ptrofs.max_unsigned)
+            (* if sptr_p is null, then encoder will crush !!! *)
+           (* sptr_p <> nullval; *)
+            is_pointer_or_null st;
+            is_pointer_or_null (offset_val size st);
+            0 <= Z_of_val st + size <= Ptrofs.max_unsigned)
       PARAMS (res_p; td_p; sptr_p; Vint (Int.repr tag_mode);
-              Vint (Int.repr tag); cb_p; app_key_p)
+              Vint (Int.repr 0); cb_p; app_key_p)
       GLOBALS ()
       SEP (data_at_ Tsh enc_rval_s res_p;
-           data_at_ Tsh type_descriptor_s td_p; 
-           (* sptr *)
-           valid_pointer (Vptr buf_b buf_ofs);
-           if Val.eq (Vptr buf_b buf_ofs) nullval 
-           then emp
-           else data_at Tsh (tarray tuchar size) (map Vubyte data) (Vptr buf_b buf_ofs);
-           field_at Tsh prim_type_s (DOT _buf) (Vptr buf_b buf_ofs) sptr_p;
+           field_at Tsh (Tstruct der_encoder._asn_TYPE_descriptor_s noattr) 
+                    (DOT der_encoder._tags) (Vptr buf_b buf_ofs) td_p;
+           field_at Tsh (Tstruct der_encoder._asn_TYPE_descriptor_s noattr)
+                    (DOT der_encoder._tags_count) 
+                    (Vint (Int.repr (Zlength (tags td)))) td_p;
+           data_at Tsh (tarray tuint (Zlength (tags td))) 
+                   (map Vint (map Int.repr (tags td)))
+                   (Vptr buf_b buf_ofs);
+           valid_pointer st;
+           if eq_dec st nullval 
+           then emp else
+           data_at Tsh (tarray tuchar (Zlength data)) (map Vubyte data) st;
            field_at Tsh prim_type_s (DOT _size) (Vint (Int.repr size)) sptr_p;
-           (* Callback *)
+           field_at Tsh prim_type_s (DOT _buf)  st sptr_p;
            data_at_ Tsh enc_key_s app_key_p;
-           valid_pointer cb_p)
+           valid_pointer cb_p; 
+           func_ptr' dummy_callback_spec cb_p)
     POST [tvoid]
       PROP ()
       LOCAL ()
-      SEP (data_at_ Tsh type_descriptor_s td_p;
-           (* sptr *)
-           valid_pointer (Vptr buf_b buf_ofs);
-           if Val.eq (Vptr buf_b buf_ofs) nullval 
-           then emp
-           else data_at Tsh (tarray tuchar size) (map Vubyte (int_enc_res td data)) 
-                        (Vptr buf_b buf_ofs);
-           data_at Tsh prim_type_s (mk_prim_type_s (Vptr buf_b buf_ofs) size) sptr_p;
-           (* Result *)
-           data_at Tsh enc_rval_s (int_enc_rval td data sptr_p) res_p;
-           (* Callback *)
+      SEP (field_at Tsh (Tstruct der_encoder._asn_TYPE_descriptor_s noattr) 
+                    (DOT der_encoder._tags) (Vptr buf_b buf_ofs) td_p;
+           field_at Tsh (Tstruct der_encoder._asn_TYPE_descriptor_s noattr)
+                    (DOT der_encoder._tags_count) (Vint (Int.repr (Zlength (tags td)))) td_p;
+           data_at Tsh (tarray tuint (Zlength (tags td))) (map Vint (map Int.repr (tags td)))
+                   (Vptr buf_b buf_ofs);
+            valid_pointer st;
+           if eq_dec st nullval 
+           then emp else
+           data_at Tsh (tarray tuchar (Zlength data)) (map Vubyte data) st;
+           field_at Tsh prim_type_s (DOT _size) (Vint (Int.repr size)) sptr_p;
+           field_at Tsh prim_type_s (DOT _buf)  st sptr_p;
+           data_at Tsh enc_rval_s (int_enc_rval td data size td_p sptr_p) res_p;
            valid_pointer cb_p;
            data_at_ Tsh enc_key_s app_key_p;
            func_ptr' dummy_callback_spec cb_p).
 
-Definition Gprog := ltac:(with_library prog [int_der_encode_spec]).
+Definition Gprog := ltac:(with_library prog [int_der_encode_spec; 
+                                               der_primitive_encoder_spec]).
 
 Ltac forward_empty_loop :=
       match goal with
@@ -120,14 +148,14 @@ Proof.
   forward_empty_loop.
   forward_if (
       PROP ( ) 
-      LOCAL (temp _t'2 buf_p; temp _st sptr_p; 
+      LOCAL (temp _t'2 st; temp _st sptr_p; 
              lvar __res__1 enc_rval_s v__res__1;
              lvar _unconst (Tunion __4050 noattr) v_unconst;
              lvar _effective_integer prim_type_s v_effective_integer;
              lvar _rval (Tstruct _asn_enc_rval_s noattr) v_rval; 
              temp __res res_p; temp _td td_p; 
              temp _sptr sptr_p; temp _tag_mode (Vint (Int.repr tag_mode));
-             temp _tag (Vint (Int.repr tag)); 
+             temp _tag (Vint (Int.repr 0)); 
              temp _cb cb_p; temp _app_key app_key_p)
        SEP ((* Local vars *)
             data_at_ Tsh enc_rval_s v__res__1;
@@ -135,39 +163,47 @@ Proof.
             data_at_ Tsh prim_type_s v_effective_integer;
             data_at_ Tsh (Tstruct _asn_enc_rval_s noattr) v_rval; 
             (* type descriptor *)
-            data_at_ Tsh type_descriptor_s td_p; 
+            field_at Tsh (Tstruct der_encoder._asn_TYPE_descriptor_s noattr) 
+                    (DOT der_encoder._tags) (Vptr buf_b buf_ofs) td_p;
+           field_at Tsh (Tstruct der_encoder._asn_TYPE_descriptor_s noattr)
+                    (DOT der_encoder._tags_count) (Vint (Int.repr (Zlength (tags td)))) td_p;
+           data_at Tsh (tarray tuint (Zlength (tags td))) (map Vint (map Int.repr (tags td)))
+                   (Vptr buf_b buf_ofs);
             (* sptr *)
-            valid_pointer buf_p;
-            if Val.eq buf_p nullval
+            valid_pointer st;
+            if Val.eq st nullval
             then emp
-            else data_at Tsh (tarray tuchar size) (map Vubyte data) buf_p;
-            field_at Tsh prim_type_s (DOT _buf) buf_p sptr_p;
+            else data_at Tsh (tarray tuchar size) (map Vubyte data) st;
+            field_at Tsh prim_type_s (DOT _buf) st sptr_p;
             field_at Tsh prim_type_s (DOT _size) (Vint (Int.repr size)) sptr_p; 
             (* Result *)
             data_at_ Tsh enc_rval_s res_p;
             (* Callback *)
             data_at_ Tsh enc_key_s app_key_p;
-            valid_pointer cb_p)).
+            valid_pointer cb_p;
+            func_ptr' dummy_callback_spec cb_p)).
   * (* st->buf <> null *)
-    destruct Val.eq; 
-      [unfold nullval in e; rewrite Heqbuf_p in e; simpl in e; congruence|].
+    destruct st; simpl in H; try contradiction.
+    Require Import VstTactics.
+    rewrite if_false by discriminate.
     repeat forward.
     normalize.
     forward_loop (EX z : Z, 
                PROP (0 <=  z;
-                     Ptrofs.unsigned buf_ofs + z <= Ptrofs.max_unsigned)
+                     Ptrofs.unsigned i + z <= Ptrofs.max_unsigned)
                LOCAL (temp 
                         _end1 
-                        (Vptr buf_b
+                        (Vptr b
                               (Ptrofs.sub 
-                                 (Ptrofs.add buf_ofs (Ptrofs.repr size)) (Ptrofs.repr 1))); 
-                      temp _buf (Vptr buf_b (Ptrofs.add buf_ofs (Ptrofs.repr z))); 
+                                 (Ptrofs.add i (Ptrofs.repr size)) (Ptrofs.repr 1))); 
+                      temp _buf (Vptr b (Ptrofs.add i (Ptrofs.repr z))); 
                       temp _t'10 (Vint (Int.repr size));
-                      temp _t'2 (Vptr buf_b buf_ofs); temp _st sptr_p;
+                      temp _t'2 (Vptr b i); temp _st sptr_p;
                       lvar __res__1 enc_rval_s v__res__1; 
                       lvar _unconst (Tunion __4050 noattr) v_unconst;
                       lvar _effective_integer prim_type_s v_effective_integer; 
-                      lvar _rval enc_rval_s v_rval; temp _tag (Vint (Int.repr tag));
+                      lvar _rval enc_rval_s v_rval; 
+                      temp _tag (Vint (Int.repr 0));
                       temp __res res_p; temp _td td_p; temp _sptr sptr_p;
                       temp _tag_mode (Vint (Int.repr tag_mode));
                       temp _cb cb_p; temp _app_key app_key_p)
@@ -175,27 +211,38 @@ Proof.
                     data_at_ Tsh (Tunion __4050 noattr) v_unconst;
                     data_at_ Tsh prim_type_s v_effective_integer; 
                     data_at_ Tsh enc_rval_s v_rval;
-                    data_at_ Tsh enc_rval_s res_p; data_at_ Tsh type_descriptor_s td_p;
-                    data_at_ Tsh enc_key_s app_key_p; valid_pointer (Vptr buf_b buf_ofs);
-                    data_at Tsh (tarray tuchar size) (map Vubyte data) (Vptr buf_b buf_ofs);
-                    field_at Tsh prim_type_s (DOT _buf) (Vptr buf_b buf_ofs) sptr_p;
-                    field_at Tsh prim_type_s (DOT _size) (Vint (Int.repr size)) sptr_p; 
-                    valid_pointer cb_p))%assert
+                    data_at_ Tsh enc_rval_s res_p;
+                    data_at_ Tsh enc_key_s app_key_p;
+                     field_at Tsh (Tstruct der_encoder._asn_TYPE_descriptor_s noattr) 
+                              (DOT der_encoder._tags) (Vptr buf_b buf_ofs) td_p;
+                     field_at Tsh (Tstruct der_encoder._asn_TYPE_descriptor_s noattr)
+                              (DOT der_encoder._tags_count) 
+                              (Vint (Int.repr (Zlength (tags td)))) td_p;
+                     data_at Tsh (tarray tuint (Zlength (tags td)))
+                             (map Vint (map Int.repr (tags td)))
+                             (Vptr buf_b buf_ofs);
+                     (* sptr *)
+                     valid_pointer (Vptr b i);
+                      data_at Tsh (tarray tuchar (Zlength data)) (map Vubyte data) (Vptr b i);
+                     field_at Tsh prim_type_s (DOT _buf) (Vptr b i) sptr_p;
+                     field_at Tsh prim_type_s (DOT _size) (Vint (Int.repr size)) sptr_p;  
+                     valid_pointer cb_p;
+                     func_ptr' dummy_callback_spec cb_p))%assert
       continue: (EX z : Z, 
                PROP (0 <= z;
-                     Ptrofs.unsigned buf_ofs + z + 1 <= Ptrofs.max_unsigned)
+                     Ptrofs.unsigned i+ z + 1 <= Ptrofs.max_unsigned)
                LOCAL (temp 
                         _end1 
-                        (Vptr buf_b
+                        (Vptr b
                               (Ptrofs.sub 
-                                 (Ptrofs.add buf_ofs (Ptrofs.repr size)) (Ptrofs.repr 1))); 
+                                 (Ptrofs.add i(Ptrofs.repr size)) (Ptrofs.repr 1))); 
                       temp _t'10 (Vint (Int.repr size));
-                      temp _buf (Vptr buf_b (Ptrofs.add buf_ofs (Ptrofs.repr z))); 
-                      temp _t'2 (Vptr buf_b buf_ofs); temp _st sptr_p;
+                      temp _buf (Vptr b(Ptrofs.add i(Ptrofs.repr z))); 
+                      temp _t'2 (Vptr b i); temp _st sptr_p;
                       lvar __res__1 enc_rval_s v__res__1; 
                       lvar _unconst (Tunion __4050 noattr) v_unconst;
                       lvar _effective_integer prim_type_s v_effective_integer; 
-                      lvar _rval enc_rval_s v_rval; temp _tag (Vint (Int.repr tag));
+                      lvar _rval enc_rval_s v_rval; temp _tag (Vint (Int.repr 0));
                       temp __res res_p; temp _td td_p; temp _sptr sptr_p;
                       temp _tag_mode (Vint (Int.repr tag_mode));
                       temp _cb cb_p; temp _app_key app_key_p)
@@ -203,39 +250,61 @@ Proof.
                     data_at_ Tsh (Tunion __4050 noattr) v_unconst;
                     data_at_ Tsh prim_type_s v_effective_integer; 
                     data_at_ Tsh enc_rval_s v_rval;
-                    data_at_ Tsh enc_rval_s res_p; data_at_ Tsh type_descriptor_s td_p;
-                    data_at_ Tsh enc_key_s app_key_p; valid_pointer (Vptr buf_b buf_ofs);
-                    data_at Tsh (tarray tuchar size) (map Vubyte data) (Vptr buf_b buf_ofs);
-                    field_at Tsh prim_type_s (DOT _buf) (Vptr buf_b buf_ofs) sptr_p;
-                    field_at Tsh prim_type_s (DOT _size) (Vint (Int.repr size)) sptr_p; 
-                    valid_pointer cb_p))%assert
+                    data_at_ Tsh enc_rval_s res_p;
+                    data_at_ Tsh enc_key_s app_key_p;
+                     field_at Tsh (Tstruct der_encoder._asn_TYPE_descriptor_s noattr) 
+                              (DOT der_encoder._tags) (Vptr buf_b buf_ofs) td_p;
+                     field_at Tsh (Tstruct der_encoder._asn_TYPE_descriptor_s noattr)
+                              (DOT der_encoder._tags_count) 
+                              (Vint (Int.repr (Zlength (tags td)))) td_p;
+                     data_at Tsh (tarray tuint (Zlength (tags td)))
+                             (map Vint (map Int.repr (tags td)))
+                             (Vptr buf_b buf_ofs);
+                     (* sptr *)
+                     valid_pointer (Vptr b i);
+                      data_at Tsh (tarray tuchar (Zlength data)) (map Vubyte data) (Vptr b i);
+                     field_at Tsh prim_type_s (DOT _buf) (Vptr b i) sptr_p;
+                     field_at Tsh prim_type_s (DOT _size) (Vint (Int.repr size)) sptr_p;  
+                     valid_pointer cb_p;
+                     func_ptr' dummy_callback_spec cb_p))%assert
       break: (EX z : Z,
               PROP ()
               LOCAL (temp 
                        _end1 
-                       (Vptr buf_b
+                       (Vptr b
                              (Ptrofs.sub 
-                                (Ptrofs.add buf_ofs (Ptrofs.repr size)) (Ptrofs.repr 1))); 
+                                (Ptrofs.add i(Ptrofs.repr size)) (Ptrofs.repr 1))); 
                      temp _t'10 (Vint (Int.repr size));
-                     temp _buf (Vptr buf_b (Ptrofs.add buf_ofs (Ptrofs.repr z))); 
-                     temp _t'2 (Vptr buf_b buf_ofs); 
+                     temp _buf (Vptr b(Ptrofs.add i(Ptrofs.repr z))); 
+                     temp _t'2 (Vptr b i); 
                      temp _st sptr_p; lvar __res__1 enc_rval_s v__res__1; 
                      lvar _unconst (Tunion __4050 noattr) v_unconst;
                      lvar _effective_integer prim_type_s v_effective_integer; 
-                     lvar _rval enc_rval_s v_rval; temp _tag (Vint (Int.repr tag));
+                     lvar _rval enc_rval_s v_rval; temp _tag (Vint (Int.repr 0));
                      temp __res res_p; temp _td td_p; temp _sptr sptr_p;
                      temp _tag_mode (Vint (Int.repr tag_mode));
                      temp _cb cb_p; temp _app_key app_key_p)
-              SEP(data_at_ Tsh enc_rval_s v__res__1; 
-                  data_at_ Tsh (Tunion __4050 noattr) v_unconst;
-                  data_at_ Tsh prim_type_s v_effective_integer; 
-                  data_at_ Tsh enc_rval_s v_rval;
-                  data_at_ Tsh enc_rval_s res_p; data_at_ Tsh type_descriptor_s td_p;
-                  data_at_ Tsh enc_key_s app_key_p; valid_pointer (Vptr buf_b buf_ofs);
-                  data_at Tsh (tarray tuchar size) (map Vubyte data) (Vptr buf_b buf_ofs);
-                  field_at Tsh prim_type_s (DOT _buf) (Vptr buf_b buf_ofs) sptr_p;
-                  field_at Tsh prim_type_s (DOT _size) (Vint (Int.repr size)) sptr_p; 
-                  valid_pointer cb_p))%assert.
+              SEP (data_at_ Tsh enc_rval_s v__res__1; 
+                    data_at_ Tsh (Tunion __4050 noattr) v_unconst;
+                    data_at_ Tsh prim_type_s v_effective_integer; 
+                    data_at_ Tsh enc_rval_s v_rval;
+                    data_at_ Tsh enc_rval_s res_p;
+                    data_at_ Tsh enc_key_s app_key_p;
+                     field_at Tsh (Tstruct der_encoder._asn_TYPE_descriptor_s noattr) 
+                              (DOT der_encoder._tags) (Vptr buf_b buf_ofs) td_p;
+                     field_at Tsh (Tstruct der_encoder._asn_TYPE_descriptor_s noattr)
+                              (DOT der_encoder._tags_count) 
+                              (Vint (Int.repr (Zlength (tags td)))) td_p;
+                     data_at Tsh (tarray tuint (Zlength (tags td)))
+                             (map Vint (map Int.repr (tags td)))
+                             (Vptr buf_b buf_ofs);
+                     (* sptr *)
+                     valid_pointer (Vptr b i);
+                      data_at Tsh (tarray tuchar (Zlength data)) (map Vubyte data) (Vptr b i);
+                     field_at Tsh prim_type_s (DOT _buf) (Vptr b i) sptr_p;
+                     field_at Tsh prim_type_s (DOT _size) (Vint (Int.repr size)) sptr_p;  
+                     valid_pointer cb_p;
+                     func_ptr' dummy_callback_spec cb_p))%assert.
     - (* invariant check *)
       Exists 0.
       entailer!.
@@ -243,13 +312,12 @@ Proof.
       Intros z.
       forward_if.
       unfold test_order_ptrs, sameblock.
-      destruct peq; try congruence.
+      destruct peq; try congruence. simpl.
       entailer!.
       admit. (* weak valid pointer admit *)
-
       assert (Z : 0 < z + 1 < Zlength data).
-      { unfold typed_true, strict_bool_val, sem_cmp_pp in H9; cbn in H9.
-        destruct eq_block in H9; try congruence.
+      { unfold typed_true, strict_bool_val, sem_cmp_pp in H8; cbn in H8.
+        destruct eq_block in H8; try congruence.
         break_match_hyp; try congruence.
         unfold force_val, Val.of_bool, Ptrofs.ltu in Heqv; cbn in Heqv.
         destruct zlt in Heqv.
@@ -267,8 +335,10 @@ Proof.
           rewrite T in l; clear T.
         rewrite <-Z.add_assoc in l.
         apply Zplus_lt_reg_l with (n := z) (m := (size + -1)) 
-                                    (p := Ptrofs.unsigned buf_ofs) in l.
+                                    (p := Ptrofs.unsigned i) in l.
         lia.
+        Require Import Core.Tactics.
+        all: simpl in *.
         rep_omega.
         rewrite Ptrofs.unsigned_repr; rep_omega.
         rewrite Ptrofs.unsigned_repr; rep_omega.
@@ -276,73 +346,89 @@ Proof.
         rewrite Ptrofs.unsigned_repr. 
         reflexivity.
         rep_omega.
-        unfold Vfalse in Heqv; inversion Heqv; rewrite <-H11 in H9; 
-          unfold Int.eq in H9; rewrite Int.unsigned_zero in H9; cbn in H9.
+        unfold Vfalse in Heqv; inversion Heqv; rewrite <- H10 in H8; 
+          unfold Int.eq in H8; rewrite Int.unsigned_zero in H8; cbn in H8.
         congruence. }
+      
 
-      assert_PROP (Vptr buf_b (Ptrofs.add buf_ofs (Ptrofs.repr z)) =
-                  field_address (tarray tuchar size) (SUB z) (Vptr buf_b buf_ofs)).
+      assert_PROP (Vptr b (Ptrofs.add i (Ptrofs.repr z)) =
+                  field_address (tarray tuchar (Zlength data)) (SUB z) (Vptr b i)).
       entailer!.
+ 
       assert (FA : field_compatible (tarray tuchar (Zlength data)) (SUB z) 
-                                    (Vptr buf_b buf_ofs)).
-      prove_field_compatible_arr.
+                                    (Vptr b i)).
+      (* prove_field_compatible_arr. *) admit.
       apply field_compatible_field_address in FA.
-      rewrite FA; cbn; replace (0 + 1 * z) with z by lia; reflexivity.
-
+      rewrite FA; cbn; replace (0 + 1* z) with (z) by lia; try reflexivity.
       forward.
       entailer!.
       { cbn; pose proof Byte.unsigned_range_2 (Znth z data) as T; cbn in T; 
           inversion T as [T1 T2].
         pose proof unsigned_repr_le (Byte.unsigned (Znth z data)) T1.
         lia. }
-
       rewrite Znth_map_Vubyte by lia.
       forward_if (
           PROP ( ) 
           LOCAL (temp _t'7 (Vubyte (Znth z data)); 
-                 temp _end1 (Vptr buf_b (Ptrofs.sub 
-                                           (Ptrofs.add buf_ofs (Ptrofs.repr size)) 
+                 temp _end1 (Vptr b(Ptrofs.sub 
+                                           (Ptrofs.add i(Ptrofs.repr size)) 
                                            (Ptrofs.repr 1)));
-                 temp _buf (Vptr buf_b (Ptrofs.add buf_ofs (Ptrofs.repr z)));
-                 temp _t'10 (Vint (Int.repr size)); temp _t'2 (Vptr buf_b buf_ofs); 
+                 temp _buf (Vptr b (Ptrofs.add i (Ptrofs.repr z)));
+                 temp _t'10 (Vint (Int.repr size)); temp _t'2 (Vptr b i); 
                  temp _st sptr_p; lvar __res__1 enc_rval_s v__res__1;
                  lvar _unconst (Tunion __4050 noattr) v_unconst;
                  lvar _effective_integer prim_type_s v_effective_integer; 
                  lvar _rval enc_rval_s v_rval;
-                 temp _tag (Vint (Int.repr tag)); temp __res res_p; temp _td td_p; 
+                 temp _tag (Vint (Int.repr 0)); temp __res res_p; temp _td td_p; 
                  temp _sptr sptr_p; temp _tag_mode (Vint (Int.repr tag_mode)); 
                  temp _cb cb_p; temp _app_key app_key_p)
           SEP (data_at_ Tsh enc_rval_s v__res__1; 
                data_at_ Tsh (Tunion __4050 noattr) v_unconst; 
                data_at_ Tsh prim_type_s v_effective_integer; 
                data_at_ Tsh enc_rval_s v_rval; 
-               data_at_ Tsh enc_rval_s res_p; data_at_ Tsh type_descriptor_s td_p; 
-               data_at_ Tsh enc_key_s app_key_p; valid_pointer (Vptr buf_b buf_ofs); 
-               data_at Tsh (Tarray tuchar size noattr) (map Vubyte data) 
-                       (Vptr buf_b buf_ofs); 
-               field_at Tsh prim_type_s (DOT _buf) (Vptr buf_b buf_ofs) sptr_p; 
+               data_at_ Tsh enc_rval_s res_p; 
+
+               field_at Tsh (Tstruct der_encoder._asn_TYPE_descriptor_s noattr) 
+                              (DOT der_encoder._tags) (Vptr buf_b buf_ofs) td_p;
+                     field_at Tsh (Tstruct der_encoder._asn_TYPE_descriptor_s noattr)
+                              (DOT der_encoder._tags_count) 
+                              (Vint (Int.repr (Zlength (tags td)))) td_p;
+                     data_at Tsh (tarray tuint (Zlength (tags td)))
+                             (map Vint (map Int.repr (tags td)))
+                             (Vptr buf_b buf_ofs);
+               
+               data_at_ Tsh enc_key_s app_key_p; 
+
+               valid_pointer (Vptr b i); 
+               
+               data_at Tsh (Tarray tuchar (Zlength data) noattr) (map Vubyte data) 
+                       (Vptr b i); 
+               field_at Tsh prim_type_s (DOT _buf) (Vptr b i) sptr_p; 
                field_at Tsh prim_type_s (DOT _size) (Vint (Int.repr size)) sptr_p; 
-               valid_pointer cb_p)).
+               valid_pointer cb_p;
+               func_ptr' dummy_callback_spec cb_p)).
       { (* *buf = 0 -> first switch case *)
 
-        assert_PROP (Vptr buf_b (Ptrofs.add (Ptrofs.add buf_ofs (Ptrofs.repr z)) 
+        assert_PROP (Vptr b (Ptrofs.add (Ptrofs.add i(Ptrofs.repr z)) 
                                             (Ptrofs.mul (Ptrofs.repr 1) 
                                                         (Ptrofs.of_ints (Int.repr 1)))) =
-                     field_address (tarray tuchar size) (SUB (z + 1)) (Vptr buf_b buf_ofs)).
+                     field_address (tarray tuchar (Zlength data) ) (SUB (z + 1)) (Vptr b i)).
         entailer!.
         assert (FA : field_compatible (tarray tuchar (Zlength data)) (SUB (z + 1)) 
-                                 (Vptr buf_b buf_ofs)).
-        prove_field_compatible_arr.
+                                 (Vptr b i)).
+        (* prove_field_compatible_arr. *) 
+        { econstructor. auto. repeat split; auto. cbn. 
+          unfold Z.max. break_match; simpl in H4; try rep_omega. 
+          all: try rep_omega. admit. admit. }
         apply field_compatible_field_address in FA.
         rewrite FA; cbn; replace (0 + 1 * (z + 1)) with (z + 1) by lia; reflexivity.
-
         forward.
         entailer!.
         { cbn; pose proof Byte.unsigned_range_2 (Znth (z + 1) data) as T; cbn in T; 
             inversion T as [T1 T2].
           pose proof unsigned_repr_le (Byte.unsigned (Znth (z + 1) data)) T1.
           lia. }
-
+        simpl in H5.
         forward_if.
         + (* buf[1] & 0x80 = 0 -> continue *) 
           forward.
@@ -354,17 +440,16 @@ Proof.
       }
       { (* *buf = 255 -> second switch case *)
 
-        assert_PROP (Vptr buf_b (Ptrofs.add (Ptrofs.add buf_ofs (Ptrofs.repr z)) 
+        assert_PROP (Vptr b(Ptrofs.add (Ptrofs.add i(Ptrofs.repr z)) 
                                             (Ptrofs.mul (Ptrofs.repr 1) 
                                                         (Ptrofs.of_ints (Int.repr 1)))) =
-                     field_address (tarray tuchar size) (SUB (z + 1)) (Vptr buf_b buf_ofs)).
+                     field_address (tarray tuchar  (Zlength data)) (SUB (z + 1)) (Vptr b i)).
         entailer!.
         assert (FA : field_compatible (tarray tuchar (Zlength data)) (SUB (z + 1)) 
-                                 (Vptr buf_b buf_ofs)).
-        prove_field_compatible_arr.
+                                 (Vptr b i)).
+        (* prove_field_compatible_arr. *) admit.
         apply field_compatible_field_address in FA.
         rewrite FA; cbn; replace (0 + 1 * (z + 1)) with (z + 1) by lia; reflexivity.
-
         forward.
         entailer!.
         { cbn; pose proof Byte.unsigned_range_2 (Znth (z + 1) data) as T; cbn in T; 
@@ -372,6 +457,7 @@ Proof.
           pose proof unsigned_repr_le (Byte.unsigned (Znth (z + 1) data)) T1.
           lia. }
 
+        simpl in H5.
         forward_if.
         + (* buf[1] & 0x80 <> 0 -> continue *)
           forward. 
@@ -417,15 +503,82 @@ Proof.
 
       + (* shift = 0 *)
         forward.
+        rewrite if_false by discriminate.
         entailer!.
-    
   * (* postcondition check *)
     forward.
     entailer!.
-  * (* st->buf = null *)
-    admit.  (* unfinished, call to der_encode primitive *)
-  
+  * assert (isptr st) as S by admit.
+    cbn in S. destruct st; try contradiction. 
+    forward_call (v__res__1,   
+                  sptr_p,
+                  buf_b, buf_ofs, b, i, map Byte.unsigned data,
+                  size,
+                  td_p, td,
+                  0,
+                  cb_p, app_key_p).
+    entailer!.
+    rewrite if_false by discriminate.
+    unfold Frame.
+    instantiate (1 := [data_at_ Tsh (Tunion __4050 noattr) v_unconst * data_at_ Tsh prim_type_s v_effective_integer *
+  data_at_ Tsh (Tstruct _asn_enc_rval_s noattr) v_rval *
+  data_at_ Tsh enc_rval_s res_p]).
+    simpl.
+    entailer!.
+    replace (Zlength (map Byte.unsigned data)) with (Zlength (data)).
+    replace (map Vint (map Int.repr (map Byte.unsigned data))) with (map Vubyte data).
+    entailer!.
+    (* tuint and tuchar issue, compspecs issue *)
+    admit.
+    admit.
+    erewrite Zlength_map. auto.
+    repeat split; try lia.
+    (* 1 = Zlength (tags td) *)
+    admit.
+    (* size <= Int.max_signed - 11 *)
+    admit.
+    Intros.
+    unfold prim_enc_rval.
+    destruct (evalErrW
+           (Exec.primitive_encoder td size (if eq_dec cb_p nullval then 0 else 32)
+              (map Int.repr (map Byte.unsigned data))) []) eqn : G.
+    -- repeat forward.       
+       forward_if True.
+       ++ admit. (* effective integer is random value *)
+       ++ forward.
+          entailer!.
+          (* add sptr to sep *)
+          admit.
+       ++ forward.
+          entailer!.
+       ++  repeat forward.
+           rewrite if_false by discriminate.
+           entailer!.
+           assert ((int_enc_rval td data (Zlength data) td_p sptr_p) = 
+                   (Vint (Int.repr z), (Vint Int.zero, Vint Int.zero))) as RES.
+           { admit. }
+           erewrite RES.
+           entailer!.
+           (* tuint and tuchar issue, compspecs issue *)
+           admit.
+    -- repeat forward.       
+       forward_if True.
+       ++ admit. (* effective integer is random value *)
+       ++ forward.
+          entailer!.
+       ++ forward.
+          entailer!.
+       ++ repeat forward.
+          rewrite if_false by discriminate.
+          entailer!.
+           assert ((int_enc_rval td data (Zlength data) td_p sptr_p) = 
+                   (Vint (Int.repr (-1)), (td_p, sptr_p))) as RES.
+           { admit. }
+           erewrite RES.
+           entailer!.
+           (* tuint and tuchar issue, compspecs issue *)
+           admit.  
 Admitted.
 
 End Integer_der_encode.
-*)
+

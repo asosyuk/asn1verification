@@ -1,8 +1,7 @@
-(*Require Import Core.Core Core.Notations Lib.Lib Prim.Exec.
+Require Import Core.Core Core.Notations Lib.Lib Prim.Exec.
 From ExtLib.Structures Require Import Monad MonadWriter MonadExc.
 From ExtLib.Data Require Import Monads.OptionMonad.
 
-Import MonadNotation.
 
 Open Scope byte.
 
@@ -22,6 +21,11 @@ Section Encoder.
    a) shall not all be ones; and
    b) shall not all be zero. *)
 
+(*Notation "t @ n" := (Int.testbit t n) (at level 50).
+Notation all_zero := Int.zero.
+Definition all_one  := Int.repr (Byte.max_unsigned).
+Notation default_byte := all_zero. *)
+
 Fixpoint canonicalize_int (l : list byte) : list byte :=
   match l with
   | nil => nil 
@@ -40,13 +44,10 @@ Fixpoint canonicalize_int (l : list byte) : list byte :=
             end
   end.
 
-Definition int_encoder td (ls : list byte) := let c := canonicalize_int ls in
-                                              primitive_encoder td c.
+Definition int_encoder td buf_size (ls : list byte) := 
+  let c :=  map Int.repr (map Byte.unsigned (canonicalize_int ls)) in
+  primitive_encoder td 1 buf_size c.
+
 End Encoder.
 
-Section Decoder.
 
-Definition int_decoder := primitive_decoder.
-
-End Decoder.
-*)
