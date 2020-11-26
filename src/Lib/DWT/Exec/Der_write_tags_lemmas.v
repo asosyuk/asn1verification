@@ -330,7 +330,6 @@ Lemma eval_DWT_opt_to_Z_inv_int : forall td struct_len s c b  size i ls v,
 Proof.
   intros.
   eapply eval_DWT_opt_to_Z_inv in H0.
-  Search Int.repr (_ <> _).
   unfold not.
   intro K.
   eapply repr_inj_signed in K; rep_omega. 
