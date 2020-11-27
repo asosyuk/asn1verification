@@ -38,7 +38,8 @@ Proof. make_cs_preserve Der_write_tags.CompSpecs CompSpecs. Defined.
 Definition der_primitive_encoder_spec : ident * funspec :=
   DECLARE _der_encode_primitive
     WITH res_p : val,  
-         sptr_p : val, buf_b : block, buf_ofs : ptrofs, 
+         sptr_p : val, 
+         tag_b : block, tag_ofs : ptrofs, 
          sptr_buf : val,
          data : list Z,
          struct_len : Z,
@@ -57,11 +58,11 @@ Definition der_primitive_encoder_spec : ident * funspec :=
       SEP (data_at_ Tsh enc_rval_s res_p;
            (* sptr *)
            field_at Tsh (Tstruct der_encoder._asn_TYPE_descriptor_s noattr) 
-                    (DOT der_encoder._tags) (Vptr buf_b buf_ofs) td_p;
+                    (DOT der_encoder._tags) (Vptr tag_b tag_ofs) td_p;
            field_at Tsh (Tstruct der_encoder._asn_TYPE_descriptor_s noattr)
                     (DOT der_encoder._tags_count) (Vint (Int.repr (Zlength (tags td)))) td_p;
            data_at Tsh (tarray tuint (Zlength (tags td))) (map Vint (map Int.repr (tags td)))
-                   (Vptr buf_b buf_ofs);
+                   (Vptr tag_b tag_ofs);
            if eq_dec sptr_buf nullval
            then emp
            else data_at Tsh (tarray tuint (Zlength data)) (map Vint (map Int.repr data))
@@ -78,12 +79,12 @@ Definition der_primitive_encoder_spec : ident * funspec :=
       PROP ()
       LOCAL ()
       SEP (field_at Tsh (Tstruct der_encoder._asn_TYPE_descriptor_s noattr) 
-                    (DOT der_encoder._tags) (Vptr buf_b buf_ofs) td_p;
+                    (DOT der_encoder._tags) (Vptr tag_b tag_ofs) td_p;
            field_at Tsh (Tstruct der_encoder._asn_TYPE_descriptor_s noattr)
                     (DOT der_encoder._tags_count) (Vint (Int.repr (Zlength (tags td)))) td_p;
            data_at Tsh  (tarray tuint (Zlength (tags td)))
                    (map Vint (map Int.repr (tags td)))
-                   (Vptr buf_b buf_ofs);
+                   (Vptr tag_b tag_ofs);
            if eq_dec sptr_buf nullval
            then emp
            else data_at Tsh (tarray tuint (Zlength data)) (map Vint (map Int.repr data))
@@ -122,7 +123,7 @@ Proof.
     destruct E as [e E].
   forward.
   forward_empty_loop.
-  forward_call (td_p, td, struct_len, 0, 0, cb_p, app_key_p, Vptr buf_b buf_ofs).
+  forward_call (td_p, td, struct_len, 0, 0, cb_p, app_key_p, Vptr tag_b tag_ofs).
   entailer!.
   unfold Frame.
   instantiate (1 := [data_at_ Tsh (Tstruct _asn_enc_rval_s noattr) v_erval ;

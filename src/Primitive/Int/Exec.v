@@ -1,6 +1,8 @@
+Require Import VST.floyd.proofauto.
 Require Import Core.Core Core.Notations Lib.Lib Prim.Exec.
 From ExtLib.Structures Require Import Monad MonadWriter MonadExc.
 From ExtLib.Data Require Import Monads.OptionMonad.
+
 
 
 Open Scope byte.
@@ -44,9 +46,10 @@ Fixpoint canonicalize_int (l : list byte) : list byte :=
             end
   end.
 
-Definition int_encoder td buf_size (ls : list byte) := 
-  let c :=  map Int.repr (map Byte.unsigned (canonicalize_int ls)) in
-  primitive_encoder td 1 buf_size c.
+Definition int_encoder td struct_len buf_size (ls : list byte) := 
+  let c := if eq_dec buf_size 0%Z then map Int.repr (map Byte.unsigned ls)
+           else map Int.repr (map Byte.unsigned (canonicalize_int ls)) in
+  primitive_encoder td struct_len buf_size c.
 
 End Encoder.
 
