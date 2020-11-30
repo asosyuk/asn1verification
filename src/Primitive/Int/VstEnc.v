@@ -276,7 +276,8 @@ Proof.
                      func_ptr' dummy_callback_spec cb_p))%assert
       break: (EX z : Z,
               PROP ()
-              LOCAL (temp 
+              LOCAL (
+                     temp 
                        _end1 
                        (Vptr b
                              (Ptrofs.sub 
@@ -379,7 +380,12 @@ Proof.
       rewrite Znth_map_Vubyte by lia.
       forward_if (
           PROP ( ) 
-          LOCAL (temp _t'6 (Vubyte (Znth z data)); 
+          LOCAL ((*if eq_dec (Byte.unsigned (Znth z data)) 0 
+                 then temp _t'8 (Vubyte (Znth (z + 1) data))
+                 else if eq_dec (Byte.unsigned (Znth z data)) 255 
+                      then     temp _t'7 (Vubyte (Znth (z + 1) data))
+                      else temp _t'6 (Vubyte (Znth z data)); *)
+                 temp _t'6 (Vubyte (Znth z data)); 
                  temp _end1 (Vptr b(Ptrofs.sub 
                                            (Ptrofs.add i(Ptrofs.repr struct_len)) 
                                            (Ptrofs.repr 1)));
@@ -417,6 +423,7 @@ Proof.
                field_at Tsh prim_type_s (DOT _size) (Vint (Int.repr struct_len)) sptr_p; 
                valid_pointer cb_p;
                func_ptr' dummy_callback_spec cb_p)).
+      -- (* case 0 *)
       { (* *buf = 0 -> first switch case *)
 
         assert_PROP (Vptr b (Ptrofs.add (Ptrofs.add i(Ptrofs.repr z)) 
@@ -446,8 +453,10 @@ Proof.
           entailer!.
         + (* buf[1] & 0x80 <> 0 -> break *)
           forward.
+          Exists z.
           entailer!.
       }
+      -- (* case 1 *)
       { (* *buf = 255 -> second switch case *)
 
         assert_PROP (Vptr b(Ptrofs.add (Ptrofs.add i(Ptrofs.repr z)) 
@@ -475,29 +484,24 @@ Proof.
           entailer!.
         + (* buf[1] & 0x80 = 0 -> break *)
           forward.
+          Exists z.
           entailer!.
       }
-      { (* default case *)
-        forward.
-        entailer!.
-        admit. (* FF *)
-      }
-      { (* break after switch *)
-        forward.
+      --
+       (* default case *)
+        forward. 
         Exists z.
         entailer!.
-      }
-      (* *buf <> 0 /\ *buf <> 255 -> default case -> break *)
-      forward.
-      Exists z.
-      entailer!.
-
+      --
+       (* break after switch *)
+        forward. 
+        Exists z.
+        entailer!.
     - (* continue post-condition *)
       Intros z.
       forward.
       Exists (z + 1).
-      entailer!.
-      
+      entailer!. 
     - (* after switch shift manipulation *)
       Intros z.
       repeat forward.
