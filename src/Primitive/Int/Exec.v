@@ -47,10 +47,18 @@ Fixpoint canonicalize_int (l : list byte) : list byte :=
   end.
 
 Definition int_encoder td struct_len buf_size (ls : list byte) := 
-  let c := if eq_dec buf_size 0%Z then map Int.repr (map Byte.unsigned ls)
-           else map Int.repr (map Byte.unsigned (canonicalize_int ls)) in
-  primitive_encoder td struct_len buf_size c.
+  let ls_c := canonicalize_int ls in
+  let c := map Int.repr (map Byte.unsigned ls_c) in
+  let shift := (len ls - len ls_c)%Z in
+  primitive_encoder td (struct_len - shift) buf_size c.
 
 End Encoder.
+
+Lemma can_data_len : forall ll, (Zlength (canonicalize_int ll) <= Zlength ll)%Z.
+Proof.
+  induction ll; simpl.
+  - lia.
+  - repeat break_match; autorewrite with sublist in *; try list_solve.
+Qed.
 
 

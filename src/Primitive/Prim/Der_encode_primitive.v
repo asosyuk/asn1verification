@@ -67,8 +67,7 @@ Definition der_primitive_encoder_spec : ident * funspec :=
            then emp
            else data_at Tsh (tarray tuint (Zlength data)) (map Vint (map Int.repr data))
                    sptr_buf;
-           field_at Tsh prim_type_s (DOT _buf) sptr_buf sptr_p;
-           field_at Tsh prim_type_s (DOT _size) (Vint (Int.repr struct_len)) sptr_p;
+           data_at Tsh prim_type_s (sptr_buf, Vint (Int.repr struct_len)) sptr_p;
            valid_pointer sptr_buf;
            (* Callback *)
            data_at_ Tsh enc_key_s app_key_p;
@@ -89,8 +88,7 @@ Definition der_primitive_encoder_spec : ident * funspec :=
            then emp
            else data_at Tsh (tarray tuint (Zlength data)) (map Vint (map Int.repr data))
                    sptr_buf;
-           field_at Tsh prim_type_s (DOT _buf)  sptr_buf sptr_p;
-           field_at Tsh prim_type_s (DOT _size) (Vint (Int.repr struct_len)) sptr_p;
+            data_at Tsh prim_type_s (sptr_buf, Vint (Int.repr struct_len)) sptr_p;
             valid_pointer sptr_buf;
            (* Result *)
            data_at Tsh enc_rval_s (prim_enc_rval td struct_len buf_size (map Int.repr data)

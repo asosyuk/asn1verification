@@ -15,6 +15,7 @@ Record asn_enc_rval : Type := encode {
   encoded : Z ;
 }.
 
+
 (* ASN.1 types and values *)
 Inductive asn_value :=
   | ANY : asn_value
