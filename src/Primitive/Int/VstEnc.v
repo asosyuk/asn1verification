@@ -68,8 +68,6 @@ Definition int_der_encode_spec : ident * funspec :=
                    (map Vint (map Int.repr (tags td)))
                    (Vptr tag_b tag_ofs);
            (* st *)
-        (* field_at Tsh prim_type_s (DOT _size) (Vint (Int.repr struct_len)) st_p;
-           field_at Tsh prim_type_s (DOT _buf) sptr_buf st_p; *)
            data_at Tsh (Tstruct _ASN__PRIMITIVE_TYPE_s noattr)
                     (sptr_buf, (Vint (Int.repr struct_len))) st_p;
            
@@ -99,9 +97,6 @@ Definition int_der_encode_spec : ident * funspec :=
            valid_pointer cb_p;
            data_at_ Tsh enc_key_s app_key_p;
            func_ptr' dummy_callback_spec cb_p;
-
-           (* field_at Tsh prim_type_s (DOT _size) (Vint (Int.repr struct_len)) st_p;
-           field_at Tsh prim_type_s (DOT _buf) sptr_buf st_p; *)
 
            (* st *)
            data_at Tsh (Tstruct _ASN__PRIMITIVE_TYPE_s noattr)
@@ -373,13 +368,13 @@ Proof.
          rewrite Ptrofs.unsigned_repr in l.
          rep_omega.
          rep_omega.
-        rewrite Ptrofs.unsigned_repr;  try rep_omega.
-        rewrite Ptrofs.unsigned_repr in l at 1.
+         rewrite Ptrofs.unsigned_repr;  try rep_omega.
+         rewrite Ptrofs.unsigned_repr in l at 1.
          rewrite Ptrofs.unsigned_repr in l.
          rep_omega.
          rep_omega.
-        rewrite Ptrofs.unsigned_repr. 
-        all: admit. }
+         rewrite Ptrofs.unsigned_repr. 
+         all: admit. }
 
       assert_PROP (Vptr b (Ptrofs.add i (Ptrofs.repr z)) =
                   field_address (tarray tuchar (Zlength data)) (SUB z) (Vptr b i)).
@@ -807,49 +802,36 @@ Proof.
     simpl.
     entailer!.
     remember (Zlength data - Zlength (canonicalize_int data)) as z.
-    (* need  valid_pointer (offset_val shift' sptr_buf)
-       *)
+    erewrite Zlength_map.
+    replace  (map Vubyte (canonicalize_int data)) with 
+        (map Vint (map Int.repr (map Byte.unsigned (canonicalize_int data)))).
+    entailer!.
     (* compspecs issue *)
     admit.
+    { unfold Vubyte.
+      erewrite map_map.
+      erewrite map_map. auto. }
     pose proof (can_data_len data). 
     repeat split; auto; try lia.
     list_solve.
     Intros.
     unfold prim_enc_rval.
     destruct (evalErrW
-           (Exec.primitive_encoder td (struct_len - 
-                                       (Zlength data - Zlength (canonicalize_int data)))
-                                   (if eq_dec cb_p nullval then 0 else 32)
-                                   (map Int.repr (map Byte.unsigned
+                (Exec.primitive_encoder td (struct_len - 
+                                            (Zlength data - Zlength (canonicalize_int data)))
+                                        (if eq_dec cb_p nullval then 0 else 32)
+                                        (map Int.repr (map Byte.unsigned
                                                       (canonicalize_int data)))) []) eqn : G.
     -- repeat forward. 
        Require Import Forward.
        forward_if_add_sep (
-        if eq_dec (Vint Int.zero) v_effective_integer 
-        then data_at Tsh (Tstruct _asn_enc_rval_s noattr)
-                       (Vint (Int.repr z), (Vint Int.zero, st_p))
-                       v_rval
-        else data_at Tsh (Tstruct _asn_enc_rval_s noattr)
-                       (Vint (Int.repr z),
-                        (Vint Int.zero, Vint Int.zero)) v_rval) v_rval.
-     (*  ++ entailer!.
-          eapply denote_tc_test_eq_split.
-          entailer!.
-          unfold prim_type_s.
-          unfold data_at_.
-          unfold field_at_.
-          simpl.
-          assert (0 < sizeof (Tstruct _ASN__PRIMITIVE_TYPE_s noattr)) by (cbn; lia).
-          assert (field_at Tsh (Tstruct _ASN__PRIMITIVE_TYPE_s noattr) []
-                           (default_val
-                              (Tstruct _ASN__PRIMITIVE_TYPE_s noattr))
-                           v_effective_integer
-                           |-- valid_pointer v_effective_integer) as F.
-          { eapply field_at_valid_ptr0; cbn; auto.
-            lia. }
-          entailer!.
-          (* valid_pointer v_effective_integer *)
-          admit. *)
+           if eq_dec (Vint Int.zero) v_effective_integer 
+           then data_at Tsh (Tstruct _asn_enc_rval_s noattr)
+                        (Vint (Int.repr z), (Vint Int.zero, st_p))
+                        v_rval
+           else data_at Tsh (Tstruct _asn_enc_rval_s noattr)
+                        (Vint (Int.repr z),
+                         (Vint Int.zero, Vint Int.zero)) v_rval) v_rval.
        ++ forward.
           break_if;
           rewrite if_true;
@@ -906,102 +888,52 @@ Proof.
            unfold offset_val.
            rewrite if_false by discriminate.
            entailer!.
-           (* data_at_app_gen proof *)
+           remember (Zlength data - Zlength (canonicalize_int data)) as k.
+           (* data_at_app_gen proof + valid pointer *)
            admit.
-    -- repeat forward.       
-       forward_if_add_sep (
-        if eq_dec st_p v_effective_integer 
-        then data_at Tsh (Tstruct _asn_enc_rval_s noattr)
-                     (Vint (Int.repr (-1)), (td_p, st_p)) v_rval
-        else data_at Tsh (Tstruct _asn_enc_rval_s noattr)
+    -- repeat forward.   
+       destruct sptr_buf; simpl in H3; try contradiction; try discriminate.
+          erewrite H3 in *. contradiction.
+          unfold offset_val.
+          rewrite if_false by discriminate.
+       forward_if_add_sep (data_at Tsh (Tstruct _asn_enc_rval_s noattr)
                      (Vint (Int.repr (-1)), (td_p, st_p)) v_rval) v_rval.
-      (* ++ eapply denote_tc_test_eq_split.
-          admit. (* valid_pointer st_p *)
-          unfold prim_type_s.
-          unfold data_at_.
-          unfold field_at_.
-          simpl.
-          assert (0 < sizeof (Tstruct _ASN__PRIMITIVE_TYPE_s noattr)) by (cbn; lia).
-          assert (field_at Tsh (Tstruct _ASN__PRIMITIVE_TYPE_s noattr) []
-                           (default_val
-                              (Tstruct _ASN__PRIMITIVE_TYPE_s noattr))
-                           v_effective_integer
-                           |-- valid_pointer v_effective_integer) as F.
-          { eapply field_at_valid_ptr0; cbn; auto.
-            lia. }
-          entailer!. 
-          admit. *)
        ++ forward.
-          break_if.
-          *** rewrite if_true.
-             entailer!.
-          { (* need  typed_true tint (force_val (sem_cmp_pp Ceq st_p v_effective_integer))
-               ->   st_p = v_effective_integer *)  admit. }
-          *** rewrite if_false.
-             entailer!.
-             admit.
+          entailer!.
        ++ forward.
-          break_if.
-          (* contradiction *)
-          admit.
-          { admit. }
-       ++ 
-         destruct (eq_dec st_p v_effective_integer) eqn: EI.
-          ***
-          repeat forward.
+          entailer!.
+          { generalize H.
+            unfold sem_cmp_pp; unfold Val.cmplu_bool.
+            break_if.
+            break_match; cbn; intro R; try eapply typed_false_tint_e in R;
+            try discriminate.
+            unfold Val.cmpu_bool.
+             break_match; cbn; intro R; try eapply typed_false_tint_e in R;
+            try discriminate.
+            contradiction.
+            rewrite_if_b.
+            cbn in R.
+            erewrite Ptrofs.eq_true in R.
+            discriminate. }
+       ++ repeat forward.
           entailer!.
               assert ((int_enc_rval td data (Zlength data) 
                                     (if eq_dec cb_p nullval then 0 else 32) td_p
-                                    v_effective_integer) = 
-                   (Vint (Int.repr (-1)), (td_p, v_effective_integer))) as RES.
+                                    st_p) = 
+                   (Vint (Int.repr (-1)), (td_p, st_p))) as RES.
               {  unfold int_enc_rval.
                  unfold evalErrW.
                  unfold int_encoder.
                  generalize G.
-                 break_if.
-                 -
-                   Require Import VstTactics.
-                   rewrite_if_b.
-                   unfold evalErrW.
-                   break_match; try break_let; try congruence.
-                   auto.
-                 - rewrite_if_b.
-                   unfold evalErrW.
-                   break_match;  try break_let; try congruence.
-                   auto.
-           }
+                 break_if; rewrite_if_b;
+                   unfold evalErrW;
+                   break_match; try break_let; try congruence;
+                   auto. }
            erewrite RES.
            entailer!.
-           (* tuint and tuchar issue, compspecs issue *)
-           admit.
-          ***
-          repeat forward.
-          entailer!.
-           assert ((int_enc_rval td data (Zlength data)
-                                 (if eq_dec cb_p nullval
-                                  then 0 else 32) 
-                                 td_p st_p) = 
-                   (Vint (Int.repr (-1)), (td_p, st_p))) as RES.
-           {  unfold int_enc_rval.
-              unfold evalErrW.
-              unfold int_encoder.
-              generalize G.
-              break_if.
-              -
-                Require Import VstTactics.
-                rewrite_if_b.
-                unfold evalErrW.
-                break_match; try break_let; try congruence.
-                auto.
-              - rewrite_if_b.
-                unfold evalErrW.
-                break_match;  try break_let; try congruence.
-                auto. }
-           erewrite RES.
-           entailer!.
-           (* tuint and tuchar issue, compspecs issue *)
+           (* tuint and tuchar issue, compspecs issue + 
+            data_at proofs + valid_pointer *)
            admit. } 
-    
 Admitted.
 
 End Integer_der_encode.
