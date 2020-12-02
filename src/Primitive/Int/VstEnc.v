@@ -253,7 +253,7 @@ Proof.
                      func_ptr' dummy_callback_spec cb_p))%assert
       continue: (EX z : Z, 
                PROP (0 <= z;
-                     Ptrofs.unsigned i+ z + 1 <= Ptrofs.max_unsigned)
+                     Ptrofs.unsigned i + z + 1 <= Ptrofs.max_unsigned)
                LOCAL (temp 
                         _end1 
                         (Vptr b
@@ -333,11 +333,12 @@ Proof.
       (* loop *)
     { Intros z.
       forward_if.
+      -
       unfold test_order_ptrs, sameblock.
       destruct peq; try congruence. simpl.
       entailer!.
-      admit. (* weak valid pointer admit *)
-      cbn in H5.
+      admit. (* weak valid pointer *)
+      - (* LI&buf < end1 to LI *) cbn in H5.
       assert (Z : 0 < z + 1 < Zlength data).
       { unfold typed_true, strict_bool_val, sem_cmp_pp in H8; cbn in H8.
         destruct eq_block in H8; try congruence.
@@ -375,7 +376,6 @@ Proof.
          rep_omega.
          rewrite Ptrofs.unsigned_repr. 
          all: admit. }
-
       assert_PROP (Vptr b (Ptrofs.add i (Ptrofs.repr z)) =
                   field_address (tarray tuchar (Zlength data)) (SUB z) (Vptr b i)).
       entailer!.
@@ -393,42 +393,16 @@ Proof.
         lia. }
       rewrite Znth_map_Vubyte by lia.
       (* Switch *)
-      forward_if (
-          PROP ( ) 
-          LOCAL (temp _t'6 (Vubyte (Znth z data)); 
-                 temp _end1 (Vptr b(Ptrofs.sub 
-                                           (Ptrofs.add i (Ptrofs.repr struct_len)) 
-                                           (Ptrofs.repr 1)));
-                 temp _buf (Vptr b (Ptrofs.add i (Ptrofs.repr z)));
-                 temp _t'9 (Vint (Int.repr struct_len)); temp _t'2 (Vptr b i); 
-                 temp _st st_p; lvar __res__1 enc_rval_s v__res__1;
-                 lvar _effective_integer prim_type_s v_effective_integer; 
-                 lvar _rval enc_rval_s v_rval;
-                 temp _tag (Vint (Int.repr 0)); temp __res res_p; temp _td td_p; 
-                 temp _sptr st_p; temp _tag_mode (Vint (Int.repr tag_mode)); 
-                 temp _cb cb_p; temp _app_key app_key_p)
-          SEP (data_at_ Tsh enc_rval_s v__res__1; 
-               data_at_ Tsh prim_type_s v_effective_integer; 
-               data_at_ Tsh enc_rval_s v_rval;
-               data_at_ Tsh enc_rval_s res_p;
-               data_at_ Tsh enc_key_s app_key_p;
-               field_at Tsh (Tstruct _asn_TYPE_descriptor_s noattr) 
-                        (DOT _tags) (Vptr tag_b tag_ofs) td_p;
-               field_at Tsh (Tstruct _asn_TYPE_descriptor_s noattr)
-                        (DOT _tags_count) 
-                        (Vint (Int.repr (Zlength (tags td)))) td_p;
-               data_at Tsh (tarray tuint (Zlength (tags td)))
-                       (map Vint (map Int.repr (tags td)))
-                       (Vptr tag_b tag_ofs);
-               valid_pointer (Vptr b i);
-               data_at Tsh (tarray tuchar (Zlength data)) (map Vubyte data) (Vptr b i);
-               data_at Tsh (Tstruct _ASN__PRIMITIVE_TYPE_s noattr)
-                       (Vptr b i, (Vint (Int.repr struct_len))) st_p;  
-               valid_pointer cb_p;
-               func_ptr' dummy_callback_spec cb_p)).
+      forward_if ([Byte.unsigned (Znth z data) = 0 ->
+                   (Int.eq (Int.and (Int.repr
+                           (Byte.unsigned (Znth (z + 1) data))) (Int.repr 128))
+                           (Int.repr 0)) = false; 
+                   Byte.unsigned (Znth z data) = 255 ->
+                    (Int.and (Int.repr
+                           (Byte.unsigned (Znth (z + 1) data))) (Int.repr 128))
+                     = Int.zero]).
       -- (* case 0 *)
       { (* *buf = 0 -> first switch case *)
-
         assert_PROP (Vptr b (Ptrofs.add (Ptrofs.add i(Ptrofs.repr z)) 
                                             (Ptrofs.mul (Ptrofs.repr 1) 
                                                         (Ptrofs.of_ints (Int.repr 1)))) =
@@ -456,12 +430,14 @@ Proof.
           entailer!.
         + (* buf[1] & 0x80 <> 0 -> break *)
           forward.
-          Exists z.
           entailer!.
+          cbn in H11.
+          eapply typed_false_of_bool in H11.
+          admit.
+          
                }
       -- (* case 1 *)
       { (* *buf = 255 -> second switch case *)
-
         assert_PROP (Vptr b(Ptrofs.add (Ptrofs.add i(Ptrofs.repr z)) 
                                             (Ptrofs.mul (Ptrofs.repr 1) 
                                                         (Ptrofs.of_ints (Int.repr 1)))) =
@@ -478,37 +454,43 @@ Proof.
             inversion T as [T1 T2].
           pose proof unsigned_repr_le (Byte.unsigned (Znth (z + 1) data)) T1.
           lia. }
-
         simpl in H5.
         forward_if.
         + (* buf[1] & 0x80 <> 0 -> continue *)
           forward. 
           Exists z.
           entailer!.
-        + (* buf[1] & 0x80 = 0 -> break *)
+        + (* buf[1] & 0x80 = 0 -> post switch *)
           forward.
-          Exists z.
           entailer!.
+          admit.
       }
       --
        (* default case *)
         forward. 
-        Exists z.
-        entailer!.
-      --
-       (* break after switch *)
+        generalize NE.
+        generalize NE0.
+        strip_repr.
+        intros.
+        entailer!. 
+     -- (* break after switch *)
         forward. 
         Exists z.
         entailer!.
         (* z = Zlength data - Zlength (canonicalize_int data) *)
-        admit.
-    }
-    - (* continue post-condition *)
-      Intros z.
+        admit. 
+      -  (* _buf >= _end1 *) (* LI&Break to BREAK *)
       forward.
+      Exists (z).
+      entailer!.
+      (* z = Zlength data - Zlength (canonicalize_int data) *)
+      admit. }
+      - (* continue to LI *)
+      Intros z.
+      repeat forward.
       Exists (z + 1).
-      entailer!. 
-      - (* after switch shift' manipulation *)
+      entailer!.
+      - (* Break to rest *)
       Intros z.
       repeat forward.
       entailer!.
@@ -738,8 +720,7 @@ Proof.
     ** destruct sptr_buf; cbn in H3; try contradiction. 
        erewrite H3 in *. contradiction. auto.
     ** auto.
-    **
-      (* Zlength data - Zlength (canonicalize_int data) <> 0 *)
+    ** (* Zlength data - Zlength (canonicalize_int data) <> 0 *)
       forward_call (v__res__1,   
                   v_effective_integer,
                   tag_b, tag_ofs,
@@ -756,8 +737,9 @@ Proof.
       (1 := [data_at_ Tsh (Tstruct _asn_enc_rval_s noattr) v_rval *
              data_at_ Tsh enc_rval_s res_p *
              data_at Tsh (tarray tuchar
-                                 (Zlength data - Zlength (canonicalize_int data)))
-                     (map Vubyte (sublist 0 (Zlength data - Zlength (canonicalize_int data)) data)) 
+                         (Zlength data - Zlength (canonicalize_int data)))
+                     (map Vubyte (sublist 0 (Zlength data
+                                             - Zlength (canonicalize_int data)) data)) 
                      sptr_buf *
              data_at Tsh (Tstruct _ASN__PRIMITIVE_TYPE_s noattr)
                      (sptr_buf, Vint (Int.repr struct_len)) st_p]).
