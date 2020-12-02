@@ -574,8 +574,13 @@ Proof.
         all: admit.  (* z = 0 *)
   * congruence.
   * (* sptr_buf is null or pointer - we pass it to prim decoder anyway *)
-    destruct (eq_dec (Zlength data - Zlength (canonicalize_int data)) 0). 
-    ** (* forward_call (v__res__1,   
+    destruct (eq_dec (Zlength data - Zlength (canonicalize_int data)) 0).
+    erewrite e.
+    assert ((canonicalize_int data) = data) as T by admit.
+    autorewrite with sublist.
+    rewrite_if_b.
+    erewrite data_at_zero_array_eq.
+    ** forward_call (v__res__1,   
                   st_p,
                   tag_b, tag_ofs,
                   sptr_buf, 
@@ -584,9 +589,9 @@ Proof.
                   td_p, td,
                   0,
                   cb_p, app_key_p).
-    entailer!.    
+    entailer!.  
+    rewrite_if_b.    
     unfold Frame.
-    rewrite_if_b.
     instantiate (1 := [data_at_ Tsh prim_type_s v_effective_integer *
                        data_at_ Tsh (Tstruct _asn_enc_rval_s noattr) v_rval *
                        data_at_ Tsh enc_rval_s res_p]).
@@ -595,6 +600,7 @@ Proof.
     (* compspecs and tuint issue *)
     admit.
     Intros.
+    repeat rewrite_if_b.
     unfold prim_enc_rval.
     destruct (evalErrW
            (Exec.primitive_encoder td struct_len (if eq_dec cb_p nullval then 0 else 32)
@@ -626,7 +632,6 @@ Proof.
             lia. }
           entailer!.
        ++ forward.
-          break_if;
           rewrite if_true;
           try entailer!.
           all: destruct v_effective_integer; cbn in H; try contradiction;
@@ -635,7 +640,6 @@ Proof.
           eapply int_eq_e in H;
           erewrite H; auto.
        ++ forward.
-          break_if;
           rewrite if_false;
           try entailer!;
           destruct v_effective_integer; cbn in H; try contradiction;
@@ -662,28 +666,25 @@ Proof.
              Require Import VstTactics.
              rewrite_if_b.
              unfold evalErrW.
-             break_match. congruence.
-             break_let. intro GG.
-             inversion GG.
-             auto.
+             erewrite e.
+             normalize.
+             erewrite T.
+             break_match. inversion H0. auto. congruence.
              - rewrite_if_b.
                unfold evalErrW.
-               break_match. congruence.
-               break_let. intro GG.
-               inversion GG.
+               erewrite e.
+               erewrite T.
+               normalize.
+               break_match. 
+               inversion H0.
                auto.
-               (* need (canonicalize_int data) instead of  data *)
-               admit. }
+               congruence. }
            erewrite RES.
            entailer!.
            (* tuint and tuchar issue, compspecs issue *)
            admit.
     -- repeat forward.       
-       forward_if_add_sep (
-        if eq_dec st_p v_effective_integer 
-        then data_at Tsh (Tstruct _asn_enc_rval_s noattr)
-                     (Vint (Int.repr (-1)), (td_p, st_p)) v_rval
-        else data_at Tsh (Tstruct _asn_enc_rval_s noattr)
+       forward_if_add_sep (data_at Tsh (Tstruct _asn_enc_rval_s noattr)
                      (Vint (Int.repr (-1)), (td_p, st_p)) v_rval) v_rval.
        ++ eapply denote_tc_test_eq_split.
           admit. (* valid_pointer st_p *)
@@ -701,79 +702,45 @@ Proof.
             lia. }
           entailer!. 
        ++ forward.
-          break_if.
-          *** rewrite if_true.
-             entailer!.
-          { (* need  typed_true tint (force_val (sem_cmp_pp Ceq st_p v_effective_integer))
-               ->   st_p = v_effective_integer *)  admit. }
-          *** rewrite if_false.
-             entailer!.
-             admit.
+          entailer!.
        ++ forward.
-          break_if.
-          (* contradiction *)
-          admit.
-          { admit. }
-       ++ 
-         destruct (eq_dec st_p v_effective_integer) eqn: EI.
-          ***
-          repeat forward.
+          entailer!.
+       ++ repeat forward.
           entailer!.
               assert ((int_enc_rval td data (Zlength data) 
                                     (if eq_dec cb_p nullval then 0 else 32) td_p
-                                    v_effective_integer) = 
-                   (Vint (Int.repr (-1)), (td_p, v_effective_integer))) as RES.
+                                    st_p) = 
+                   (Vint (Int.repr (-1)), (td_p, st_p))) as RES.
               {  unfold int_enc_rval.
                  unfold evalErrW.
                  unfold int_encoder.
                  generalize G.
+                 erewrite e.
+                 erewrite T.
                  break_if.
                  -
-                   Require Import VstTactics.
                    rewrite_if_b.
                    unfold evalErrW.
+                   normalize.
                    break_match; try break_let; try congruence.
                    auto.
                  - rewrite_if_b.
                    unfold evalErrW.
+                   normalize.
                    break_match;  try break_let; try congruence.
-                   (* need (canonicalize_int data) instead of  data *)
-                   admit.
+                   auto.
            }
            erewrite RES.
            entailer!.
            (* tuint and tuchar issue, compspecs issue *)
            admit.
-          ***
-          repeat forward.
-          entailer!.
-           assert ((int_enc_rval td data (Zlength data)
-                                 (if eq_dec cb_p nullval
-                                  then 0 else 32) 
-                                 td_p st_p) = 
-                   (Vint (Int.repr (-1)), (td_p, st_p))) as RES.
-           {  unfold int_enc_rval.
-              unfold evalErrW.
-              unfold int_encoder.
-              generalize G.
-              break_if.
-              -
-                Require Import VstTactics.
-                rewrite_if_b.
-                unfold evalErrW.
-                break_match; try break_let; try congruence.
-                auto.
-              - rewrite_if_b.
-                unfold evalErrW.
-                break_match;  try break_let; try congruence.
-                (* need (canonicalize_int data) instead of  data *)
-                admit. }
-           erewrite RES.
-           entailer!.
-           (* tuint and tuchar issue, compspecs issue *)
-           admit. *)
-      admit. 
-    ** forward_call (v__res__1,   
+    ** auto.
+    ** destruct sptr_buf; cbn in H3; try contradiction. 
+       erewrite H3 in *. contradiction. auto.
+    ** auto.
+    **
+      (* Zlength data - Zlength (canonicalize_int data) <> 0 *)
+      forward_call (v__res__1,   
                   v_effective_integer,
                   tag_b, tag_ofs,
                   (offset_val (Zlength data -
