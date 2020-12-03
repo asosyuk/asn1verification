@@ -214,9 +214,14 @@ Proof.
     Require Import VstTactics.
     repeat forward.
     normalize.
+    Require Import Core.Notations.
     forward_loop (EX z : Z, 
                PROP (0 <= z;
-                     Ptrofs.unsigned i + z <= Ptrofs.max_unsigned)
+                     Ptrofs.unsigned i + z <= Ptrofs.max_unsigned;
+                     forall i, 0 <= i < z -> (Znth i data = Byte.zero /\ 
+                                   (Znth (i + 1) data) & (Byte.repr 128) = Byte.zero)%byte \/
+                                   (Znth i data = Byte.one /\ 
+                                   (Znth (i + 1) data) & (Byte.repr 128) = Byte.one)%byte)
                LOCAL (temp 
                         _end1 
                         (Vptr b
@@ -253,7 +258,11 @@ Proof.
                      func_ptr' dummy_callback_spec cb_p))%assert
       continue: (EX z : Z, 
                PROP (0 <= z;
-                     Ptrofs.unsigned i + z + 1 <= Ptrofs.max_unsigned)
+                     Ptrofs.unsigned i + z + 1 <= Ptrofs.max_unsigned;
+                     forall i, 0 <= i < z + 1 -> (Znth i data = Byte.zero /\ 
+                                   (Znth (i + 1) data) & (Byte.repr 128) = Byte.zero)%byte \/
+                                   (Znth i data = Byte.one /\ 
+                                    (Znth (i + 1) data) & (Byte.repr 128) = Byte.one)%byte)
                LOCAL (temp 
                         _end1 
                         (Vptr b
@@ -330,6 +339,7 @@ Proof.
       (* invariant check *)
       Exists 0.
       entailer!.
+      intros. lia.
       (* loop *)
     { Intros z.
       forward_if.
@@ -340,8 +350,8 @@ Proof.
       admit. (* weak valid pointer *)
       - (* LI&buf < end1 to LI *) cbn in H5.
       assert (Z : 0 < z + 1 < Zlength data).
-      { unfold typed_true, strict_bool_val, sem_cmp_pp in H8; cbn in H8.
-        destruct eq_block in H8; try congruence.
+      { unfold typed_true, strict_bool_val, sem_cmp_pp in H9; cbn in H9.
+        destruct eq_block in H9; try congruence.
         break_match_hyp; try congruence.
         unfold force_val, Val.of_bool, Ptrofs.ltu in Heqv; cbn in Heqv.
         destruct zlt in Heqv.
@@ -393,14 +403,12 @@ Proof.
         lia. }
       rewrite Znth_map_Vubyte by lia.
       (* Switch *)
-      forward_if ([Byte.unsigned (Znth z data) = 0 ->
-                   (Int.eq (Int.and (Int.repr
-                           (Byte.unsigned (Znth (z + 1) data))) (Int.repr 128))
-                           (Int.repr 0)) = false; 
-                   Byte.unsigned (Znth z data) = 255 ->
-                    (Int.and (Int.repr
-                           (Byte.unsigned (Znth (z + 1) data))) (Int.repr 128))
-                     = Int.zero]).
+      forward_if (Int.repr (Byte.unsigned (Znth z data)) <> Int.zero \/
+                  ((Int.repr (Byte.unsigned (Znth (z + 1) data))
+                             & (Int.repr 128) <> Int.zero)%int) \/
+                  Int.repr (Byte.unsigned (Znth z data)) <> Int.one \/
+                  (Int.repr (Byte.unsigned (Znth (z + 1) data))
+                             & (Int.repr 128) <> Int.one)%int).
       -- (* case 0 *)
       { (* *buf = 0 -> first switch case *)
         assert_PROP (Vptr b (Ptrofs.add (Ptrofs.add i(Ptrofs.repr z)) 
@@ -428,14 +436,16 @@ Proof.
           forward.
           Exists z.
           entailer!.
+          cbn in H12.
+          admit. (* true *)
         + (* buf[1] & 0x80 <> 0 -> break *)
           forward.
           entailer!.
-          cbn in H11.
-          eapply typed_false_of_bool in H11.
-          admit.
-          
-               }
+          cbn in H12.
+          eapply typed_false_of_bool in H12.
+          eapply int_eq_false_e in H12.
+          autorewrite with norm in H12.
+          auto. }
       -- (* case 1 *)
       { (* *buf = 255 -> second switch case *)
         assert_PROP (Vptr b(Ptrofs.add (Ptrofs.add i(Ptrofs.repr z)) 
@@ -460,10 +470,15 @@ Proof.
           forward. 
           Exists z.
           entailer!.
+          admit. (* true *)
         + (* buf[1] & 0x80 = 0 -> post switch *)
           forward.
           entailer!.
-          admit.
+          cbn in H12.
+          eapply typed_false_tint_Vint in H12.
+          autorewrite with norm in H12.
+          auto.
+          admit. (* true *)
       }
       --
        (* default case *)
@@ -473,17 +488,22 @@ Proof.
         strip_repr.
         intros.
         entailer!. 
+        generalize NE NE0.
+        strip_repr.
+        normalize.
+        admit. (* true *)
      -- (* break after switch *)
         forward. 
         Exists z.
         entailer!.
+        (* add lemma, true *)
         (* z = Zlength data - Zlength (canonicalize_int data) *)
         admit. 
       -  (* _buf >= _end1 *) (* LI&Break to BREAK *)
       forward.
       Exists (z).
       entailer!.
-      (* z = Zlength data - Zlength (canonicalize_int data) *)
+      (* 0 = Zlength data - Zlength (canonicalize_int data) add to precondition *)
       admit. }
       - (* continue to LI *)
       Intros z.
