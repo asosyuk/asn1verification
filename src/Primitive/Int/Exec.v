@@ -142,3 +142,8 @@ Lemma canonicalize_Z_spec_r : forall data z,
     (z = len data - len (canonicalize_int data))%Z.
 Admitted.
 
+Lemma canonicalize_int_sublist : forall data,
+  data = sublist 0 (len data - len (canonicalize_int data)) data 
+                 ++ canonicalize_int data.
+Admitted.
+

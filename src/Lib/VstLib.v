@@ -22,8 +22,7 @@ Definition asn_dec_rval_s := Tstruct _asn_dec_rval_s noattr.
 Definition mk_dec_rval code consumed := 
   (Vint (Int.repr code), Vint (Int.repr consumed)).
 
-Definition enc_key_s := Tstruct _application_specific_key noattr.
-
+Definition enc_key_s := Tstruct dummy._application_specific_key noattr.
 
 (* Overrun callback key *)
 (* Definition enc_key_s := Tstruct _overrun_encoder_key noattr. *)

@@ -3,8 +3,30 @@ Require Import Core.Core Lib.Lib Core.StructNormalizer
 Require Import VST.floyd.proofauto.
 Require Import Clight.dummy Clight.asn_codecs_prim.
 
-Instance CompSpecs : compspecs. Proof. make_compspecs prog. Defined.
-Definition Vprog : varspecs. Proof. mk_varspecs prog. Defined.
+Definition composites :=
+  composites ++ [Composite dummy._application_specific_key Struct nil noattr].
+
+Definition Vprog : varspecs. 
+Proof.
+  set (cs := composites).
+  set (gd := global_definitions).
+  set (pi := public_idents).
+  unfold composites in cs.
+  simpl in cs.
+  set (prog := Clightdefs.mkprogram cs gd pi _main Logic.I).
+  mk_varspecs prog. 
+Defined.
+
+Instance CompSpecs : compspecs. 
+Proof.
+  set (cs := composites).
+  set (gd := global_definitions).
+  set (pi := public_idents).
+  unfold composites in cs.
+  simpl in cs.
+  set (prog := Clightdefs.mkprogram cs gd pi _main Logic.I).
+  make_compspecs prog.
+Defined.
 
 Section Der_encode_primitive.
 
@@ -65,7 +87,7 @@ Definition der_primitive_encoder_spec : ident * funspec :=
                    (Vptr tag_b tag_ofs);
            if eq_dec sptr_buf nullval
            then emp
-           else data_at Tsh (tarray tuint (Zlength data)) (map Vint (map Int.repr data))
+           else data_at Tsh (tarray tuchar (Zlength data)) (map Vint (map Int.repr data))
                    sptr_buf;
            data_at Tsh prim_type_s (sptr_buf, Vint (Int.repr struct_len)) sptr_p;
            valid_pointer sptr_buf;
@@ -86,7 +108,7 @@ Definition der_primitive_encoder_spec : ident * funspec :=
                    (Vptr tag_b tag_ofs);
            if eq_dec sptr_buf nullval
            then emp
-           else data_at Tsh (tarray tuint (Zlength data)) (map Vint (map Int.repr data))
+           else data_at Tsh (tarray tuchar (Zlength data)) (map Vint (map Int.repr data))
                    sptr_buf;
             data_at Tsh prim_type_s (sptr_buf, Vint (Int.repr struct_len)) sptr_p;
             valid_pointer sptr_buf;
