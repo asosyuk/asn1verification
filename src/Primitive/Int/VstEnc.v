@@ -2,7 +2,10 @@ Require Import Core.Core Lib.Lib Core.StructNormalizer
         VstLib Int.Exec Lib.Callback.Dummy Lib.DWT.VST.Der_write_tags. 
 Require Import VST.floyd.proofauto.
 Require Import Clight.dummy Clight.INTEGER Prim.Der_encode_primitive.
+Require Import Notations VstTactics Core.Tactics SepLemmas.
+Require Import Core.Lemmas.Int Forward.
 
+          
 Instance CompSpecs : compspecs. Proof. make_compspecs prog. Defined.
 Definition Vprog : varspecs. Proof. mk_varspecs prog. Defined.
  
@@ -50,9 +53,9 @@ Definition int_der_encode_spec : ident * funspec :=
     PRE [tptr enc_rval_s, tptr type_descriptor_s, tptr tvoid, tint, tuint, 
           tptr cb_type, tptr tvoid]
       PROP (1 = Zlength (tags td); tag_mode = 0;
-            0 <= struct_len <= Int.max_signed - 11; st_p <> nullval; 
+            1 <= struct_len <= Int.max_signed - 11; st_p <> nullval; 
             is_pointer_or_null sptr_buf; struct_len = Zlength data;
-            0 <= Z_of_val sptr_buf + struct_len <= Ptrofs.max_unsigned)
+            1 <= Z_of_val sptr_buf + struct_len <= Ptrofs.max_unsigned)
       PARAMS (res_p; td_p; st_p; Vint (Int.repr tag_mode);
               Vint (Int.repr 0); cb_p; app_key_p)
       GLOBALS ()
@@ -79,7 +82,8 @@ Definition int_der_encode_spec : ident * funspec :=
            (* cb *)
            data_at_ Tsh enc_key_s app_key_p;
            valid_pointer cb_p; 
-           func_ptr' dummy_callback_spec cb_p)
+           func_ptr' dummy_callback_spec cb_p;
+           valid_pointer (offset_val (len data - 1) sptr_buf))
     POST [tvoid]
       PROP ()
       LOCAL ()
@@ -109,7 +113,8 @@ Definition int_der_encode_spec : ident * funspec :=
            data_at Tsh enc_rval_s (int_enc_rval td data struct_len 
                                                 (if eq_dec cb_p nullval
                                                 then 0
-                                                else 32) td_p st_p) res_p).
+                                                else 32) td_p st_p) res_p;
+           valid_pointer (offset_val (len data - 1) sptr_buf)).
 
 Definition Gprog := ltac:(with_library prog [int_der_encode_spec; 
                                                der_primitive_encoder_spec]).
@@ -120,27 +125,13 @@ Ltac forward_empty_loop :=
           forward_loop Pre break: Pre; try forward ; try entailer! 
       end. 
 
-Ltac prove_field_compatible_arr := 
-  match goal with
-  | |- field_compatible _ _ ?p => 
-    match p with
-    | (Vptr _ ?ofs) => 
-      unfold field_compatible;
-      repeat split; cbn; 
-      [rewrite Zmax0r by lia; rep_omega
-      | constructor 2
-      | lia
-      | lia];
-      match goal with
-      | |- (forall i, _) => intros i; intros; econstructor 1; cbn; 
-                     [reflexivity 
-                     | cbn; unfold Z.divide; exists (Ptrofs.unsigned ofs + i); lia ]
-      | _ => fail "Something went wrong"
-      end
-    | _ => fail "?p must be in the form (Vptr _ ?ofs)"
-    end
-  | _ => fail "Goal must be in the form field_compatible _ _ ?p"
-  end.
+Definition LI i data := 
+           (Byte.unsigned (Znth i data) = 0 /\ 
+            Byte.unsigned (Znth (i + 1) data)
+            & 128 = 0) \/ (Byte.unsigned (Znth i data) = 255 /\ 
+                          Byte.unsigned (Znth (i + 1) data)
+                          & 128 <> 0).
+
 
 Theorem int_der_encode : semax_body Vprog Gprog 
                                      (normalize_function f_INTEGER_encode_der
@@ -211,17 +202,12 @@ Proof.
                            v_effective_integer)).
   * (* sptr_buf->buf <> null *)
     destruct sptr_buf; simpl in H;   try contradiction.
-    Require Import VstTactics.
     repeat forward.
     normalize.
-    Require Import Core.Notations.
     forward_loop (EX z : Z, 
                PROP (0 <= z;
                      Ptrofs.unsigned i + z <= Ptrofs.max_unsigned;
-                     forall i, 0 <= i < z -> (Znth i data = Byte.zero /\ 
-                                   (Znth (i + 1) data) & (Byte.repr 128) = Byte.zero)%byte \/
-                                   (Znth i data = Byte.one /\ 
-                                   (Znth (i + 1) data) & (Byte.repr 128) = Byte.one)%byte)
+                     forall i, 0 <= i < z -> LI i data)
                LOCAL (temp 
                         _end1 
                         (Vptr b
@@ -237,7 +223,9 @@ Proof.
                       temp __res res_p; temp _td td_p; temp _sptr st_p;
                       temp _tag_mode (Vint (Int.repr tag_mode));
                       temp _cb cb_p; temp _app_key app_key_p)
-               SEP (data_at_ Tsh enc_rval_s v__res__1; 
+               SEP (valid_pointer (Vptr b (i + Ptrofs.repr (len data) - Ptrofs.repr 1)%ptrofs);
+                    valid_pointer (Vptr b (i + Ptrofs.repr z)%ptrofs);
+                    data_at_ Tsh enc_rval_s v__res__1; 
                     data_at_ Tsh prim_type_s v_effective_integer; 
                     data_at_ Tsh enc_rval_s v_rval;
                     data_at_ Tsh enc_rval_s res_p;
@@ -250,7 +238,6 @@ Proof.
                      data_at Tsh (tarray tuint (Zlength (tags td)))
                              (map Vint (map Int.repr (tags td)))
                              (Vptr tag_b tag_ofs);
-                     valid_pointer (Vptr b i);
                       data_at Tsh (tarray tuchar (Zlength data)) (map Vubyte data) (Vptr b i);
                      data_at Tsh (Tstruct _ASN__PRIMITIVE_TYPE_s noattr)
                     (Vptr b i, (Vint (Int.repr struct_len))) st_p;  
@@ -259,15 +246,12 @@ Proof.
       continue: (EX z : Z, 
                PROP (0 <= z;
                      Ptrofs.unsigned i + z + 1 <= Ptrofs.max_unsigned;
-                     forall i, 0 <= i < z + 1 -> (Znth i data = Byte.zero /\ 
-                                   (Znth (i + 1) data) & (Byte.repr 128) = Byte.zero)%byte \/
-                                   (Znth i data = Byte.one /\ 
-                                    (Znth (i + 1) data) & (Byte.repr 128) = Byte.one)%byte)
+                     forall i, 0 <= i < z + 1 -> LI i data)
                LOCAL (temp 
                         _end1 
                         (Vptr b
                               (Ptrofs.sub 
-                                 (Ptrofs.add i(Ptrofs.repr struct_len)) (Ptrofs.repr 1))); 
+                                 (Ptrofs.add i (Ptrofs.repr struct_len)) (Ptrofs.repr 1))); 
                       temp _t'9 (Vint (Int.repr struct_len));
                       temp _buf (Vptr b(Ptrofs.add i (Ptrofs.repr z))); 
                       temp _t'2 (Vptr b i); temp _st st_p;
@@ -291,14 +275,15 @@ Proof.
                              (map Vint (map Int.repr (tags td)))
                              (Vptr tag_b tag_ofs);
                      (* sptr *)
-                     valid_pointer (Vptr b i);
                       data_at Tsh (tarray tuchar (Zlength data)) (map Vubyte data) (Vptr b i);
                      data_at Tsh (Tstruct _ASN__PRIMITIVE_TYPE_s noattr)
                     (Vptr b i, (Vint (Int.repr struct_len))) st_p;  
                      valid_pointer cb_p;
-                     func_ptr' dummy_callback_spec cb_p))%assert
+                     func_ptr' dummy_callback_spec cb_p;
+                  valid_pointer (Vptr b (i + Ptrofs.repr (len data) - Ptrofs.repr 1)%ptrofs);
+                  valid_pointer (Vptr b (i + Ptrofs.repr z)%ptrofs)))%assert
       break: (EX z : Z,
-              PROP (z = Zlength data - Zlength (canonicalize_int data);
+              PROP (Zlength data - Zlength (canonicalize_int data) = z;
                     0 <= Ptrofs.unsigned i + z <= Ptrofs.max_unsigned;
                     0 <= z)
               LOCAL (
@@ -330,69 +315,54 @@ Proof.
                              (map Vint (map Int.repr (tags td)))
                              (Vptr tag_b tag_ofs);
                      (* sptr *)
-                     valid_pointer (Vptr b i);
                      data_at Tsh (tarray tuchar (Zlength data)) (map Vubyte data) (Vptr b i);
                      data_at Tsh (Tstruct _ASN__PRIMITIVE_TYPE_s noattr)
                              (Vptr b i, (Vint (Int.repr struct_len))) st_p;  
                      valid_pointer cb_p;
-                     func_ptr' dummy_callback_spec cb_p))%assert.
+                     func_ptr' dummy_callback_spec cb_p;
+              valid_pointer (Vptr b (i + Ptrofs.repr (len data) - Ptrofs.repr 1)%ptrofs);
+              valid_pointer (Vptr b (i + Ptrofs.repr z)%ptrofs)))%assert.
       (* invariant check *)
       Exists 0.
       entailer!.
       intros. lia.
+      entailer!.
+      cbn.
+      replace (i + Ptrofs.repr (len data - 1))%ptrofs with 
+          (i + Ptrofs.repr (len data) - Ptrofs.repr 1)%ptrofs.
+      entailer!.
+      cbn in H5.
+      strip_repr_ptr. f_equal. lia. 
       (* loop *)
-    { Intros z.
+  (*  { Intros z.
+      cbn in H5.
       forward_if.
-      -
+      --
       unfold test_order_ptrs, sameblock.
       destruct peq; try congruence. simpl.
       entailer!.
-      admit. (* weak valid pointer *)
-      - (* LI&buf < end1 to LI *) cbn in H5.
+      entailer!.
+      -- (* LI&buf < end1 to LI *) cbn in H5.
       assert (Z : 0 < z + 1 < Zlength data).
-      { unfold typed_true, strict_bool_val, sem_cmp_pp in H9; cbn in H9.
-        destruct eq_block in H9; try congruence.
-        break_match_hyp; try congruence.
-        unfold force_val, Val.of_bool, Ptrofs.ltu in Heqv; cbn in Heqv.
-        destruct zlt in Heqv.
-        unfold Ptrofs.add in l.
-        repeat rewrite ->Ptrofs.add_unsigned in l.
-        replace (Ptrofs.repr 1) with Ptrofs.one in l by reflexivity.
-        unfold Ptrofs.sub in l.
-        replace (Ptrofs.unsigned (Ptrofs.repr z)) with z in l.
-        rewrite Ptrofs.unsigned_repr in l.
-        replace (Ptrofs.unsigned (Ptrofs.repr struct_len)) with struct_len in l.
-        replace (Ptrofs.unsigned Ptrofs.one) with 1 in l by reflexivity.
-        rewrite Ptrofs.unsigned_repr in l at 1.
-        rewrite Ptrofs.unsigned_repr in l.
-        assert (T : forall p, (p + struct_len - 1) = (p + struct_len + (-1))) by (intros; lia);
-          rewrite T in l; clear T.
-        rewrite <-Z.add_assoc in l.
-        apply Zplus_lt_reg_l with (n := z) (m := (struct_len + -1)) 
-                                    (p := Ptrofs.unsigned i) in l.
-        lia.
-        Require Import Core.Tactics.
-        all: simpl in *.
-        rep_omega.
-        rewrite Ptrofs.unsigned_repr; try rep_omega.
-        rewrite Ptrofs.unsigned_repr in l at 1.
-         rewrite Ptrofs.unsigned_repr in l.
-         rep_omega.
-         rep_omega.
-         rewrite Ptrofs.unsigned_repr;  try rep_omega.
-         rewrite Ptrofs.unsigned_repr in l at 1.
-         rewrite Ptrofs.unsigned_repr in l.
-         rep_omega.
-         rep_omega.
-         rewrite Ptrofs.unsigned_repr. 
-         all: admit. }
+      { eapply SepLemmas.typed_true_ptr_lt in H9.
+        generalize H9. 
+        strip_repr_ptr. lia. }
       assert_PROP (Vptr b (Ptrofs.add i (Ptrofs.repr z)) =
                   field_address (tarray tuchar (Zlength data)) (SUB z) (Vptr b i)).
       entailer!.
- 
-      assert (FA : field_compatible (tarray tuchar (Zlength data)) (SUB z) 
+      assert (FA : @field_compatible CompSpecs (tarray tuchar (Zlength data)) (SUB z) 
                                     (Vptr b i)).
-      (* prove_field_compatible_arr. *) admit.
+      Ltac prove_field_compatible_arr i := 
+      unfold field_compatible;
+      repeat split; cbn; 
+      [rewrite Zmax0r by lia; rep_omega
+      | constructor 2
+      | lia
+      | lia];
+       intros i0; intros; econstructor 1; cbn; 
+                     [reflexivity 
+                     | cbn; unfold Z.divide; exists (Ptrofs.unsigned i + i0); lia ]. 
+      prove_field_compatible_arr i. 
       apply field_compatible_field_address in FA.
       rewrite FA; cbn; replace (0 + 1* z) with (z) by lia; try reflexivity.
       forward.
@@ -403,12 +373,11 @@ Proof.
         lia. }
       rewrite Znth_map_Vubyte by lia.
       (* Switch *)
-      forward_if (Int.repr (Byte.unsigned (Znth z data)) <> Int.zero \/
-                  ((Int.repr (Byte.unsigned (Znth (z + 1) data))
-                             & (Int.repr 128) <> Int.zero)%int) \/
-                  Int.repr (Byte.unsigned (Znth z data)) <> Int.one \/
-                  (Int.repr (Byte.unsigned (Znth (z + 1) data))
-                             & (Int.repr 128) <> Int.one)%int).
+      forward_if (Byte.unsigned (Znth z data) <> 0 \/
+                  Byte.unsigned (Znth (z + 1) data)
+                  & 128 <> 0 \/ Byte.unsigned (Znth z data) <> 255 \/ 
+                    Byte.unsigned (Znth (z + 1) data)
+                  & 128 = 0).
       -- (* case 0 *)
       { (* *buf = 0 -> first switch case *)
         assert_PROP (Vptr b (Ptrofs.add (Ptrofs.add i(Ptrofs.repr z)) 
@@ -418,10 +387,7 @@ Proof.
         entailer!.
         assert (FA : field_compatible (tarray tuchar (Zlength data)) (SUB (z + 1)) 
                                  (Vptr b i)).
-        (* prove_field_compatible_arr. *) 
-        { econstructor. auto. repeat split; auto. cbn. 
-          unfold Z.max. break_match; simpl in H5; try rep_omega. 
-          all: try rep_omega. admit.  }
+         prove_field_compatible_arr i. 
         apply field_compatible_field_address in FA.
         rewrite FA; cbn; replace (0 + 1 * (z + 1)) with (z + 1) by lia; reflexivity.
         forward.
@@ -437,15 +403,26 @@ Proof.
           Exists z.
           entailer!.
           cbn in H12.
-          admit. (* true *)
+          eapply typed_true_of_bool in H12.
+          eapply int_eq_e in H12.
+          intros.
+          destruct (zlt i0 z).
+          eapply H8. lia.
+          assert (i0 = z) by lia.
+          erewrite H4 in *.
+          unfold LI.
+          left.
+          split. auto.
+          autorewrite with norm in H12.
+          inversion H12.
+          erewrite Int.Z_mod_modulus_eq.
+          erewrite Zmod_small. auto.
+          pose proof (Byte.unsigned_range (Znth (z + 1) data)).
+          destruct (Zland_bounds (Byte.unsigned (Znth (z + 1) data)) 128);
+            strip_repr.
         + (* buf[1] & 0x80 <> 0 -> break *)
           forward.
-          entailer!.
-          cbn in H12.
-          eapply typed_false_of_bool in H12.
-          eapply int_eq_false_e in H12.
-          autorewrite with norm in H12.
-          auto. }
+          entailer!.  }
       -- (* case 1 *)
       { (* *buf = 255 -> second switch case *)
         assert_PROP (Vptr b(Ptrofs.add (Ptrofs.add i(Ptrofs.repr z)) 
@@ -455,7 +432,7 @@ Proof.
         entailer!.
         assert (FA : field_compatible (tarray tuchar (Zlength data)) (SUB (z + 1)) 
                                  (Vptr b i)).
-        (* prove_field_compatible_arr. *) admit.
+        prove_field_compatible_arr i. 
         apply field_compatible_field_address in FA.
         rewrite FA; cbn; replace (0 + 1 * (z + 1)) with (z + 1) by lia; reflexivity.
         forward.
@@ -470,15 +447,22 @@ Proof.
           forward. 
           Exists z.
           entailer!.
-          admit. (* true *)
+          cbn in H12.
+          eapply typed_true_tint_Vint in H12.
+          intros.
+          destruct (zlt i0 z).
+          eapply H8. lia.
+          assert (i0 = z) by lia.
+          erewrite H4 in *.
+          unfold LI.
+          right.
+          split. auto.
+          autorewrite with norm in H12.
+          eapply repr_neq_e.
+          auto. 
         + (* buf[1] & 0x80 = 0 -> post switch *)
           forward.
           entailer!.
-          cbn in H12.
-          eapply typed_false_tint_Vint in H12.
-          autorewrite with norm in H12.
-          auto.
-          admit. (* true *)
       }
       --
        (* default case *)
@@ -488,28 +472,41 @@ Proof.
         strip_repr.
         intros.
         entailer!. 
-        generalize NE NE0.
-        strip_repr.
-        normalize.
-        admit. (* true *)
      -- (* break after switch *)
         forward. 
         Exists z.
         entailer!.
-        (* add lemma, true *)
-        (* z = Zlength data - Zlength (canonicalize_int data) *)
-        admit. 
+        symmetry.
+        eapply canonicalize_Z_spec; auto.
       -  (* _buf >= _end1 *) (* LI&Break to BREAK *)
       forward.
-      Exists (z).
+      Exists z.
+      assert (Z : z + 1 >= len data).
+      { eapply SepLemmas.typed_false_ptr_lt in H9.
+        cbn in H5.
+        generalize H9.
+        autorewrite with norm;
+          unfold Ptrofs.add; unfold Ptrofs.mul; unfold Ptrofs.neg;
+            unfold Ptrofs.sub;
+         try erewrite Ptrofs.unsigned_one in *;
+         try erewrite Ptrofs.unsigned_zero in *;
+         repeat rewrite Ptrofs.unsigned_repr;  
+         repeat rewrite Ptrofs.signed_repr;     
+         try rep_omega; auto. 
+        subst. 
+        intro.
+        lia. }
       entailer!.
-      (* 0 = Zlength data - Zlength (canonicalize_int data) add to precondition *)
-      admit. }
+      symmetry; eapply canonicalize_Z_spec_r.
+      lia.
+      eassumption.
+ } *) admit.
       - (* continue to LI *)
       Intros z.
       repeat forward.
       Exists (z + 1).
       entailer!.
+      admit. (* valid_pointer *)
       - (* Break to rest *)
       Intros z.
       repeat forward.
@@ -537,14 +534,12 @@ Proof.
       forward_if.        
       + (* shift' <> 0 *)
         repeat forward.
-        erewrite <- H6.
         repeat rewrite_if_b.
         unfold offset_val.
         unfold prim_type_s.
         unfold asn_codecs_prim._ASN__PRIMITIVE_TYPE_s.        
         entailer!.
         remember (Zlength data - Zlength (canonicalize_int data)) as z.
-        Require Import SepLemmas.
         erewrite data_at_app_gen        
           with (j1 := z) (ls1 := (map Vubyte (sublist 0 z data)))
         (j2 := Zlength (canonicalize_int data)) 
@@ -608,7 +603,6 @@ Proof.
            (Exec.primitive_encoder td struct_len (if eq_dec cb_p nullval then 0 else 32)
               (map Int.repr (map Byte.unsigned data))) []) eqn : G.
     -- repeat forward. 
-       Require Import Forward.
        forward_if_add_sep (
         if eq_dec (Vint Int.zero) v_effective_integer 
         then data_at Tsh (Tstruct _asn_enc_rval_s noattr)
@@ -665,7 +659,6 @@ Proof.
              generalize G.
              break_if.
              -
-             Require Import VstTactics.
              rewrite_if_b.
              unfold evalErrW.
              erewrite e.
@@ -792,7 +785,6 @@ Proof.
                                         (map Int.repr (map Byte.unsigned
                                                       (canonicalize_int data)))) []) eqn : G.
     -- repeat forward. 
-       Require Import Forward.
        forward_if_add_sep (
            if eq_dec (Vint Int.zero) v_effective_integer 
            then data_at Tsh (Tstruct _asn_enc_rval_s noattr)
@@ -838,7 +830,6 @@ Proof.
              generalize G.
              break_if.
              -
-             Require Import VstTactics.
              rewrite_if_b.
              unfold evalErrW.
              break_match. congruence.

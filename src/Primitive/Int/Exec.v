@@ -31,15 +31,15 @@ Notation default_byte := all_zero. *)
 Fixpoint canonicalize_int (l : list byte) : list byte :=
   match l with
   | nil => nil 
-  | x::xs => match xs with
+  | x :: xs => match xs with
             | nil => l (* If there is only one octet do nothing *)
-            | y::ys => (* else do check *)
-              if x == 0
-              then if y @ 0 (* 1st bit of y is one *)
+            | y :: ys => (* else do check *)
+              if eq_dec x 0
+              then if eq_dec (y & Byte.repr 128) (Byte.repr 255) (* 1st bit of y is one *)
                    then xs 
                    else canonicalize_int xs 
-              else if x == all_one
-                   then if y @ 0
+              else if eq_dec x (Byte.repr 255)
+                   then if  eq_dec (y & Byte.repr 128) (Byte.repr 255)
                         then canonicalize_int xs
                         else xs
               else l
@@ -61,4 +61,84 @@ Proof.
   - repeat break_match; autorewrite with sublist in *; try list_solve.
 Qed.
 
+
+Definition LI_int i data := 
+           (Znth i data = 0 /\ Znth (i + 1) data & Byte.repr 128 = 0) \/
+           (Znth i data = Byte.repr 255 /\  Znth (i + 1) data & Byte.repr 128 <> 0).
+(*
+Lemma canonicalize_int_spec : 
+  forall data z , (0 < z)%Z ->
+            (forall i, 0 <= i < z -> LI_int i data) ->
+            (Znth z data <> 0 \/
+             Znth (z + 1) data & Byte.repr 128 <> 0%byte) /\
+            (Znth z data <> Byte.repr 255 \/
+             Znth (z + 1) data & Byte.repr 128 = 0) ->
+            canonicalize_int data <> data.
+  { induction data.
+    - admit.
+    - intros.
+      simpl.
+      break_match. admit.
+      repeat break_if; try discriminate.
+      admit.
+      admit.
+      admit.
+      admit.
+      unfold LI_int in H0.
+      pose proof (H0 0%Z).
+      cbn in H2.
+      destruct H2. lia. intuition. intuition.
+Admitted. *)
+
+
+Lemma canonicalize_int_spec_z : 
+  forall data z , (0 < z)%Z ->
+            (forall i, 0 <= i < z -> LI_int i data) ->
+            (Znth z data <> 0 \/
+             Znth (z + 1) data & Byte.repr 128 <> 0%byte) /\
+            (Znth z data <> Byte.repr 255 \/
+             Znth (z + 1) data & Byte.repr 128 = 0) ->
+            z = (len data - len (canonicalize_int data))%Z.
+  { induction data.
+    - admit.
+    - intros.
+      simpl.
+      break_match. admit.
+      repeat break_if; try discriminate.
+      admit.
+      admit.
+      admit.
+      admit.
+      unfold LI_int in H0.
+      pose proof (H0 0%Z).
+      cbn in H2.
+      destruct H2. lia. intuition. intuition.
+Admitted.
+
+
+Open Scope Z.
+
+Definition LI i data := 
+           (Byte.unsigned (Znth i data) = 0 /\ 
+            Byte.unsigned (Znth (i + 1) data)
+            & 128 = 0) \/ (Byte.unsigned (Znth i data) = 255 /\ 
+                          Byte.unsigned (Znth (i + 1) data)
+                          & 128 <> 0).
+
+Lemma canonicalize_Z_spec : forall data z,
+    (forall i, 0 <= i < z -> LI i data) ->
+    Byte.unsigned (Znth z data) <> 0 \/
+    Byte.unsigned (Znth (z + 1) data) & 128 <> 0 \/
+    Byte.unsigned (Znth z data) <> 255 \/
+    Byte.unsigned (Znth (z + 1) data) & 128 = 0 ->
+     z = (len data - len (canonicalize_int data))%Z.
+Proof.
+  intros.
+Admitted.
+
+Lemma canonicalize_Z_spec_r : forall data z,
+    z >= len data - 1 ->
+    (forall i, 0 <= i < z -> LI i data) ->
+    (z = len data - len (canonicalize_int data))%Z.
+Admitted.
 

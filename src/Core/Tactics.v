@@ -24,6 +24,16 @@ Ltac strip_repr :=
   repeat rewrite Int.signed_repr;     
   try rep_omega; auto. 
 
+Ltac strip_repr_ptr :=
+  autorewrite with norm;
+  unfold Ptrofs.add; unfold Ptrofs.mul; unfold Ptrofs.neg;
+  unfold Ptrofs.sub;
+  try erewrite Ptrofs.unsigned_one in *;
+  try erewrite Ptrofs.unsigned_zero in *;
+  repeat rewrite Ptrofs.unsigned_repr;  
+  repeat rewrite Ptrofs.signed_repr;     
+  try rep_omega; auto. 
+
 
 Ltac ints64_compute_add_mul :=
       simpl; unfold Int64.add; unfold Int.mul;
