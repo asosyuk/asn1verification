@@ -4,7 +4,17 @@ Require Import VST.floyd.proofauto.
 Require Import Prim.Der_encode_primitive Clight.INTEGER.
 Require Import Notations VstTactics Core.Tactics SepLemmas.
 Require Import Core.Lemmas.Int Forward.
+(*
+Definition Vprog : varspecs. 
+Proof.
+  mk_varspecs prog. 
+Defined.
 
+Instance CompSpecs : compspecs. 
+Proof.
+  make_compspecs prog.
+Defined.
+*)
 Definition composites :=
   composites ++ [Composite dummy._application_specific_key Struct nil noattr].
 
@@ -29,7 +39,7 @@ Proof.
   set (prog := Clightdefs.mkprogram cs gd pi _main Logic.I).
   make_compspecs prog.
 Defined.
-          
+       
 Section Integer_der_encode.
 
 Definition int_enc_rval td li struct_len buf_size td_p st_p := 
@@ -75,13 +85,13 @@ Definition int_der_encode_spec : ident * funspec :=
           tptr cb_type, tptr tvoid]
       PROP (1 = Zlength (tags td); tag_mode = 0;
             1 <= struct_len <= Int.max_signed - 11; st_p <> nullval; 
-            is_pointer_or_null sptr_buf; struct_len = Zlength data;
+            isptr sptr_buf; struct_len = Zlength data;
             1 <= Z_of_val sptr_buf + struct_len <= Ptrofs.max_unsigned)
       PARAMS (res_p; td_p; st_p; Vint (Int.repr tag_mode);
               Vint (Int.repr 0); cb_p; app_key_p)
       GLOBALS ()
-      SEP (data_at_ Tsh enc_rval_s res_p;
-             
+      SEP (
+           data_at_ Tsh enc_rval_s res_p;            
            (* td *)
            field_at Tsh (Tstruct _asn_TYPE_descriptor_s noattr) 
                     (DOT _tags) (Vptr tag_b tag_ofs) td_p;
@@ -103,8 +113,7 @@ Definition int_der_encode_spec : ident * funspec :=
            (* cb *)
            data_at_ Tsh enc_key_s app_key_p;
            valid_pointer cb_p; 
-           func_ptr' dummy_callback_spec cb_p;
-           valid_pointer (offset_val (len data - 1) sptr_buf))
+           func_ptr' dummy_callback_spec cb_p)
     POST [tvoid]
       PROP ()
       LOCAL ()
@@ -114,7 +123,7 @@ Definition int_der_encode_spec : ident * funspec :=
            field_at Tsh (Tstruct _asn_TYPE_descriptor_s noattr)
                     (DOT _tags_count)
                     (Vint (Int.repr (Zlength (tags td)))) td_p;
-           data_at Tsh (tarray tuchar (Zlength (tags td)))
+           data_at Tsh (tarray tuint (Zlength (tags td)))
                    (map Vint (map Int.repr (tags td)))
                    (Vptr tag_b tag_ofs);
 
@@ -134,8 +143,7 @@ Definition int_der_encode_spec : ident * funspec :=
            data_at Tsh enc_rval_s (int_enc_rval td data struct_len 
                                                 (if eq_dec cb_p nullval
                                                 then 0
-                                                else 32) td_p st_p) res_p;
-           valid_pointer (offset_val (len data - 1) sptr_buf)).
+                                                else 32) td_p st_p) res_p).
 
 Definition Gprog := ltac:(with_library prog [int_der_encode_spec; 
                                                der_primitive_encoder_spec]).
@@ -153,8 +161,18 @@ Definition LI i data :=
                           Byte.unsigned (Znth (i + 1) data)
                           & 128 <> 0).
 
-
-Theorem int_der_encode : semax_body Vprog Gprog 
+Ltac prove_field_compatible_arr i := 
+      unfold field_compatible;
+      repeat split; cbn; 
+      [rewrite Zmax0r by lia; rep_omega
+      | constructor 2
+      | lia
+      | lia];
+       intros i0; intros; econstructor 1; cbn; 
+                     [reflexivity 
+                     | cbn; unfold Z.divide; exists (Ptrofs.unsigned i + i0); lia ]. 
+(*
+Theorem int_der_encode_correctness : semax_body Vprog Gprog 
                                      (normalize_function f_INTEGER_encode_der
                                                          composites)
                                      int_der_encode_spec.
@@ -209,8 +227,7 @@ Proof.
            (data_at Tsh (tarray tuchar shift') (map Vubyte (sublist 0 shift' data)) sptr_buf *
             data_at Tsh (tarray tuchar (Zlength data_c)) (map Vubyte data_c)
                     (offset_val shift' sptr_buf));
-           valid_pointer (offset_val (len data - 1) sptr_buf);
-           valid_pointer (offset_val shift' sptr_buf);                    
+           valid_pointer sptr_buf;
 
            (* st-> buf + shift *)
           (* valid_pointer (offset_val shift' sptr_buf); *)
@@ -245,8 +262,7 @@ Proof.
                       temp __res res_p; temp _td td_p; temp _sptr st_p;
                       temp _tag_mode (Vint (Int.repr tag_mode));
                       temp _cb cb_p; temp _app_key app_key_p)
-               SEP (valid_pointer (Vptr b (i + Ptrofs.repr (len data) - Ptrofs.repr 1)%ptrofs);
-                    valid_pointer (Vptr b (i + Ptrofs.repr z)%ptrofs);
+               SEP (  valid_pointer (Vptr b i);
                     data_at_ Tsh enc_rval_s v__res__1; 
                     data_at_ Tsh prim_type_s v_effective_integer; 
                     data_at_ Tsh enc_rval_s v_rval;
@@ -283,7 +299,8 @@ Proof.
                       temp __res res_p; temp _td td_p; temp _sptr st_p;
                       temp _tag_mode (Vint (Int.repr tag_mode));
                       temp _cb cb_p; temp _app_key app_key_p)
-               SEP (data_at_ Tsh enc_rval_s v__res__1; 
+               SEP ( valid_pointer (Vptr b i);
+                    data_at_ Tsh enc_rval_s v__res__1; 
                     data_at_ Tsh prim_type_s v_effective_integer; 
                     data_at_ Tsh enc_rval_s v_rval;
                     data_at_ Tsh enc_rval_s res_p;
@@ -301,9 +318,7 @@ Proof.
                      data_at Tsh (Tstruct _ASN__PRIMITIVE_TYPE_s noattr)
                     (Vptr b i, (Vint (Int.repr struct_len))) st_p;  
                      valid_pointer cb_p;
-                     func_ptr' dummy_callback_spec cb_p;
-                  valid_pointer (Vptr b (i + Ptrofs.repr (len data) - Ptrofs.repr 1)%ptrofs);
-                  valid_pointer (Vptr b (i + Ptrofs.repr z)%ptrofs)))%assert
+                     func_ptr' dummy_callback_spec cb_p))%assert
       break: (EX z : Z,
               PROP (Zlength data - Zlength (canonicalize_int data) = z;
                     0 <= Ptrofs.unsigned i + z <= Ptrofs.max_unsigned;
@@ -323,7 +338,8 @@ Proof.
                      temp __res res_p; temp _td td_p; temp _sptr st_p;
                      temp _tag_mode (Vint (Int.repr tag_mode));
                      temp _cb cb_p; temp _app_key app_key_p)
-              SEP (data_at_ Tsh enc_rval_s v__res__1; 
+              SEP (   valid_pointer (Vptr b i);
+                    data_at_ Tsh enc_rval_s v__res__1; 
                     data_at_ Tsh prim_type_s v_effective_integer; 
                     data_at_ Tsh enc_rval_s v_rval;
                     data_at_ Tsh enc_rval_s res_p;
@@ -341,30 +357,22 @@ Proof.
                      data_at Tsh (Tstruct _ASN__PRIMITIVE_TYPE_s noattr)
                              (Vptr b i, (Vint (Int.repr struct_len))) st_p;  
                      valid_pointer cb_p;
-                     func_ptr' dummy_callback_spec cb_p;
-              valid_pointer (Vptr b (i + Ptrofs.repr (len data) - Ptrofs.repr 1)%ptrofs);
-              valid_pointer (Vptr b (i + Ptrofs.repr z)%ptrofs)))%assert.
+                     func_ptr' dummy_callback_spec cb_p))%assert.
       (* invariant check *)
-      Exists 0.
-      entailer!.
-      intros. lia.
-      entailer!.
-      cbn.
-      replace (i + Ptrofs.repr (len data - 1))%ptrofs with 
-          (i + Ptrofs.repr (len data) - Ptrofs.repr 1)%ptrofs.
-      entailer!.
-      cbn in H5.
-      strip_repr_ptr. f_equal. lia. 
-      (* loop *)
-  (*  { Intros z.
+      - Exists 0.
+        entailer!.
+        intros. lia. 
+      (* LI(z) |= LI(z + 1) *)
+     - Intros z.
       cbn in H5.
       forward_if.
       --
       unfold test_order_ptrs, sameblock.
       destruct peq; try congruence. simpl.
       entailer!.
-      entailer!.
-      -- (* LI&buf < end1 to LI *) cbn in H5.
+      admit. (* valid pointer z and len data - 1 *)
+      -- (* LI&buf < end1 to LI *) 
+        cbn in H5.
       assert (Z : 0 < z + 1 < Zlength data).
       { eapply SepLemmas.typed_true_ptr_lt in H9.
         generalize H9. 
@@ -374,16 +382,6 @@ Proof.
       entailer!.
       assert (FA : @field_compatible CompSpecs (tarray tuchar (Zlength data)) (SUB z) 
                                     (Vptr b i)).
-      Ltac prove_field_compatible_arr i := 
-      unfold field_compatible;
-      repeat split; cbn; 
-      [rewrite Zmax0r by lia; rep_omega
-      | constructor 2
-      | lia
-      | lia];
-       intros i0; intros; econstructor 1; cbn; 
-                     [reflexivity 
-                     | cbn; unfold Z.divide; exists (Ptrofs.unsigned i + i0); lia ]. 
       prove_field_compatible_arr i. 
       apply field_compatible_field_address in FA.
       rewrite FA; cbn; replace (0 + 1* z) with (z) by lia; try reflexivity.
@@ -400,7 +398,7 @@ Proof.
                   & 128 <> 0 \/ Byte.unsigned (Znth z data) <> 255 \/ 
                     Byte.unsigned (Znth (z + 1) data)
                   & 128 = 0).
-      -- (* case 0 *)
+      --- (* case 0 *) 
       { (* *buf = 0 -> first switch case *)
         assert_PROP (Vptr b (Ptrofs.add (Ptrofs.add i(Ptrofs.repr z)) 
                                             (Ptrofs.mul (Ptrofs.repr 1) 
@@ -444,8 +442,8 @@ Proof.
             strip_repr.
         + (* buf[1] & 0x80 <> 0 -> break *)
           forward.
-          entailer!.  }
-      -- (* case 1 *)
+          entailer!. }  
+      --- (* case 1 *)
       { (* *buf = 255 -> second switch case *)
         assert_PROP (Vptr b(Ptrofs.add (Ptrofs.add i(Ptrofs.repr z)) 
                                             (Ptrofs.mul (Ptrofs.repr 1) 
@@ -486,21 +484,20 @@ Proof.
           forward.
           entailer!.
       }
-      --
-       (* default case *)
+      --- (* default case *)
         forward. 
         generalize NE.
         generalize NE0.
         strip_repr.
         intros.
         entailer!. 
-     -- (* break after switch *)
+      --- (* break after switch *)
         forward. 
         Exists z.
         entailer!.
         symmetry.
         eapply canonicalize_Z_spec; auto.
-      -  (* _buf >= _end1 *) (* LI&Break to BREAK *)
+      -- (* _buf >= _end1 *) (* LI&Break to BREAK *)
       forward.
       Exists z.
       assert (Z : z + 1 >= len data).
@@ -522,13 +519,11 @@ Proof.
       symmetry; eapply canonicalize_Z_spec_r.
       lia.
       eassumption.
- } *) admit.
-      - (* continue to LI *)
+      - (* continue to LI  *) 
       Intros z.
       repeat forward.
       Exists (z + 1).
       entailer!.
-      admit. (* valid_pointer *)
       - (* Break to rest *)
       Intros z.
       repeat forward.
@@ -582,7 +577,7 @@ Proof.
         autorewrite with sublist.
         subst. 
         cbn in H5.
-        strip_repr.
+        strip_repr. 
       + (* shift' = 0 *)
         forward.
          assert (len data - len (canonicalize_int data) = 0) as L.
@@ -595,26 +590,21 @@ Proof.
         repeat rewrite_if_b.
         entailer!.
         erewrite data_at_app_gen.
-        entailer!.
-        cbn.
-        replace (i + Ptrofs.repr (len data - 1))%ptrofs with 
-          (i + Ptrofs.repr (len data) - Ptrofs.repr 1)%ptrofs.
-        entailer!.
-        strip_repr_ptr. f_equal. lia.  
+        entailer!.  
         all: try list_solve. 
         erewrite <- map_app. f_equal.
         eapply canonicalize_int_sublist.
         autorewrite with sublist; try strip_repr.
       * congruence.
-  * (* sptr_buf is null or pointer - we pass it to prim decoder anyway *)
-    destruct (eq_dec data (canonicalize_int data)).
-    assert (len data - len (canonicalize_int data) = 0) as T.
-    { erewrite e at 1. lia. }
-    erewrite T.
-    autorewrite with sublist.
-    repeat rewrite_if_b.
-    erewrite data_at_zero_array_eq.
-    ** forward_call (v__res__1,   
+      * (* sptr_buf is null or pointer - we pass it to prim decoder anyway *)
+        destruct (eq_dec data (canonicalize_int data)).
+        assert (len data - len (canonicalize_int data) = 0) as T.
+        { erewrite e at 1. lia. }
+        erewrite T.
+        autorewrite with sublist.
+        repeat rewrite_if_b.
+        erewrite data_at_zero_array_eq.
+        forward_call (v__res__1,   
                   st_p,
                   tag_b, tag_ofs,
                   sptr_buf, 
@@ -623,37 +613,38 @@ Proof.
                   td_p, td,
                   0,
                   cb_p, app_key_p).
-    entailer!.  
-    rewrite_if_b.    
-    unfold Frame.
-    instantiate (1 := [data_at_ Tsh prim_type_s v_effective_integer *
-                       data_at_ Tsh (Tstruct _asn_enc_rval_s noattr) v_rval *
-                       data_at_ Tsh enc_rval_s res_p *
-                       valid_pointer (offset_val (len data - 1) sptr_buf)]).
-    simpl.
-    erewrite <- e.
-    erewrite Zlength_map.
-    unfold Vubyte.
-    erewrite map_map.
-    erewrite map_map.
-    entailer!.
-    repeat split; strip_repr.
-    Intros.
-    repeat rewrite_if_b.
-    unfold prim_enc_rval.
-    destruct (evalErrW
-           (Exec.primitive_encoder td struct_len (if eq_dec cb_p nullval then 0 else 32)
-              (map Int.repr (map Byte.unsigned data))) []) eqn : G.
-    -- repeat forward. 
-       forward_if_add_sep (
-        if eq_dec (Vint Int.zero) v_effective_integer 
-        then data_at Tsh (Tstruct _asn_enc_rval_s noattr)
-                       (Vint (Int.repr z), (Vint Int.zero, st_p))
-                       v_rval
-        else data_at Tsh (Tstruct _asn_enc_rval_s noattr)
-                       (Vint (Int.repr z),
-                        (Vint Int.zero, Vint Int.zero)) v_rval) v_rval.
-       ++ entailer!.
+           entailer!.
+           rewrite_if_b.    
+           unfold Frame.
+           instantiate (1 := [data_at_ Tsh prim_type_s v_effective_integer *
+                              data_at_ Tsh (Tstruct _asn_enc_rval_s noattr) v_rval *
+                              data_at_ Tsh enc_rval_s res_p]).
+           simpl.
+           erewrite <- e.
+           erewrite Zlength_map.
+           unfold Vubyte.
+           erewrite map_map.
+           erewrite map_map.
+           entailer!.
+           repeat split; strip_repr.           
+           Intros.
+           repeat rewrite_if_b.
+           unfold prim_enc_rval.
+           destruct (evalErrW
+                       (Exec.primitive_encoder td struct_len
+                                               (if eq_dec cb_p nullval then 0 else 32)
+                                               (map Int.repr (map Byte.unsigned data)))
+                       []) eqn : G.
+        -- repeat forward. 
+           forward_if_add_sep (
+               if eq_dec (Vint Int.zero) v_effective_integer 
+               then data_at Tsh (Tstruct _asn_enc_rval_s noattr)
+                            (Vint (Int.repr z), (Vint Int.zero, st_p))
+                            v_rval
+               else data_at Tsh (Tstruct _asn_enc_rval_s noattr)
+                            (Vint (Int.repr z),
+                             (Vint Int.zero, Vint Int.zero)) v_rval) v_rval.
+       ++  entailer!.
           eapply denote_tc_test_eq_split.
           entailer!.
           unfold prim_type_s.
@@ -669,14 +660,14 @@ Proof.
           { eapply field_at_valid_ptr0; cbn; auto.
             lia. }
           entailer!.
-       ++ forward.
+       ++  forward.
           rewrite if_true;
           try entailer!.
           all: destruct v_effective_integer; cbn in H; try contradiction;
           try discriminate;
           eapply typed_true_of_bool in H;
           eapply int_eq_e in H;
-          erewrite H; auto.
+          erewrite H; auto. 
        ++ forward.
           rewrite if_false;
           try entailer!;
@@ -688,16 +679,9 @@ Proof.
           inversion K; contradiction.
        ++ destruct (eq_dec (Vint Int.zero) v_effective_integer) eqn : S.
           ***
-          repeat forward.
+          repeat forward. 
           ***
-          forward.
-          forward.
-          forward.
-          forward.
-          forward.
-          forward.
-          forward.
-          entailer!.
+          repeat forward.
           assert ((int_enc_rval td data (Zlength data) (if eq_dec cb_p nullval then 0 else 32)
                                 td_p st_p) = 
                    (Vint (Int.repr z), (Vint Int.zero, Vint Int.zero))) as RES.
@@ -705,32 +689,27 @@ Proof.
              unfold evalErrW.
              unfold int_encoder.
              generalize G.
-             break_if.
-             -
-             rewrite_if_b.
-             unfold evalErrW.
-             erewrite e.
-             normalize.
-             erewrite T.
-             break_match. inversion H0. auto. congruence.
-             - rewrite_if_b.
-               unfold evalErrW.
-               erewrite e.
-               erewrite T.
-               normalize.
-               break_match. 
-               inversion H0.
-               auto.
-               congruence. }
+             break_if;
+             rewrite_if_b;
+             unfold evalErrW;
+             erewrite T;                     
+             erewrite <- e;
+             autorewrite with norm;
+             break_match; try congruence;
+             break_let; intro J; inversion J; auto. }
            erewrite RES.
+           erewrite Zlength_map.
+           unfold Vubyte.
+           erewrite map_map.
+           erewrite map_map.
+           erewrite map_map.
            entailer!.
-           (* tuint and tuchar issue, compspecs issue *)
-           admit.
     -- repeat forward.       
        forward_if_add_sep (data_at Tsh (Tstruct _asn_enc_rval_s noattr)
                      (Vint (Int.repr (-1)), (td_p, st_p)) v_rval) v_rval.
        ++ eapply denote_tc_test_eq_split.
-          admit. (* valid_pointer st_p *)
+          { unfold prim_type_s.
+            entailer!. }
           unfold prim_type_s.
           unfold data_at_.
           unfold field_at_.
@@ -758,30 +737,24 @@ Proof.
                  unfold evalErrW.
                  unfold int_encoder.
                  generalize G.
-                 erewrite e.
-                 erewrite T.
-                 break_if.
-                 -
-                   rewrite_if_b.
-                   unfold evalErrW.
-                   normalize.
-                   break_match; try break_let; try congruence.
-                   auto.
-                 - rewrite_if_b.
-                   unfold evalErrW.
-                   normalize.
-                   break_match;  try break_let; try congruence.
+                 erewrite T.                                
+                 erewrite <- e.
+                 break_if; rewrite_if_b;
+                   unfold evalErrW;
+                   normalize;
+                   break_match; try break_let; try congruence;
                    auto.
            }
            erewrite RES.
+              erewrite Zlength_map.
+               unfold Vubyte.
+           repeat erewrite map_map.
            entailer!.
-           (* tuint and tuchar issue, compspecs issue *)
-           admit.
-    ** auto.
-    ** destruct sptr_buf; cbn in H3; try contradiction. 
-       erewrite H3 in *. contradiction. auto.
-    ** auto.
-    ** (* Zlength data - Zlength (canonicalize_int data) <> 0 *)
+    -- auto.
+    -- auto.
+    -- auto.
+    -- (* Zlength data - Zlength (canonicalize_int data) <> 0 *)
+      rewrite if_false.
       forward_call (v__res__1,   
                   v_effective_integer,
                   tag_b, tag_ofs,
@@ -792,7 +765,7 @@ Proof.
                   td_p, td,
                   0,
                   cb_p, app_key_p).
-    entailer!.       
+    entailer!.   
     unfold Frame.
     instantiate
       (1 := [data_at_ Tsh (Tstruct _asn_enc_rval_s noattr) v_rval *
@@ -805,9 +778,9 @@ Proof.
              data_at Tsh (Tstruct _ASN__PRIMITIVE_TYPE_s noattr)
                      (sptr_buf, Vint (Int.repr struct_len)) st_p]).
     destruct sptr_buf; simpl in H3; try contradiction; try discriminate.
-    erewrite H3 in *. contradiction.
     unfold offset_val.
     rewrite if_false by discriminate.
+    rewrite if_false.
     rewrite if_false by discriminate.
     simpl.
     entailer!.
@@ -816,11 +789,18 @@ Proof.
     replace  (map Vubyte (canonicalize_int data)) with 
         (map Vint (map Int.repr (map Byte.unsigned (canonicalize_int data)))).
     entailer!.
-    (* compspecs issue *)
-    admit.
+    admit. (* valid pointer *)
     { unfold Vubyte.
       erewrite map_map.
       erewrite map_map. auto. }
+    pose proof (can_data_len data). 
+    destruct (sublist_eq_Zlength data) as [y P].
+    inversion P as [P1 P2].
+    erewrite P2 in *.
+    erewrite Zlength_sublist_correct.
+    destruct (zeq y 0).
+    rewrite e in *. autorewrite with sublist in n0. contradiction.
+    all: try lia. 
     pose proof (can_data_len data). 
     repeat split; auto; try lia.
     list_solve.
@@ -832,7 +812,7 @@ Proof.
                                         (if eq_dec cb_p nullval then 0 else 32)
                                         (map Int.repr (map Byte.unsigned
                                                       (canonicalize_int data)))) []) eqn : G.
-    -- repeat forward. 
+    --- repeat forward. 
        forward_if_add_sep (
            if eq_dec (Vint Int.zero) v_effective_integer 
            then data_at Tsh (Tstruct _asn_enc_rval_s noattr)
@@ -892,16 +872,40 @@ Proof.
            erewrite RES.
            entailer!.
            destruct sptr_buf; simpl in H3; try contradiction; try discriminate.
-           erewrite H3 in *. contradiction.
            unfold offset_val.
            rewrite if_false by discriminate.
            entailer!.
            remember (Zlength data - Zlength (canonicalize_int data)) as k.
-           (* data_at_app_gen proof + valid pointer *)
+           erewrite Zlength_map.
+           erewrite <- sepcon_comm.
+           erewrite <- sepcon_assoc.
+           erewrite  <- data_at_app_gen.
+           entailer!.
+           (* valid pointer  *)
            admit.
-    -- repeat forward.   
+           all: try erewrite Zlength_map.
+           all: try list_solve.
+           erewrite Zlength_sublist_correct. lia. 
+           subst. 
+           pose proof (can_data_len data); lia.
+           subst. list_solve.
+           unfold Vubyte.
+           repeat erewrite map_map.
+           erewrite <- map_app. 
+           f_equal.
+           subst.
+           eapply canonicalize_int_sublist.
+           autorewrite with sublist.
+           cbn in H5.
+           strip_repr.
+           subst.
+           autorewrite with sublist.
+           erewrite Zlength_sublist_correct.
+           strip_repr.
+           pose proof (can_data_len data); lia.
+           pose proof (can_data_len data); list_solve.
+    --- repeat forward.   
        destruct sptr_buf; simpl in H3; try contradiction; try discriminate.
-          erewrite H3 in *. contradiction.
           unfold offset_val.
           rewrite if_false by discriminate.
        forward_if_add_sep (data_at Tsh (Tstruct _asn_enc_rval_s noattr)
@@ -938,11 +942,48 @@ Proof.
                    break_match; try break_let; try congruence;
                    auto. }
            erewrite RES.
+           erewrite Zlength_map.
+           unfold Vubyte.
+           repeat erewrite map_map. 
            entailer!.
-           (* tuint and tuchar issue, compspecs issue + 
-            data_at proofs + valid_pointer *)
-           admit. } 
+           remember (Zlength data - Zlength (canonicalize_int data)) as k.
+           erewrite <- sepcon_comm.
+           erewrite <- sepcon_assoc.
+           erewrite <- sepcon_assoc.
+           erewrite  <- data_at_app_gen.
+           entailer!.
+           (* valid pointer *)
+           admit.
+           all: try erewrite Zlength_map.
+           all: try list_solve.
+           erewrite Zlength_sublist_correct. lia. 
+           subst. 
+           pose proof (can_data_len data); lia.
+           subst. list_solve.
+           unfold Vubyte.
+           repeat erewrite map_map.
+           erewrite <- map_app. 
+           f_equal.
+           subst.
+           eapply canonicalize_int_sublist.
+           autorewrite with sublist.
+           cbn in H5.
+           strip_repr.
+           subst.
+           autorewrite with sublist.
+           erewrite Zlength_sublist_correct.
+           strip_repr.
+           pose proof (can_data_len data); lia.
+           pose proof (can_data_len data); list_solve.
+           --  pose proof (can_data_len data). 
+               destruct (sublist_eq_Zlength data) as [y P].
+               inversion P as [P1 P2].
+               erewrite P2 in *.
+               erewrite Zlength_sublist_correct.
+               destruct (zeq y 0).
+               rewrite e in *. autorewrite with sublist in n0. contradiction.
+               all: try lia.  } 
 Admitted.
-
+ *)
 End Integer_der_encode.
 

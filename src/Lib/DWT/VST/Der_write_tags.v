@@ -1,23 +1,13 @@
 Require Import Core.Core Core.StructNormalizer VstLib Exec.Der_write_tags 
         ErrorWithWriter Clight.dummy Callback.Dummy.
 Require Import VST.floyd.proofauto.
-
-
-
 Require Import VstTactics.
- Require Import Core.Tactics Core.Notations Core.SepLemmas.
- Require Import VST.Der_write_TL Types. 
-
-Require Import Clight.der_encoder .
+Require Import Core.Tactics Core.Notations Core.SepLemmas.
+Require Import VST.Der_write_TL Types. 
+Require Import Clight.der_encoder.
 
 Definition composites :=
-  composites ++ (match find_cs dummy._dummy dummy.composites with
-                 | Some r => [r]
-                 | None => []
-                 end) ++ (match find_cs dummy._application_specific_key dummy.composites with
-                 | Some r => [r]
-                 | None => []
-                 end) .
+  composites ++ [Composite dummy._application_specific_key Struct nil noattr].
 
 Definition Vprog : varspecs. 
 Proof.
@@ -109,7 +99,7 @@ Definition der_write_tags_spec : ident * funspec :=
             data_at_ Tsh enc_key_s app_key;
             valid_pointer cb).
 
-(*
+
 Definition Gprog := ltac:(with_library prog [der_write_tags_spec;
                                              der_write_TL_spec]).
 
@@ -701,5 +691,4 @@ Proof.
     do 2 f_equal.
 Admitted.
 
-    *)
 End Der_write_tags.

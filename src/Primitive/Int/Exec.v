@@ -147,3 +147,43 @@ Lemma canonicalize_int_sublist : forall data,
                  ++ canonicalize_int data.
 Admitted.
 
+
+Lemma sublist_eq_Zlength : forall ls, exists y, 0 <= y <= len ls /\
+                                         canonicalize_int ls = sublist y (len ls) ls.
+Proof.
+  induction ls.
+  - exists 0. simpl. autorewrite with sublist. easy.
+  - simpl. 
+    repeat break_match. 
+    1, 6: exists 0; autorewrite with sublist; split; try lia; auto. list_solve.
+    1, 4: exists 1; erewrite sublist_1_cons; autorewrite with sublist; auto;
+              split; try lia; auto; try list_solve.
+            destruct IHls as [y IHls].
+            destruct (zeq y 0).
+            exists (1).
+            inversion IHls as [P1 P2].
+            erewrite P2.
+            erewrite sublist_1_cons.
+            autorewrite with sublist; split; auto.
+            list_solve.
+            exists (y + 1).
+            inversion IHls as [P1 P2].
+            erewrite P2.
+            replace (a :: i :: l) with ([a] ++ i :: l).
+            erewrite sublist_app2. autorewrite with sublist.
+            split. admit. reflexivity.  list_solve. reflexivity.
+            destruct IHls as [y IHls].
+            destruct (zeq y 0).
+            exists (1).
+            inversion IHls as [P1 P2].
+            erewrite P2.
+            erewrite sublist_1_cons.
+            autorewrite with sublist; split; auto.
+            list_solve.
+            exists (y + 1).
+            inversion IHls as [P1 P2].
+            erewrite P2.
+            replace (a :: i :: l) with ([a] ++ i :: l).
+            erewrite sublist_app2. autorewrite with sublist.
+            split. admit. reflexivity.  list_solve. reflexivity. 
+Admitted.
