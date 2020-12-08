@@ -128,7 +128,7 @@ Ltac forward_empty_loop :=
           forward_loop Pre break: Pre; try forward ; try entailer! 
       end. 
 
-  Theorem der_encode_primitive : semax_body Vprog Gprog 
+(*   Theorem der_encode_primitive : semax_body Vprog Gprog 
                                           (normalize_function f_der_encode_primitive 
                                                               composites) 
                                         der_primitive_encoder_spec.
@@ -304,6 +304,6 @@ Proof.
         admit. (* change compspecs - same as in der_write_TL *)
       }
 Admitted.
-
+*)
 End Der_encode_primitive.
 

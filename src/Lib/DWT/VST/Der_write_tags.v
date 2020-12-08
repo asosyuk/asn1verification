@@ -102,8 +102,8 @@ Definition der_write_tags_spec : ident * funspec :=
 
 Definition Gprog := ltac:(with_library prog [der_write_tags_spec;
                                              der_write_TL_spec]).
-
-Theorem bool_der_encode : semax_body Vprog Gprog 
+(*
+Theorem der_write_tags_correctness : semax_body Vprog Gprog 
                                      (normalize_function 
                                         f_der_write_tags composites)
                                      der_write_tags_spec.
@@ -690,5 +690,5 @@ Proof.
     erewrite Loop2.
     do 2 f_equal.
 Admitted.
-
+*)
 End Der_write_tags.
