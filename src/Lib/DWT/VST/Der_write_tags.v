@@ -102,12 +102,13 @@ Definition der_write_tags_spec : ident * funspec :=
 
 Definition Gprog := ltac:(with_library prog [der_write_tags_spec;
                                              der_write_TL_spec]).
-(*
+
 Theorem der_write_tags_correctness : semax_body Vprog Gprog 
                                      (normalize_function 
                                         f_der_write_tags composites)
                                      der_write_tags_spec.
-Proof.
+Admitted.
+(* Proof.
   start_function.
   change_compspecs Der_write_TL.CompSpecs.
   forward.

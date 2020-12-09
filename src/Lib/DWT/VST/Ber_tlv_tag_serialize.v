@@ -36,11 +36,12 @@ Definition ber_tlv_tag_serialize_spec : ident * funspec :=
 Definition Gprog := ltac:(with_library prog [ber_tlv_tag_serialize_spec]).
 
 Open Scope IntScope.
-(*
+
 Theorem ber_tlv_tag_serialize_correct : 
   semax_body Vprog Gprog (normalize_function f_ber_tlv_tag_serialize composites)
              ber_tlv_tag_serialize_spec.
-Proof.
+Admitted.
+(* Proof.
   start_function.
   remember (Int.shru tag (Int.repr 2)) as tval.
   remember (Int.zero_ext 8 (((tag & Int.repr 3) << Int.repr 6) or tval)) as e0. 

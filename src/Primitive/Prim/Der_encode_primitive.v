@@ -128,11 +128,12 @@ Ltac forward_empty_loop :=
           forward_loop Pre break: Pre; try forward ; try entailer! 
       end. 
 
-(*   Theorem der_encode_primitive : semax_body Vprog Gprog 
+Theorem der_encode_primitive_correctness : semax_body Vprog Gprog 
                                           (normalize_function f_der_encode_primitive 
                                                               composites) 
                                         der_primitive_encoder_spec.
-
+Admitted.
+(*
 Proof.
   start_function. 
   assert (exists a, tags td = [a]) as E.

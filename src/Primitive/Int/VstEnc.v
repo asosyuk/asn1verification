@@ -171,12 +171,13 @@ Ltac prove_field_compatible_arr i :=
        intros i0; intros; econstructor 1; cbn; 
                      [reflexivity 
                      | cbn; unfold Z.divide; exists (Ptrofs.unsigned i + i0); lia ]. 
-(*
+
 Theorem int_der_encode_correctness : semax_body Vprog Gprog 
                                      (normalize_function f_INTEGER_encode_der
                                                          composites)
                                      int_der_encode_spec.
-Proof.
+Admitted.
+(*Proof.
   start_function. 
   rename H into DT.
   remember (Vptr tag_b tag_ofs) as buf_p.

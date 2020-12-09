@@ -23,10 +23,13 @@ Open Scope Z.
 
 Definition dummy_callback : ident * funspec :=
   DECLARE _dummy dummy_callback_spec.
-(*
+
 Definition Gprog := ltac:(with_library prog [dummy_callback]).
 
-Theorem bool_der_encode : semax_body Vprog Gprog f_dummy dummy_callback.
+Theorem dummy_callback_correctness : semax_body Vprog Gprog f_dummy dummy_callback.
+Admitted.
+
+(* 
 Proof.
   start_function.
   forward_if (

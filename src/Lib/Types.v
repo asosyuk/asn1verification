@@ -21,6 +21,7 @@ Inductive asn_value :=
   | ANY : asn_value
   | BOOLEAN : bool -> asn_value 
   | INTEGER : Z -> asn_value
+  | PRIM_INTEGER : list byte -> asn_value
   | BIT_STRING : list bool -> asn_value
   | SEQUENCE : list asn_value -> asn_value
   | SET : list asn_value -> asn_value

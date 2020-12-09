@@ -86,10 +86,12 @@ Definition Gprog := ltac:(with_library prog [der_write_TL_spec;
                                              (_cb, dummy_callback_spec)]).
 
 Open Scope Z.
-(*
-Theorem der_write_TL_serialize_correct: 
+
+Theorem der_write_TL_correctness: 
   semax_body Vprog Gprog (normalize_function f_der_write_TL composites)
              der_write_TL_spec.
+Admitted.
+(*
 Proof.
   function_pointers.
   start_function.

@@ -34,12 +34,13 @@ Definition der_tlv_length_serialize_spec : ident * funspec :=
 
 Definition Gprog := ltac:(with_library prog [der_tlv_length_serialize_spec]).
 
-(*
 
 Theorem ber_tlv_length_serialize_correct : 
   semax_body Vprog Gprog (normalize_function f_der_tlv_length_serialize composites)
              der_tlv_length_serialize_spec.
-Proof.
+Admitted.
+(*
+ Proof.
   start_function.
   remember (default_val (tarray tuchar buf_size)) as default_list.
   assert (len default_list = buf_size) as LB.
