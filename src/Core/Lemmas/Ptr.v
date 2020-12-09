@@ -47,14 +47,16 @@ Proof.
     auto.
 Qed.
 
+(*
 Proposition ptr_ge_to_sem_cmp : forall b m b1 b2 i1 i2,
     ptr_ge m b1 b2 i1 i2 = Some b ->
-    sem_cmp Cge (Vptr b1 i1) (tptr tschar) (Vptr b2 i2) (tptr tschar) m = 
+    sem_cmp Cge  (tptr tschar)  (tptr tschar) (Vptr b1 i1) (Vptr b2 i2) = 
     Some (Val.of_bool b).
 Proof.
   intros.
   assert ((option_map Val.of_bool (ptr_ge m b1 b2 i1 i2)) =
           (option_map Val.of_bool (Some b))) by (f_equal; assumption).
+  cbn.
   eassumption.
 Qed.
 
@@ -320,3 +322,4 @@ Qed.
 
 
 Hint Resolve Ptrofs.mul_one Ptrofs.add_zero int_ptrofs_mod_eq : ptrofs.
+*)

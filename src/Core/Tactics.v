@@ -1,4 +1,4 @@
-Require Import Core Int Notations.
+Require Import Core Int  VST.floyd.proofauto Notations.
 
 Ltac ints_to_Z :=
   repeat rewrite Int.unsigned_repr_eq; repeat rewrite Zmod_small.
@@ -13,6 +13,27 @@ Ltac ptrofs_compute_add_mul :=
 Ltac ints_compute_add_mul :=
       simpl; unfold Int.add; unfold Int.mul;
       repeat rewrite Int.unsigned_repr_eq;  repeat rewrite Int.unsigned_repr_eq; repeat rewrite Zmod_small.
+
+Ltac strip_repr :=
+  autorewrite with norm;
+  unfold Int.add; unfold Int.mul; unfold Int.neg;
+  unfold Int.sub;
+  try erewrite Int.unsigned_one in *;
+  try erewrite Int.unsigned_zero in *;
+  repeat rewrite Int.unsigned_repr;  
+  repeat rewrite Int.signed_repr;     
+  try rep_omega; auto. 
+
+Ltac strip_repr_ptr :=
+  autorewrite with norm;
+  unfold Ptrofs.add; unfold Ptrofs.mul; unfold Ptrofs.neg;
+  unfold Ptrofs.sub;
+  try erewrite Ptrofs.unsigned_one in *;
+  try erewrite Ptrofs.unsigned_zero in *;
+  repeat rewrite Ptrofs.unsigned_repr;  
+  repeat rewrite Ptrofs.signed_repr;     
+  try rep_omega; auto. 
+
 
 Ltac ints64_compute_add_mul :=
       simpl; unfold Int64.add; unfold Int.mul;
@@ -56,7 +77,8 @@ Ltac Zbool_to_Prop :=
         || rewrite Z.eqb_eq in * 
         || rewrite Z.eqb_neq in * 
         || rewrite Z.ltb_ge in * 
-        || rewrite Z.ltb_lt in *).
+        || rewrite Z.ltb_lt in *
+        || rewrite Z.geb_le in *).
 
 
 (*Tactic Notation "forward_if" constr(postL) constr(postP) constr(postS) :=

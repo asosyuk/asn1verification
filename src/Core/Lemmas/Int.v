@@ -412,4 +412,9 @@ Proof.
     reflexivity.
 Qed.
 
+Lemma Zland_bounds : forall b c, 0 <= b <= Byte.modulus ->
+                            0 <= c <= Byte.modulus ->
+                            0 <= (b & c) <= Byte.modulus.
+Admitted.
+
 

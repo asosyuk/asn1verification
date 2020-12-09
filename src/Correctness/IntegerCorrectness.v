@@ -1,10 +1,10 @@
 Require Import Core.Core Core.StructNormalizer VstLib Callback.Dummy
-        Boolean.Exec ErrorWithWriter DWT.Vst.
+        Int.Exec ErrorWithWriter DWT.Vst.
 Require Import VST.floyd.proofauto.
-Require Import Clight.dummy Clight.BOOLEAN Clight.der_encoder.
+Require Import Clight.dummy Clight.der_encoder.
 Require Import Core.Notations. 
 Require Import Boolean.Exec AbstractSpec Lib PrimExec.
-Require Import Clight.dummy Clight.BOOLEAN Lib.Stdlib.
+Require Import Clight.dummy Clight.INTEGER Lib.Stdlib.
 Require Import Clight.ber_decoder.
 Require Import Lib.BCT.Vst.
 

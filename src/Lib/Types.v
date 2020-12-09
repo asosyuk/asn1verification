@@ -15,6 +15,7 @@ Record asn_enc_rval : Type := encode {
   encoded : Z ;
 }.
 
+
 (* ASN.1 types and values *)
 Inductive asn_value :=
   | ANY : asn_value
@@ -44,7 +45,8 @@ Inductive asn_type :=
 Inductive TYPE_descriptor :=
   def { tags : list Z;
         elements : list TYPE_descriptor; 
-        decoder_type : asn_type
+        decoder_type : asn_type;
+        tags_count : Z
       }.
 
 (* The function can return error in 3 cases:
@@ -58,9 +60,9 @@ Inductive Err := HeaderEncodeError
                  | CustomError {T : Type} : T -> Err.
 
 (* Specialized version of errW with custom Error and Log type with specialized tell *)
-Definition errW1 := @errW Err (list byte).
+Definition errW1 := @errW Err (list int).
 
 Existing Class Monoid.
 Existing Instance Monoid_list_app.
 
-Definition tell1 := @tell (list byte) (Monoid_list_app) errW1 Writer_errW.
+Definition tell1 := @tell (list int) (Monoid_list_app) errW1 Writer_errW.
