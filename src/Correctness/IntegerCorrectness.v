@@ -226,7 +226,32 @@ Lemma ESPEC_to_HSPEC_correctness_int_encoder : forall td struct_len buf_size li 
   decoder_type td = INTEGER_t ->
   int_encoder td struct_len buf_size li [] = inr (ls, z) ->
   DER (PRIM_INTEGER li) (map Byte.repr (map Int.unsigned ls)).
+Proof.
+  intros until z; intros T DEC.
+  unfold int_encoder in DEC.
+  unfold primitive_encoder in DEC.
+  cbn in DEC.
+  break_match. congruence.
+  break_let.
+  inversion DEC. clear DEC.
+  replace l with (sublist 0 (len l - 1) l ++ [1%int]).
+  repeat erewrite map_app.
+  simpl.
+  replace (Byte.repr (Int.unsigned 1%int)) with 1%byte.
+  erewrite <- app_assoc.
+  eapply Prim_Integer_short_DER.
+  - (* primitive tag *)
+    econstructor.
+    + admit. (* primitive bit *)
+    + admit. (* is Tag *)
+  - (* short int *)
+    admit.
+  - (* li is prim int *)
+    Require Import Tactics.
+    (* fix DER_Prim_Integer - remove trailing 0 *)
+    admit.
 Admitted.
+    
 
 (* Need Exec.der_fetch_tags correctness *)
 
