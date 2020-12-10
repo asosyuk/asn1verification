@@ -118,11 +118,13 @@ Definition Gprog := ltac:(with_library prog
                                         ber_fetch_tag_spec;
                                         ber_fetch_len_spec;
                                         ASN__STACK_OVERFLOW_CHECK_spec]).
-(*
-Theorem bool_der_encode : 
+
+Theorem ber_check_tags_correctness : 
   semax_body Vprog Gprog
              (normalize_function f_ber_check_tags composites) 
              ber_check_tags_spec.
+Admitted.
+(*
 Proof.
   start_function.
   subst.

@@ -9,9 +9,10 @@ Require Import Clight.dummy Clight.asn_codecs_prim Clight.INTEGER Lib.Stdlib
 Require Import Clight.ber_decoder.
 Require Import Lib.BCT.Vst  Lib.DWT.VST.Der_write_TL 
          Lib.DWT.VST.Ber_tlv_tag_serialize  Lib.DWT.VST.Ber_tlv_length_serialize
-         Lib.BCT.VST.ASN__STACK_OVERFLOW_CHECK Int.VstEnc.
+         Lib.BCT.VST.ASN__STACK_OVERFLOW_CHECK Prim.Der_encode_primitive Int.VstEnc.
+Require Import VST.floyd.library.
 
-                 (* C <-> executive spec *) 
+                 (* C <-> EXECUTIVE SPEC *) 
      
 Inductive C_to_ESPEC_correctness (f : function) (f_spec : ident * funspec) 
       (aux_fs : list (function * (ident * funspec)))
@@ -29,11 +30,139 @@ Inductive C_to_ESPEC_correctness (f : function) (f_spec : ident * funspec)
          (exists fs V' G', C_to_ESPEC_correctness (fst g) (snd g) fs V' G')) ->
          C_to_ESPEC_correctness f f_spec aux_fs V G.
 
-(* We assume that normalizer works correctly *) 
+                (* ASSUMPTIONS *)
+
+(* Normalizer works correctly *) 
 Hypothesis normalizer_correctness: forall comps {CompSpecs : compspecs} V G f f_spec,
     semax_body V G (normalize_function f comps) f_spec ->
     semax_body V G f f_spec.
-  
+
+(* C library functions correspond to our (and VST) specs *)
+Parameter f_calloc : function. (* some C implementation of calloc *)
+Parameter f_malloc : function. (* some C implementation of malloc *)
+Parameter f_memcpy : function. (* some C implementation of memcpy *)
+Parameter f___assert_fail : function.
+Hypothesis calloc_correctness : exists V G,
+    @semax_body V G Vst.CompSpecs
+                f_calloc (_calloc, @calloc_spec BCT.Vst.CompSpecs).
+Hypothesis malloc_correctness : exists V G, 
+    @semax_body V G Vst.CompSpecs
+                f_malloc (_malloc, @malloc_spec' Vst.CompSpecs).
+Hypothesis memcpy_correctness : exists V G, 
+    @semax_body V G Vst.CompSpecs 
+                f_memcpy (_memcpy, @memcpy_spec Vst.CompSpecs).
+Hypothesis assert_fail_correctness : exists V G,
+    @semax_body V G Vst.CompSpecs f___assert_fail
+                (___assert_fail, @assert_spec BCT.Vst.CompSpecs).
+
+
+Require Import Lib.BCT.Vst Clight.ber_decoder Clight.ber_tlv_tag Clight.ber_tlv_length
+         Lib.BCT.BFL.Vst Lib.BCT.BFT.Vst
+         Lib.BCT.VST.ASN__STACK_OVERFLOW_CHECK Prim.Der_encode_primitive.
+
+               (* TODO  *)
+Parameter primitive_decode_spec : ident * funspec.
+Hypothesis primitive_decode_correctness :
+  semax_body Der_encode_primitive.Vprog 
+             Der_encode_primitive.Gprog
+             (normalize_function f_ber_decode_primitive
+                                 Der_encode_primitive.composites)
+             primitive_decode_spec.
+
+Lemma primitive_decoder_C_to_ESPEC_correctness :
+  C_to_ESPEC_correctness f_ber_decode_primitive primitive_decode_spec
+                         [(f_ber_check_tags, ber_check_tags_spec);
+                          (f_calloc, (ber_decoder._calloc,
+                                      @calloc_spec BCT.Vst.CompSpecs));
+                          (f_memcpy, 
+                           (ber_decoder._memcpy, @memcpy_spec Vst.CompSpecs));
+                          (f_malloc, 
+                           (ber_decoder._malloc, @malloc_spec' Vst.CompSpecs))]
+                          Der_encode_primitive.Vprog 
+                          Der_encode_primitive.Gprog.
+Proof.
+  eapply WithAuxCorr;
+    try discriminate.
+  - apply (normalizer_correctness Der_encode_primitive.composites).
+    apply primitive_decode_correctness.
+  - intros g g_spec INf EQ.
+    inversion INf as [EQf | R0 ]; try contradiction; clear INf.
+    erewrite <- EQf.
+    exists [(f___assert_fail, (ber_decoder.___assert_fail, (@assert_spec BCT.Vst.CompSpecs)));
+       (f_ber_fetch_tag, Vst.ber_fetch_tag_spec);
+       (f_ber_fetch_length, ber_fetch_len_spec);
+       (ber_decoder.f_ASN__STACK_OVERFLOW_CHECK, ASN__STACK_OVERFLOW_CHECK_spec)]. 
+    repeat eexists.
+    eapply WithAuxCorr with (C := BCT.Vst.CompSpecs).
+    + discriminate.
+    + eapply (normalizer_correctness ber_decoder.composites).
+      apply BCT.Vst.ber_check_tags_correctness.
+    + clear.
+      intros g g_spec INf EQ.
+      inversion INf as [EQf | R];
+        [ | inversion R as [L1 | R1];  
+            [ erewrite <- L1; clear |
+              inversion R1 as [L2 | R2]; 
+              [ erewrite <- L2;  clear |
+                inversion R2 as [L3 | ]]]]; 
+      try contradiction.
+      erewrite <- EQf. clear.
+      * exists [].
+        destruct assert_fail_correctness as [V A]; destruct A as [G A].
+        repeat eexists.
+        eapply NoAuxCorr with (C := BCT.Vst.CompSpecs). auto.
+        unfold fst, snd.
+        eapply A.
+      * exists [].
+        repeat eexists.
+        eapply NoAuxCorr with (C := BFT.Vst.CompSpecs). auto.
+        unfold fst, snd.
+        eapply ber_fetch_tag_correctness.
+      * exists [].
+        repeat eexists.
+        eapply NoAuxCorr with (C := BFL.Vst.CompSpecs). auto.
+        unfold fst, snd.
+        eapply ber_fetch_len_correctness.
+      * erewrite <- L3. clear.
+        exists [].
+        repeat eexists.
+        eapply NoAuxCorr with (C := ASN__STACK_OVERFLOW_CHECK.CompSpecs). auto.
+        unfold fst, snd.
+        eapply ASN__STACK_OVERFLOW_CHECK_correctness.
+    + inversion R0 as [EQf | R]; [  erewrite <- EQf; clear 
+                                    | inversion R as [L1 | R1];  [ erewrite <- L1; clear |
+                                      inversion R1 as [L2 | R2]; 
+                                          [ erewrite <- L2;  clear |
+                                            inversion R2]]]; 
+      try contradiction.
+      * exists [].
+        destruct calloc_correctness as [V A]; destruct A as [G A].
+        repeat eexists.
+        eapply NoAuxCorr with (C := BCT.Vst.CompSpecs). auto.
+        unfold fst, snd.
+        eapply A.
+      *  exists [].
+        destruct memcpy_correctness as [V A]; destruct A as [G A].
+        repeat eexists.
+        eapply NoAuxCorr with (C := BCT.Vst.CompSpecs). auto.
+        unfold fst, snd.
+        eapply A.
+      * exists [].
+        destruct malloc_correctness as [V A]; destruct A as [G A].
+        repeat eexists.
+        eapply NoAuxCorr with (C := BCT.Vst.CompSpecs). auto.
+        unfold fst, snd.
+        eapply A.
+Qed.
+
+Require Import Clight.dummy Clight.asn_codecs_prim Clight.INTEGER Lib.Stdlib
+        Clight.ber_tlv_tag Clight.ber_tlv_length.
+Require Import Clight.ber_decoder.
+Require Import Lib.BCT.Vst  Lib.DWT.VST.Der_write_TL 
+         Lib.DWT.VST.Ber_tlv_tag_serialize  Lib.DWT.VST.Ber_tlv_length_serialize
+         Lib.BCT.VST.ASN__STACK_OVERFLOW_CHECK Prim.Der_encode_primitive Int.VstEnc.
+Require Import VST.floyd.library.
+
 Lemma integer_encoder_C_to_ESPEC_correctness :
   C_to_ESPEC_correctness f_INTEGER_encode_der
                    int_der_encode_spec

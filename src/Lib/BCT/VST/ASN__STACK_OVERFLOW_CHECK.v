@@ -28,11 +28,12 @@ Definition ASN__STACK_OVERFLOW_CHECK_spec : ident * funspec :=
 
 Definition Gprog := ltac:(with_library prog [ASN__STACK_OVERFLOW_CHECK_spec]).
 
-Theorem bool_der_encode :
+Theorem ASN__STACK_OVERFLOW_CHECK_correctness :
   semax_body Vprog Gprog 
              (normalize_function f_ASN__STACK_OVERFLOW_CHECK composites) 
              ASN__STACK_OVERFLOW_CHECK_spec.
 Proof.
+
   (*
   start_function.
   repeat forward.

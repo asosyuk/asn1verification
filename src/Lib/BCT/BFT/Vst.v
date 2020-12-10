@@ -47,11 +47,13 @@ Lemma Znth_0_cons_sublist :  forall (ls : list int) i,
     autorewrite with sublist.
     auto. lia. }
 Qed.
-(*
-Theorem ber_fetch_tag : semax_body Vprog Gprog 
+
+Theorem ber_fetch_tag_correctness : semax_body Vprog Gprog 
                                    (normalize_function f_ber_fetch_tag composites) 
-                                   ber_fetch_tag_spec.
-Proof.
+ 
+                                  ber_fetch_tag_spec.
+Admitted.
+(* Proof.
   start_function.
   forward_if.
   forward.
