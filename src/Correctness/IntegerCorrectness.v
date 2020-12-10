@@ -57,20 +57,11 @@ Hypothesis assert_fail_correctness : exists V G,
 
 
 Require Import Lib.BCT.Vst Clight.ber_decoder Clight.ber_tlv_tag Clight.ber_tlv_length
-         Lib.BCT.BFL.Vst Lib.BCT.BFT.Vst
-         Lib.BCT.VST.ASN__STACK_OVERFLOW_CHECK Prim.Der_encode_primitive.
-
-               (* TODO  *)
-Parameter primitive_decode_spec : ident * funspec.
-Hypothesis primitive_decode_correctness :
-  semax_body Der_encode_primitive.Vprog 
-             Der_encode_primitive.Gprog
-             (normalize_function f_ber_decode_primitive
-                                 Der_encode_primitive.composites)
-             primitive_decode_spec.
+         Lib.BCT.BFL.Vst Lib.BCT.BFT.Vst Prim.Ber_decode_primitive
+         Lib.BCT.VST.ASN__STACK_OVERFLOW_CHECK.
 
 Lemma primitive_decoder_C_to_ESPEC_correctness :
-  C_to_ESPEC_correctness f_ber_decode_primitive primitive_decode_spec
+  C_to_ESPEC_correctness f_ber_decode_primitive ber_decode_primitive_spec
                          [(f_ber_check_tags, ber_check_tags_spec);
                           (f_calloc, (ber_decoder._calloc,
                                       @calloc_spec BCT.Vst.CompSpecs));
@@ -78,13 +69,14 @@ Lemma primitive_decoder_C_to_ESPEC_correctness :
                            (ber_decoder._memcpy, @memcpy_spec Vst.CompSpecs));
                           (f_malloc, 
                            (ber_decoder._malloc, @malloc_spec' Vst.CompSpecs))]
-                          Der_encode_primitive.Vprog 
-                          Der_encode_primitive.Gprog.
+                          Ber_decode_primitive.Vprog 
+                          Ber_decode_primitive.Gprog.
 Proof.
-  eapply WithAuxCorr;
+  eapply WithAuxCorr with (C := Prim.Ber_decode_primitive.CompSpecs);
     try discriminate.
-  - apply (normalizer_correctness Der_encode_primitive.composites).
-    apply primitive_decode_correctness.
+  - apply (@normalizer_correctness asn_codecs_prim.composites 
+                                   Prim.Ber_decode_primitive.CompSpecs).
+    eapply ber_decode_primitive_correctness.
   - intros g g_spec INf EQ.
     inversion INf as [EQf | R0 ]; try contradiction; clear INf.
     erewrite <- EQf.
@@ -170,7 +162,7 @@ Lemma integer_encoder_C_to_ESPEC_correctness :
                      Der_encode_primitive.der_primitive_encoder_spec)]
                    Vprog Gprog.
 Proof.
-  eapply WithAuxCorr;
+  eapply WithAuxCorr with (C := CompSpecs);
     try discriminate.
   - apply (normalizer_correctness composites).
     apply int_der_encode_correctness.
@@ -240,7 +232,7 @@ Admitted.
 
 Lemma ESPEC_to_HSPEC_correctness_int_decoder : forall td ctx size sizeofval sizemax ls li z,
     decoder_type td = INTEGER_t ->
-    primitive_decoder td ctx size sizeofval sizemax ls = Some (li, z) ->
+    primitive_decoder td ctx size (sizeof tuint) (Int.max_unsigned) ls = Some (li, z) ->
     BER (PRIM_INTEGER li) ls.
 Admitted.
 
@@ -249,7 +241,7 @@ Admitted.
 Lemma int_roundtrip : forall td ls struct_len ctx size sizeofval sizemax li z,
     decoder_type td = INTEGER_t ->
     int_encoder td struct_len size li [] = inr (ls, z) ->
-    primitive_decoder td ctx size sizeofval sizemax
+    primitive_decoder td ctx size (sizeof tuint) (Int.max_unsigned)
                       (map Byte.repr (map Int.unsigned ls))
     = Some (li, z).
 Admitted.

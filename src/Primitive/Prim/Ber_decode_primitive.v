@@ -16,7 +16,7 @@ Proof.
   make_compspecs prog.
 Defined.
 
-Section Ber_dencode_primitive.
+Section Ber_decode_primitive.
 
 (* Definition prim_enc_rval td sl buf_size li td_p sptr_p := 
   match evalErrW (primitive_encoder td sl buf_size li) [] with
@@ -186,7 +186,7 @@ Proof.
     Exists st_p (@nil int).
     repeat rewrite if_false by assumption.
     entailer!.
-(*  * unfold if_post1.
+ (* * unfold if_post1.
     Intros p ls.
     forward_empty_loop.
     forward_call (ctx_p, ctx, td_p, td, nullval, nullval, buf_p, buf,
@@ -364,3 +364,4 @@ Proof.
       rewrite if_false in * by assumption.
       entailer!. *)
 Admitted.
+ End Ber_decode_primitive.
