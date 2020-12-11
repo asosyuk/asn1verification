@@ -133,7 +133,8 @@ Proof.
        then data_at Ews (tarray tint 1) (map Vint ls) p 
        else data_at_ Ews tint st_p
        ))%assert; try congruence.
-  * (* (* _st = NULL *)
+  *  (* _st = NULL *)
+    
     forward_call (1, sizeof (Tstruct _ASN__PRIMITIVE_TYPE_s noattr),
                   (Tstruct _ASN__PRIMITIVE_TYPE_s noattr)).
     cbn; try nia.
@@ -190,7 +191,7 @@ Proof.
        Exists (fst p) (snd p).
        erewrite H0 in *.
        repeat rewrite_if_b.
-       entailer!. *) admit.
+       entailer!. 
   * (* st_p <> nullval *)
     rewrite if_false in * by assumption.
     forward.
@@ -202,7 +203,8 @@ Proof.
     destruct buf_p; cbn in H3; try contradiction.
     deadvars!.
     Set Ltac Backtrace.
-    forward_call (ctx_p, (Vint (Int.repr ctx)), td_p, td, Vzero, Vzero, b, i, buf,
+    (* FIX forward call - see Boolean decoder in feature/boolean_vst *)
+   (* forward_call (ctx_p, (Vint (Int.repr ctx)), td_p, td, Vzero, Vzero, b, i, buf,
                   v__res__1, size, tag_mode, 0, v_length, Vzero, 0%Z).
     break_if.
     ** 
