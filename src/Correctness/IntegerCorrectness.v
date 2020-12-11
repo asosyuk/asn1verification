@@ -255,7 +255,7 @@ Admitted.
 
 (* Need Exec.der_fetch_tags correctness *)
 
-Lemma ESPEC_to_HSPEC_correctness_int_decoder : forall td ctx size sizeofval sizemax ls li z,
+Lemma ESPEC_to_HSPEC_correctness_int_decoder : forall td ctx size ls li z,
     decoder_type td = INTEGER_t ->
     primitive_decoder td ctx size (sizeof tuint) (Int.max_unsigned) ls = Some (li, z) ->
     BER (PRIM_INTEGER li) ls.
@@ -263,7 +263,7 @@ Admitted.
 
 (* Proof needs Exec.ber_check_tags correctness *)
 
-Lemma int_roundtrip : forall td ls struct_len ctx size sizeofval sizemax li z,
+Lemma int_roundtrip : forall td ls struct_len ctx size li z,
     decoder_type td = INTEGER_t ->
     int_encoder td struct_len size li [] = inr (ls, z) ->
     primitive_decoder td ctx size (sizeof tuint) (Int.max_unsigned)

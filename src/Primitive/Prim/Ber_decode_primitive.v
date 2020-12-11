@@ -98,11 +98,11 @@ Definition Gprog := ltac:(with_library prog [(_calloc, calloc_spec);
                                               ber_check_tags_spec; 
                                               ber_decode_primitive_spec]).
 
-Definition if_post1  st_p v__res__1 v_tmp_error v_length v_rval 
+Definition if_post1 st_p v__res__1 v_tmp_error v_length v_rval 
            res_p ctx ctx_p td_p st_pp buf buf_p size tag_mode := 
   EX p : val, EX ls : list int,
   PROP (if eq_dec st_p nullval 
-        then p <> nullval /\ Zlength ls = 1
+        then p <> nullval 
         else (p = st_p /\ st_p <> nullval))
   LOCAL (temp _st p; 
          temp _t'11 st_p;
@@ -125,7 +125,8 @@ Definition if_post1  st_p v__res__1 v_tmp_error v_length v_rval
        if eq_dec st_p nullval 
        then data_at_ Tsh asn_dec_rval_s res_p * (* malloc_token Ews (tarray tuchar 1) p * *) 
             data_at Ews (tarray tint 1) (map Vint ls) p 
-       else data_at_ Tsh asn_dec_rval_s res_p * data_at_ Ews tint st_p
+       else data_at_ Tsh asn_dec_rval_s res_p *
+            data_at_ Ews tint st_p
        ).
 
 
@@ -138,15 +139,67 @@ Proof.
   rename H1 into Size.
   rename H2 into Len.
   repeat forward.
-  forward_if (if_post1 st_p v__res__1 v_tmp_error v_length v_rval res_p (Vint (Int.repr ctx)) 
-                       ctx_p td_p st_pp buf buf_p size tag_mode); try congruence.
+  forward_if (EX p : val, EX ls : list int,
+  PROP (if eq_dec st_p nullval 
+        then p <> nullval 
+        else (p = st_p /\ st_p <> nullval))
+  LOCAL (temp _st p; 
+         temp _t'19 st_p;
+         lvar __res__1 (Tstruct _asn_dec_rval_s noattr) v__res__1;
+         lvar _tmp_error__2 (Tstruct _asn_dec_rval_s noattr) v_tmp_error__2;
+         lvar _tmp_error__1 (Tstruct _asn_dec_rval_s noattr) v_tmp_error__1;
+         lvar _tmp_error (Tstruct _asn_dec_rval_s noattr) v_tmp_error;
+         lvar _length tint v_length; temp __res res_p; 
+         temp _opt_codec_ctx ctx_p;
+         lvar _rval (Tstruct _asn_dec_rval_s noattr) v_rval;
+         temp _td td_p;
+         temp _buf_ptr buf_p; temp _size (Vint (Int.repr size));
+         temp _tag_mode (Vint (Int.repr tag_mode)))
+  SEP (data_at_ Tsh (Tstruct _asn_dec_rval_s noattr) v__res__1;
+       data_at_ Tsh (Tstruct _asn_dec_rval_s noattr) v_tmp_error__2;
+       data_at_ Tsh (Tstruct _asn_dec_rval_s noattr) v_tmp_error__1;
+       data_at_ Tsh (Tstruct _asn_dec_rval_s noattr) v_tmp_error;
+       data_at_ Tsh tint v_length; 
+       data_at_ Tsh (Tstruct _asn_dec_rval_s noattr) v_rval; valid_pointer st_p;
+       data_at Tsh asn_codec_ctx_s (Vint (Int.repr ctx)) ctx_p;
+       data_at_ Tsh type_descriptor_s td_p;
+       data_at Tsh (tarray tuchar (Zlength buf)) (map Vubyte buf) buf_p;
+       data_at Tsh (tptr tvoid) p st_pp;
+       data_at_ Tsh asn_dec_rval_s res_p;
+       if eq_dec st_p nullval 
+       then data_at Ews (tarray tint 1) (map Vint ls) p 
+       else data_at_ Ews tint st_p
+       ))%assert; try congruence.
   * (* _st = NULL *)
     forward_call (1, sizeof (Tstruct _ASN__PRIMITIVE_TYPE_s noattr),
                   (Tstruct _ASN__PRIMITIVE_TYPE_s noattr)).
     cbn; try nia.
     Intros p.
     repeat forward.
-    forward_if True. 
+    forward_if ( (PROP ( 
+                      (fst p <> nullval))
+     LOCAL (temp _st (fst p); temp _t'19 st_p;
+     lvar __res__1 (Tstruct _asn_dec_rval_s noattr) v__res__1;
+     lvar _tmp_error__2 (Tstruct _asn_dec_rval_s noattr) v_tmp_error__2;
+     lvar _tmp_error__1 (Tstruct _asn_dec_rval_s noattr) v_tmp_error__1;
+     lvar _tmp_error (Tstruct _asn_dec_rval_s noattr) v_tmp_error; lvar _length tint v_length;
+     lvar _rval (Tstruct _asn_dec_rval_s noattr) v_rval; temp __res res_p;
+     temp _opt_codec_ctx ctx_p; temp _td td_p; temp _sptr st_pp; temp _buf_ptr buf_p;
+     temp _size (Vint (Int.repr size)); temp _tag_mode (Vint (Int.repr tag_mode)))
+     SEP (if eq_dec (fst p) nullval
+          then emp
+          else data_at Ews (tarray tint 1) (map Vint (snd p)) (fst p);
+     data_at_ Tsh (Tstruct _asn_dec_rval_s noattr) v__res__1;
+     data_at_ Tsh (Tstruct _asn_dec_rval_s noattr) v_tmp_error__2;
+     data_at_ Tsh (Tstruct _asn_dec_rval_s noattr) v_tmp_error__1;
+     data_at_ Tsh (Tstruct _asn_dec_rval_s noattr) v_tmp_error;
+     data_at Tsh tint (Vint (Int.repr 0)) v_length;
+     data_at_ Tsh (Tstruct _asn_dec_rval_s noattr) v_rval; valid_pointer st_p;
+     if eq_dec st_p nullval then emp else data_at_ Ews tint st_p;
+     data_at Tsh asn_codec_ctx_s (Vint (Int.repr ctx)) ctx_p;
+     data_at_ Tsh type_descriptor_s td_p;
+     data_at Tsh (tarray tuchar (Zlength buf)) (map Vubyte buf) buf_p;
+     data_at Tsh (tptr tvoid) st_p st_pp; data_at_ Tsh asn_dec_rval_s res_p))). 
     break_if. erewrite e. entailer!. entailer!.
     Require Import Forward.
     match goal with
@@ -169,24 +222,19 @@ Proof.
       entailer!.
     -- (* maloc returned non-null value *)
       forward.
-      unfold if_post1.
       entailer!.
     -- forward.
-       unfold if_post1.
        Exists (fst p) (snd p).
+       erewrite H0 in *.
+       repeat rewrite_if_b.
        entailer!.
-       rewrite_if_b.
-       (* fix if_post1 *)
-       admit.
-       rewrite_if_b.
-       admit.
   * (* st_p <> nullval *)
     rewrite if_false in * by assumption.
     forward.
     Exists st_p (@nil int).
     repeat rewrite if_false by assumption.
     entailer!.
- (* * unfold if_post1.
+    unfold if_post1.
     Intros p ls.
     forward_empty_loop.
     forward_call (ctx_p, ctx, td_p, td, nullval, nullval, buf_p, buf,
