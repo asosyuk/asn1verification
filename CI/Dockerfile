@@ -22,7 +22,7 @@ RUN eval $(opam env) && git clone https://github.com/AbsInt/CompCert.git && \
 RUN opam switch vst && \
     opam repo add coq-released https://coq.inria.fr/opam/released && \
     opam repo add coq-extra-dev https://coq.inria.fr/opam/extra-dev && \
-    opam pin add coq 8.10.1 --yes && \
+    opam pin add coq 8.11.0 --yes && \
     opam install coq-struct-tact coq-ext-lib menhir --yes
 RUN eval $(opam env) && git clone https://github.com/PrincetonUniversity/VST.git && \
     cd VST && make && cd ..
@@ -30,4 +30,4 @@ RUN eval $(opam env) && git clone https://github.com/PrincetonUniversity/VST.git
 RUN cp CompCert/compcert.ini /bin && cp CompCert/clightgen /bin && \
     cp /root/.opam/vst/bin/coqc /bin && cp /root/.opam/vst/bin/coq_makefile /bin
 
-RUN apt install -y gcc-multilib lcov libasan*
+RUN apt update && apt install -y gcc-multilib lcov libasan*
