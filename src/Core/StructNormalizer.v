@@ -95,9 +95,13 @@ match fs with
 end.
 
 Definition normalize_function f c :=
-  mkfunction (fn_return f) (fn_callconv f) (fn_params f) (fn_vars f)
+  mkfunction (fn_return f) 
+             {|cc_vararg:= cc_vararg (fn_callconv f); 
+               cc_unproto := cc_unproto  (fn_callconv f);
+               cc_structret:=false|}
+             (fn_params f)
+             (fn_vars f)
              ((fn_temps f) ++ new_fn_temps (fresh_ident f)
                            [(fn_temps f); (fn_vars f);
                               (fn_params f)] c)
              (struct_normalize (fn_body f) c (fresh_ident f)).
-
