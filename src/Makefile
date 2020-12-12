@@ -12,7 +12,7 @@ ASN1C_FILES := asn_codecs_prim.c INTEGER.c BOOLEAN.c
 # and put it under [./Clight]
 define generate_clight
 
-	clightgen -normalize -fstruct-passing -flongdouble -dclight \
+	clightgen -normalize -fstruct-passing -flongdouble \
 	-I $(ASN1C_DIR)/skeletons                          \
 	$(ASN1C_DIR)/skeletons/$(strip $(1))               \
 	-o ./Clight/$(basename $(1)).v 
