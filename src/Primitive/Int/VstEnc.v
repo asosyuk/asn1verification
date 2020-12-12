@@ -176,8 +176,8 @@ Theorem int_der_encode_correctness : semax_body Vprog Gprog
                                      (normalize_function f_INTEGER_encode_der
                                                          composites)
                                      int_der_encode_spec.
-Admitted.
-(*Proof.
+
+Proof.
   start_function. 
   rename H into DT.
   remember (Vptr tag_b tag_ofs) as buf_p.
@@ -362,7 +362,6 @@ Admitted.
       (* invariant check *)
       - Exists 0.
         entailer!.
-        intros. lia. 
       (* LI(z) |= LI(z + 1) *)
      - Intros z.
       cbn in H5.
@@ -377,7 +376,7 @@ Admitted.
       assert (Z : 0 < z + 1 < Zlength data).
       { eapply SepLemmas.typed_true_ptr_lt in H9.
         generalize H9. 
-        strip_repr_ptr. lia. }
+        strip_repr_ptr. }
       assert_PROP (Vptr b (Ptrofs.add i (Ptrofs.repr z)) =
                   field_address (tarray tuchar (Zlength data)) (SUB z) (Vptr b i)).
       entailer!.
@@ -512,10 +511,7 @@ Admitted.
          try erewrite Ptrofs.unsigned_zero in *;
          repeat rewrite Ptrofs.unsigned_repr;  
          repeat rewrite Ptrofs.signed_repr;     
-         try rep_omega; auto. 
-        subst. 
-        intro.
-        lia. }
+         try rep_omega; auto.  }
       entailer!.
       symmetry; eapply canonicalize_Z_spec_r.
       lia.
@@ -529,10 +525,9 @@ Admitted.
       Intros z.
       repeat forward.
       entailer!.
-      unfold denote_tc_samebase.
-      unfold sameblock.
+      unfold is_true. cbn. 
       destruct peq; try congruence.
-      entailer!.
+      cbn. auto.
       assert (force_val
                 (sem_binary_operation' Osub (tptr tuchar) (tptr tuchar)
                                        (Vptr b (Ptrofs.add i (Ptrofs.repr z))) (Vptr b i))
@@ -885,6 +880,7 @@ Admitted.
            (* valid pointer  *)
            admit.
            all: try erewrite Zlength_map.
+           (*
            all: try list_solve.
            erewrite Zlength_sublist_correct. lia. 
            subst. 
@@ -983,8 +979,8 @@ Admitted.
                erewrite Zlength_sublist_correct.
                destruct (zeq y 0).
                rewrite e in *. autorewrite with sublist in n0. contradiction.
-               all: try lia.  } 
+               all: try lia.  } *)
 Admitted.
- *)
+
 End Integer_der_encode.
 

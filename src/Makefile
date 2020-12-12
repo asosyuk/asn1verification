@@ -17,7 +17,7 @@ endef
 default: coq
 
 clight':
-	clightgen -normalize -fstruct-passing -flongdouble \
+	clightgen -normalize -fstruct-passing -flongdouble  -short-idents \
 	-I $(ASN1C_DIR)/skeletons \
 	$(foreach FILE, $(ASN1C_FILES), $(call skel_path, $(FILE)))
 
