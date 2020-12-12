@@ -17,12 +17,12 @@ endef
 default: coq
 
 clight':
-	./../../CompCert/clightgen -normalize -fstruct-passing -flongdouble \
+	clightgen -normalize -fstruct-passing -flongdouble \
 	-I $(ASN1C_DIR)/skeletons \
 	$(foreach FILE, $(ASN1C_FILES), $(call skel_path, $(FILE)))
 
 clight'':
-	./../../CompCert/clightgen -normalize -fstruct-passing -flongdouble Clight/dummy.c
+	clightgen -normalize -fstruct-passing -flongdouble Clight/dummy.c
 
 clight: clight' clight''
 	mv $(foreach FILE, $(ASN1C_FILES), $(call skel_path, $(basename $(FILE))).v) Clight
