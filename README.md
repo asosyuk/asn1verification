@@ -18,10 +18,14 @@ git clone git@bitbucket.org:codeminders/asn1c.git
 git checkout vst_modifications
 ```
 
-Download and install VST 2.5 in the same directory
-https://github.com/PrincetonUniversity/VST/releases/tag/v2.5
-Follow instructions in VST.README and VST.BUILD_ORGANIZATION to install VST
+Download and install VST in the same directory
 
+```
+git clone  git@github.com:PrincetonUniversity/VST.git
+or
+git clone https://github.com/PrincetonUniversity/VST.git
+git checkout 1d31dd91774aee019aaa3d4e0a58ab8b0ccd63df 
+``
 Install CompCert
 ``` opam install coq-compcert3.5+8.10
 ```
