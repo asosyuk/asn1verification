@@ -25,7 +25,7 @@ RUN opam switch vst && \
     opam pin add coq 8.11.0 --yes && \
     opam install coq-struct-tact coq-ext-lib menhir --yes
 RUN eval $(opam env) && git clone https://github.com/PrincetonUniversity/VST.git && \
-    cd VST && make && cd ..
+    && cd VST && git checkout 1d31dd91774aee019aaa3d4e0a58ab8b0ccd63df && make && cd ..
 
 RUN cp CompCert/compcert.ini /bin && cp CompCert/clightgen /bin && \
     cp /root/.opam/vst/bin/coqc /bin && cp /root/.opam/vst/bin/coq_makefile /bin
