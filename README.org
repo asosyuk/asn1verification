@@ -1,0 +1,41 @@
+* ASN.1 Verification
+
+Verification of the [[https://github.com/vlm/asn1c][asn1c]] compiler in Coq using CompCert and VST.
+
+** Dependencies
+*** Install required Linux packages
+
+#+BEGIN_SRC sh
+   sudo apt-get install gcc-multilib
+#+END_SRC
+
+*** Create switch
+
+#+BEGIN_SRC sh
+    opam switch create asn1 4.11.1+flambda
+#+END_SRC
+
+After creating new switch, restart your shell to make sure the environment is updated.
+
+*** Install required OPAM packages
+#+BEGIN_SRC sh
+    opam repo add coq-released https://coq.inria.fr/opam/released
+    opam repo add coq-extra-dev https://coq.inria.fr/opam/extra-dev
+    opam update
+    opam pin add coq-vst 2.6 --yes
+    opam install coq-struct-tact coq-ext-lib --yes
+#+END_SRC
+
+## Building asn1verification project
+
+#+BEGIN_SRC sh
+    cd src
+    make clight
+    make 
+#+END_SRC
+
+** ~make~ targets
+*** ~clight~ - generate Clight files from C sources (generated .v files are not compiled)
+*** ~coq~ - compile all .v files
+*** ~clean~ - remove all files created by building
+*** ~distclean~ - remove all build artifacts, Clight, CoqMakefiles, coqdeps
