@@ -5,14 +5,14 @@ COQARGS := $(strip $(shell cat _CoqProject))
 ASN1C_DIR := ../../asn1c
 
 # files from asn1c/skeletons to be included (space-separated)
-ASN1C_FILES := asn_codecs_prim.c INTEGER.c BOOLEAN.c
+ASN1C_FILES := INTEGER.c
 
 # generate [.v] clight
 # from a [.c] in [asn1c/skeletons]
 # and put it under [./Clight]
 define generate_clight
 
-	clightgen -normalize -fstruct-passing -flongdouble \
+	clightgen -normalize -fstruct-passing -flongdouble -dclight \
 	-I $(ASN1C_DIR)/skeletons                          \
 	$(ASN1C_DIR)/skeletons/$(strip $(1))               \
 	-o ./Clight/$(basename $(1)).v 

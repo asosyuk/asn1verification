@@ -98,49 +98,89 @@
   series = {CADE’13}
 }
 
-@misc{ASN1Intro,
-  title={Introduction to ASN.1},
-  author={International Telecommunication Union (ITU)},
-  note={posted at https://www.itu.int/en/ITU-T/asn1/Pages/introduction.aspx, also see https://en.wikipedia.org/wiki/Abstract_Syntax_Notation_One}
+@misc{ASN1StandardBER,
+  author = {{ISO/IEC 8825-1}},
+  title = {{ASN.1} encoding rules: Specification of Basic Encoding Rules ({BER}), Canonical Encoding Rules ({CER}) and Distinguished Encoding Rules ({DER})},
+  year = {2015},
+  url = {http://handle.itu.int/11.1002/1000/12483},
+  note = {[accessed 30-January-2020]}
 }
 
-@misc{CVE,
-  title={Computer Vulnerabilities and Exposures (CVE) database},
-  note={posted at https://cve.mitre.org/}
+@misc{ASN1Intro,
+  author = {{ISO/IEC 8824-1}},
+  title = {{Abstract Syntax Notation One (ASN.1)}: Specification of basic notation},
+  year = {2015},
+  url = {http://handle.itu.int/11.1002/1000/12479},
+  note = {accessed 30-January-2020}
 }
 
 @misc{OpenSSLMemoryCorruption,
   author={Richard Chirgwin},
-  title={Guilt by ASN: Compiler's bad memory bug could sting mobes, cell towers
-  Telco, embedded systems may inherit remote vulns},
-  note={posted at https://www.theregister.co.uk/2016/07/19/$asn_objective_systems_asn_compiler_memory_bug$/}
+  title={Guilt by {ASN}: Compiler's bad memory bug could sting mobes, cell towers Telco, embedded systems may inherit remote vulns},
+  year={2016},
+  url={https://www.theregister.co.uk/2016/07/19/asn_objective_systems_asn_compiler_memory_bug/}
 }
 
 @misc{ASN1Flaw,
-  title={ASN.1 FLAW THREATENS MOBILE NETWORKS},
-  note={pindrop posted at https://www.pindrop.com/blog/asn-1-flaw-threatens-mobile-networks/}
+  title={{ASN.1} Flaw Threatens Mobile Networks},
+  year={2019},
+  url={https://www.pindrop.com/blog/asn-1-flaw-threatens-mobile-networks/}
 }
 
-@misc{CVEaddon,
-  note={Regarding CVE, an associated tabular document https://docs.google.com/spreadsheets/d/1UH5fFKcaUBYTeBBDzI2DdfshHsMr7H4Dvm9Wn0znJnk/edit\#gid=0
-  analyzes the ASN.1-related bugs in CVE database since 2015 by mapping each onto a set of potential properties a formal verification would be able
-  to verify (listed in “Task 5” of Section 5.3).}
-}
+@ARTICLE{CVE,
+author={R. A. {Martin}},
+journal={Computer},
+title={Managing vulnerabilities in networked systems},
+year={2001},
+volume={34},
+number={11},
+pages={32-38},
+keywords={security;Internet;networked systems;cyber security;security problems;software packages;Common Vulnerabilities and Exposures initiative;software product vulnerabilities;common naming practice;security tools;open source software package providers;Intelligent networks;Computer hacking;Protection;Information security;Open source software;Cryptography;Data security;Computer errors;Software packages;Web server},
+doi={10.1109/2.963441},
+ISSN={1558-0814},
+month={Nov},}
 
 @misc{VNSSforSel4,
   author={Kestrel Technology, LLC},
   title={Verified Network Stack Synthesis for seL4},
-  note={DOD Phase I SBIR proposal, available at https://www.sbir.gov/sbirsearch/detail/1467573}
+  url={https://www.sbir.gov/sbirsearch/detail/1467573}, 
+  note={DOD Phase I SBIR proposal}
 }
 
-@misc{CompCert,
-  title={The CompCert C Compiler},
-  note={The CompCert C Compiler posted at http://compcert.inria.fr/compcert-C.html. Also see the Wikipedia page “CompCert” posted at
-  https://en.wikipedia.org/wiki/CompCert }
+@article{SEL4,
+    author           = {Klein, Gerwin and Andronick, June and Elphinstone, Kevin and Murray, Toby and Sewell, Thomas and
+                        Kolanski, Rafal and Heiser, Gernot},
+    doi              = {10.1145/2560537},
+    number           = {1},
+    month            = feb,
+    year             = {2014},
+    keywords         = {sel4, isabelle/hol, verification, microkernel},
+    title            = {Comprehensive Formal Verification of an {OS} Microkernel},
+    volume           = {32},
+    pages            = {2:1-2:70},
+    journal          = {ACM Transactions on Computer Systems}
+  }
+
+@article{CompCert,
+  author = {Leroy, Xavier},
+  title = {Formal Verification of a Realistic Compiler},
+  year = {2009},
+  issue_date = {July 2009},
+  publisher = {Association for Computing Machinery},
+  address = {New York, NY, USA},
+  volume = {52},
+  number = {7},
+  issn = {0001-0782},
+  url = {https://doi.org/10.1145/1538788.1538814},
+  doi = {10.1145/1538788.1538814},
+  journal = {Commun. ACM},
+  month = jul,
+  pages = {107-115},
+  numpages = {9}
 }
 
 @inproceedings{HACL,
-  TITLE = {{HACL * : A Verified Modern Cryptographic Library}},
+  TITLE = {{HACL*: A Verified Modern Cryptographic Library}},
   AUTHOR = {Zinzindohou{\'e}, Jean-Karim and Bhargavan, Karthikeyan and Protzenko, Jonathan and Beurdouche, Benjamin},
   URL = {https://hal.inria.fr/hal-01588421},
   BOOKTITLE = {{ACM Conference on Computer and Communications Security (CCS)}},
@@ -154,10 +194,21 @@
 }
 
 @article{Narcissus,
-  title={Narcissus: Deriving Correct-By-Construction Decoders and Encoders from Binary Formats},
-  author={Delaware, Benjamin and Suriyakarn, Sorawit and Ye, Qianchuan and Chlipala, Adam and others},
-  journal={arXiv preprint arXiv:1803.04870},
-  year={2018}
+  author = {Delaware, Benjamin and Suriyakarn, Sorawit and Pit-Claudel, Cl\'{e}ment and Ye, Qianchuan and Chlipala, Adam},
+  title = {Narcissus: Correct-by-Construction Derivation of Decoders and Encoders from Binary Formats},
+  year = {2019},
+  issue_date = {July 2019},
+  publisher = {Association for Computing Machinery},
+  address = {New York, NY, USA},
+  volume = {3},
+  number = {ICFP},
+  url = {https://doi.org/10.1145/3341686},
+  doi = {10.1145/3341686},
+  journal = {Proc. ACM Program. Lang.},
+  month = jul,
+  articleno = {Article 82},
+  numpages = {29},
+  keywords = {Parser Combinators, Deductive Synthesis, Program Synthesis, Serialization and Deserialization}
 }
 
 @inproceedings{NAT,
@@ -177,25 +228,27 @@
   year={2004}
 }
 
-@misc{Extraction,
-  title={Extraction of Programs in OCaml and Haskell},
-  note={available at  https://coq.inria.fr/refman/addendum/extraction.html},
-  author={Jean-Christophe Filliâtre and Pierre Letouzey}
+@misc{Extraction, 
+  title={Extraction of programs in OCaml and Haskell},
+  url={https://coq.inria.fr/refman/addendum/extraction.html},
+  journal={Extraction of programs in OCaml and Haskell - Coq 8.11.0 documentation},
+  author={Jean-Christophe Filli\^{a}tre and Pierre Letouzey},
+  note={[Accessed 30-January-2020]}
 }
 
-@misc{MirageOS,
-  title={A programming framework for building type-safe, modular systems},
-  note={available at \url{https://mirage.io/}}
+@inproceedings{MirageOS,
+  title={Mirageos unikernel with network acceleration for iot cloud environments},
+  author={Imada, Takayuki},
+  booktitle={Proceedings of the 2018 2nd International Conference on Cloud and Big Data Computing},
+  pages={1--5},
+  year={2018}
 }
 
-@misc{QuickChick,
-  title={Randomized Property-Based Testing Plugin for Coq},
-  note={hosted by Github at  \url{https://github.com/QuickChick/QuickChick}. Also see “QuickChick: Property-Based Testing for Coq” available at \url{http://citeseerx.ist.psu.edu/viewdoc/download?doi=10.1.1.718.1395\&rep=rep1\&type=pdf}}
-}
-
-@misc{AST,
-  title={Abstract Syntax Tree},
-  note={available at \url{https://en.wikipedia.org/wiki/Abstract$$_$$syntax$$_$$tree}}
+@inproceedings{QuickChick,
+  title={QuickChick: Property-based testing for Coq},
+  author={D{\'e}n{\`e}s, Maxime and Hritcu, Catalin and Lampropoulos, Leonidas and Paraskevopoulou, Zoe and Pierce, Benjamin C},
+  booktitle={The Coq Workshop},
+  year={2014}
 }
 
 @article{Mechanized,
@@ -209,17 +262,106 @@
   publisher={Springer}
 }
 
-@misc{Coq,
-  title={The Coq Proof Assistant},
-  note={posted at \url{https://coq.inria.fr/}. Also see “Home: What is Coq” posted at \url{https://coq.inria.fr/about-coq}, and see the Wikipedia page “Coq” posted as \url{https://en.wikipedia.org/wiki/Coq}.}
+@manual{Coq,
+  author = {{Coq} {Development} {Team}, The},
+  title  = {The {Coq} Proof Assistant Reference Manual, version 8.10.1},
+  month  = Oct,
+  year   = {2017},
+  url    = {http://coq.inria.fr}
 }
 
-@misc{CIC,
-  title={Calculus of Inductive Constructions},
-  note={Coq Documentation, available at \url{https://coq.inria.fr/refman/language/cic.html}}
+@book{CIC,
+  title={Interactive theorem proving and program development: Coq'Art: the calculus of inductive constructions},
+  author={Bertot, Yves and Cast{\'e}ran, Pierre},
+  year={2013},
+  publisher={Springer Science \& Business Media}
 }
 
-@misc{VST,
-  title={Verified Software Toolchain},
-  note={VST documentation available at \url{https://vst.cs.princeton.edu/}}
+@book{VST,
+  title={Program logics for certified compilers},
+  author={Appel, Andrew W},
+  year={2014},
+  publisher={Cambridge University Press}
 }
+
+@misc{X509,
+  author = {{ISO/IEC 9594-8}},
+  title = {X.590 (10/2019): Public-key and attribute certificate frameworks},
+  year = {2019},
+  howpublished = {http://handle.itu.int/11.1002/1000/14033},
+  note = {[Online; accessed 30-January-2020]}
+}
+
+@article{BERandDER,
+  title={A Layman's Guide to a Subset of {ASN.1}, {BER}, and DER},
+  author={Kaliski Jr, Burton S and Redwood City, CA},
+  year={1993},
+  publisher={RSA Laboratories, November}
+}
+
+
+@techreport{MPC,
+        author = "Graham Hutton and Erik Meijer",
+        title = "{Monadic Parser Combinators}",
+        institution = "Department of Computer Science, University of Nottingham",
+        type = "Technical Report",
+        number = "NOTTCS-TR-96-4",
+        year = 1996}
+
+
+@inproceedings{ASN1FormalSem,
+  title={A Formal Semantics for {ASN.1}},
+  author={Paul Steckler},
+  booktitle={2019 High Confidence Software and Systems Conference, Annapolis, Maryland},
+  year={2019},
+  url={https://cps-vo.org/node/2313}
+}
+
+@inproceedings{ASN1EncDec,
+  title={Challenges and Possibilities for Safe and Secure {ASN.1} Encoders and Decoders},
+  author={Mark Tullsen},
+  booktitle={Fifth Workshop on Language-Theoretic Security (LangSec) Conference},
+  year={2018},
+  url={http://spw18.langsec.org/slides/Tullsen-Safe-ASN1.pdf}
+}
+
+@inproceedings{V2V,
+  title={Formal verification of a vehicle-to-vehicle ({V2V}) messaging system},
+  author={Tullsen, Mark and Pike, Lee and Collins, Nathan and Tomb, Aaron},
+  booktitle={International Conference on Computer Aided Verification},
+  pages={413--429},
+  year={2018},
+  organization={Springer}
+}
+
+@misc{asn1fpcoq,
+  author       = {Ilia Zaichuk},
+  title        = {Formal verification of floating-point number conversion between {ASN.1} {BER} and {IEEE} 754 binary encodings},
+  booktitle    = {POPL 2019 Student Research Competition},
+  year         = {2019},
+  url          = {https://github.com/digamma-ai/asn1fpcoq/blob/master/doc/paper/paper.pdf}
+}
+
+@inproceedings{RamananandroDFS19,
+  author    = {Tahina Ramananandro and
+               Antoine Delignat{-}Lavaud and
+               C{\'{e}}dric Fournet and
+               Nikhil Swamy and
+               Tej Chajed and
+               Nadim Kobeissi and
+               Jonathan Protzenko},
+  editor    = {Nadia Heninger and
+               Patrick Traynor},
+  title     = {EverParse: Verified Secure Zero-Copy Parsers for Authenticated Message
+               Formats},
+  booktitle = {28th {USENIX} Security Symposium, {USENIX} Security 2019, Santa Clara,
+               CA, USA, August 14-16, 2019},
+  pages     = {1465--1482},
+  publisher = {{USENIX} Association},
+  year      = {2019},
+  url       = {https://www.usenix.org/conference/usenixsecurity19/presentation/delignat-lavaud},
+  timestamp = {Tue, 03 Sep 2019 16:39:56 +0200},
+  biburl    = {https://dblp.org/rec/bib/conf/uss/RamananandroDFS19},
+  bibsource = {dblp computer science bibliography, https://dblp.org}
+}
+

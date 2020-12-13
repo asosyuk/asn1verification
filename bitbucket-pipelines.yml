@@ -1,0 +1,42 @@
+image: persik/asn1verification:1.4
+
+pipelines:
+  default:
+    - step:
+        script:
+          - eval `ssh-agent`
+          - cd ..
+          - git clone git@bitbucket.org:codeminders/asn1c.git
+          - cd /opt/atlassian/pipelines/agent/build/src
+          - cp -r /VST /opt/atlassian/pipelines/agent
+          - eval $(opam env)
+          - make distclean
+          - make clight
+          - make coq
+  branches:
+    feature/*:
+      - step:
+          script:
+            - eval `ssh-agent`
+            - cd ..
+            - git clone git@bitbucket.org:codeminders/asn1c.git
+            - cd /opt/atlassian/pipelines/agent/build/src
+            - cp -r /VST /opt/atlassian/pipelines/agent
+            - eval $(opam env)
+            - make distclean
+            - make clight
+            - make coq
+    hotfix/*:
+      - step:
+          script:
+            - eval `ssh-agent`
+            - ls
+            - pwd
+            - cd ..
+            - git clone git@bitbucket.org:codeminders/asn1c.git
+            - cd /opt/atlassian/pipelines/agent/build/src
+            - cp -r /VST /opt/atlassian/pipelines/agent
+            - eval $(opam env)
+            - make distclean
+            - make clight
+            - make coq
