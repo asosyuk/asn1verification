@@ -117,7 +117,7 @@ Definition int_der_encode_spec : ident * funspec :=
     POST [tvoid]
       PROP ()
       LOCAL ()
-      SEP ((* td *)f
+      SEP ((* td *)
            field_at Tsh (Tstruct _asn_TYPE_descriptor_s noattr) 
                     (DOT _tags) (Vptr tag_b tag_ofs) td_p;
            field_at Tsh (Tstruct _asn_TYPE_descriptor_s noattr)
@@ -370,7 +370,7 @@ Proof.
       unfold test_order_ptrs, sameblock.
       destruct peq; try congruence. simpl.
       entailer!.
-      (* @zoick and further admits *)
+      (* @zoickx and further admits *)
       admit. (* valid pointer z and len data - 1 *)
       -- (* LI&buf < end1 to LI *) 
         cbn in H5.
