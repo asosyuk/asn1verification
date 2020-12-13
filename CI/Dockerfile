@@ -6,28 +6,14 @@ RUN apt update && apt install -y software-properties-common && add-apt-repositor
     apt install -y build-essential m4 && apt install -y opam && \
     opam init --disable-sandboxing && eval $(opam env)
 
-# create switches
-RUN opam switch create vst 4.07.0 && \
-    opam switch create clightgen 4.07.0
-
 # clightgen installation
-RUN opam switch clightgen && \
-    opam repo add coq-released https://coq.inria.fr/opam/released && \
+RUN opam repo add coq-released https://coq.inria.fr/opam/released && \
     opam repo add coq-extra-dev https://coq.inria.fr/opam/extra-dev && \
-    opam pin add coq 8.9.1 --yes && opam install menhir --yes
-RUN eval $(opam env) && git clone https://github.com/AbsInt/CompCert.git && \
-    cd CompCert && ./configure -clightgen x86_32-linux && make && cd ..
+    opam pin add coq 8.11.0 --yes && opam install menhir --yes
+RUN opam install coq-compcert.3.7
 
 # vst installation
-RUN opam switch vst && \
-    opam repo add coq-released https://coq.inria.fr/opam/released && \
-    opam repo add coq-extra-dev https://coq.inria.fr/opam/extra-dev && \
-    opam pin add coq 8.11.0 --yes && \
-    opam install coq-struct-tact coq-ext-lib menhir --yes
-RUN eval $(opam env) && git clone https://github.com/PrincetonUniversity/VST.git && \
-    && cd VST && make && cd ..
-
-RUN cp CompCert/compcert.ini /bin && cp CompCert/clightgen /bin && \
-    cp /root/.opam/vst/bin/coqc /bin && cp /root/.opam/vst/bin/coq_makefile /bin
+RUN opam install coq-struct-tact coq-ext-lib menhir --yes
+RUN opam install coq-vst.2.6
 
 RUN apt update && apt install -y gcc-multilib lcov libasan*
