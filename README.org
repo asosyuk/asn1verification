@@ -3,12 +3,15 @@
 Verification of the [[https://github.com/vlm/asn1c][asn1c]] compiler in Coq using CompCert and VST.
 
 ** Dependencies
+*** Extract ANS1 source
+    At the same top-level where you extraced ~asn1verification~:
+#+BEGIN_SRC sh
+    git clone git@git.bitbucket.com:codeminders/asn1c.git
+#+END_SRC
 *** Install required Linux packages
-
 #+BEGIN_SRC sh
    sudo apt-get install gcc-multilib
 #+END_SRC
-
 *** Create switch
 
 #+BEGIN_SRC sh
@@ -20,22 +23,22 @@ After creating new switch, restart your shell to make sure the environment is up
 *** Install required OPAM packages
 #+BEGIN_SRC sh
     opam repo add coq-released https://coq.inria.fr/opam/released
-    opam repo add coq-extra-dev https://coq.inria.fr/opam/extra-dev
     opam update
     opam pin add coq-vst 2.6 --yes
-    opam install coq-struct-tact coq-ext-lib --yes
+    opam install coq-ext-lib --yes
+    opam pin add coq-struct-tact https://github.com/uwplse/StructTact.git -k git
 #+END_SRC
 
-## Building asn1verification project
-
+** Building asn1verification project
 #+BEGIN_SRC sh
     cd src
     make clight
     make 
 #+END_SRC
 
-** ~make~ targets
-*** ~clight~ - generate Clight files from C sources (generated .v files are not compiled)
-*** ~coq~ - compile all .v files
-*** ~clean~ - remove all files created by building
-*** ~distclean~ - remove all build artifacts, Clight, CoqMakefiles, coqdeps
+*** Makefile targets
+**** ~clight~ - generate Clight files from C sources (generated .v files are not compiled)
+**** ~coq~ - compile all .v files
+**** ~clean~ - remove all files created by building
+**** ~distclean~ - remove all build artifacts, Clight, CoqMakefiles, coqdeps
+    
