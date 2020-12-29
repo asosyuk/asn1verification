@@ -24,8 +24,7 @@ After creating new switch, restart your shell to make sure the environment is up
 #+BEGIN_SRC sh
     opam repo add coq-released https://coq.inria.fr/opam/released
     opam update
-    opam pin add coq-vst 2.6 --yes
-    opam install coq-ext-lib --yes
+    opam install coq-vst coq-ext-lib --yes
     opam pin add coq-struct-tact https://github.com/uwplse/StructTact.git -k git
 #+END_SRC
 
