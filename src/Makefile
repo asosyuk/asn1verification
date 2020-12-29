@@ -36,19 +36,13 @@ coq: CoqMakefile
 	$(MAKE) -f CoqMakefile all
 
 clean:
-	find . -name "*.vo"    -type f -not -path "./Clight/*" -delete
-	find . -name "*.vok"   -type f -not -path "./Clight/*" -delete
-	find . -name "*.vos"   -type f -not -path "./Clight/*" -delete
-	find . -name "*.aux"   -type f -not -path "./Clight/*" -delete
-	find . -name "*.glob"  -type f -not -path "./Clight/*" -delete
-	find . -name "*.cache" -type f -not -path "./Clight/*" -delete
-
-distclean:
 	find . -name "*.vo"    -type f -delete
 	find . -name "*.vok"   -type f -delete
 	find . -name "*.vos"   -type f -delete
 	find . -name "*.aux"   -type f -delete
 	find . -name "*.glob"  -type f -delete
 	find . -name "*.cache" -type f -delete
-	find ./Clight -name "*.v"     -type f -delete
+
+distclean: clean
+	find ./Clight -name "*.v" -type f -delete
 	rm -f CoqMakefile CoqMakefile.conf .coqdeps.d
