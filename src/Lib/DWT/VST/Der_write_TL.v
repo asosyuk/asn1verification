@@ -4,8 +4,8 @@ Require Import Core.Tactics
         VST.floyd.proofauto Clight.der_encoder
         Core.Notations Core.SepLemmas.
 Require Import Clight.dummy Lib.Callback.Dummy Exec.Der_write_TL_m.
-Require Import Ber_tlv_length_serialize
-        Ber_tlv_tag_serialize.
+Require Import VST.Ber_tlv_length_serialize
+        VST.Ber_tlv_tag_serialize.
 Require Import 
         Exec.Ber_tlv_length_serialize Exec.Ber_tlv_tag_serialize Types.
 
@@ -41,16 +41,16 @@ Instance Change2 : change_composite_env CompSpecs Dummy.CompSpecs.
 Proof. make_cs_preserve CompSpecs Dummy.CompSpecs. Defined.
 
 Instance Change3 : change_composite_env CompSpecs VST.Ber_tlv_tag_serialize.CompSpecs.
-Proof. make_cs_preserve CompSpecs  Ber_tlv_tag_serialize.CompSpecs. Defined.
+Proof. make_cs_preserve CompSpecs  VST.Ber_tlv_tag_serialize.CompSpecs. Defined.
 
-Instance Change4 : change_composite_env  Ber_tlv_tag_serialize.CompSpecs CompSpecs.
-Proof. make_cs_preserve  Ber_tlv_tag_serialize.CompSpecs CompSpecs. Defined.
+Instance Change4 : change_composite_env  VST.Ber_tlv_tag_serialize.CompSpecs CompSpecs.
+Proof. make_cs_preserve  VST.Ber_tlv_tag_serialize.CompSpecs CompSpecs. Defined.
 
-Instance Change5 : change_composite_env CompSpecs  Ber_tlv_length_serialize.CompSpecs.
-Proof. make_cs_preserve CompSpecs Ber_tlv_length_serialize.CompSpecs. Defined.
+Instance Change5 : change_composite_env CompSpecs  VST.Ber_tlv_length_serialize.CompSpecs.
+Proof. make_cs_preserve CompSpecs VST.Ber_tlv_length_serialize.CompSpecs. Defined.
 
-Instance Change6 : change_composite_env Ber_tlv_length_serialize.CompSpecs CompSpecs.
-Proof. make_cs_preserve  Ber_tlv_length_serialize.CompSpecs CompSpecs. Defined.
+Instance Change6 : change_composite_env VST.Ber_tlv_length_serialize.CompSpecs CompSpecs.
+Proof. make_cs_preserve  VST.Ber_tlv_length_serialize.CompSpecs CompSpecs. Defined.
 
 Definition der_write_TL_spec : ident * funspec :=
   DECLARE _der_write_TL
