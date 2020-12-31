@@ -289,11 +289,8 @@ erewrite combine_data_at_sublist_tuchar with (j := (len ls1))
                                              (ls := ls1 ++ ls2).
 replace (len (ls1 ++ ls2) - len ls1)%Z with (len ls2).
 auto.
-(*
-all: try list_solve.
-autorewrite with sublist; auto.
-autorewrite with sublist; auto. *)
-Admitted.
+all: try list_solve. 
+Qed.
 
 Lemma data_at_app_gen : forall (cs : compspecs) sh ls1 ls2 ls b ofs j1 j2 j,
     j1 = Zlength ls1 ->
@@ -318,11 +315,8 @@ erewrite combine_data_at_sublist_tuchar with (j := (len ls1))
                                              (ls := ls1 ++ ls2).
 replace (len (ls1 ++ ls2) - len ls1)%Z with (len ls2).
 auto.
-(*
-all: try list_solve.
-autorewrite with sublist; auto.
-autorewrite with sublist; auto. *)
-Admitted.
+ all: try list_solve.
+Qed.
 
 Lemma typed_true_ptr_ge : forall b ptr1 ptr2, 
     typed_true tint (force_val (sem_cmp_pp Cge (Vptr b ptr1) (Vptr b ptr2))) ->
