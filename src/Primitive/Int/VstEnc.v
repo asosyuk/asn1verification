@@ -4,7 +4,7 @@ Require Import VST.floyd.proofauto.
 Require Import Prim.Der_encode_primitive Clight.INTEGER.
 Require Import Notations VstTactics Core.Tactics SepLemmas.
 Require Import Core.Lemmas.Int Forward.
-(*
+
 Definition Vprog : varspecs. 
 Proof.
   mk_varspecs prog. 
@@ -14,7 +14,7 @@ Instance CompSpecs : compspecs.
 Proof.
   make_compspecs prog.
 Defined.
-*)
+(*
 Definition composites :=
   composites ++ [Composite dummy._application_specific_key Struct nil noattr].
 
@@ -39,7 +39,7 @@ Proof.
   set (prog := Clightdefs.mkprogram cs gd pi _main Logic.I).
   make_compspecs prog.
 Defined.
-       
+       *)
 Section Integer_der_encode.
 
 Definition int_enc_rval td li struct_len buf_size td_p st_p := 
@@ -623,7 +623,9 @@ Proof.
            erewrite map_map.
            erewrite map_map.
            entailer!.
-           repeat split; strip_repr.           
+           admit.
+           repeat split; strip_repr.
+           
            Intros.
            repeat rewrite_if_b.
            unfold prim_enc_rval.
@@ -701,6 +703,7 @@ Proof.
            erewrite map_map.
            erewrite map_map.
            entailer!.
+           admit.
     -- repeat forward.       
        forward_if_add_sep (data_at Tsh (Tstruct _asn_enc_rval_s noattr)
                      (Vint (Int.repr (-1)), (td_p, st_p)) v_rval) v_rval.
@@ -747,6 +750,7 @@ Proof.
                unfold Vubyte.
            repeat erewrite map_map.
            entailer!.
+           admit.
     -- auto.
     -- auto.
     -- auto.
@@ -876,11 +880,11 @@ Proof.
            erewrite Zlength_map.
            erewrite <- sepcon_comm.
            erewrite <- sepcon_assoc.
-           erewrite  <- data_at_app_gen.
-           entailer!.
+           (* erewrite  <- data_at_app_gen.
+           entailer!. *) admit.
            (* valid pointer  *)
-           admit.
-           all: try erewrite Zlength_map.
+          (* admit.
+           all: try erewrite Zlength_map. *)
            (*
            all: try list_solve.
            erewrite Zlength_sublist_correct. lia. 
