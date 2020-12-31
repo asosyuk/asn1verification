@@ -7,6 +7,9 @@ Verification of the [[https://github.com/vlm/asn1c][asn1c]] compiler in Coq usin
     At the same top-level where you extraced ~asn1verification~:
 #+BEGIN_SRC sh
     git clone git@git.bitbucket.com:codeminders/asn1c.git
+    cd asn1c
+    git fetch -a 
+    git checkout vst_modifications
 #+END_SRC
 *** Install required Linux packages
 #+BEGIN_SRC sh
@@ -24,8 +27,7 @@ After creating new switch, restart your shell to make sure the environment is up
 #+BEGIN_SRC sh
     opam repo add coq-released https://coq.inria.fr/opam/released
     opam update
-    opam pin add coq-vst 2.6 --yes
-    opam install coq-ext-lib --yes
+    opam install coq-vst coq-ext-lib --yes
     opam pin add coq-struct-tact https://github.com/uwplse/StructTact.git -k git
 #+END_SRC
 
