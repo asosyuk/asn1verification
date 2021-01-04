@@ -151,7 +151,7 @@ Definition Gprog := ltac:(with_library prog [int_der_encode_spec;
 Ltac forward_empty_loop :=
       match goal with
       | [ _ : _ |- semax _ ?Pre (Ssequence (Sloop Sskip Sbreak) _) _ ] =>
-          forward_loop Pre break: Pre; try forward ; try entailer! 
+          forward_loop Pre break: Pre
       end. 
 
 Definition LI i data := 
@@ -164,7 +164,7 @@ Definition LI i data :=
 Ltac prove_field_compatible_arr i := 
       unfold field_compatible;
       repeat split; cbn; 
-      [rewrite Zmax0r by lia; rep_omega
+      [rewrite Zmax0r by lia; rep_lia
       | constructor 2
       | lia
       | lia];
@@ -185,6 +185,10 @@ Proof.
   replace (Tstruct _ASN__PRIMITIVE_TYPE_s noattr) with prim_type_s by reflexivity.
   forward.
   forward_empty_loop.
+  entailer.
+  forward.
+  entailer.
+  forward.
   break_if.
   Focus 2.
   (*  sptr_buf <> nullval *)
@@ -365,11 +369,11 @@ Proof.
       (* LI(z) |= LI(z + 1) *)
      - Intros z.
       cbn in H5.
-      forward_if.
+      Time forward_if.
       --
       unfold test_order_ptrs, sameblock.
       destruct peq; try congruence. simpl.
-      entailer!.
+      Time entailer!.
       (* @zoickx and further admits *)
       admit. (* valid pointer z and len data - 1 *)
       -- (* LI&buf < end1 to LI *) 
@@ -512,7 +516,7 @@ Proof.
          try erewrite Ptrofs.unsigned_zero in *;
          repeat rewrite Ptrofs.unsigned_repr;  
          repeat rewrite Ptrofs.signed_repr;     
-         try rep_omega; auto.  }
+         try rep_lia; auto.  }
       entailer!.
       symmetry; eapply canonicalize_Z_spec_r.
       lia.
@@ -530,8 +534,9 @@ Proof.
       destruct peq; try congruence.
       cbn. auto.
       assert (force_val
-                (sem_binary_operation' Osub (tptr tuchar) (tptr tuchar)
-                                       (Vptr b (Ptrofs.add i (Ptrofs.repr z))) (Vptr b i))
+                (sem_binary_operation'
+                   Osub (tptr tuchar) (tptr tuchar)
+                   (Vptr b (Ptrofs.add i (Ptrofs.repr z))) (Vptr b i))
               = Vint (Int.repr z)) as V.
       { cbn. 
         unfold sem_sub.
@@ -543,7 +548,7 @@ Proof.
         repeat erewrite Ptrofs.unsigned_repr.
         repeat f_equal.
         lia.
-        all: try rep_omega. }
+        all: try rep_lia. }
       erewrite V.
       forward_if.        
       + (* shift' <> 0 *)
@@ -625,7 +630,6 @@ Proof.
            entailer!.
            admit.
            repeat split; strip_repr.
-           
            Intros.
            repeat rewrite_if_b.
            unfold prim_enc_rval.
@@ -635,7 +639,7 @@ Proof.
                                                (map Int.repr (map Byte.unsigned data)))
                        []) eqn : G.
         -- repeat forward. 
-           forward_if_add_sep (
+           Time forward_if_add_sep (
                if eq_dec (Vint Int.zero) v_effective_integer 
                then data_at Tsh (Tstruct _asn_enc_rval_s noattr)
                             (Vint (Int.repr z), (Vint Int.zero, st_p))
@@ -680,7 +684,7 @@ Proof.
           ***
           repeat forward. 
           ***
-          repeat forward.
+          Time repeat forward.
           assert ((int_enc_rval td data (Zlength data) (if eq_dec cb_p nullval then 0 else 32)
                                 td_p st_p) = 
                    (Vint (Int.repr z), (Vint Int.zero, Vint Int.zero))) as RES.
@@ -842,10 +846,9 @@ Proof.
           unfold not; intro K;
           inversion K; contradiction.
        ++ destruct (eq_dec (Vint Int.zero) v_effective_integer) eqn : S.
-          ***
           repeat forward.
-          ***
-          repeat forward.
+          Time do 6 forward.
+          Time forward.
           entailer!.
           assert ((int_enc_rval td data 
                                 (Zlength data)
@@ -871,21 +874,20 @@ Proof.
                break_let. intro GG.
                inversion GG. auto. }
            erewrite RES.
-           entailer!.
+           Time entailer!.
            destruct sptr_buf; simpl in H3; try contradiction; try discriminate.
            unfold offset_val.
            rewrite if_false by discriminate.
-           entailer!.
+           Time entailer!.
            remember (Zlength data - Zlength (canonicalize_int data)) as k.
            erewrite Zlength_map.
            erewrite <- sepcon_comm.
            erewrite <- sepcon_assoc.
-           (* erewrite  <- data_at_app_gen.
-           entailer!. *) admit.
+           erewrite <- sepcon_assoc.
+           erewrite  <- data_at_app_gen.
+           entailer!.  admit.
            (* valid pointer  *)
-          (* admit.
-           all: try erewrite Zlength_map. *)
-           (*
+           all: try erewrite Zlength_map. 
            all: try list_solve.
            erewrite Zlength_sublist_correct. lia. 
            subst. 
@@ -977,14 +979,14 @@ Proof.
            strip_repr.
            pose proof (can_data_len data); lia.
            pose proof (can_data_len data); list_solve.
-           --  pose proof (can_data_len data). 
+          ---  pose proof (can_data_len data). 
                destruct (sublist_eq_Zlength data) as [y P].
                inversion P as [P1 P2].
                erewrite P2 in *.
                erewrite Zlength_sublist_correct.
                destruct (zeq y 0).
                rewrite e in *. autorewrite with sublist in n0. contradiction.
-               all: try lia.  } *)
+               all: try lia.  } 
 Admitted.
 
 End Integer_der_encode.

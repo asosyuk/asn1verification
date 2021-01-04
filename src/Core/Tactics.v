@@ -22,7 +22,7 @@ Ltac strip_repr :=
   try erewrite Int.unsigned_zero in *;
   repeat rewrite Int.unsigned_repr;  
   repeat rewrite Int.signed_repr;     
-  try rep_omega; auto. 
+  try rep_lia; auto. 
 
 Ltac strip_repr_ptr :=
   autorewrite with norm;
@@ -32,7 +32,7 @@ Ltac strip_repr_ptr :=
   try erewrite Ptrofs.unsigned_zero in *;
   repeat rewrite Ptrofs.unsigned_repr;  
   repeat rewrite Ptrofs.signed_repr;     
-  try rep_omega; auto. 
+  try rep_lia; auto. 
 
 
 Ltac ints64_compute_add_mul :=
