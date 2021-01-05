@@ -1,9 +1,10 @@
 Require Import Core.Core Lib.Lib Core.StructNormalizer 
         VstLib Prim.Exec Lib.Callback.Dummy Lib.DWT.VST.Der_write_tags.
 Require Import VST.floyd.proofauto.
-Require Import Clight.dummy Clight.asn_codecs_prim.
+Require Import Clight.dummy Clight.asn_codecs_prim Core.Notations.
+Require Import Tactics VstTactics.
 
-Definition composites :=
+(*Definition composites :=
   composites ++ [Composite dummy._application_specific_key Struct nil noattr].
 
 Definition Vprog : varspecs. 
@@ -25,6 +26,16 @@ Proof.
   unfold composites in cs.
   simpl in cs.
   set (prog := Clightdefs.mkprogram cs gd pi _main Logic.I).
+  make_compspecs prog.
+Defined. *)
+
+Definition Vprog : varspecs. 
+Proof.
+  mk_varspecs prog. 
+Defined.
+
+Instance CompSpecs : compspecs. 
+Proof.
   make_compspecs prog.
 Defined.
 
@@ -72,7 +83,9 @@ Definition der_primitive_encoder_spec : ident * funspec :=
           tptr cb_type, tptr tvoid]
     PROP (tag_mode = 0;
           1 = Zlength (tags td);
-          0 <= struct_len <= Int.max_signed - 11
+          0 <= struct_len <= Int.max_signed - 11;
+          is_pointer_or_null sptr_buf;
+          0 < len data
           )
       PARAMS (res_p; td_p; sptr_p; Vint (Int.repr tag_mode);
               Vint (Int.repr 0); cb_p; app_key_p)
@@ -90,7 +103,7 @@ Definition der_primitive_encoder_spec : ident * funspec :=
            else data_at Tsh (tarray tuchar (Zlength data)) (map Vint (map Int.repr data))
                    sptr_buf;
            data_at Tsh prim_type_s (sptr_buf, Vint (Int.repr struct_len)) sptr_p;
-           valid_pointer sptr_buf;
+         
            (* Callback *)
            data_at_ Tsh enc_key_s app_key_p;
            func_ptr' dummy_callback_spec cb_p;
@@ -111,7 +124,7 @@ Definition der_primitive_encoder_spec : ident * funspec :=
            else data_at Tsh (tarray tuchar (Zlength data)) (map Vint (map Int.repr data))
                    sptr_buf;
             data_at Tsh prim_type_s (sptr_buf, Vint (Int.repr struct_len)) sptr_p;
-            valid_pointer sptr_buf;
+          
            (* Result *)
            data_at Tsh enc_rval_s (prim_enc_rval td struct_len buf_size (map Int.repr data)
                                                  td_p sptr_p ) res_p;
@@ -128,12 +141,12 @@ Ltac forward_empty_loop :=
           forward_loop Pre break: Pre; try forward ; try entailer! 
       end. 
 
+Ltac do_compute_expr_warning::=idtac.
+
 Theorem der_encode_primitive_correctness : semax_body Vprog Gprog 
                                           (normalize_function f_der_encode_primitive 
                                                               composites) 
                                         der_primitive_encoder_spec.
-Admitted.
-(*
 Proof.
   start_function. 
   assert (exists a, tags td = [a]) as E.
@@ -149,17 +162,17 @@ Proof.
   unfold Frame.
   instantiate (1 := [data_at_ Tsh (Tstruct _asn_enc_rval_s noattr) v_erval ;
                      data_at_ Tsh enc_rval_s res_p;
-                     field_at Tsh prim_type_s (DOT _buf)  sptr_buf sptr_p ;
-                     field_at Tsh prim_type_s (DOT _size) (Vint (Int.repr struct_len)) sptr_p;
+                     data_at Tsh prim_type_s
+                     (sptr_buf, Vint (Int.repr struct_len)) sptr_p;
                       if eq_dec sptr_buf nullval
                       then emp
-                      else data_at Tsh (tarray tuint (Zlength data)) (map Vint (map Int.repr data))
-                                   sptr_buf; 
-                     valid_pointer sptr_buf]).
+                      else data_at Tsh (tarray tuchar (Zlength data))
+                                                                   (map Vint (map Int.repr data))
+                                   sptr_buf 
+                    (* valid_pointer sptr_buf *)]).
   simpl.
-  change_compspecs Der_write_tags.CompSpecs.
   entailer!.
-  admit. (* change compspecs - same as in der_write_TL *)
+  admit. (* change compspecs  *) 
   repeat split; auto; try lia.
   forward.
   forward_empty_loop.
@@ -169,7 +182,7 @@ Proof.
   unfold evalErrW.
   erewrite DWT.
   forward_if.
-  - (* DWT returns -1 *)
+  - (* DWT returns -1 *)  
     repeat forward.
     entailer!.
     assert ((Vint (Int.repr (-1)), (td_p, sptr_p))  =
@@ -188,7 +201,7 @@ Proof.
       auto. }
     erewrite P.
     entailer!.
-    admit. (* change compspecs - same as in der_write_TL *)
+    admit. (* change compspecs *)
   - discriminate.
   - (* DWT returns a *)
     unfold evalErrW.
@@ -199,21 +212,22 @@ Proof.
     inversion DWT.
     replace a with {| encoded := encoded a |} in DWT.
     eapply eval_DWT_opt_to_Z_inv in DWT.
-    autorewrite with norm in H2.
-    eapply repr_inj_signed in H2.
+    autorewrite with norm in H4.
+    eapply repr_inj_signed in H4.
     normalize.
     unfold repable_signed.    
     eapply DWT_bounds;
     eassumption.
-    rep_omega.
+    rep_lia.
     cbv. break_match. auto.
-    forward_if [temp _t'4  (force_val (sem_cast (tptr tuchar) tbool sptr_buf))].
+    forward_if [temp _t'4  
+                     (force_val (sem_cast (tptr tuchar) tbool sptr_buf))].
     + (* isptr cb *)
       forward.
-      entailer!.
-      admit. (* is_pointer_or_null sptr_buf *)
       forward.
       Require Import VstTactics.
+      entailer!.
+      { break_if; entailer!. }
       entailer!.
      (* destruct cb_p; auto. discriminate. *)
     + forward.
@@ -225,38 +239,27 @@ Proof.
       assert (is_pointer_or_null sptr_buf) as P. admit.
       unfold is_pointer_or_null in P.
       destruct sptr_buf; try discriminate.
-      simpl in H3; try discriminate.
+      simpl in H4; try discriminate.
       destruct Archi.ptr64. contradiction.
-      eapply typed_true_tint_Vint in H3.
-      generalize H3.
+      eapply typed_true_tint_Vint in H5.
+      generalize H5.
       break_if. congruence. erewrite P in *. discriminate.     
       repeat forward.
-  (*    match goal with
-        | [ _ : _ |- semax _ ?Pre _ _ ] =>
-          forward_loop Pre
-      end. 
-      entailer!.
-      repeat forward.
-     * forward_if [temp _t'9 sptr_buf;
-                  temp _t'10  (Vint (Int.repr struct_len));
-                  temp _t'2  Vzero]; try congruence.
-      ** *)
       forward_call ((Vptr b i), struct_len, app_key_p).
-      Require Import Tactics.
-      rep_omega.
+      rep_lia.
       replace (struct_len <? 0) with false.
       forward_if. congruence.
-      simpl in H3.
+      simpl in H4.
       forward.
       entailer!.
       symmetry. Zbool_to_Prop. lia.
       ** assert (is_pointer_or_null sptr_buf) as P. admit.
       unfold is_pointer_or_null in P.
       destruct sptr_buf; try discriminate.
-      simpl in H3; try discriminate.
+      simpl in H4; try discriminate.
       destruct Archi.ptr64. contradiction.
-      eapply typed_false_tint_Vint in H3.
-      generalize H3.
+      eapply typed_false_tint_Vint in H5.
+      generalize H5.
       break_if; try congruence. 
       erewrite P. intro. clear H4.
       forward.
@@ -266,7 +269,8 @@ Proof.
       forward.
       forward.
       entailer!.
-      assert ((Int.eq (Int.repr struct_len) (Int.repr 0)) = false) as I by admit. 
+      assert ((Int.eq (Int.repr struct_len) (Int.repr 0)) = false)
+        as I by admit. 
       (* add to precondition *)
       erewrite I.
       forward_if; try contradiction.
@@ -276,7 +280,6 @@ Proof.
       forward.
       forward.
       forward.
-      Eval cbn in (typecheck_efield Delta [eStructField _encoded]).
       entailer!.
       eapply DWT_bounds_concrete in DWT.
       strip_repr.
@@ -302,9 +305,8 @@ Proof.
         erewrite RES.
         rewrite_if_b.
         entailer!.
-        admit. (* change compspecs - same as in der_write_TL *)
+        admit. (* change compspecs *)
       }
 Admitted.
-*)
 End Der_encode_primitive.
 

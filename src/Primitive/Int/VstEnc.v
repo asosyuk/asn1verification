@@ -829,7 +829,8 @@ Proof.
     entailer!.   
     unfold Frame.
     instantiate
-      (1 := [data_at_ Tsh (Tstruct _asn_enc_rval_s noattr) v_rval *
+      (1 := [( valid_pointer sptr_buf *
+             data_at_ Tsh (Tstruct _asn_enc_rval_s noattr) v_rval *
              data_at_ Tsh enc_rval_s res_p *
              data_at Tsh (tarray tuchar
                          (Zlength data - Zlength (canonicalize_int data)))
@@ -837,7 +838,7 @@ Proof.
                                              - Zlength (canonicalize_int data)) data)) 
                      sptr_buf *
              data_at Tsh (Tstruct _ASN__PRIMITIVE_TYPE_s noattr)
-                     (sptr_buf, Vint (Int.repr struct_len)) st_p]%logic).
+                     (sptr_buf, Vint (Int.repr struct_len)) st_p)%logic]).
     destruct sptr_buf; simpl in H3; try contradiction; try discriminate.
     unfold offset_val.
     rewrite if_false by discriminate.
@@ -846,10 +847,16 @@ Proof.
     simpl.
     entailer!.
     remember (Zlength data - Zlength (canonicalize_int data)) as z.
+    Search valid_pointer.
+    assert (data_at Tsh (tarray tuchar (len (canonicalize_int data)))
+    (map Vubyte (canonicalize_int data)) (Vptr b (i + Ptrofs.repr z)%ptrofs) 
+           |-- valid_pointer (Vptr b (i + Ptrofs.repr z)%ptrofs)). admit.
     erewrite Zlength_map.
     replace  (map Vubyte (canonicalize_int data)) with 
         (map Vint (map Int.repr (map Byte.unsigned (canonicalize_int data)))).
-    entailer!.
+    entailer.
+    remember (Zlength data - Zlength (canonicalize_int data)) as z.
+    Ltac do_compute_expr_warning::=idtac.
     admit. (* valid pointer *)
     { unfold Vubyte.
       erewrite map_map.
