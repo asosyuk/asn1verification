@@ -172,6 +172,8 @@ Ltac prove_field_compatible_arr i :=
                      [reflexivity 
                      | cbn; unfold Z.divide; exists (Ptrofs.unsigned i + i0); lia ]. 
 
+Ltac do_compute_expr_warning::=idtac.
+
 Theorem int_der_encode_correctness : semax_body Vprog Gprog 
                                      (normalize_function f_INTEGER_encode_der
                                                          composites)
@@ -683,7 +685,7 @@ Proof.
            entailer!.
            (* enc_key_s CompSpecs issue *)
            admit.
-           repeat split; strip_repr.
+           repeat split; strip_repr; list_solve.
            Intros.
            repeat rewrite_if_b.
            unfold prim_enc_rval.
@@ -692,8 +694,8 @@ Proof.
                                                (if eq_dec cb_p nullval then 0 else 32)
                                                (map Int.repr (map Byte.unsigned data)))
                        []) eqn : G.
-        -- repeat forward. 
-           Time forward_if_add_sep (
+           repeat forward.
+           forward_if_add_sep (
                if eq_dec (Vint Int.zero) v_effective_integer 
                then data_at Tsh (Tstruct _asn_enc_rval_s noattr)
                             (Vint (Int.repr z), (Vint Int.zero, st_p))
@@ -763,10 +765,11 @@ Proof.
            entailer!.
            (* enc_key_s CompSpecs issue *)
            admit.
-    -- repeat forward.       
+       ++ 
+        repeat forward.       
        forward_if_add_sep (data_at Tsh (Tstruct _asn_enc_rval_s noattr)
                      (Vint (Int.repr (-1)), (td_p, st_p)) v_rval) v_rval.
-       ++ eapply denote_tc_test_eq_split.
+       +++ eapply denote_tc_test_eq_split.
           { unfold prim_type_s.
             entailer!. }
           unfold prim_type_s.
@@ -782,11 +785,11 @@ Proof.
           { eapply field_at_valid_ptr0; cbn; auto.
             lia. }
           entailer!. 
-       ++ forward.
+       +++ forward.
           entailer!.
-       ++ forward.
+       +++ forward.
           entailer!.
-       ++ repeat forward.
+       +++ repeat forward.
           entailer!.
               assert ((int_enc_rval td data (Zlength data) 
                                     (if eq_dec cb_p nullval then 0 else 32) td_p
@@ -811,10 +814,11 @@ Proof.
            entailer!.
            (* enc_key_s CompSpecs issue *)
            admit.
-    -- auto.
-    -- auto.
-    -- auto.
-    -- (* Zlength data - Zlength (canonicalize_int data) <> 0 *)
+       ++ auto.
+       ++ auto.
+     ++ auto.
+    ++ auto.
+     (* Zlength data - Zlength (canonicalize_int data) <> 0 *)
       rewrite if_false.
       forward_call (v__res__1,   
                   v_effective_integer,
@@ -847,17 +851,11 @@ Proof.
     simpl.
     entailer!.
     remember (Zlength data - Zlength (canonicalize_int data)) as z.
-    Search valid_pointer.
-    assert (data_at Tsh (tarray tuchar (len (canonicalize_int data)))
-    (map Vubyte (canonicalize_int data)) (Vptr b (i + Ptrofs.repr z)%ptrofs) 
-           |-- valid_pointer (Vptr b (i + Ptrofs.repr z)%ptrofs)). admit.
     erewrite Zlength_map.
     replace  (map Vubyte (canonicalize_int data)) with 
         (map Vint (map Int.repr (map Byte.unsigned (canonicalize_int data)))).
-    entailer.
-    remember (Zlength data - Zlength (canonicalize_int data)) as z.
-    Ltac do_compute_expr_warning::=idtac.
-    admit. (* valid pointer *)
+    entailer!.
+    admit. (* CompSpecs *)
     { unfold Vubyte.
       erewrite map_map.
       erewrite map_map. auto. }
@@ -870,8 +868,10 @@ Proof.
     rewrite e in *. autorewrite with sublist in n0. contradiction.
     all: try lia. 
     pose proof (can_data_len data). 
-    repeat split; auto; try lia.
-    list_solve.
+    repeat split; auto; try lia; try list_solve.
+    erewrite Zlength_map.
+    Search canonicalize_int.
+    admit. (* 0 < len (canonicalize_int data) *)
     Intros.
     unfold prim_enc_rval.
     destruct (evalErrW
@@ -882,7 +882,7 @@ Proof.
                    (if eq_dec cb_p nullval then 0 else 32)
                    (map Int.repr (map Byte.unsigned
                                       (canonicalize_int data)))) []) eqn : G.
-      --- repeat forward. 
+      --- repeat forward.
        forward_if_add_sep (
            if eq_dec (Vint Int.zero) v_effective_integer 
            then data_at Tsh (Tstruct _asn_enc_rval_s noattr)
@@ -891,7 +891,7 @@ Proof.
            else data_at Tsh (Tstruct _asn_enc_rval_s noattr)
                         (Vint (Int.repr z),
                          (Vint Int.zero, Vint Int.zero)) v_rval) v_rval.
-       ++ forward.
+       +++ forward.
           break_if;
           rewrite if_true;
           try entailer!.
@@ -900,7 +900,7 @@ Proof.
           eapply typed_true_of_bool in H;
           eapply int_eq_e in H;
           erewrite H; auto.
-       ++ forward.
+       +++ forward.
           break_if;
           rewrite if_false;
           try entailer!;
@@ -910,7 +910,7 @@ Proof.
           eapply int_eq_false_e in H;
           unfold not; intro K;
           inversion K; contradiction.
-       ++ destruct (eq_dec (Vint Int.zero) v_effective_integer) eqn : S.
+       +++ destruct (eq_dec (Vint Int.zero) v_effective_integer) eqn : S.
           repeat forward.
           Time do 6 forward.
           Time forward.
@@ -948,10 +948,10 @@ Proof.
            erewrite Zlength_map.
            erewrite <- sepcon_comm.
            erewrite <- sepcon_assoc.
-           erewrite <- sepcon_assoc.
            erewrite  <- data_at_app_gen.
-           entailer!.  admit.
-           (* valid pointer  *)
+           entailer!. 
+           admit.
+           (* CompSpecs *)
            all: try erewrite Zlength_map. 
            all: try list_solve.
            erewrite Zlength_sublist_correct. lia. 
@@ -979,9 +979,9 @@ Proof.
           rewrite if_false by discriminate.
        forward_if_add_sep (data_at Tsh (Tstruct _asn_enc_rval_s noattr)
                      (Vint (Int.repr (-1)), (td_p, st_p)) v_rval) v_rval.
-       ++ forward.
+       +++ forward.
           entailer!.
-       ++ forward.
+       +++ forward.
           entailer!.
           { generalize H.
             unfold sem_cmp_pp; unfold Val.cmplu_bool.
@@ -996,7 +996,7 @@ Proof.
             cbn in R.
             erewrite Ptrofs.eq_true in R.
             discriminate. }
-       ++ repeat forward.
+       +++ repeat forward.
           entailer!.
               assert ((int_enc_rval td data (Zlength data) 
                                     (if eq_dec cb_p nullval then 0 else 32) td_p
@@ -1018,10 +1018,9 @@ Proof.
            remember (Zlength data - Zlength (canonicalize_int data)) as k.
            erewrite <- sepcon_comm.
            erewrite <- sepcon_assoc.
-           erewrite <- sepcon_assoc.
-           erewrite  <- data_at_app_gen.
+           erewrite <- data_at_app_gen.
            entailer!.
-           (* valid pointer *)
+           (* CompSpecs *)
            admit.
            all: try erewrite Zlength_map.
            all: try list_solve.
@@ -1052,6 +1051,7 @@ Proof.
                destruct (zeq y 0).
                rewrite e in *. autorewrite with sublist in n0. contradiction.
                all: try lia.  } 
+  
 Admitted.
 
 End Integer_der_encode.
