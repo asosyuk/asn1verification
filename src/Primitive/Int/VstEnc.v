@@ -249,7 +249,7 @@ Proof.
     repeat forward.
     normalize.
     forward_loop (EX z : Z, 
-               PROP (0 <= z;
+               PROP (0 <= z < len data;
                      Ptrofs.unsigned i + z <= Ptrofs.max_unsigned;
                      forall i, 0 <= i < z -> LI i data)
                LOCAL (temp 
@@ -287,7 +287,7 @@ Proof.
                      valid_pointer cb_p;
                      func_ptr' dummy_callback_spec cb_p))%assert
       continue: (EX z : Z, 
-               PROP (0 <= z;
+               PROP (0 <= z + 1 < len data;
                      Ptrofs.unsigned i + z + 1 <= Ptrofs.max_unsigned;
                      forall i, 0 <= i < z + 1 -> LI i data)
                LOCAL (temp 
@@ -369,13 +369,64 @@ Proof.
       (* LI(z) |= LI(z + 1) *)
      - Intros z.
       cbn in H5.
-      Time forward_if.
+      forward_if.
       --
+      
       unfold test_order_ptrs, sameblock.
       destruct peq; try congruence. simpl.
-      Time entailer!.
-      (* @zoickx and further admits *)
-      admit. (* valid pointer z and len data - 1 *)
+      entailer!.
+      { apply andp_right.
+        destruct (zeq z 0).
+        + subst. normalize.
+          entailer!.
+        + assert (0 < z) as P by lia.
+        {
+          assert 
+            (data_at Tsh (tarray tuchar (len data)) (map Vubyte data) (Vptr b i)
+                     |-- weak_valid_pointer (Vptr b (i + Ptrofs.repr z)%ptrofs)).
+          { apply derives_trans 
+              with (Q := valid_pointer 
+                           (Vptr b (i + Ptrofs.repr z)%ptrofs)). 
+            assert (0 < (len data - z))%Z as LD by
+                (try erewrite LB; nia).
+            assert (sizeof (tarray tuchar (len data - z)) > 0) by (simpl; nia).
+            Open Scope Z.
+            erewrite data_at_app_gen
+              with (j1 := z)
+                   (j2 := len data - z)
+                   (ls1 := sublist 0 z (map Vubyte data))
+                   (ls2 := sublist z (len data) (map Vubyte data)). 
+            eapply sepcon_valid_pointer2.
+            eapply data_at_valid_ptr; auto.
+            all: autorewrite with sublist; auto; try rep_lia.
+            entailer!. }
+          entailer!. }
+        + assert 
+            (data_at Tsh (tarray tuchar (len data)) (map Vubyte data) (Vptr b i)
+                     |-- weak_valid_pointer (Vptr b
+                                                 (i + Ptrofs.repr (len data)
+                                                      - Ptrofs.repr 1)%ptrofs)).
+          { apply derives_trans 
+              with (Q := valid_pointer 
+                           (Vptr b (i +
+                                    Ptrofs.repr (len data)
+                                    - Ptrofs.repr 1)%ptrofs)). 
+            Open Scope Z.
+            erewrite data_at_app_gen
+              with (j1 := len data - 1)
+                   (j2 := 1)
+                   (ls1 := sublist 0 (len data - 1) (map Vubyte data))
+                   (ls2 := sublist (len data - 1) 
+                                   (len data) (map Vubyte data)). 
+            eapply sepcon_valid_pointer2.
+            replace (i + Ptrofs.repr (len data - 1))%ptrofs with
+                 (i + Ptrofs.repr (len data) - Ptrofs.repr 1)%ptrofs.
+            eapply data_at_valid_ptr; auto.
+            cbn; lia.
+            strip_repr_ptr. f_equal. lia.
+            all: autorewrite with sublist; auto; try rep_lia.
+            entailer!. }
+          entailer!. }
       -- (* LI&buf < end1 to LI *) 
         cbn in H5.
       assert (Z : 0 < z + 1 < Zlength data).
@@ -526,6 +577,7 @@ Proof.
       repeat forward.
       Exists (z + 1).
       entailer!.
+      
       - (* Break to rest *)
       Intros z.
       repeat forward.
@@ -618,9 +670,10 @@ Proof.
            entailer!.
            rewrite_if_b.    
            unfold Frame.
-           instantiate (1 := [data_at_ Tsh prim_type_s v_effective_integer *
-                              data_at_ Tsh (Tstruct _asn_enc_rval_s noattr) v_rval *
-                              data_at_ Tsh enc_rval_s res_p]).
+           instantiate (1 :=
+                          [data_at_ Tsh prim_type_s v_effective_integer *
+                           data_at_ Tsh (Tstruct _asn_enc_rval_s noattr) v_rval *
+                           data_at_ Tsh enc_rval_s res_p]%logic).
            simpl.
            erewrite <- e.
            erewrite Zlength_map.
@@ -628,6 +681,7 @@ Proof.
            erewrite map_map.
            erewrite map_map.
            entailer!.
+           (* enc_key_s CompSpecs issue *)
            admit.
            repeat split; strip_repr.
            Intros.
@@ -707,6 +761,7 @@ Proof.
            erewrite map_map.
            erewrite map_map.
            entailer!.
+           (* enc_key_s CompSpecs issue *)
            admit.
     -- repeat forward.       
        forward_if_add_sep (data_at Tsh (Tstruct _asn_enc_rval_s noattr)
@@ -754,6 +809,7 @@ Proof.
                unfold Vubyte.
            repeat erewrite map_map.
            entailer!.
+           (* enc_key_s CompSpecs issue *)
            admit.
     -- auto.
     -- auto.
@@ -781,7 +837,7 @@ Proof.
                                              - Zlength (canonicalize_int data)) data)) 
                      sptr_buf *
              data_at Tsh (Tstruct _ASN__PRIMITIVE_TYPE_s noattr)
-                     (sptr_buf, Vint (Int.repr struct_len)) st_p]).
+                     (sptr_buf, Vint (Int.repr struct_len)) st_p]%logic).
     destruct sptr_buf; simpl in H3; try contradiction; try discriminate.
     unfold offset_val.
     rewrite if_false by discriminate.
@@ -812,12 +868,14 @@ Proof.
     Intros.
     unfold prim_enc_rval.
     destruct (evalErrW
-                (Exec.primitive_encoder td (struct_len - 
-                                            (Zlength data - Zlength (canonicalize_int data)))
-                                        (if eq_dec cb_p nullval then 0 else 32)
-                                        (map Int.repr (map Byte.unsigned
-                                                      (canonicalize_int data)))) []) eqn : G.
-    --- repeat forward. 
+                (Exec.primitive_encoder
+                   td 
+                   (struct_len - 
+                    (Zlength data - Zlength (canonicalize_int data)))
+                   (if eq_dec cb_p nullval then 0 else 32)
+                   (map Int.repr (map Byte.unsigned
+                                      (canonicalize_int data)))) []) eqn : G.
+      --- repeat forward. 
        forward_if_add_sep (
            if eq_dec (Vint Int.zero) v_effective_integer 
            then data_at Tsh (Tstruct _asn_enc_rval_s noattr)
