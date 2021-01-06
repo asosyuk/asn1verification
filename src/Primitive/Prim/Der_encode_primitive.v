@@ -81,7 +81,7 @@ Definition der_primitive_encoder_spec : ident * funspec :=
            data_at Tsh prim_type_s (sptr_buf, Vint (Int.repr struct_len)) sptr_p;
          
            (* Callback *)
-           data_at_ Tsh tvoid app_key_p;
+           data_at_ Tsh tuint app_key_p;
            func_ptr' dummy_callback_spec cb_p;
            valid_pointer cb_p)
     POST [tvoid]
@@ -106,14 +106,27 @@ Definition der_primitive_encoder_spec : ident * funspec :=
                                                  td_p sptr_p ) res_p;
            (* Callback *)
            valid_pointer cb_p;
-           data_at_ Tsh tvoid app_key_p;
+           data_at_ Tsh tuint app_key_p;
            func_ptr' dummy_callback_spec cb_p).
+
+Definition assert_spec {cs : compspecs} :=
+   WITH e : bool(* , str2 : val, str3 : val, func : val *)
+   PRE [ (tptr tschar), (tptr tschar), tuint, (tptr tschar)]
+       PROP ()
+       PARAMS (nullval; nullval; Vint (Int.repr 110); nullval) 
+       GLOBALS()
+       SEP ()
+    POST [ tvoid ] 
+       PROP (e = true)
+       LOCAL ()
+       SEP ().
+
 
 Definition Gprog := ltac:(with_library prog
                                        [der_primitive_encoder_spec;
                                         der_write_tags_spec;
                                        (___assert_fail, 
-                                        @assert_spec CompSpecs 110)]).
+                                        assert_spec)]).
 
 Ltac forward_empty_loop :=
       match goal with

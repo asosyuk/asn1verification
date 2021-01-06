@@ -15,33 +15,6 @@ Proof.
   make_compspecs prog.
 Defined.
 
-(*
-Definition composites :=
-  composites ++ [Composite dummy._application_specific_key Struct nil noattr].
-
-
-Definition Vprog : varspecs. 
-Proof.
-  set (cs := composites).
-  set (gd := global_definitions).
-  set (pi := public_idents).
-  unfold composites in cs.
-  simpl in cs.
-  set (prog := Clightdefs.mkprogram cs gd pi _main Logic.I).
-  mk_varspecs prog. 
-Defined.
-
-Instance CompSpecs : compspecs. 
-Proof.
-  set (cs := composites).
-  set (gd := global_definitions).
-  set (pi := public_idents).
-  unfold composites in cs.
-  simpl in cs.
-  set (prog := Clightdefs.mkprogram cs gd pi _main Logic.I).
-  make_compspecs prog.
-Defined.
-  *)
 Section Integer_der_encode.
 
 Definition int_enc_rval td li struct_len buf_size td_p st_p := 
@@ -91,7 +64,7 @@ Definition int_der_encode_spec : ident * funspec :=
             1 <= Z_of_val sptr_buf + struct_len <= Ptrofs.max_unsigned)
       PARAMS (res_p; td_p; st_p; Vint (Int.repr tag_mode);
               Vint (Int.repr 0); cb_p; app_key_p)
-      GLOBALS ()
+      GLOBALS (fun _ : ident => Vint 0%int)
       SEP (
            data_at_ Tsh enc_rval_s res_p;            
            (* td *)
@@ -113,7 +86,7 @@ Definition int_der_encode_spec : ident * funspec :=
            data_at Tsh (tarray tuchar (Zlength data)) (map Vubyte data) sptr_buf; 
            
            (* cb *)
-           data_at_ Tsh tvoid app_key_p;
+           data_at_ Tsh tuint app_key_p;
            valid_pointer cb_p; 
            func_ptr' dummy_callback_spec cb_p)
     POST [tvoid]
@@ -131,7 +104,7 @@ Definition int_der_encode_spec : ident * funspec :=
 
            (* cb *)
            valid_pointer cb_p;
-           data_at_ Tsh tvoid app_key_p;
+           data_at_ Tsh tuint app_key_p;
            func_ptr' dummy_callback_spec cb_p;
 
            (* st *)
@@ -195,76 +168,7 @@ Proof.
   forward.
   break_if.
   (*  sptr_buf == nullval *)
-  { forward_if True. subst. contradiction.
-    forward. entailer.
-    forward_call (v__res__1,   
-                  st_p,
-                  tag_b, tag_ofs,
-                  sptr_buf, 
-                  map Byte.unsigned data,
-                  struct_len,
-                  td_p, td,
-                  0,
-                  cb_p, app_key_p).
-    entailer.
-    erewrite e. rewrite_if_b.
-    unfold Frame.
-    instantiate
-      (1 := [(data_at_ Tsh (Tstruct _ASN__PRIMITIVE_TYPE_s noattr)
-                       v_effective_integer *
-            data_at_ Tsh enc_rval_s v_rval * 
-            data_at_ Tsh enc_rval_s res_p * 
-            valid_pointer nullval)%logic]).
-    entailer!.
-    repeat split; strip_repr; list_solve.
-    Intros.
-    repeat rewrite_if_b.
-    unfold prim_enc_rval.
-    destruct (evalErrW
-                (Exec.primitive_encoder td struct_len
-                                        (if eq_dec cb_p nullval then 0 else 32)
-                                        (map Int.repr (map Byte.unsigned data)))
-                []) eqn : G.
-    repeat forward.
-    forward_if_add_sep (
-        if eq_dec (Vint Int.zero) v_effective_integer 
-        then data_at Tsh (Tstruct _asn_enc_rval_s noattr)
-                     (Vint (Int.repr z), (Vint Int.zero, st_p))
-                     v_rval
-               else data_at Tsh (Tstruct _asn_enc_rval_s noattr)
-                            (Vint (Int.repr z),
-                             (Vint Int.zero, Vint Int.zero)) v_rval) v_rval.
-       ++  forward.
-          rewrite if_true;
-          try entailer!.
-          all: destruct v_effective_integer; cbn in H; try contradiction;
-          try discriminate;
-          eapply typed_true_of_bool in H6;
-          eapply int_eq_e in H6;
-          erewrite H6; auto. 
-       ++ forward.
-          rewrite if_false;
-          try entailer!;
-          destruct v_effective_integer; cbn in H6; try contradiction;
-          try discriminate;
-          eapply typed_false_of_bool in H6;
-          eapply int_eq_false_e in H6;
-          unfold not; intro K;
-          inversion K; contradiction.
-       ++ destruct (eq_dec (Vint Int.zero) v_effective_integer) eqn : S.
-          ***
-          repeat forward. 
-          ***
-          Time repeat forward.
-       ++ 
-        repeat forward.       
-       forward_if_add_sep (data_at Tsh (Tstruct _asn_enc_rval_s noattr)
-                     (Vint (Int.repr (-1)), (td_p, st_p)) v_rval) v_rval.
-       +++ forward.
-          entailer!.
-       +++ forward.
-          entailer!.
-       +++ repeat forward.  }
+  { forward_if True; erewrite e in *; try contradiction. } 
   (* ======================== *)  
   (*  sptr_buf <> nullval *)
   { forward_if (
@@ -276,6 +180,7 @@ Proof.
                        then st_p
                        else v_effective_integer); 
              lvar __res__1 enc_rval_s v__res__1;
+             gvars (fun _ : ident => Vint 0%int); 
              lvar _effective_integer prim_type_s v_effective_integer;
              lvar _rval (Tstruct _asn_enc_rval_s noattr) v_rval; 
              temp __res res_p; temp _td td_p; 
@@ -295,7 +200,7 @@ Proof.
                     (map Vint (map Int.repr (tags td))) (Vptr tag_b tag_ofs);
 
             (* cb *)
-            data_at_ Tsh tvoid app_key_p;
+            data_at_ Tsh tuint app_key_p;
             valid_pointer cb_p;
             func_ptr' dummy_callback_spec cb_p;
 
@@ -334,6 +239,7 @@ Proof.
                                  (Ptrofs.add i (Ptrofs.repr struct_len)) (Ptrofs.repr 1))); 
                       temp _buf (Vptr b (Ptrofs.add i (Ptrofs.repr z))); 
                       temp _t'9 (Vint (Int.repr struct_len));
+                      gvars (fun _ : ident => Vint 0%int); 
                       temp _t'2 (Vptr b i); temp _st st_p;
                       lvar __res__1 enc_rval_s v__res__1; 
                       lvar _effective_integer prim_type_s v_effective_integer; 
@@ -347,7 +253,7 @@ Proof.
                     data_at_ Tsh prim_type_s v_effective_integer; 
                     data_at_ Tsh enc_rval_s v_rval;
                     data_at_ Tsh enc_rval_s res_p;
-                    data_at_ Tsh enc_key_s app_key_p;
+                    data_at_ Tsh tuint app_key_p;
                      field_at Tsh (Tstruct _asn_TYPE_descriptor_s noattr) 
                               (DOT _tags) (Vptr tag_b tag_ofs) td_p;
                      field_at Tsh (Tstruct _asn_TYPE_descriptor_s noattr)
@@ -371,6 +277,7 @@ Proof.
                               (Ptrofs.sub 
                                  (Ptrofs.add i (Ptrofs.repr struct_len)) (Ptrofs.repr 1))); 
                       temp _t'9 (Vint (Int.repr struct_len));
+                      gvars (fun _ : ident => Vint 0%int); 
                       temp _buf (Vptr b(Ptrofs.add i (Ptrofs.repr z))); 
                       temp _t'2 (Vptr b i); temp _st st_p;
                       lvar __res__1 enc_rval_s v__res__1; 
@@ -384,7 +291,7 @@ Proof.
                     data_at_ Tsh prim_type_s v_effective_integer; 
                     data_at_ Tsh enc_rval_s v_rval;
                     data_at_ Tsh enc_rval_s res_p;
-                    data_at_ Tsh enc_key_s app_key_p;
+                    data_at_ Tsh tuint app_key_p;
                      field_at Tsh (Tstruct _asn_TYPE_descriptor_s noattr) 
                               (DOT _tags) (Vptr tag_b tag_ofs) td_p;
                      field_at Tsh (Tstruct _asn_TYPE_descriptor_s noattr)
@@ -412,6 +319,7 @@ Proof.
                      temp _t'9 (Vint (Int.repr struct_len));
                      temp _buf (Vptr b (Ptrofs.add i (Ptrofs.repr z))); 
                      temp _t'2 (Vptr b i); 
+                     gvars (fun _ : ident => Vint 0%int); 
                      temp _st st_p; lvar __res__1 enc_rval_s v__res__1; 
                      lvar _effective_integer prim_type_s v_effective_integer; 
                      lvar _rval enc_rval_s v_rval; temp _tag (Vint (Int.repr 0));
@@ -423,7 +331,7 @@ Proof.
                     data_at_ Tsh prim_type_s v_effective_integer; 
                     data_at_ Tsh enc_rval_s v_rval;
                     data_at_ Tsh enc_rval_s res_p;
-                    data_at_ Tsh enc_key_s app_key_p;
+                    data_at_ Tsh tuint app_key_p;
                      field_at Tsh (Tstruct _asn_TYPE_descriptor_s noattr) 
                               (DOT _tags) (Vptr tag_b tag_ofs) td_p;
                      field_at Tsh (Tstruct _asn_TYPE_descriptor_s noattr)
@@ -734,6 +642,8 @@ Proof.
         autorewrite with sublist.
         repeat rewrite_if_b.
         erewrite data_at_zero_array_eq.
+        Search gvars.
+        deadvars!.
         forward_call (v__res__1,   
                   st_p,
                   tag_b, tag_ofs,
@@ -758,11 +668,6 @@ Proof.
         erewrite map_map.
         erewrite map_map.
         entailer!.
-        Set Printing All.
-        unfold enc_key_s.
-        change_compspecs Der_encode_primitive.CompSpecs.
-           (* enc_key_s CompSpecs issue *)
-        admit.
         repeat split; strip_repr; list_solve.
         Intros.
         repeat rewrite_if_b.
@@ -841,8 +746,6 @@ Proof.
            erewrite map_map.
            erewrite map_map.
            entailer!.
-           (* enc_key_s CompSpecs issue *)
-           admit.
        ++ 
         repeat forward.       
        forward_if_add_sep (data_at Tsh (Tstruct _asn_enc_rval_s noattr)
@@ -890,8 +793,6 @@ Proof.
                unfold Vubyte.
            repeat erewrite map_map.
            entailer!.
-           (* enc_key_s CompSpecs issue *)
-           admit.
        ++ auto.
        ++ auto.
      ++ auto.
@@ -933,7 +834,6 @@ Proof.
     replace  (map Vubyte (canonicalize_int data)) with 
         (map Vint (map Int.repr (map Byte.unsigned (canonicalize_int data)))).
     entailer!.
-    admit. (* CompSpecs *)
     { unfold Vubyte.
       erewrite map_map.
       erewrite map_map. auto. }
@@ -1017,19 +917,16 @@ Proof.
                break_let. intro GG.
                inversion GG. auto. }
            erewrite RES.
-           Time entailer!.
+           entailer!.
            destruct sptr_buf; simpl in H3; try contradiction; try discriminate.
            unfold offset_val.
            rewrite if_false by discriminate.
-           Time entailer!.
+           entailer!.
            remember (Zlength data - Zlength (canonicalize_int data)) as k.
            erewrite Zlength_map.
            erewrite <- sepcon_comm.
-           erewrite <- sepcon_assoc.
            erewrite  <- data_at_app_gen.
            entailer!. 
-           admit.
-           (* CompSpecs *)
            all: try erewrite Zlength_map. 
            all: try list_solve.
            erewrite Zlength_sublist_correct. lia. 
@@ -1095,11 +992,8 @@ Proof.
            entailer!.
            remember (Zlength data - Zlength (canonicalize_int data)) as k.
            erewrite <- sepcon_comm.
-           erewrite <- sepcon_assoc.
            erewrite <- data_at_app_gen.
            entailer!.
-           (* CompSpecs *)
-           admit.
            all: try erewrite Zlength_map.
            all: try list_solve.
            erewrite Zlength_sublist_correct. lia. 
@@ -1129,7 +1023,7 @@ Proof.
                destruct (zeq y 0).
                rewrite e in *. autorewrite with sublist in n0. contradiction.
                all: try lia.  } 
-Admitted.
+Qed.
 
 End Integer_der_encode.
 

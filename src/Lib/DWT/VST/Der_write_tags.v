@@ -59,7 +59,7 @@ Definition der_write_tags_spec : ident * funspec :=
         data_at Tsh (tarray tuint (len (tags td)))
                 (map Vint (map Int.repr (tags td))) tags_p;
         func_ptr' dummy_callback_spec cb;
-        data_at_ Tsh tvoid app_key;
+        data_at_ Tsh tuint app_key;
         valid_pointer cb)
   POST[tint]
   let size := if Val.eq cb nullval then 0 else 32 in
@@ -81,7 +81,7 @@ Definition der_write_tags_spec : ident * funspec :=
             data_at Tsh (tarray tuint (len (tags td))) 
                     (map Vint (map Int.repr (tags td))) tags_p;
             func_ptr' dummy_callback_spec cb;
-            data_at_ Tsh tvoid app_key;
+            data_at_ Tsh tuint app_key;
             valid_pointer cb).
 
 
@@ -122,7 +122,7 @@ Admitted.
                 (Vint (Int.repr (len (tags td)))) td_p;
        data_at Tsh (tarray tuint (len (tags td)))
                (map Vint (map Int.repr (tags td))) tags_p;
-       func_ptr' dummy_callback_spec cb; data_at_ Tsh tvoid app_key; 
+       func_ptr' dummy_callback_spec cb; data_at_ Tsh tuint app_key; 
        valid_pointer cb)).
   congruence.
   forward.
@@ -166,7 +166,7 @@ Admitted.
                 (Vint (Int.repr (len (tags td)))) td_p;
   data_at Tsh (tarray tuint (len (tags td))) (map Vint (map Int.repr (tags td))) tags_p;
   func_ptr' dummy_callback_spec cb;
-  data_at_ Tsh tvoid app_key;
+  data_at_ Tsh tuint app_key;
   valid_pointer cb))%assert 
 
  break:
@@ -200,7 +200,7 @@ Admitted.
        data_at Tsh (tarray tuint (len (tags td)))
                (map Vint (map Int.repr (tags td))) tags_p;
        func_ptr' dummy_callback_spec cb;
-       data_at_ Tsh tvoid app_key;
+       data_at_ Tsh tuint app_key;
        valid_pointer cb))%assert.
   + forward.    
     Exists 0 struct_len (@nil Z).
@@ -247,7 +247,7 @@ Admitted.
    field_at Tsh (Tstruct _asn_TYPE_descriptor_s noattr) (DOT _tags_count)
      (Vint (Int.repr (len (tags td)))) td_p *
    data_at Tsh (tarray tuint (len (tags td))) (map Vint (map Int.repr (tags td))) tags_p *
-   func_ptr' dummy_callback_spec cb * data_at_ Tsh tvoid app_key * 
+   func_ptr' dummy_callback_spec cb * data_at_ Tsh tuint app_key * 
    valid_pointer cb)%logic]).
     unfold fold_right_sepcon.
     entailer!.
@@ -474,7 +474,7 @@ Admitted.
        field_at Tsh (Tstruct _asn_TYPE_descriptor_s noattr) (DOT _tags_count)
                 (Vint (Int.repr (len (tags td)))) td_p;
        data_at Tsh (tarray tuint (len (tags td))) (map Vint (map Int.repr (tags td))) tags_p;
-       func_ptr' dummy_callback_spec cb; data_at_ Tsh tvoid app_key; valid_pointer cb))%assert
+       func_ptr' dummy_callback_spec cb; data_at_ Tsh tuint app_key; valid_pointer cb))%assert
 
   break: 
   (PROP (exists l ls', der_write_tags_loop2 ts (map Int.repr lens) (len (tags td))
@@ -504,7 +504,7 @@ Admitted.
        data_at Tsh (tarray tuint (len (tags td)))
                (map Vint (map Int.repr (tags td))) tags_p;
        func_ptr' dummy_callback_spec cb;
-       data_at_ Tsh tvoid app_key; 
+       data_at_ Tsh tuint app_key; 
        valid_pointer cb))%assert.
   ++ forward.
      Exists 0 0.
