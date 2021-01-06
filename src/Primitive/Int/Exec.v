@@ -61,6 +61,13 @@ Proof.
   - repeat break_match; autorewrite with sublist in *; try list_solve.
 Qed.
 
+Lemma can_data_len_1 : forall ll, (0 < Zlength ll)%Z ->
+                             (0 < Zlength (canonicalize_int ll))%Z.
+Proof.
+  induction ll; simpl.
+  - lia.
+  - repeat break_match; autorewrite with sublist in *; try list_solve.
+Qed.
 
 Definition LI_int i data := 
            (Znth i data = 0 /\ Znth (i + 1) data & Byte.repr 128 = 0) \/
@@ -148,8 +155,9 @@ Lemma canonicalize_int_sublist : forall data,
 Admitted.
 
 
-Lemma sublist_eq_Zlength : forall ls, exists y, 0 <= y <= len ls /\
-                                         canonicalize_int ls = sublist y (len ls) ls.
+Lemma sublist_eq_Zlength : 
+  forall ls, exists y, 0 <= y <= len ls /\
+             canonicalize_int ls = sublist y (len ls) ls.
 Proof.
   induction ls.
   - exists 0. simpl. autorewrite with sublist. easy.

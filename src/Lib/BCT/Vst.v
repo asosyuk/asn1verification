@@ -213,7 +213,7 @@ Proof.
          replace Q with (gvars (fun x : ident => nullval) :: Q)
         end. *)
        (* assert_fail *)
-       forward_call (true).
+       forward_call (false).
        admit. (* entailer!. *)
        admit. (* entailer!. *)
      (* MAIN LOOP *)       
