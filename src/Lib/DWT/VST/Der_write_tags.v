@@ -92,8 +92,7 @@ Theorem der_write_tags_correctness : semax_body Vprog Gprog
                                      (normalize_function 
                                         f_der_write_tags composites)
                                      der_write_tags_spec.
-Admitted.
-(* Proof.
+Proof.
   start_function.
   change_compspecs Der_write_TL.CompSpecs.
   forward.
@@ -113,7 +112,7 @@ Admitted.
          temp _struct_length (Vint (Int.repr struct_len));
          temp _tag_mode (Vint (Int.repr tag_mode));
          temp _last_tag_form (Vint (Int.repr last_tag_form));
-         temp _tag (Vint (Int.repr tag));
+         temp _tag (Vint (Int.repr 0));
          temp _cb cb; temp _app_key app_key)
   SEP (data_at_ Tsh (tarray tint 16) v_lens; 
        data_at_ Tsh (tarray tuint 16) v_tags_buf_scratch; 
@@ -153,7 +152,7 @@ Admitted.
   temp _struct_length (Vint (Int.repr struct_len)); 
   temp _tag_mode (Vint (Int.repr tag_mode));
   temp _last_tag_form (Vint (Int.repr last_tag_form)); 
-  temp _tag (Vint (Int.repr tag));
+  temp _tag (Vint (Int.repr 0));
   temp _cb cb; temp _app_key app_key)
   SEP (data_at Tsh (tarray tint 16)
                 (default_val (tarray tint (tags_count - len lens)) ++ 
@@ -186,7 +185,7 @@ Admitted.
   temp _struct_length (Vint (Int.repr struct_len)); 
   temp _tag_mode (Vint (Int.repr tag_mode));
   temp _last_tag_form (Vint (Int.repr last_tag_form)); 
-  temp _tag (Vint (Int.repr tag));
+  temp _tag (Vint (Int.repr 0));
   temp _cb cb; temp _app_key app_key)
   SEP (data_at Tsh (tarray tint 16)
                (default_val (tarray tint (len (tags td) - len lens)) ++
@@ -241,7 +240,8 @@ Admitted.
     (1 :=
        [(data_at Tsh (tarray tint 16)
      (default_val (tarray tint (tags_count - len lens)) ++
-      map Vint (map Int.repr lens) ++ default_val (tarray tint (16 - tags_count))) v_lens *
+      map Vint (map Int.repr lens) ++
+   default_val (tarray tint (16 - tags_count))) v_lens *
    data_at_ Tsh (tarray tuint 16) v_tags_buf_scratch *
    field_at Tsh (Tstruct _asn_TYPE_descriptor_s noattr) (DOT _tags) tags_p td_p *
    field_at Tsh (Tstruct _asn_TYPE_descriptor_s noattr) (DOT _tags_count)
@@ -428,8 +428,6 @@ Admitted.
     eassumption.
     generalize H8.
     strip_repr.
-    intro.
-    lia.
     lia.
     generalize H8;
       strip_repr;
@@ -462,7 +460,7 @@ Admitted.
   temp _struct_length (Vint (Int.repr struct_len));
   temp _tag_mode (Vint (Int.repr tag_mode));
   temp _last_tag_form (Vint (Int.repr last_tag_form));
-  temp _tag (Vint (Int.repr tag));
+  temp _tag (Vint (Int.repr 0));
   temp _cb cb; temp _app_key app_key)
   SEP (data_at Tsh (tarray tint 16)
                 (default_val (tarray tint (len (tags td) - len lens)) 
@@ -491,7 +489,7 @@ Admitted.
          temp _struct_length (Vint (Int.repr struct_len));
          temp _tag_mode (Vint (Int.repr tag_mode));
          temp _last_tag_form (Vint (Int.repr last_tag_form)); 
-         temp _tag (Vint (Int.repr tag));
+         temp _tag (Vint (Int.repr 0));
          temp _cb cb; temp _app_key app_key)
   SEP (data_at Tsh (tarray tint 16)
                 (default_val (tarray tint (len (tags td) - len lens)) ++
@@ -561,13 +559,6 @@ Admitted.
     unfold fold_right_sepcon.
     rewrite_if_b.
     entailer!.
-    erewrite data_at__change_composite.
-    entailer!.
-    (*  cs_preserve_type CompSpecs Der_write_TL.CompSpecs
-        (coeq CompSpecs Der_write_TL.CompSpecs)
-    enc_key_s = true doesn't hold *)
-    admit.
-    (* change_compspecs CompSpecs. - not working - debug *)
     rewrite_if_b.
     Intros.
     forward.
@@ -592,7 +583,6 @@ Admitted.
     destruct H9 as [e2 Loop2].
     { unfold der_write_tags.
       break_if; Zbool_to_Prop; try list_solve.
-      subst; list_solve.
       unfold evalErrW.
       cbn.
       break_if; Zbool_to_Prop; try list_solve.
@@ -607,8 +597,7 @@ Admitted.
       all: erewrite <- sublist_one with (hi := len lens);
       try list_solve; 
       autorewrite with sublist; auto. }
-     (* change_compspecs CompSpecs. - not working - debug *)
-    admit. }
+   }
     forward.
     Exists 1.
     assert (i = 0) as II by lia.
@@ -640,7 +629,6 @@ Admitted.
         autorewrite with sublist; auto. }
     replace (len (tags td) - len lens) with 0 by list_solve.
     entailer!.
-    admit. (* change CompSpecs *)
     rewrite_if_b.   
     reflexivity.
     subst. auto.
@@ -674,7 +662,7 @@ Admitted.
     simpl.
     destruct Loop2 as [ls'' Loop2].
     erewrite Loop2.
-    do 2 f_equal.
-Admitted.
-*)
+    do 2 f_equal. }
+Qed.
+
 End Der_write_tags.

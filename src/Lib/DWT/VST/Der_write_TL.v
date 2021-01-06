@@ -9,28 +9,13 @@ Require Import VST.Ber_tlv_length_serialize
 Require Import 
         Exec.Ber_tlv_length_serialize Exec.Ber_tlv_tag_serialize Types.
 
-Definition composites :=
-  composites ++ [Composite dummy._application_specific_key Struct nil noattr].
-
 Definition Vprog : varspecs. 
 Proof.
-  set (cs := composites).
-  set (gd := global_definitions).
-  set (pi := public_idents).
-  unfold composites in cs.
-  simpl in cs.
-  set (prog := Clightdefs.mkprogram cs gd pi _main Logic.I).
   mk_varspecs prog. 
 Defined.
 
 Instance CompSpecs : compspecs. 
 Proof.
-  set (cs := composites).
-  set (gd := global_definitions).
-  set (pi := public_idents).
-  unfold composites in cs.
-  simpl in cs.
-  set (prog := Clightdefs.mkprogram cs gd pi _main Logic.I).
   make_compspecs prog.
 Defined.
 
@@ -63,7 +48,7 @@ Definition der_write_TL_spec : ident * funspec :=
     SEP(if Val.eq cb nullval 
         then emp
         else (func_ptr' dummy_callback_spec cb *
-              data_at_ Tsh enc_key_s app_key *
+              data_at_ Tsh tuint app_key *
               valid_pointer cb))
   POST[tint]
     let size := if Val.eq cb nullval then 0 else 32 in
@@ -77,7 +62,7 @@ Definition der_write_TL_spec : ident * funspec :=
     SEP(if Val.eq cb nullval 
         then emp
         else (func_ptr' dummy_callback_spec cb *
-              data_at_ Tsh enc_key_s app_key *
+              data_at_ Tsh tuint app_key *
               valid_pointer cb)).
 
 Definition Gprog := ltac:(with_library prog [der_write_TL_spec;
@@ -115,7 +100,7 @@ Proof.
   SEP (data_at_ Tsh (tarray tuchar 32) v_buf;   
        if Val.eq cb nullval 
        then emp
-       else (data_at_ Tsh enc_key_s app_key *
+       else (data_at_ Tsh tuint app_key *
             func_ptr' dummy_callback_spec cb * valid_pointer cb))).
   - break_if; entailer!.
   - forward.
@@ -287,7 +272,7 @@ Proof.
      instantiate (1 := [(data_at Tsh (tarray tuchar zt)
                                 (map Vint tl) 
                                 (Vptr b i) * 
-                        data_at_ Tsh enc_key_s app_key *
+                        data_at_ Tsh tuint app_key *
                         func_ptr' dummy_callback_spec cb *
                         valid_pointer cb)%logic]).
      simpl.
@@ -328,7 +313,7 @@ Proof.
       else  data_at Tsh (tarray tuchar (snd (tag_serialize tag (Int.repr 32))))
                         (map Vint (fst (tag_serialize tag (Int.repr 32)))) (Vptr b i)
       ;
-     data_at_ Tsh enc_key_s app_key; valid_pointer cb; func_ptr' dummy_callback_spec cb))
+     data_at_ Tsh tuint app_key; valid_pointer cb; func_ptr' dummy_callback_spec cb))
 
 ; try congruence. 
           unfold MORE_COMMANDS.
@@ -345,7 +330,7 @@ Proof.
      SEP (data_at Tsh (tarray tuchar (32 - zt))
             (map Vint ll ++ sublist (len ll) (32 - zt) (default_val (tarray tuchar (32 - zt))))
             (Vptr b (i + Ptrofs.repr zt)%ptrofs);
-     data_at Tsh (tarray tuchar zt) (map Vint tl) (Vptr b i); data_at_ Tsh enc_key_s app_key;
+     data_at Tsh (tarray tuchar zt) (map Vint tl) (Vptr b i); data_at_ Tsh tuint app_key;
      func_ptr' dummy_callback_spec cb; valid_pointer cb)); 
 try congruence.
             forward.
