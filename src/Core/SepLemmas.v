@@ -1,21 +1,26 @@
-Require Import VST.floyd.proofauto Psatz.
-Require Import StructTact.StructTactics Psatz Core.Notations.
+Require Import VST.floyd.proofauto.
 
+Lemma valid_pointer_weak1 :
+  forall b o, 0 <= o < Ptrofs.max_unsigned ->
+  valid_pointer (Vptr b (Ptrofs.repr o))
+                |-- weak_valid_pointer (Vptr b (Ptrofs.repr (o + 1))).
+
+Proof.
+  intros.
+ (* constructor.
+  intros ? Hvalid.
+  right; simpl in *.
+  rewrite Ptrofs.unsigned_repr in * by rep_lia.
+  rewrite <- Z.add_assoc; auto. *)
+Admitted.
+
+Require Import Psatz StructTact.StructTactics Psatz Core.Notations.
 
 Lemma default_val_app :
   forall { cs : compspecs } t l1 l2, 
                (default_val (tarray t l1) ++
                 default_val (tarray t l2)) = default_val (tarray t (l1 + l2)).
 Admitted.  
-
-Lemma valid_pointer_weak_minus:
- forall a, valid_pointer a |-- weak_valid_pointer (offset_val 1 a).
-Proof.
-intros.
-unfold valid_pointer, weak_valid_pointer.
-change predicates_hered.orp with orp. (* delete me *)
-apply orp_right2.
-Admitted.
 
 Lemma upd_Znth_idem: forall {A} j ls (a b : A),
                  0 <= j < len ls ->           
