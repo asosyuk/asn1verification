@@ -80,7 +80,7 @@ Proof.
   - intros g g_spec INf EQ.
     inversion INf as [EQf | R0 ]; try contradiction; clear INf.
     erewrite <- EQf.
-    exists [(f___assert_fail, (ber_decoder.___assert_fail, (@assert_spec BCT.Vst.CompSpecs)));
+    exists [(f___assert_fail, (ber_decoder.___assert_fail, (@Der_encode_primitive.assert_spec BCT.Vst.CompSpecs)));
        (f_ber_fetch_tag, Vst.ber_fetch_tag_spec);
        (f_ber_fetch_length, ber_fetch_len_spec);
        (ber_decoder.f_ASN__STACK_OVERFLOW_CHECK, ASN__STACK_OVERFLOW_CHECK_spec)]. 
@@ -164,7 +164,7 @@ Lemma integer_encoder_C_to_ESPEC_correctness :
 Proof.
   eapply WithAuxCorr with (C := CompSpecs);
     try discriminate.
-  - apply (normalizer_correctness composites).
+  - apply (normalizer_correctness INTEGER.composites).
     apply int_der_encode_correctness.
   - intros g g_spec INf EQ.
     inversion INf as [EQf |  ]; try contradiction; clear INf.
@@ -172,7 +172,7 @@ Proof.
     exists [(f_der_write_tags, Der_write_tags.der_write_tags_spec)]. repeat eexists.
       eapply WithAuxCorr with (C := Der_encode_primitive.CompSpecs).
     + discriminate.
-    + eapply (normalizer_correctness Der_encode_primitive.composites).
+    + eapply (normalizer_correctness composites).
       apply Der_encode_primitive.der_encode_primitive_correctness.
     + clear.
       intros g g_spec INf EQ.
@@ -181,7 +181,7 @@ Proof.
      exists [(f_der_write_TL,
         Der_write_TL.der_write_TL_spec)]. repeat eexists.
       eapply WithAuxCorr with (C := Der_write_tags.CompSpecs); try discriminate.
-      * eapply (normalizer_correctness Der_write_tags.composites).
+      * eapply (normalizer_correctness der_encoder.composites).
         eapply Der_write_tags.der_write_tags_correctness.
       * clear.
         intros g g_spec INf EQ.
@@ -193,7 +193,7 @@ Proof.
             Ber_tlv_length_serialize.der_tlv_length_serialize_spec);
            (f_dummy, dummy_callback)]. repeat eexists.
         eapply WithAuxCorr with (C := Der_write_TL.CompSpecs) ; try discriminate.
-      -- eapply (normalizer_correctness Der_write_TL.composites).
+      -- eapply (normalizer_correctness der_encoder.composites).
          eapply Der_write_TL.der_write_TL_correctness.
       -- clear.
          intros g g_spec INf EQ.

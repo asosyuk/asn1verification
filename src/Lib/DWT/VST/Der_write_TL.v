@@ -75,8 +75,6 @@ Open Scope Z.
 Theorem der_write_TL_correctness: 
   semax_body Vprog Gprog (normalize_function f_der_write_TL composites)
              der_write_TL_spec.
-Admitted.
-(*
 Proof.
   function_pointers.
   start_function.
@@ -146,12 +144,12 @@ Proof.
        { unfold tag_serialize.
          repeat break_if; try contradiction; auto.
          Zbool_to_Prop. generalize Heqb1. strip_repr.
-         intro. lia. }
+          }
         assert ((fst (length_serialize l (Int.repr 0)) = [])) as LLE.
        { unfold length_serialize.
          repeat break_if; try contradiction; auto.
          Zbool_to_Prop. generalize Heqb1. strip_repr.
-         intro. lia. }
+         }
        erewrite TLE in *.
        erewrite <- TLL in *.
        simpl in T.
@@ -162,7 +160,7 @@ Proof.
       simpl.
       erewrite data_at_zero_array_eq; auto.
       entailer!.      
-      repeat split; try rep_omega.
+      repeat split; try rep_lia.
       forward_if. lia.
       Intros.
       forward.
@@ -389,4 +387,3 @@ try congruence.
            unfold default_val; simpl. rewrite Zlength_list_repeat; lia.
 Qed.
 
-*)
