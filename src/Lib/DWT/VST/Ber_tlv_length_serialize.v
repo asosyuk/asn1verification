@@ -216,7 +216,7 @@ Proof.
      forward_loop 
     (EX v : Z, EX ls : list int,
     (PROP ((Int.unsigned Int.zero <= v)%Z; 
-           (v  <= r)%Z;
+           (v <= r)%Z;
            ls = 
            serialize_length_loop_app (r - v)%Z (Z.to_nat v) l)
      LOCAL (temp _buf (Vptr buf_b (buf_ofs + Ptrofs.repr 1 + Ptrofs.repr v)%ptrofs);

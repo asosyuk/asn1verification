@@ -204,7 +204,7 @@ Proof.
     deadvars!.
     Set Ltac Backtrace.
     (* FIX forward call - see Boolean decoder in feature/boolean_vst *)
-   (* forward_call (ctx_p, (Vint (Int.repr ctx)), td_p, td, Vzero, Vzero, b, i, buf,
+    forward_call (ctx_p, (Vint (Int.repr ctx)), td_p, td, Vzero, Vzero, b, i, buf,
                   v__res__1, size, tag_mode, 0, v_length, Vzero, 0%Z).
     break_if.
     ** 
