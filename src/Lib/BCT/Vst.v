@@ -30,7 +30,7 @@ Proof. make_cs_preserve BFL.Vst.CompSpecs CompSpecs. Defined.
 
 Definition ber_check_tags_spec : ident * funspec :=
   DECLARE _ber_check_tags
-    WITH opt_codec_ctx_p : val, opt_codec_ctx : val,
+    WITH opt_codec_ctx_p : val, 
          td_p : val, td : TYPE_descriptor, 
          tags_p : val,
          opt_ctx_p : val,
@@ -58,7 +58,7 @@ Definition ber_check_tags_spec : ident * funspec :=
                 Vint (Int.repr size);
                 Vint (Int.repr tag_mode); Vint (Int.repr last_tag_form);
                   last_length_p; opt_tlv_form_p)
-      GLOBALS ((fun _ : ident => Vint 0%int))
+      GLOBALS ((* (fun _ : ident => Vint 0%int) *))
       SEP (data_at Tsh (tarray tuchar (len ptr)) 
                    (map Vint (map Int.repr ptr)) (Vptr b i);
            field_at Tsh (Tstruct _asn_TYPE_descriptor_s noattr) 
@@ -88,9 +88,9 @@ Definition ber_check_tags_spec : ident * funspec :=
                    (map Vint (map Int.repr (tags td))) tags_p;
            data_at Tsh (Tstruct _asn_codec_ctx_s noattr) 
                   (Vint (Int.repr (max_stack_size))) opt_codec_ctx_p;
-        match ber_check_tags_primitive (map Int.repr ptr)
+           match ber_check_tags_primitive (map Int.repr ptr)
                                        td max_stack_size
-                              size (sizeof tuint) Int.modulus with
+                                       size (sizeof tuint) Int.modulus with
            | Some v => 
              data_at Tsh asn_dec_rval_s 
                      (mk_dec_rval 0 (snd v)) res_p *

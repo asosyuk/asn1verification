@@ -252,7 +252,7 @@ Proof.
       forward_if. 
        assert ((snd (tag_serialize tag (Int.repr 32)) = zt)) as TLS
           by (unfold snd; break_let; inversion TS; auto).
-      erewrite TLS in *. generalize H1. strip_repr. intro. lia.
+      erewrite TLS in *. generalize H1. strip_repr. 
       Intros.
        assert ((snd (tag_serialize tag (Int.repr 32)) = zt)) as TLS
           by (unfold snd; break_let; inversion TS; auto).

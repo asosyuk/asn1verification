@@ -32,6 +32,8 @@ Definition calloc_spec {cs : compspecs} :=
        SEP (if eq_dec p nullval then emp
             else data_at Ews (tarray tint m) (map Vint ls) p).
 
+
+
 (* Definition calloc_spec {cs : compspecs} :=
    WITH m : Z, n : Z
    PRE [ size_t, size_t ]

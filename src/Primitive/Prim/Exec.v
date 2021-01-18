@@ -20,7 +20,8 @@ Section Decoder.
 Definition primitive_decoder td ctx size sizeofval sizemax ls : option (list byte * Z) :=
     match ls with
     | [] => None
-    | _ => '(c, l) <- ber_check_tags_primitive (map Int.repr (map Byte.unsigned ls))
+    | _ => '(c, l) <- ber_check_tags_primitive
+                      (map Int.repr (map Byte.unsigned ls))
            td ctx size sizeofval sizemax ;;
            if (Zlength ls - c <? l)
            then None 
