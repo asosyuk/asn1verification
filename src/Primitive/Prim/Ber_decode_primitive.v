@@ -49,7 +49,7 @@ Definition ber_decode_primitive_spec : ident * funspec :=
   DECLARE _ber_decode_primitive
     WITH ctx_p : val, ctx : Z, td_p : val, td : TYPE_descriptor,
          st_pp : val, buf_p : val, buf : list Z,
-         res_p : val, size : Z, tag_mode : Z, st_p : val, tags_p : val
+         res_p : val, size : Z, tag_mode : Z, st_p : val, tags_p : val, gv : globals
     PRE [tptr asn_dec_rval_s, tptr asn_codec_ctx_s, tptr type_descriptor_s,
           tptr (tptr tvoid), tptr tvoid, tuint, tint] 
       PROP (is_pointer_or_null st_p;
@@ -65,8 +65,9 @@ Definition ber_decode_primitive_spec : ident * funspec :=
 
       PARAMS (res_p; ctx_p; td_p; st_pp; buf_p; Vint (Int.repr size);
                 Vint (Int.repr tag_mode))
-      GLOBALS ()
-      SEP (valid_pointer st_p;
+      GLOBALS (gv)
+      SEP (mem_mgr gv;
+           valid_pointer st_p;
            if eq_dec st_p nullval 
            then emp
            else data_at_ Ews (Tstruct _ASN__PRIMITIVE_TYPE_s noattr) st_p ; 
@@ -88,21 +89,22 @@ Definition ber_decode_primitive_spec : ident * funspec :=
       LOCAL ()
       SEP (
         (* Unchanged *)
+        (mem_mgr gv);
          valid_pointer st_p;
          data_at Tsh asn_codec_ctx_s (Vint (Int.repr ctx)) ctx_p;
          data_at Tsh (tarray tuint (Zlength (tags td)))
                   (map Vint (map Int.repr (tags td))) tags_p;
-      field_at Tsh (Tstruct ber_decoder._asn_TYPE_descriptor_s noattr)
+         field_at Tsh (Tstruct ber_decoder._asn_TYPE_descriptor_s noattr)
                     (DOT ber_decoder._tags) tags_p td_p ;
-      field_at Tsh (Tstruct ber_decoder._asn_TYPE_descriptor_s noattr)
+         field_at Tsh (Tstruct ber_decoder._asn_TYPE_descriptor_s noattr)
                    (DOT ber_decoder._tags_count)
-                   (Vint (Int.repr (Zlength (tags td))))
-        td_p; 
-         data_at Tsh (tarray tuchar (Zlength buf)) (map Vint (map Int.repr buf)) buf_p;
+                   (Vint (Int.repr (Zlength (tags td)))) td_p; 
+         data_at Tsh (tarray tuchar (Zlength buf))
+                 (map Vint (map Int.repr buf)) buf_p;
          (* Changed according to spec *)
          let RC_FAIL := 
              data_at Tsh asn_dec_rval_s (Vint (Int.repr 2), Vzero) res_p in
-         EX v : val, EX buf_p : val,
+         EX v : val, EX s : reptype (Tstruct _ASN__PRIMITIVE_TYPE_s noattr),
              data_at Tsh (tptr tvoid) v st_pp *
              if eq_dec v nullval 
              then RC_FAIL  
@@ -110,9 +112,9 @@ Definition ber_decode_primitive_spec : ident * funspec :=
                         Int.modulus (map Byte.repr buf) with
                   | Some (r, c) => 
                     data_at Tsh asn_dec_rval_s (Vzero, Vint (Int.repr c)) res_p *
-                    data_at Tsh (tarray tuint (Zlength r)) (map Vubyte r) buf_p *
-                    data_at Ews (Tstruct _ASN__PRIMITIVE_TYPE_s noattr)
-                            (buf_p, Vint (Int.repr (Zlength r))) v
+                    data_at Tsh (tarray tuint (Zlength r))
+                            (map Vubyte r) (fst s) *
+                    data_at Ews (Tstruct _ASN__PRIMITIVE_TYPE_s noattr) s v
                   | None =>
                     RC_FAIL * 
                     data_at_ Ews (Tstruct _ASN__PRIMITIVE_TYPE_s noattr) v 
@@ -130,12 +132,15 @@ Definition calloc_spec_prim {cs : compspecs} :=
        GLOBALS()
        SEP ()
     POST [ tptr tvoid ] EX p : val, 
+                        EX s : reptype (Tstruct _ASN__PRIMITIVE_TYPE_s noattr),
        PROP ()
        LOCAL (temp ret_temp p)
        SEP (if eq_dec p nullval then emp
-            else data_at_ Ews (Tstruct _ASN__PRIMITIVE_TYPE_s noattr) p).
+            else data_at Ews (Tstruct _ASN__PRIMITIVE_TYPE_s noattr)
+                         s p).
 
 Definition Gprog := ltac:(with_library prog [(_calloc, calloc_spec_prim);
+                                              (_memcpy, memcpy_spec);
                                               ber_check_tags_spec; 
                                               ber_decode_primitive_spec]).
 
@@ -148,7 +153,8 @@ Proof.
   rename H1 into Size.
   rename H2 into Len.
   repeat forward.
-  forward_if (EX p : val,
+  forward_if 
+  (EX p : val, EX s : reptype (Tstruct _ASN__PRIMITIVE_TYPE_s noattr),
   PROP (if eq_dec st_p nullval 
         then p <> nullval 
         else (p = st_p /\ st_p <> nullval))
@@ -165,7 +171,8 @@ Proof.
          temp _buf_ptr buf_p;
          temp _size (Vint (Int.repr size));
          temp _tag_mode (Vint (Int.repr tag_mode)))
-  SEP (data_at_ Tsh (Tstruct _asn_dec_rval_s noattr) v__res__1;
+  SEP (mem_mgr gv;
+       data_at_ Tsh (Tstruct _asn_dec_rval_s noattr) v__res__1;
        data_at_ Tsh (Tstruct _asn_dec_rval_s noattr) v_tmp_error__2;
        data_at_ Tsh (Tstruct _asn_dec_rval_s noattr) v_tmp_error__1;
        data_at_ Tsh (Tstruct _asn_dec_rval_s noattr) v_tmp_error;
@@ -185,18 +192,18 @@ Proof.
        data_at Tsh (tptr tvoid) p st_pp;
        data_at_ Tsh asn_dec_rval_s res_p;
        if eq_dec st_p nullval 
-       then data_at_ Ews (Tstruct _ASN__PRIMITIVE_TYPE_s noattr) p 
+       then data_at Ews (Tstruct _ASN__PRIMITIVE_TYPE_s noattr) s p 
        else data_at_ Ews (Tstruct _ASN__PRIMITIVE_TYPE_s noattr) st_p
        ))%assert; try congruence.
   *  (* _st = NULL *)   
     forward_call (1, sizeof (Tstruct _ASN__PRIMITIVE_TYPE_s noattr),
                   (Tstruct _ASN__PRIMITIVE_TYPE_s noattr)).
     cbn; try nia.
-    Intros p.
+    Intros v.
     repeat forward.
     forward_if (
-     (PROP ((p <> nullval))
-     LOCAL (temp _st p; temp _t'19 st_p;
+     (PROP ((fst v <> nullval))
+     LOCAL (temp _st (fst v); temp _t'19 st_p;
      lvar __res__1 (Tstruct _asn_dec_rval_s noattr) v__res__1;
      lvar _tmp_error__2 (Tstruct _asn_dec_rval_s noattr) v_tmp_error__2;
      lvar _tmp_error__1 (Tstruct _asn_dec_rval_s noattr) v_tmp_error__1;
@@ -204,16 +211,21 @@ Proof.
      lvar _rval (Tstruct _asn_dec_rval_s noattr) v_rval; temp __res res_p;
      temp _opt_codec_ctx ctx_p; temp _td td_p; temp _sptr st_pp; temp _buf_ptr buf_p;
      temp _size (Vint (Int.repr size)); temp _tag_mode (Vint (Int.repr tag_mode)))
-     SEP (if eq_dec p nullval
-          then emp
-          else data_at_ Ews (Tstruct _ASN__PRIMITIVE_TYPE_s noattr) p;
+     SEP (
+     mem_mgr gv;
+     if eq_dec (fst v) nullval
+     then emp
+     else data_at Ews (Tstruct _ASN__PRIMITIVE_TYPE_s noattr) (snd v)
+                       (fst v);
      data_at_ Tsh (Tstruct _asn_dec_rval_s noattr) v__res__1;
      data_at_ Tsh (Tstruct _asn_dec_rval_s noattr) v_tmp_error__2;
      data_at_ Tsh (Tstruct _asn_dec_rval_s noattr) v_tmp_error__1;
      data_at_ Tsh (Tstruct _asn_dec_rval_s noattr) v_tmp_error;
      data_at Tsh tint (Vint (Int.repr 0)) v_length;
      data_at_ Tsh (Tstruct _asn_dec_rval_s noattr) v_rval; valid_pointer st_p;
-     if eq_dec st_p nullval then emp else data_at_ Ews (Tstruct _ASN__PRIMITIVE_TYPE_s noattr) st_p;
+     if eq_dec st_p nullval then 
+       emp else 
+       data_at_ Ews (Tstruct _ASN__PRIMITIVE_TYPE_s noattr) st_p;
      data_at Tsh asn_codec_ctx_s (Vint (Int.repr ctx)) ctx_p;
      data_at Tsh (tarray tuint (Zlength (tags td)))
              (map Vint (map Int.repr (tags td))) tags_p;
@@ -227,7 +239,6 @@ Proof.
      data_at Tsh (tptr tvoid) st_p st_pp; data_at_ Tsh asn_dec_rval_s res_p))). 
     break_if. erewrite e. entailer!. entailer!.
     Require Import Forward.
-    (* valid pointer p *) admit.
     match goal with
     | [ _ : _ |- semax _ ?Pre ((Sloop _ Sbreak)) _ ] =>
       forward_loop Pre 
@@ -242,25 +253,27 @@ Proof.
       end. 
       entailer!.
       forward. entailer!.
-      repeat forward.
-      Exists nullval.
- (*     repeat rewrite_if_b.
+      repeat forward. 
+      Exists nullval. Exists (snd v).
+      repeat rewrite_if_b.
       entailer!.
     -- (* maloc returned non-null value *)
       forward.
       entailer!.
+      
     -- forward.
-       Exists (fst p) (snd p).
+       Exists (fst v) (snd v).
        erewrite H0 in *.
        repeat rewrite_if_b.
        entailer!.
   * (* st_p <> nullval *)
     rewrite if_false in * by assumption.
     forward.
-    Exists st_p (@nil int).
+    Exists st_p. Exists (Vundef, Vundef).
     repeat rewrite if_false by assumption.
     entailer!.
-  * Intros p ls.
+  * (* after if *)
+    Intros p s.
     forward_empty_loop.
     destruct buf_p; cbn in H3; try contradiction.
     deadvars!.
@@ -271,8 +284,7 @@ Proof.
     repeat split; auto; try lia; strip_repr_ptr.
     cbn in H7.
     strip_repr.
-    break_if.
-    ** break_match.  
+    break_match.  
       2: { (* If ber_check_tags failed *)
         normalize.
         unfold mk_dec_rval.
@@ -280,18 +292,20 @@ Proof.
         repeat forward.
         all: forward_if; [|discriminate];
           repeat forward.
-        Exists p (map Vint ls).
-        rewrite if_false by assumption.
-        unfold primitive_decoder.
-        replace (map Int.repr (map Byte.unsigned (map Byte.repr buf)))
-                with (map Int.repr buf).
-        rewrite Heqo.
-          destruct buf;  erewrite <- H32; entailer!.  
-        simpl. entailer!.
-        f_equal.
-        (* check types byte v. int in ber_check_tags *)
-        admit.
- }
+        Exists p s.
+        break_if.
+        { rewrite if_false by assumption.
+          unfold primitive_decoder.
+          replace (map Int.repr (map Byte.unsigned (map Byte.repr buf)))
+            with (map Int.repr buf).
+          rewrite Heqo.
+          destruct buf; entailer!.  
+          simpl. entailer!.
+          f_equal.
+          (* check types byte v. int in ber_check_tags *)
+          admit. }
+        { admit. }
+      }
       (* If ber_check_tags succeded *)
       { 
         rename Heqo into BCT; cbn in Size; subst.
@@ -304,27 +318,64 @@ Proof.
         forward_if.
         (* RW_MORE case *) admit.
         forward.
-        forward.
-        forward_if True. 
-      (* if length <> 1 *)
-      (* Since we're not yet working with real type_descriptors we're assuming 
-         that if ber_check_tags succedes, then length = 1 *)
-        congruence.
-        forward; entailer!.
-        (* if length = 1 *)
+        break_if.
+        * forward.
+          forward_if [temp _t'2 Vfalse].
+          congruence.
+          forward; entailer!.
+          forward_if True. 
+          forward.
+          match goal with
+          | [ _ : _ |- semax _ ?Pre _ _ ] =>
+            forward_loop Pre break: Pre
+          end. 
+          entailer!. congruence.
+          congruence.
+          forward.
+          entailer!.
+          forward.
+          Set Ltac Backtrace.
+          (* forward_call (tint, gv). *) (* FAIL *)
+          admit.
+        * inversion H0.
+          subst.
+          forward.
+          forward_if [temp _t'2 Vfalse].
+          congruence.
+          forward; entailer!.
+          forward_if True. 
+          forward.
+          match goal with
+          | [ _ : _ |- semax _ ?Pre _ _ ] =>
+            forward_loop Pre break: Pre
+          end. 
+          entailer!. congruence.
+          congruence.
+          forward.
+          entailer!.
+          forward.
+          Set Ltac Backtrace.
+          (* forward_call (tint, gv). *) (* FAIL *)
+          admit. 
+      } 
+    
+
+
+
+(*
+        forward_empty_loop.
         cbn -[PROPx LOCALx SEPx abbreviate eq_dec nullval CompSpecs].
-        rewrite data_at_isptr with (p0 := buf_p).
+        rewrite data_at_isptr with (p1 := (Vptr b i)).
         normalize.
-        rewrite sem_add_pi_ptr.
-        2: assumption.
-        2: cbn; lia.
         cbn -[PROPx LOCALx SEPx abbreviate eq_dec nullval CompSpecs]. 
-        assert_PROP (offset_val 2 buf_p = 
+        forward.
+        assert_PROP (offset_val 2 (Vptr b i) = 
                      field_address (tarray tuchar (Zlength buf)) 
-                                   [ArraySubsc 2] buf_p).
+                                   [ArraySubsc 2] (Vptr b i)).
         entailer!.
         rewrite field_address_offset;
           auto with field_compatible.
+        
         forward.
         entailer!.
         simpl. normalize.
