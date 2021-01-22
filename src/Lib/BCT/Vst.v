@@ -123,7 +123,7 @@ Theorem ber_check_tags_correctness :
   semax_body Vprog Gprog
              (normalize_function f_ber_check_tags composites) 
              ber_check_tags_spec.
-(* Proof.
+Proof.
   start_function.
   subst.
   repeat forward.
@@ -155,7 +155,7 @@ Theorem ber_check_tags_correctness :
       try forward; try entailer!.
     repeat forward. 
     assert (ber_check_tags_primitive ptr td max_stack_size
-                            size (sizeof tuint) Int.modulus = None) as N.
+                            size (sizeof tuint) Int.max_signed = None) as N.
        { unfold ber_check_tags_primitive.
          assert (ASN__STACK_OVERFLOW_CHECK 0 max_stack_size =? 0 = false) 
            as AS by (Zbool_to_Prop;
@@ -205,8 +205,8 @@ Theorem ber_check_tags_correctness :
        forward_if True.
        forward.
        entailer!.
-       forward_call (false).
-       entailer!.
+       (* forward_call (false). *)
+       admit.
        entailer!.
      (* MAIN LOOP *)       
      (* match goal with
@@ -223,8 +223,8 @@ Theorem ber_check_tags_correctness :
      EX z : Z,
      let (tag_len, tlv_tag) := Exec.ber_fetch_tags ptr
                                                    size  in
-     let (len_len, tlv_len) := Exec.ber_fetch_len (sublist 1 (len ptr) ptr) 0 0 
-                                                  (size - tag_len) (sizeof tuint) Int.modulus in
+     let (len_len, tlv_len) := Exec.ber_fetch_len (sublist 1 (len ptr) (map Int.unsigned ptr)) 0 0 
+                                                  (size - tag_len) (sizeof tuint) Int.max_signed in
      let ll := if z =? 0 then -1 else (tlv_len)%Z in (* + tag_len + len_len *)
      let cm := if z =? 0 then 0 else (tag_len + len_len)%Z in 
      PROP ( 0 <= z <= 1;
@@ -313,7 +313,8 @@ Theorem ber_check_tags_correctness :
                 Exec.ber_fetch_tags ptr
                                     size  in
        let (len_len, tlv_len) :=
-         Exec.ber_fetch_len (sublist 1 (len ptr) ptr) 0 0 (size - tag_len) 
+         Exec.ber_fetch_len (sublist 1 (len ptr) (map Int.unsigned ptr))
+                            0 0 (size - tag_len) 
            (sizeof tuint) Int.modulus in
        PROP (0 < tag_len;
            0 < len_len;
@@ -379,8 +380,8 @@ Theorem ber_check_tags_correctness :
                              break: (
      let (tag_len, tlv_tag) := Exec.ber_fetch_tags ptr
                                                    size in
-     let (len_len, tlv_len) := Exec.ber_fetch_len (sublist 1 (len ptr) ptr) 0 0 
-                                                  (size - tag_len) (sizeof tuint) Int.modulus in
+     let (len_len, tlv_len) := Exec.ber_fetch_len (sublist 1 (len ptr) (map Int.unsigned ptr)) 0 0 
+                                                  (size - tag_len) (sizeof tuint) Int.max_signed in
      PROP (0 < tag_len;
            0 < len_len;
            0 < tlv_len;
@@ -470,24 +471,15 @@ Theorem ber_check_tags_correctness :
              forward.
            forward_if.
            2: (* LI -> break *) lia.
-           deadvars.
            Time forward_call (b, i, ptr, size, v_tlv_tag). 
-           unfold Frame.
-            instantiate (1 := [emp]).
-            simpl.
-            admit.
            { repeat split; try rep_lia.
-             all: admit. }
-           
-          
-
-
-
-
-               Require Import VST.floyd.proofauto.
-                Set Ltac Backtrace.
-                Ltac process_cases sign ::= 
-match goal with
+             eassumption.
+            (* size < len ptr ??? *)
+             admit. }
+           Require Import VST.floyd.proofauto.
+           Set Ltac Backtrace.
+           Ltac process_cases sign ::= 
+             match goal with
 | |- semax _ _ (seq_of_labeled_statement 
      match select_switch_case ?N (LScons (Some ?X) ?C ?SL)
       with Some _ => _ | None => _ end) _ =>
@@ -523,207 +515,10 @@ match goal with
       unfold seq_of_labeled_statement at 1;
       repeat apply -> semax_skip_seq
 end.
-                Time match goal with
+                match goal with
                   | [ _ : _ |- semax _ ?Pre ?C ?Post ] =>
                forward_if Pre                              
-             end.
-Ltac process_cases sign ::= 
-match goal with
-| |- semax _ _ (seq_of_labeled_statement 
-     match select_switch_case ?N (LScons (Some ?X) ?C ?SL)
-      with Some _ => _ | None => _ end) _ =>
-      let y := constr:(adjust_for_sign sign X) in 
-      let y := eval compute in y in 
-      rewrite (select_switch_case_signed y); 
-           [ | reflexivity | clear; compute; split; congruence];
-     let E := fresh "E" in let NE := fresh "NE" in 
-     destruct (zeq N (Int.unsigned (Int.repr y))) as [E|NE];
-      [ try ( rewrite if_true; [  | symmetry; apply E]);
-        unfold seq_of_labeled_statement at 1;
-        apply unsigned_eq_eq in E;
-         match sign with
-        | Signed =>  (apply repr_inj_signed in E; [ | rep_lia | rep_lia])
-        | Unsigned =>  (apply repr_inj_unsigned in E; [ | rep_lia | rep_lia])
-        end;
-        try match type of E with ?a = _ => is_var a; subst a end;
-        repeat apply -> semax_skip_seq 
-        | 
-        try (rewrite if_false by (contradict NE; symmetry; apply NE));
-        process_cases sign  
-    ] 
-
-| |- semax _ _ (seq_of_labeled_statement 
-     match select_switch_case ?N (LScons None ?C ?SL)
-      with Some _ => _ | None => _ end) _ =>
-      change (select_switch_case N (LScons None C SL))
-       with (select_switch_case N SL);
-      process_cases sign
-
-| |- semax _ _ (seq_of_labeled_statement 
-     match select_switch_case ?N LSnil
-      with Some _ => _ | None => _ end) _ =>
-      change (select_switch_case N LSnil)
-           with (@None labeled_statements);
-      cbv iota;
-      unfold seq_of_labeled_statement at 1;
-      repeat apply -> semax_skip_seq
-
-end. 
-
-
-             Time match goal with
-                  | [ _ : _ |- semax _ ?Pre ?C ?Post ] =>
-               forward_if Pre                              
-             end.
-             congruence.
-             process_cases Signed.
-             congruence.
-             process_cases Signed.
-             process_cases Signed.
-             change (select_switch_case (Int.unsigned (Int.repr 0))
-                                        (LScons None Sbreak LSnil))
-               with (select_switch_case (Int.unsigned (Int.repr 0)) LSnil).
-
-             change (select_switch_case (Int.unsigned (Int.repr 0)) LSnil)
-               with (@None labeled_statements);
-               cbv iota;
-               unfold seq_of_labeled_statement at 1;
-               repeat apply -> semax_skip_seq.
-             forward.
-               process_cases Signed.
-             
-apply repr_inj_signed in E; [ | try rep_lia | try rep_lia].
-           
-                     
-             Set Ltac Backtrace.
-             unfold MORE_COMMANDS.
-             unfold abbreviate.
-             
-             match goal with
-             | [ _ : _ |- semax _ ?Pre ?C ?Post ] =>
-               forward_switch Pre 
-                              
-             end.
-
-          (* FIXME : forward switch doesn't work with complex terms *)
-           (* in VST 2.6 forward_switch needs change and can fail here *)
-           Require Import Forward.
-           Set Ltac Backtrace.
-
-           
-          
-           Ltac process_cases sign := 
-match goal with
-| |- semax _ _ (seq_of_labeled_statement 
-     match select_switch_case ?N (LScons (Some ?X) ?C ?SL)
-      with Some _ => _ | None => _ end) _ =>
-       let y := constr:(adjust_for_sign sign X) in let y := eval compute in y in 
-      rewrite (select_switch_case_signed y); 
-           [ | reflexivity | clear; compute; split; congruence];
-     let E := fresh "E" in let NE := fresh "NE" in 
-     destruct (zeq (Int.unsigned (Int.repr y)) N) as [E|NE];
-      [ unfold seq_of_labeled_statement at 1 ;
-        apply unsigned_eq_eq in E;
-        match sign with
-        | Signed => apply repr_inj_signed in E; [ | rep_omega | rep_omega]
-        | Unsigned => apply repr_inj_unsigned in E; [ | rep_omega | rep_omega]
-        end;
-        try match type of E with ?a = _ => is_var a; subst a end;
-        repeat apply -> semax_skip_seq
-     | process_cases sign
-    ]
-| |- semax _ _ (seq_of_labeled_statement 
-     match select_switch_case ?N (LScons None ?C ?SL)
-      with Some _ => _ | None => _ end) _ =>
-      change (select_switch_case N (LScons None C SL))
-       with (select_switch_case N SL);
-      process_cases sign
-| |- semax _ _ (seq_of_labeled_statement 
-     match select_switch_case ?N LSnil
-      with Some _ => _ | None => _ end) _ =>
-      change (select_switch_case N LSnil)
-           with (@None labeled_statements);
-      cbv iota;
-      unfold seq_of_labeled_statement at 1;
-      repeat apply -> semax_skip_seq
-end.
-
-
- Ltac do_compute_expr1 Delta Pre e :=
- match Pre with
- | @exp _ _ ?A ?Pre1 => fail "BLA1"
-  (* let P := fresh "P" in let Q := fresh "Q" in let R := fresh "R" in
-  let H8 := fresh "DCE" in let H9 := fresh "DCE" in
-  evar (P: A -> list Prop);
-  evar (Q: A -> list localdef);
-  evar (R: A -> list mpred);
-  assert (H8: Pre1 =  (fun a => PROPx (P a) (LOCALx (Q a) (SEPx (R a)))))
-    by (extensionality; unfold P,Q,R; reflexivity);
-  let v := fresh "v" in evar (v: A -> val);
-  assert (H9: forall a, ENTAIL Delta, PROPx (P a) (LOCALx (Q a) (SEPx (R a))) |--
-                       local ((eq (v a)) (eval_expr e)))
-     by (let a := fresh "a" in intro a; do_compute_expr_helper Delta (Q a) v) *)
-
- | PROPx ?P (LOCALx ?Q (SEPx ?R)) => fail "BLA2"
-
- (* let H9 := fresh "H" in
-  let v := fresh "v" in (evar (v: val);
-  assert (H9:  ENTAIL Delta, PROPx P (LOCALx Q (SEPx R))|--
-                     local ((eq v) (eval_expr e)))
-   by (do_compute_expr_helper Delta Q v))  *)
-| _ => fail "YES"
- end. 
-
-Ltac forward_switch' := 
- match goal with
-| |- semax ?Delta (PROPx ?P (LOCALx ?Q (SEPx ?R))) (Sswitch ?e _) _ => 
-  let sign := constr:(signof e) in let sign := eval hnf in sign in
-   let HRE := fresh "H" in let v := fresh "v" in
-    evar (v: val);
-    do_compute_expr1 Delta P Q R e v HRE;
-    simpl in v;
-    let n := fresh "n" in evar (n: int); 
-    let H := fresh in assert (H: v=Vint n) by (unfold v,n; reflexivity);
-    let A := fresh in 
-    match goal with |- ?AA => set (A:=AA) end;
-    revert n H; normalize; intros n H; subst A;
-    let n' := fresh "n" in pose (n' := Int.unsigned n); 
-    let H' := fresh in assert (H': n = Int.repr n');
-    [try (symmetry; apply Int.repr_unsigned) 
-       | rewrite H,H' in HRE; clear H H';
-         subst n' n v; 
-         rewrite (Int.repr_unsigned (Int.repr _)) in HRE;
-          eapply semax_switch_PQR ; 
-           [reflexivity | check_typecheck | exact HRE 
-           | clear HRE; unfold select_switch at 1; unfold select_switch_default at 1;
-             try match goal with H := @abbreviate statement _ |- _ => clear H end;
-             process_cases sign ] 
-]
-
-end.
-
-Ltac forward_switch_seq post :=
-  check_Delta; check_POSTCONDITION;
-  repeat (apply -> seq_assoc; abbreviate_semax);
-  repeat apply -> semax_seq_skip;
-first [ignore (post: environ->mpred)
-      | fail 1 "Invariant (first argument to forward_if) must have type (environ->mpred)"];
-     match goal with
-     | _ : _ |- semax _ _ (Ssequence (Sswitch _ _) _) _ => 
-       apply semax_seq with post;
-       [forward_switch' 
-      | abbreviate_semax; 
-        simpl_ret_assert (*autorewrite with ret_assert*)]
-end.    
-
-           match goal with
-           | [ _ : _ |- semax _ ?Pre ?C ?Post ] =>
-                forward_switch_seq Pre 
-            
-           end.
-
- clear Z0. 
-           admit.
+                     end.
            *** (* RC_FAIL  *)             
               match goal with
                  | [ _ : _ |- semax _ ?Pre ?C ?Post ] =>
@@ -735,7 +530,7 @@ end.
               rewrite_if_b. 
               forward_if True; try contradiction.
               forward.
-              admit. (* entailer!. *) 
+              entailer!.  
               forward_if (temp _t'12 Vzero);
                try forward; try entailer!.
              forward_if_add_sep (data_at Tsh 
@@ -745,17 +540,28 @@ end.
                try forward; try entailer!.
              repeat forward. 
              assert (ber_check_tags_primitive ptr td max_stack_size
-                                              size (sizeof tuint) Int.modulus = None) as N.
+                                              size (sizeof tuint)
+                                              Int.max_signed = None) as N.
              { unfold ber_check_tags_primitive.
                erewrite H0.
                erewrite Heqp.
                simpl.
+               erewrite Heqp in E.
+               simpl in E.
+               erewrite E.
+               simpl.
                auto. }
              erewrite N.
-             (* entailer!. *)
-             admit. *)
-       (*    *** admit. (* (* RC_FAIL: same *)
-              match goal with
+             erewrite Heqp in E.
+             simpl in E.
+             erewrite Heqp.
+             erewrite E.
+             simpl.
+             entailer!.
+           *** (* repable_signed (fst (Exec.ber_fetch_tags ptr size)) *) 
+               admit. 
+           ***  (* RC_FAIL: same *)
+             match goal with
                  | [ _ : _ |- semax _ ?Pre ?C ?Post ] =>
                    forward_empty_while_break Pre
               end.
@@ -765,7 +571,7 @@ end.
               rewrite_if_b. 
               forward_if True; try contradiction.
               forward.
-              admit. (* entailer!. *) 
+              entailer!.  
               forward_if (temp _t'12 Vzero);
                try forward; try entailer!.
              forward_if_add_sep (data_at Tsh 
@@ -775,17 +581,28 @@ end.
                try forward; try entailer!.
              repeat forward. 
              assert (ber_check_tags_primitive ptr td max_stack_size
-                                              size (sizeof tuint) Int.modulus = None) as N.
+                                              size (sizeof tuint)
+                                              Int.max_signed = None) as N.
              { unfold ber_check_tags_primitive.
                erewrite H0.
                erewrite Heqp.
                simpl.
+               erewrite Heqp in E.
+               simpl in E.
+               erewrite E.
+               simpl.
                auto. }
              erewrite N.
-             (* entailer!. *)
-             admit. *)
-           *** admit. (* forward.
-               entailer!. *) 
+             erewrite Heqp in E.
+             simpl in E.
+             erewrite Heqp.
+             erewrite E.
+             simpl.
+             entailer!.
+           ***  (* repable_signed (fst (Exec.ber_fetch_tags ptr size)) *)
+             admit.
+           *** forward.
+               entailer!. 
            *** remember (map Vint ptr) as ptr'.
                normalize.
                Intros. 
@@ -810,15 +627,15 @@ end.
                forward.
                entailer!.
                unfold is_int.
-               assert (0 <= Znth 0 ptr <= Byte.max_unsigned) as B.
+               assert (0 <= Int.unsigned (Znth 0 ptr) <= Byte.max_unsigned) as B.
                { eapply Forall_Znth.
+                 eassumption.
                  lia.
-                 eassumption. }
+                  }
                repeat erewrite Znth_map; auto; try nia.
                strip_repr.
                forward_if (temp _t'13 Vzero).
-             ** admit. 
-                (* assert ((Znth 0 ptr & 32) <> 0) as Z.
+             **  assert ((Znth 0 ptr & Int.repr 32) <> 0)%int as Z.
                 { generalize H10.
                   subst.
                   repeat erewrite Znth_map.
@@ -826,13 +643,10 @@ end.
                   autorewrite with norm.
                   intro V.
                   eapply typed_true_tint_Vint in V.
-                  eapply repr_neq_e in V.
                   auto.
-                  lia.
-                  erewrite Zlength_map.
-                  lia. }
-                lia. *)
-             ** admit. (* forward.  entailer!. *)
+                  lia.  }
+                contradiction.
+             ** forward.  entailer!.
              ** forward.
                 forward_if
                   (temp _t'15 Vzero); try contradiction;
@@ -840,20 +654,21 @@ end.
                 forward_if True; try nia.
                 forward_if True.
                 forward.
-                admit. (* entailer! *)
+                entailer!. 
                 lia.
+                break_if.
+              {
                 forward.
                 forward. 
-                normalize.
+                autorewrite with norm.
                 forward.
                 forward_if. 
-             ++ admit. 
-                (* (* RC_FAIL case *) 
+             ++ (* RC_FAIL case *) 
                forward_empty_while.
               rewrite_if_b. 
               forward_if True; try contradiction.
               forward.
-              admit. (* entailer!. *) 
+               entailer!. 
               forward_if (temp _t'14 Vzero);
                try forward; try entailer!.
              forward_if_add_sep (data_at Tsh 
@@ -863,22 +678,17 @@ end.
                try forward; try entailer!.
              repeat forward. 
              assert (ber_check_tags_primitive ptr td max_stack_size
-                                              size (sizeof tuint) Int.modulus = None) as N.
+                                              size (sizeof tuint) Int.max_signed = None) as N.
              { unfold ber_check_tags_primitive.
                erewrite H0.
                erewrite Heqp.
                simpl.
-               assert (z1 <>
-                       (nth 0 (tags td) 0)) as O.
-               { replace z1 with (snd (Exec.ber_fetch_tags ptr size 0 4)).
+               assert (i0 <>
+                       (Int.repr (nth 0 (tags td) 0))) as O.
+               { replace i0 with (snd (Exec.ber_fetch_tags ptr size)).
                  generalize H11.
-                 erewrite Byte.unsigned_repr.
-                 intro V.
-                 eapply repr_neq_e in V.
-                 easy.
-                 (* lemma: 0 <= snd (Exec.ber_fetch_tags ptr size 0 4)
-                    <= Byte.max_unsigned *)
-                 admit.
+                 unfold Znth.
+                 simpl. auto.
                  cbn in Heqp.
                  erewrite Heqp.
                  easy.
@@ -886,21 +696,24 @@ end.
                break_if; auto.
                break_if.
                Zbool_to_Prop.
-               lia.
+               erewrite <- Heqb2 in O.
+               erewrite Int.repr_unsigned in O.
+               contradiction.
                auto. }
              erewrite N.
-             admit. (* entailer!. *) *)
-             ++ admit. (* forward. 
-                entailer!. *) 
+             entailer!. 
+             ++ forward. 
+                entailer!. } 
+              { admit. (*contradiction *) } 
              ++  forward.
                  forward_if True.
                  lia.
              ++++ forward_if (temp _t'18 Vzero); try congruence.
                   forward.
-                  admit. (* entailer!. *)
+                   entailer!.
                   forward_if.
                   lia.
-                  forward;  admit. (* entailer!. *) 
+                  forward;   entailer!. 
              ++++  
               (* size : Z, data : list Z,
                  isc : Z, buf_b : block, buf_ofs : ptrofs,      
@@ -909,12 +722,13 @@ end.
                replace (data_at Tsh (tarray tuchar (len ptr))
                        (map Vint ptr) (Vptr b i))
                        with
-                        (data_at Tsh tuchar (Vubyte (Byte.repr (Znth 0 ptr)))
+                        (data_at Tsh tuchar (Vint (Znth 0 ptr))
                                    (Vptr b i) * 
                          data_at Tsh (tarray tuchar (len ptr - 1)) 
-                                 (map Vubyte (map Byte.repr (sublist 1 (len ptr) ptr)))
-                                   (Vptr b (i + Ptrofs.repr z0)%ptrofs))%logic.             
-                forward_call (0, Vptr b (i + Ptrofs.repr z0)%ptrofs, size - z0, 
+                                 (map Vint ((sublist 1 (len ptr) ptr)))
+                                   (Vptr b (i + Ptrofs.repr z0)%ptrofs))%logic.             (*   
+                forward_call (0, b, (i + Ptrofs.repr z0)%ptrofs, 
+                              Int.repr (size - z0), 
                              sublist 1 (len ptr) ptr, v_tlv_len).
                 entailer!.
                 cbn.
