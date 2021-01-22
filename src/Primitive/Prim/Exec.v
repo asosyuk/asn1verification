@@ -3,7 +3,6 @@ Require Import Core.Core Core.Notations Lib.Lib  Lib.DWT.Exec.Der_write_tags
 From ExtLib.Structures Require Import Monad MonadWriter MonadExc.
 From ExtLib.Data Require Import Monads.OptionMonad.
 
-
 Section Encoder.
 
 (* writes tags, copies ls and outputs the number of encoded bytes *)
@@ -17,11 +16,11 @@ End Encoder.
 
 Section Decoder.
 
-Definition primitive_decoder td ctx size sizeofval sizemax ls : option (list byte * Z) :=
+Definition primitive_decoder td ctx size sizeofval sizemax ls :
+  option (list int * Z) :=
     match ls with
     | [] => None
-    | _ => '(c, l) <- ber_check_tags_primitive
-                      (map Int.repr (map Byte.unsigned ls))
+    | _ => '(c, l) <- ber_check_tags_primitive ls
            td ctx size sizeofval sizemax ;;
            if (Zlength ls - c <? l)
            then None 

@@ -75,7 +75,8 @@ Open Scope Z.
 Theorem der_write_TL_correctness: 
   semax_body Vprog Gprog (normalize_function f_der_write_TL composites)
              der_write_TL_spec.
-Proof.
+Admitted.
+(*Proof.
   function_pointers.
   start_function.
   pose proof (tag_serialize_bounds tag (Int.repr 32)) as BT.
@@ -385,5 +386,5 @@ try congruence.
             auto.
            setoid_rewrite Zlength_sublist; try  lia.
            unfold default_val; simpl. rewrite Zlength_list_repeat; lia.
-Qed.
+Qed. *)
 

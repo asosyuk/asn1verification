@@ -36,6 +36,30 @@ match goal with
       repeat apply -> semax_skip_seq
 end.
 
+
+Ltac do_compute_expr1 Delta Pre e :=
+ match Pre with
+ | @exp _ _ ?A ?Pre1 =>
+  let P := fresh "P" in let Q := fresh "Q" in let R := fresh "R" in
+  let H8 := fresh "DCE" in let H9 := fresh "DCE" in
+  evar (P: A -> list Prop);
+  evar (Q: A -> list localdef);
+  evar (R: A -> list mpred);
+  assert (H8: Pre1 =  (fun a => PROPx (P a) (LOCALx (Q a) (SEPx (R a)))))
+    by (extensionality; unfold P,Q,R; reflexivity);
+  let v := fresh "v" in evar (v: A -> val);
+  assert (H9: forall a, ENTAIL Delta, PROPx (P a) (LOCALx (Q a) (SEPx (R a))) |--
+                       local ((eq (v a)) (eval_expr e)))
+     by (let a := fresh "a" in intro a; do_compute_expr_helper Delta (Q a) v)
+
+ | PROPx ?P (LOCALx ?Q (SEPx ?R)) =>
+  let H9 := fresh "H" in
+  let v := fresh "v" in (evar (v: val);
+  assert (H9:  ENTAIL Delta, PROPx P (LOCALx Q (SEPx R))|--
+                     local ((eq v) (eval_expr e)))
+   by (do_compute_expr_helper Delta Q v))
+ end.
+
 Ltac forward_switch' := 
  match goal with
 | |- semax ?Delta (PROPx ?P (LOCALx ?Q (SEPx ?R))) (Sswitch ?e _) _ => 

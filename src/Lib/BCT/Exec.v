@@ -37,6 +37,54 @@ Definition ber_check_tags_primitive ts td ctx size sizeofval sizemax:
          else None
   else None.
 
+Lemma ber_check_tags_primitive_bounds_fst : 
+  forall ts td ctx size sizeofval p,  
+    ber_check_tags_primitive ts td ctx size sizeofval Int.max_signed = Some p ->
+    Int.min_signed <= fst p <= Int.max_signed.
+Proof.
+  intros.
+  unfold ber_check_tags_primitive in H.
+  repeat break_match; try congruence.
+  inversion H. simpl. 
+  replace z1 with (snd (ber_fetch_len (sublist 1 (len ts) (map Int.unsigned ts)) 0 0
+            (size - z) sizeofval Int.max_signed)). 
+  eapply ber_fetch_len_bounds.
+  admit. 
+   Require Import VstTactics Core.Tactics.
+   strip_repr.
+   erewrite Heqp1. auto.
+Admitted.
+
+Lemma ber_check_tags_primitive_bounds_snd : 
+  forall ts td ctx size sizeofval p,  
+    ber_check_tags_primitive ts td ctx size sizeofval Int.max_signed = Some p ->
+    Int.min_signed <= snd p <= Int.max_signed.
+Proof.
+  intros.
+  unfold ber_check_tags_primitive in H.
+  repeat break_match; try congruence.
+  inversion H. simpl. 
+Admitted.
+
+Lemma ber_fetch_len_bounds : 
+  forall ptr isc len_r size sizeofval,
+   Int.min_signed <= hd 0 ptr <= Int.max_signed ->
+   Int.min_signed <= len_r <= Int.max_signed ->
+   Int.min_signed <= fst (ber_fetch_len ptr isc len_r size sizeofval Int.max_signed) <= Int.max_signed.
+Proof.
+  intros. 
+  unfold ber_fetch_len.
+  repeat break_match; simpl; try lia.
+  cbn. lia. 
+  Require Import VstTactics Core.Tactics.
+  all: try strip_repr.
+  unfold bfl_loop in Heqp.
+  unfold aux_loop in *.
+  destruct ptr.
+  cbn in Heqp.
+  discriminate.
+Admitted.
+
 (*
 Parameter ber_fetch_tag : Z -> Z.
 Parameter ber_fetch_length : bool-> Z -> Z.

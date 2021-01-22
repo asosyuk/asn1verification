@@ -113,7 +113,7 @@ Definition assert_spec {cs : compspecs} :=
    WITH e : bool(* , str2 : val, str3 : val, func : val *)
    PRE [ (tptr tschar), (tptr tschar), tuint, (tptr tschar)]
        PROP ()
-       PARAMS (nullval; nullval; Vint (Int.repr 110); nullval) 
+       PARAMS (nullval; nullval; Vint (Int.repr 117); nullval) 
        GLOBALS()
        SEP ()
     POST [ tvoid ] 

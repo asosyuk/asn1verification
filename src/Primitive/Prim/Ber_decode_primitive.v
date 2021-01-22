@@ -45,11 +45,14 @@ Definition Z_of_val v :=
   | _ => 0
   end.
 
+Require Import Core.Notations.
+
 Definition ber_decode_primitive_spec : ident * funspec :=
   DECLARE _ber_decode_primitive
     WITH ctx_p : val, ctx : Z, td_p : val, td : TYPE_descriptor,
-         st_pp : val, buf_p : val, buf : list Z,
-         res_p : val, size : Z, tag_mode : Z, st_p : val, tags_p : val, gv : globals
+         st_pp : val, buf_p : val, buf : list int,
+         res_p : val, size : Z, tag_mode : Z, st_p : val,
+         tags_p : val, gv : globals
     PRE [tptr asn_dec_rval_s, tptr asn_codec_ctx_s, tptr type_descriptor_s,
           tptr (tptr tvoid), tptr tvoid, tuint, tint] 
       PROP (is_pointer_or_null st_p;
@@ -57,11 +60,11 @@ Definition ber_decode_primitive_spec : ident * funspec :=
             0 <= size <= Int.max_signed;
             Zlength buf = size;
             isptr buf_p;
-           0 < Zlength buf <= Ptrofs.max_unsigned;
-           Z.land (Znth 0 buf) 32 = 0; 
+           0 < Zlength buf <= Int.max_signed;
+           ((Znth 0 buf) & Int.repr 32 = 0)%int; 
            1 = Zlength (tags td) ;
            0 <= Z_of_val buf_p + Zlength buf <= Ptrofs.max_unsigned;
-           Forall (fun x : Z => 0 <= x <= Byte.max_unsigned) buf)
+           Forall (fun x => 0 <= Int.unsigned x <= Byte.max_unsigned) buf)
 
       PARAMS (res_p; ctx_p; td_p; st_pp; buf_p; Vint (Int.repr size);
                 Vint (Int.repr tag_mode))
@@ -81,7 +84,7 @@ Definition ber_decode_primitive_spec : ident * funspec :=
                    (DOT ber_decoder._tags_count)
                    (Vint (Int.repr (Zlength (tags td))))
         td_p; 
-           data_at Tsh (tarray tuchar (Zlength buf)) (map Vint (map Int.repr buf)) buf_p;
+           data_at Tsh (tarray tuchar (Zlength buf)) (map Vint buf) buf_p;
            data_at Tsh (tptr tvoid) st_p st_pp;
            data_at_ Tsh asn_dec_rval_s res_p)
     POST [tvoid] 
@@ -100,25 +103,27 @@ Definition ber_decode_primitive_spec : ident * funspec :=
                    (DOT ber_decoder._tags_count)
                    (Vint (Int.repr (Zlength (tags td)))) td_p; 
          data_at Tsh (tarray tuchar (Zlength buf))
-                 (map Vint (map Int.repr buf)) buf_p;
+                 (map Vint buf) buf_p;
          (* Changed according to spec *)
          let RC_FAIL := 
              data_at Tsh asn_dec_rval_s (Vint (Int.repr 2), Vzero) res_p in
-         EX v : val, EX s : reptype (Tstruct _ASN__PRIMITIVE_TYPE_s noattr),
+         EX v : val, 
+         EX s : reptype (Tstruct _ASN__PRIMITIVE_TYPE_s noattr),
              data_at Tsh (tptr tvoid) v st_pp *
              if eq_dec v nullval 
              then RC_FAIL  
-             else match primitive_decoder td ctx size (sizeof tuint)
-                        Int.modulus (map Byte.repr buf) with
-                  | Some (r, c) => 
-                    data_at Tsh asn_dec_rval_s (Vzero, Vint (Int.repr c)) res_p *
-                    data_at Tsh (tarray tuint (Zlength r))
-                            (map Vubyte r) (fst s) *
-                    data_at Ews (Tstruct _ASN__PRIMITIVE_TYPE_s noattr) s v
-                  | None =>
-                    RC_FAIL * 
-                    data_at_ Ews (Tstruct _ASN__PRIMITIVE_TYPE_s noattr) v 
-                  end).
+             else 
+               match primitive_decoder td ctx size (sizeof tuint)
+                                       Int.max_signed buf with
+               | Some (r, c) => 
+                 data_at Tsh asn_dec_rval_s (Vzero, Vint (Int.repr c)) res_p *
+                 data_at Tsh (tarray tuint (Zlength r))
+                         (map Vint r) (fst s) *
+                 data_at Ews (Tstruct _ASN__PRIMITIVE_TYPE_s noattr) s v
+               | None =>
+                 RC_FAIL * 
+                 data_at_ Ews (Tstruct _ASN__PRIMITIVE_TYPE_s noattr) v 
+               end).
 
 Definition calloc_spec_prim {cs : compspecs} :=
    WITH m : Z, n : Z, t : type
@@ -158,11 +163,10 @@ Proof.
   PROP (if eq_dec st_p nullval 
         then p <> nullval 
         else (p = st_p /\ st_p <> nullval))
-  LOCAL (temp _st p; 
+  LOCAL (gvars gv;
+         temp _st p; 
          temp _t'19 st_p;
          lvar __res__1 (Tstruct _asn_dec_rval_s noattr) v__res__1;
-         lvar _tmp_error__2 (Tstruct _asn_dec_rval_s noattr) v_tmp_error__2;
-         lvar _tmp_error__1 (Tstruct _asn_dec_rval_s noattr) v_tmp_error__1;
          lvar _tmp_error (Tstruct _asn_dec_rval_s noattr) v_tmp_error;
          lvar _length tint v_length; temp __res res_p; 
          temp _opt_codec_ctx ctx_p;
@@ -173,8 +177,6 @@ Proof.
          temp _tag_mode (Vint (Int.repr tag_mode)))
   SEP (mem_mgr gv;
        data_at_ Tsh (Tstruct _asn_dec_rval_s noattr) v__res__1;
-       data_at_ Tsh (Tstruct _asn_dec_rval_s noattr) v_tmp_error__2;
-       data_at_ Tsh (Tstruct _asn_dec_rval_s noattr) v_tmp_error__1;
        data_at_ Tsh (Tstruct _asn_dec_rval_s noattr) v_tmp_error;
        data_at_ Tsh tint v_length; 
        data_at_ Tsh (Tstruct _asn_dec_rval_s noattr) v_rval;
@@ -188,7 +190,7 @@ Proof.
                    (DOT ber_decoder._tags_count)
                    (Vint (Int.repr (Zlength (tags td)))) td_p; 
        data_at Tsh (tarray tuchar (Zlength buf))
-               (map Vint (map Int.repr buf)) buf_p;
+               (map Vint buf) buf_p;
        data_at Tsh (tptr tvoid) p st_pp;
        data_at_ Tsh asn_dec_rval_s res_p;
        if eq_dec st_p nullval 
@@ -203,10 +205,10 @@ Proof.
     repeat forward.
     forward_if (
      (PROP ((fst v <> nullval))
-     LOCAL (temp _st (fst v); temp _t'19 st_p;
+     LOCAL (
+      gvars gv;
+       temp _st (fst v); temp _t'19 st_p;
      lvar __res__1 (Tstruct _asn_dec_rval_s noattr) v__res__1;
-     lvar _tmp_error__2 (Tstruct _asn_dec_rval_s noattr) v_tmp_error__2;
-     lvar _tmp_error__1 (Tstruct _asn_dec_rval_s noattr) v_tmp_error__1;
      lvar _tmp_error (Tstruct _asn_dec_rval_s noattr) v_tmp_error; lvar _length tint v_length;
      lvar _rval (Tstruct _asn_dec_rval_s noattr) v_rval; temp __res res_p;
      temp _opt_codec_ctx ctx_p; temp _td td_p; temp _sptr st_pp; temp _buf_ptr buf_p;
@@ -218,8 +220,6 @@ Proof.
      else data_at Ews (Tstruct _ASN__PRIMITIVE_TYPE_s noattr) (snd v)
                        (fst v);
      data_at_ Tsh (Tstruct _asn_dec_rval_s noattr) v__res__1;
-     data_at_ Tsh (Tstruct _asn_dec_rval_s noattr) v_tmp_error__2;
-     data_at_ Tsh (Tstruct _asn_dec_rval_s noattr) v_tmp_error__1;
      data_at_ Tsh (Tstruct _asn_dec_rval_s noattr) v_tmp_error;
      data_at Tsh tint (Vint (Int.repr 0)) v_length;
      data_at_ Tsh (Tstruct _asn_dec_rval_s noattr) v_rval; valid_pointer st_p;
@@ -234,7 +234,7 @@ Proof.
      field_at Tsh (Tstruct ber_decoder._asn_TYPE_descriptor_s noattr)
                    (DOT ber_decoder._tags_count)
                    (Vint (Int.repr (Zlength (tags td)))) td_p; 
-     data_at Tsh (tarray tuchar (Zlength buf)) (map Vint (map Int.repr buf))
+     data_at Tsh (tarray tuchar (Zlength buf)) (map Vint buf)
              buf_p;
      data_at Tsh (tptr tvoid) st_p st_pp; data_at_ Tsh asn_dec_rval_s res_p))). 
     break_if. erewrite e. entailer!. entailer!.
@@ -260,7 +260,6 @@ Proof.
     -- (* maloc returned non-null value *)
       forward.
       entailer!.
-      
     -- forward.
        Exists (fst v) (snd v).
        erewrite H0 in *.
@@ -296,27 +295,78 @@ Proof.
         break_if.
         { rewrite if_false by assumption.
           unfold primitive_decoder.
-          replace (map Int.repr (map Byte.unsigned (map Byte.repr buf)))
-            with (map Int.repr buf).
           rewrite Heqo.
-          destruct buf; entailer!.  
-          simpl. entailer!.
-          f_equal.
-          (* check types byte v. int in ber_check_tags *)
-          admit. }
-        { admit. }
+          destruct buf. entailer!.  
+          simpl. entailer!. } 
+        { inversion H0.
+          subst. rewrite_if_b.
+          unfold primitive_decoder.
+          rewrite Heqo.
+          destruct buf. entailer!.  
+          simpl. entailer!. 
+        }  
       }
-      (* If ber_check_tags succeded *)
-      { 
+      { (* If ber_check_tags succeded *)
         rename Heqo into BCT; cbn in Size; subst.
-        normalize.
+        autorewrite with norm.
+        Intros.
+        deadvars!.
         change_compspecs CompSpecs.
         repeat forward.
         forward_if; [congruence|].
         forward_empty_loop.
         repeat forward.
+        Ltac do_compute_expr_warning::=idtac.
         forward_if.
-        (* RW_MORE case *) admit.
+        { (* RC_FAIL case *)
+          repeat forward.
+          match goal with
+          | [ _ : _ |- semax _ ?Pre _ _ ] =>
+            forward_loop Pre break: Pre
+          end. 
+          entailer!.
+          forward.
+          entailer!.
+          repeat forward.
+          Exists p s.
+          break_if.
+          { rewrite if_false by assumption.
+            unfold primitive_decoder.
+            rewrite BCT.
+            destruct buf. entailer!.  
+            simpl. break_let. simpl. 
+            replace (len (i0 :: buf) - z <? z0) with true.
+            entailer!. 
+            symmetry. Zbool_to_Prop.
+            generalize H2.
+            strip_repr.
+            Require Import BCT.Exec.
+            replace z with (fst (z, z0)) by auto.
+            eapply ber_check_tags_primitive_bounds_fst.
+            eassumption.
+            (* need lemma
+               Int.min_signed <= len (i0 :: buf) - z0 <= Int.max_signed
+               with (z, z0) := ber_check_tags *) admit.
+          } 
+          { inversion H0.
+            subst. rewrite_if_b.
+            unfold primitive_decoder.
+            rewrite BCT.
+            destruct buf. entailer!.  
+            simpl. break_let.
+            replace (len (i0 :: buf) - z <? z0) with true.
+            entailer!. 
+            symmetry. Zbool_to_Prop.
+            generalize H2.
+            strip_repr.
+            replace z with (fst (z, z0)) by auto.
+            eapply ber_check_tags_primitive_bounds_fst.
+            eassumption.
+            (* need lemma
+               Int.min_signed <= len (i0 :: buf) - z0 <= Int.max_signed
+               with (z, z0) := ber_check_tags *) admit.
+          }  
+        }
         forward.
         break_if.
         * forward.
@@ -324,18 +374,138 @@ Proof.
           congruence.
           forward; entailer!.
           forward_if True. 
-          forward.
-          match goal with
-          | [ _ : _ |- semax _ ?Pre _ _ ] =>
-            forward_loop Pre break: Pre
-          end. 
-          entailer!. congruence.
-          congruence.
+          repeat forward.
+          forward_empty_loop.
+          repeat forward.
           forward.
           entailer!.
           forward.
-          Set Ltac Backtrace.
-          (* forward_call (tint, gv). *) (* FAIL *)
+          forward_call (tarray tuchar (fst p0 + 1),
+                         gv). 
+          strip_repr.
+          (* Int.min_signed <= fst p0 + 1 <= Int.max_signed *)
+          admit.
+          eapply ber_check_tags_primitive_bounds_fst.
+          eassumption.
+          entailer!. cbn.
+          do 3 f_equal. 
+          erewrite Zmax0r. lia.
+          (* 0 <= fst p0 + 1 *) admit.
+          cbn. repeat split; auto.
+          erewrite Zmax0r.  
+          (* 0 <= fst p0 + 1 *) admit. admit.
+           erewrite Zmax0r. admit. admit.
+          Intros v.
+          forward.
+          forward.
+          forward_if True.
+          { break_if. subst. entailer!.
+            entailer!. }
+          ** repeat forward.
+             forward_empty_loop.
+             repeat forward.
+             EExists. EExists.
+             entailer!.
+             rewrite_if_b.
+             unfold primitive_decoder.
+             rewrite BCT.
+             destruct buf. entailer!.  
+             simpl. break_let. simpl. 
+             replace (len (i0 :: buf) - z <? z0) with false.
+             simpl.
+             entailer!.
+             simpl.
+             Search data_at nullval.
+             (* ??? *)
+             admit.
+             symmetry. Zbool_to_Prop.
+             generalize H2.
+             strip_repr.
+             Require Import BCT.Exec.
+             replace z with (fst (z, z0)) by auto.
+             eapply ber_check_tags_primitive_bounds_fst.
+             eassumption.
+             (* Int.min_signed <= len (i0 :: buf) - z0 <= Int.max_signed *)
+             admit.
+          ** forward.
+             entailer!.
+          ** repeat forward.
+             autorewrite with norm.
+             forward_call (Tsh, Tsh, v,
+                           (Vptr b (i + Ptrofs.repr
+                           (Int.unsigned (Int.repr (snd p0))))%ptrofs),
+                           fst p0,
+                           ((sublist (snd p0) (Zlength buf) buf))). 
+             unfold Frame.
+             instantiate (1 :=
+                            [mem_mgr gv *
+  (if eq_dec v nullval
+   then emp
+   else
+    malloc_token Ews (tarray tuchar (fst p0 + 1)) v *
+    data_at_ Ews (tarray tuchar (fst p0 + 1)) v) *
+  data_at Tsh (tarray tuchar (len buf)) (map Vint buf) (Vptr b i) *
+  field_at Tsh (Tstruct ber_decoder._asn_TYPE_descriptor_s noattr)
+    (DOT ber_decoder._tags) tags_p td_p *
+  field_at Tsh (Tstruct ber_decoder._asn_TYPE_descriptor_s noattr)
+    (DOT ber_decoder._tags_count) (Vint (Int.repr (len (tags td)))) td_p *
+  data_at Tsh (tarray tuint (len (tags td)))
+    (map Vint (map Int.repr (tags td))) tags_p *
+  data_at Tsh (Tstruct ber_decoder._asn_codec_ctx_s noattr)
+    (Vint (Int.repr ctx)) ctx_p *
+  data_at Tsh asn_dec_rval_s (mk_dec_rval 0 (snd p0)) v__res__1 *
+  data_at Tsh tint (Vint (Int.repr (fst p0))) v_length *
+  data_at_ Tsh (Tstruct _asn_dec_rval_s noattr) v_tmp_error *
+  data_at Tsh (Tstruct _asn_dec_rval_s noattr)
+    (Vint (Int.repr 0), Vint (Int.repr (snd p0))) v_rval * 
+  valid_pointer st_p * data_at Tsh (tptr tvoid) p st_pp *
+  data_at_ Tsh asn_dec_rval_s res_p *
+  data_at Ews (Tstruct _ASN__PRIMITIVE_TYPE_s noattr)
+    (v, Vint (Int.repr (fst p0))) p]%logic).
+             simpl.
+             entailer!.
+          (* TODO *)
+          admit.
+          cbn. 
+          split. auto. split. auto.
+          assert (Int.min_signed <= fst p0 <= Int.max_signed) as I.
+          eapply ber_check_tags_primitive_bounds_fst.
+          eassumption. strip_repr. 
+          (* 0 <= fst p0 <= 4294967295 *)
+          admit. 
+          Intros.
+          repeat forward.
+          entailer!. 
+          (* UNPROVABLE *) 
+          admit.
+          forward_empty_loop.
+          repeat forward.
+          EExists. EExists.
+          entailer!.
+          break_if.
+          ++ 
+          repeat rewrite_if_b.
+          unfold primitive_decoder.
+          rewrite BCT.
+          destruct buf. entailer!.  
+          admit.
+          simpl. break_let. simpl. 
+          replace (len (i0 :: buf) - z <? z0) with false.
+          simpl.
+          entailer!.
+          admit.
+          admit.
+          ++ 
+          repeat rewrite_if_b.
+          unfold primitive_decoder.
+          rewrite BCT.
+          destruct buf. entailer!.  
+          admit.
+          simpl. break_let. simpl. 
+          replace (len (i0 :: buf) - z <? z0) with false.
+          simpl.
+          entailer!.
+          admit.
           admit.
         * inversion H0.
           subst.
@@ -344,7 +514,7 @@ Proof.
           congruence.
           forward; entailer!.
           forward_if True. 
-          forward.
+          repeat forward.
           match goal with
           | [ _ : _ |- semax _ ?Pre _ _ ] =>
             forward_loop Pre break: Pre
@@ -354,151 +524,5 @@ Proof.
           forward.
           entailer!.
           forward.
-          Set Ltac Backtrace.
-          (* forward_call (tint, gv). *) (* FAIL *)
-          admit. 
-      } 
-    
-
-
-
-(*
-        forward_empty_loop.
-        cbn -[PROPx LOCALx SEPx abbreviate eq_dec nullval CompSpecs].
-        rewrite data_at_isptr with (p1 := (Vptr b i)).
-        normalize.
-        cbn -[PROPx LOCALx SEPx abbreviate eq_dec nullval CompSpecs]. 
-        forward.
-        assert_PROP (offset_val 2 (Vptr b i) = 
-                     field_address (tarray tuchar (Zlength buf)) 
-                                   [ArraySubsc 2] (Vptr b i)).
-        entailer!.
-        rewrite field_address_offset;
-          auto with field_compatible.
-        
-        forward.
-        entailer!.
-        simpl. normalize.
-        rep_omega.
-        assert (exists i, ls = [i]) as LS.
-          { destruct ls; autorewrite with sublist in *.
-            nia.
-            exists i. destruct ls. auto.
-            assert (0 <= Zlength ls) by eapply Zlength_nonneg.
-            autorewrite with sublist in *.
-            nia. }
-        destruct LS as [i LS].  
-        subst.  
-        erewrite data_at_singleton_array_eq with (t := tint) (v := (Vint i));
-          auto.
-        Intros.
-        forward.
-        repeat forward.
-        forward_empty_loop.
-        repeat forward.
-        Exists p [Vint i].
-        rewrite if_false by assumption.
-        entailer!.
-        unfold bool_decoder; rewrite BCT; 
-        destruct buf; [simpl; entailer! |
-                       destruct buf; 
-                       [simpl; simpl in H4; try nia |
-                        destruct buf; simpl; simpl in H4; try nia]].
-      assert ((Zlength (i0 :: i1 :: i2 :: buf) - 2 <? 1) = false) 
-          as Z by (erewrite Z.ltb_ge; nia).
-      rewrite Z.
-      simpl.
-      entailer!. }
-  ** (* bv <> nullval *)
-      pose proof Exec.ber_check_tags_bool_res td buf DT as BCT.
-      inversion BCT as [T | T]; rewrite T in *;
-        unfold mk_dec_rval, tag_length, tag_consumed.
-      2: { (* If ber_check_tags failed *)
-        normalize;
-          repeat forward.
-        all: forward_if; [|discriminate];
-          repeat forward.
-        unfold bool_decoder; rewrite T; 
-          destruct buf;  entailer!. 
-        simpl.
-        inversion H0.
-        subst.
-        entailer!.
-        simpl. 
-        entailer!.
-        Exists st_p.
-        Exists [default_val tint].
-        inversion H0.
-        subst.
-        entailer!.
-         erewrite data_at_singleton_array_eq with (t := tint) (v := Vundef).
-         rewrite if_false in * by assumption.
-         entailer!.
-         reflexivity.
-        Exists st_p. 
-        Exists [default_val tint].
-         rewrite if_false in * by assumption.
-        inversion H0.
-        subst.
-        entailer!.
-         erewrite data_at_singleton_array_eq with (t := tint) (v := Vundef).
-         entailer!.
-         simpl.
-         entailer!.
-         reflexivity.
-      }
-      (* If ber_check_tags succeded *)
-      clear BCT; rename T into BCT; cbn in Size; subst.
-      normalize.
-      repeat forward.
-      forward_if; [congruence|].
-      forward_empty_loop.
-      repeat forward.
-      forward_if.
-      (* RW_MORE case *) admit.
-      forward.
-      forward_if True.
-      (* if length <> 1 *)
-      (* Since we're not yet working with real type_descriptors we're assuming 
-         that if ber_check_tags succedes, then length = 1 *)
-      congruence.
-
-      forward; entailer!.
-      (* if length = 1 *)
-      cbn -[PROPx LOCALx SEPx abbreviate eq_dec nullval CompSpecs].
-      rewrite data_at_isptr with (p0 := buf_p).
-      normalize.
-      rewrite sem_add_pi_ptr.
-      2: assumption.
-      2: cbn; lia.
-      cbn -[PROPx LOCALx SEPx abbreviate eq_dec nullval CompSpecs].
-      assert_PROP (offset_val 2 buf_p = 
-                   field_address (tarray tuchar (Zlength buf)) 
-                                 [ArraySubsc 2] buf_p).
-      entailer!.
-      rewrite field_address_offset;
-        auto with field_compatible.
-      forward.
-      entailer!.
-      simpl. normalize.
-      rep_omega.
-      Intros.
-      inversion H0; subst.
-      repeat forward.
-      forward_empty_loop.
-      repeat forward.
-      Exists st_p.
-      Exists [Vundef].
-      unfold bool_decoder; rewrite BCT; 
-        destruct buf; [simpl; entailer! |
-                       destruct buf; 
-                       [simpl; simpl in H2; try nia |
-                        destruct buf; simpl; simpl in H2; try nia]].
-      assert ((Zlength (i :: i0 :: i1 :: buf) - 2 <? 1) = false) 
-          as Z by (erewrite Z.ltb_ge; nia).
-      rewrite Z.
-      simpl.
-      rewrite if_false in * by assumption.
-      entailer!.  *)
 Admitted.
- End Ber_decode_primitive.
+End Ber_decode_primitive.

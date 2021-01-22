@@ -35,3 +35,21 @@ Definition ber_fetch_len (ptr : list Z) (isc len_r size sizeofval rssizem : Z)
                                                    else (skip, len)
                                               else (0, len_r)
                       end.
+
+Lemma ber_fetch_len_bounds : 
+  forall ptr isc len_r size sizeofval,
+   Int.min_signed <= hd 0 ptr <= Int.max_signed ->
+   Int.min_signed <= len_r <= Int.max_signed ->
+   Int.min_signed <= snd (ber_fetch_len ptr isc len_r size sizeofval Int.max_signed) <= Int.max_signed.
+Proof.
+  intros. 
+  unfold ber_fetch_len.
+  repeat break_match; simpl; try lia.
+  cbn. lia. 
+  Require Import VstTactics Core.Tactics.
+  all: destruct_orb_hyp;
+  repeat Zbool_to_Prop;
+  erewrite Z.gtb_ltb in H2;
+  Zbool_to_Prop;
+  strip_repr.
+Qed.

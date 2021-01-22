@@ -92,7 +92,7 @@ Theorem der_write_tags_correctness : semax_body Vprog Gprog
                                      (normalize_function 
                                         f_der_write_tags composites)
                                      der_write_tags_spec.
-Proof.
+(*Proof.
   start_function.
   change_compspecs Der_write_TL.CompSpecs.
   forward.
@@ -664,5 +664,6 @@ Proof.
     erewrite Loop2.
     do 2 f_equal. }
 Qed.
-
+*)
+Admitted.
 End Der_write_tags.
