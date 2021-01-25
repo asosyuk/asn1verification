@@ -71,7 +71,7 @@ Definition ber_fetch_len_spec : ident * funspec :=
            data_at_ Tsh tint len_r)
     POST [tint]
       let r := ber_fetch_len data c 0%int size (Int.repr (sizeof tuint))
-       (Int.repr (Int.max_unsigned)) in
+       (Int.repr (Int.max_signed)) in
       PROP ()
       LOCAL (temp ret_temp (Vint ((fst r))))
       SEP (data_at Tsh (tarray tuchar (Zlength data)) 

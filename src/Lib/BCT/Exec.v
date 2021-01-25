@@ -85,6 +85,12 @@ Proof.
   discriminate.
 Admitted.
 
+Lemma ber_fetch_tags_bounds : 
+  forall ptr size,
+   Int.min_signed <= fst (Exec.ber_fetch_tags ptr size) <= Int.max_signed.
+Proof.
+ Admitted.
+
 (*
 Parameter ber_fetch_tag : Z -> Z.
 Parameter ber_fetch_length : bool-> Z -> Z.

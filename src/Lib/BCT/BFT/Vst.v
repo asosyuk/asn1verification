@@ -20,8 +20,8 @@ Definition ber_fetch_tag_spec : ident * funspec :=
       PROP (0 <= size <= Int.max_unsigned;
             Forall (fun x => 0 <= Int.unsigned x <= Byte.max_unsigned) data;
             Ptrofs.unsigned i + (Zlength data) < Ptrofs.modulus;
-            0 < len data <= Int.max_unsigned;
-            size < len data)
+            0 < len data <= Int.max_unsigned
+            (* size < len data THIS SEEMS WRONG *))
       PARAMS ((Vptr b i); Vint (Int.repr size); tag_p)
       GLOBALS ()
       SEP (data_at Tsh (tarray tuchar (Zlength data)) 
