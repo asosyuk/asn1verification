@@ -17,29 +17,30 @@ Definition ASN__STACK_OVERFLOW_CHECK used_stack max_stack_size :=
 Open Scope bool.
 
 Definition ber_check_tags_primitive ts td ctx size sizeofval sizemax: 
-  option (Z * Z) :=
+  option (int * int) :=
   if ASN__STACK_OVERFLOW_CHECK 0 ctx =? 0
   then let (tag_len, tlv_tag) := ber_fetch_tags ts size  in
        if (tag_len =? -1) || (tag_len =? 0) then None 
        else 
-         if (Int.unsigned tlv_tag =? nth O (tags td) 0) 
+         if (tlv_tag == Int.repr (Znth 0 (tags td))) 
          then
            let (len_len, tlv_len) := ber_fetch_len 
-                                       (sublist 1 (len ts) 
-                                                (map Int.unsigned ts))
-                                                0 0 (size - tag_len) 
+                                       (sublist 1 (len ts) ts)
+                                                0 0%int
+                                                (Int.repr (size - tag_len)) 
                                                 sizeofval sizemax in
-           if (len_len =? -1) || (len_len =? 0) then None 
+           if (len_len == Int.repr (-1)) || (len_len == 0%int) then None 
            else 
-             let limit_len := tlv_len + tag_len + len_len in
-             if limit_len <? 0 then None
-             else Some (tlv_len, tag_len + len_len)
+             let limit_len := (tlv_len + Int.repr tag_len + len_len)%int in
+             if (limit_len < 0)%int then None
+             else Some (tlv_len, Int.repr tag_len + len_len)%int
          else None
   else None.
 
-Lemma ber_check_tags_primitive_bounds_fst : 
+(*Lemma ber_check_tags_primitive_bounds_fst : 
   forall ts td ctx size sizeofval p,  
-    ber_check_tags_primitive ts td ctx size sizeofval Int.max_signed = Some p ->
+    ber_check_tags_primitive ts td ctx size sizeofval (Int.repr Int.max_signed)
+    = Some p ->
     Int.min_signed <= fst p <= Int.max_signed.
 Proof.
   intros.
@@ -89,7 +90,7 @@ Lemma ber_fetch_tags_bounds :
   forall ptr size,
    Int.min_signed <= fst (Exec.ber_fetch_tags ptr size) <= Int.max_signed.
 Proof.
- Admitted.
+ Admitted. *)
 
 (*
 Parameter ber_fetch_tag : Z -> Z.
