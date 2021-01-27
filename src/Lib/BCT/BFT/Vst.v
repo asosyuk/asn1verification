@@ -20,9 +20,8 @@ Definition ber_fetch_tag_spec : ident * funspec :=
       PROP (0 <= size <= Int.max_unsigned;
             Forall (fun x => 0 <= Int.unsigned x <= Byte.max_unsigned) data;
             Ptrofs.unsigned i + (Zlength data) < Ptrofs.modulus;
-            0 < len data <= Int.max_unsigned
-            (* size < len data THIS SEEMS WRONG *))
-      PARAMS ((Vptr b i); Vint (Int.repr size); tag_p)
+            0 < len data <= Int.max_unsigned)
+      PARAMS (Vptr b i; Vint (Int.repr size); tag_p)
       GLOBALS ()
       SEP (data_at Tsh (tarray tuchar (Zlength data)) 
                    (map Vint data) (Vptr b i);
@@ -30,10 +29,10 @@ Definition ber_fetch_tag_spec : ident * funspec :=
     POST [tint]
       let r := ber_fetch_tags data size in
       PROP ()
-      LOCAL (temp ret_temp (Vint (Int.repr (fst r))))
+      LOCAL (temp ret_temp (Vint (fst r)))
       SEP (data_at Tsh (tarray tuchar (Zlength data)) 
                    (map Vint data) (Vptr b i);
-           if 0 <? (fst r) 
+           if (0 < fst r)%int 
            then data_at Tsh tuint (Vint ((snd r))) tag_p
            else data_at_ Tsh tuint tag_p).
 

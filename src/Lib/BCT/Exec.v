@@ -15,25 +15,27 @@ Definition ASN__STACK_OVERFLOW_CHECK used_stack max_stack_size :=
        else 0.
 
 Open Scope bool.
-
+Open Scope int.
 Definition ber_check_tags_primitive ts td ctx size sizeofval sizemax: 
   option (int * int) :=
   if ASN__STACK_OVERFLOW_CHECK 0 ctx =? 0
   then let (tag_len, tlv_tag) := ber_fetch_tags ts size  in
-       if (tag_len =? -1) || (tag_len =? 0) then None 
+       if (tag_len == Int.repr (-1)) || (tag_len == 0)%int then None 
        else 
          if (tlv_tag == Int.repr (Znth 0 (tags td))) 
          then
            let (len_len, tlv_len) := ber_fetch_len 
-                                       (sublist 1 (len ts) ts)
+                                       (sublist (Int.unsigned tag_len)
+                                                (len ts) ts)
                                                 0 0%int
-                                                (Int.repr (size - tag_len)) 
+                                       (Int.repr size -
+                                                  tag_len)%int 
                                                 sizeofval sizemax in
            if (len_len == Int.repr (-1)) || (len_len == 0%int) then None 
            else 
-             let limit_len := (tlv_len + Int.repr tag_len + len_len)%int in
+             let limit_len := (tlv_len + tag_len + len_len)%int in
              if (limit_len < 0)%int then None
-             else Some (tlv_len, Int.repr tag_len + len_len)%int
+             else Some (tlv_len, tag_len + len_len)%int
          else None
   else None.
 

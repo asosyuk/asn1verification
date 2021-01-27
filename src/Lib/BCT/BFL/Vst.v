@@ -1,6 +1,6 @@
 Require Import Core.Core Core.StructNormalizer VstLib.
 Require Import VST.floyd.proofauto.
-(* Require Import BFL.Exec. *)
+Require Import BFL.Exec. 
 Require Import Clight.ber_tlv_length.
 Require Import Core.Notations Core.SepLemmas Core.Tactics Core.VstTactics.
 
@@ -10,45 +10,7 @@ Definition Vprog : varspecs. Proof. mk_varspecs prog. Defined.
 Section Ber_fetch_len.
 
 Open Scope  bool.
-Open Scope int.
-Fixpoint aux_loop ptr len skip oct size sizeofval :
-   (int * int * int * int) := 
-  match ptr with
-  | x :: xs => if (negb (oct == 0)) && ((skip + 1) <=u size)
-              then if (len >> ((Int.repr 8 * sizeofval) - (Int.repr 8 + 1))) == 0
-                   then let len' := Int.or (len << Int.repr 8) x in
-                        aux_loop xs len' (skip + 1) (oct - 1) size sizeofval
-                   else (Int.neg 1, oct, len, skip)
-              else (0, oct, len, skip)
-  | nil => (0, 0, 0, 0)
-  end.
 
-Definition bfl_loop ptr len  skip oct size sizeofval
-  := aux_loop ptr len skip oct size sizeofval.
-
-
-Definition ber_fetch_len ptr isc len_r size sizeofval rssizem : 
-   (int * int) :=
-  if eq_dec size 0
-  then (0, len_r)
-  else let oct := Znth 0 ptr in 
-       if eq_dec (oct & Int.repr 128) 0
-       then (1, oct)
-       else if (negb (isc =? 0)) && (oct == Int.repr 128) 
-            then (1, Int.neg 1)
-            else if eq_dec oct (Int.repr 255)
-                 then (Int.neg 1, len_r)
-                 else let oct := oct & (Int.repr 127) in
-                      match bfl_loop (skipn 1%nat ptr) 0 1 oct size sizeofval with
-                      | (z, oct, len, skip) => if eq_dec z (Int.neg 1) 
-                                       then (z, len_r)
-                                       else 
-                                         if eq_dec oct 0 
-                                              then if (len < 0) || (rssizem < len)
-                                                   then (Int.neg 1, len_r)
-                                                   else (skip, len)
-                                              else (0, len_r)
-                      end.
 Open Scope Z.
 
 Definition ber_fetch_len_spec : ident * funspec :=
@@ -57,7 +19,7 @@ Definition ber_fetch_len_spec : ident * funspec :=
          size : int, data : list int,
          len_r : val
     PRE [tint, tptr tvoid, tuint, tptr tint]
-      PROP ((* definite length *)
+      PROP ((* short definite length *)
            (Znth 0 data & Int.repr 128)%int = 0%int;
              (* primitive tag *)
             c = 0;
@@ -70,18 +32,16 @@ Definition ber_fetch_len_spec : ident * funspec :=
                    (map Vint data) (Vptr b i);
            data_at_ Tsh tint len_r)
     POST [tint]
-      let r := ber_fetch_len data c 0%int size (Int.repr (sizeof tuint))
+      let r := ber_fetch_len data c 0%int size
+                             (Int.repr (sizeof tuint))
        (Int.repr (Int.max_signed)) in
       PROP ()
       LOCAL (temp ret_temp (Vint ((fst r))))
       SEP (data_at Tsh (tarray tuchar (Zlength data)) 
                    (map Vint (data)) (Vptr b i);
-           if eq_dec (fst r) 0%int                     
-           then  data_at_ Tsh tint len_r
-           else if eq_dec (fst r) (Int.neg 1%int)
-                then  data_at_ Tsh tint len_r
-                else 
-                  data_at Tsh tint (Vint (snd r)) len_r).
+           if ((fst r == 0%int) || (fst r == Int.repr (-1)))%bool         
+           then data_at_ Tsh tint len_r
+           else data_at Tsh tint (Vint (snd r)) len_r).
 
 Definition Gprog := ltac:(with_library prog [ber_fetch_len_spec]).
 

@@ -15,7 +15,7 @@ Fixpoint index {A} (f : A -> bool) size ls l :=
   | x :: tl => 
     let i := (l - len tl)%Z in
     if i <=? size 
-    then (if f x then Some i else index f size tl l)
+    then (if f x then Some (Int.repr i) else index f size tl l)
     else None
   end.
 
@@ -46,27 +46,27 @@ Eval cbv in (fold_left ((fun ls x y =>
 Definition bft_loop ls size tclass := 
   let i := index (fun h => (h & Int.repr 128) == 0) size ls (len ls) in
   let v := fold_left (append_val ls) (range (Z.to_nat size)) 0 in
-  let r := match i with | Some i => i | None => (size + 1)%Z end in 
+  let r := match i with | Some i => i | None => Int.repr (size + 1) end in 
   let ex := existsb (fun n => 
                 let v' := fold_left (append_val ls) (range n) 0 in
                 negb (v' >> Int.repr 23 == 0))
-                    (range (Z.to_nat r)) in
-  if ex then (-1, v) else 
+                    (range (Z.to_nat (Int.unsigned r))) in
+  if ex then (Int.repr (-1), v) else 
   match i with
     | Some i =>
-      let v := fold_left (append_val ls) (range (Z.to_nat i - 1)) 0 in     
-      ((i + 1)%Z, ((v << Int.repr 7) or Znth (i - 1) ls) << Int.repr 2 or tclass)
-    | None => (0%Z, v)
+      let v := fold_left (append_val ls) (range (Z.to_nat (Int.unsigned i - 1))) 0 in     
+      ((i + 1)%int, ((v << Int.repr 7) or Znth (Int.unsigned i - 1) ls) << Int.repr 2 or tclass)
+    | None => (0%int, v)
   end.
 
 Definition ber_fetch_tags (ptr : list int) size   :=
   if eq_dec size 0%Z
-  then (0%Z, 0)
+  then (0%int, 0)
   else let val := Znth 0 ptr in 
        let tclass := val >> Int.repr 6 in 
        if eq_dec (val & Int.repr 31) (Int.repr 31)
        then bft_loop (sublist 1 (len ptr) ptr) (size - 1) tclass     
-       else (1%Z, ((val & Int.repr 31) << Int.repr 2) or tclass).
+       else (1%int, ((val & Int.repr 31) << Int.repr 2) or tclass).
 
 Lemma index_app_gen : forall A (ls1 ls2 ls : list A) f size j,
                  (size < (j - len ls2) + 1)%Z -> 
@@ -118,7 +118,7 @@ Lemma index_spec_Some : forall data1 data2 size b j,
     (b & Int.repr 128) = 0 ->
     index (fun h : int => (h & Int.repr 128) == 0)%int size
           (data1 ++ (b :: data2)) j 
-    = Some (j - len data2)%Z.
+    = Some (Int.repr (j - len data2)%Z).
   { induction data1; intros until j; intros S B Z.
     - unfold index.
       cbn -[len].
