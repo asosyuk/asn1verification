@@ -296,16 +296,9 @@ Proof.
            len_len <> Int.repr (-1) /\
            len_len <> Int.repr 0 /\ 
            tlv_tag = (Int.repr (nth O (tags td) 0)))
-     LOCAL (temp _t'10
-              (force_val
-                 (sem_cast tint tbool
-                    (eval_binop Oeq tint tint (Vint (Int.repr 0))
-                       (eval_cast tuint tint (Vint (Int.repr (len (tags td))))))));
+     LOCAL (
      temp _tagno (Vint (Int.repr z));
-     temp _t'4 Vzero;
-     temp _t'3 (Vint (Int.repr 0));
      temp _step (Vint (Int.repr z)); 
-     temp _t'1 Vzero; 
      temp _tlv_constr (Vint (Int.repr (if z =? 0 then -1 else 0)));
      temp _expect_00_terminators (Vint (Int.repr 0));
      temp _limit_len (Vint ll); 
@@ -368,75 +361,83 @@ Proof.
      data_at_ Tsh tint last_length_p))%assert
                       (* CONTINUE *)
                       continue:
- (*         (let (tag_len, tlv_tag) := 
-                Exec.ber_fetch_tags ptr
-                                    size  in
-       let (len_len, tlv_len) :=
-         Exec.ber_fetch_len (sublist 1 (len ptr) (map Int.unsigned ptr))
-                            0 0 (size - tag_len) 
-           (Int.repr (sizeof tuint)) Int.modulus in
-       PROP (0 < tag_len;
-           0 < len_len;
-           0 < tlv_len;
-           tag_len <> 0;
-           len_len <> -1;
-           len_len <> 0;
-           tlv_tag = Int.repr (nth O (tags td) 0))
-       LOCAL (temp _t'10
-                (force_val
-                   (sem_cast tint tbool
-                      (eval_binop Oeq tint tint (Vint (Int.repr 0))
-                         (eval_cast tuint tint (Vint (Int.repr (len (tags td))))))));
-       temp _tagno (Vint (Int.repr 0)); temp _t'4 Vzero; temp _t'3 (Vint (Int.repr 0));
-       temp _step (Vint (Int.repr 0)); temp _t'1 Vzero;
+           (
+             let (i0, i1) := Exec.ber_fetch_tags ptr size in
+             let (i2, i3) :=
+                 Exec.ber_fetch_len 
+                   (sublist (Int.unsigned i0)
+                            (len ptr) ptr) 0 0%int
+                   (Int.repr size - i0)%int
+                   (Int.repr (sizeof tuint)) 
+                   (Int.repr Int.max_signed) in
+  PROP (0 < Int.unsigned i0 /\
+       0 < Int.unsigned i2 /\
+       0 < Int.unsigned i3 /\
+       i0 <> 0%int /\
+       i2 <> Int.repr (-1) /\
+       i2 <> Int.repr 0 /\ i1 = Int.repr (nth 0 (tags td) 0))
+  LOCAL (
+     temp _tagno (Vint (Int.repr 0)); 
+       temp _step (Vint (Int.repr 0)); 
        temp _tlv_constr (Vint (Int.repr (0)));
        temp _expect_00_terminators (Vint (Int.repr 0));
-       temp _limit_len (Vint (Int.repr ((tlv_len)%Z)));
-       temp _consumed_myself (Vint (Int.repr ((tag_len + len_len)%Z)));
-       lvar _rval__12 (Tstruct _asn_dec_rval_s noattr) v_rval__12;
-       lvar _rval__11 (Tstruct _asn_dec_rval_s noattr) v_rval__11;
-       lvar _rval__10 (Tstruct _asn_dec_rval_s noattr) v_rval__10;
-       lvar _rval__9 (Tstruct _asn_dec_rval_s noattr) v_rval__9;
-       lvar _rval__8 (Tstruct _asn_dec_rval_s noattr) v_rval__8;
-       lvar _rval__7 (Tstruct _asn_dec_rval_s noattr) v_rval__7;
-       lvar _rval__6 (Tstruct _asn_dec_rval_s noattr) v_rval__6;
-       lvar _rval__5 (Tstruct _asn_dec_rval_s noattr) v_rval__5;
-       lvar _rval__4 (Tstruct _asn_dec_rval_s noattr) v_rval__4;
-       lvar _rval__3 (Tstruct _asn_dec_rval_s noattr) v_rval__3;
-       lvar _rval__2 (Tstruct _asn_dec_rval_s noattr) v_rval__2;
-       lvar _rval__1 (Tstruct _asn_dec_rval_s noattr) v_rval__1;
-       lvar _rval (Tstruct _asn_dec_rval_s noattr) v_rval; lvar _tlv_len tint v_tlv_len;
-       lvar _tlv_tag tuint v_tlv_tag; temp __res res_p; temp _opt_codec_ctx opt_codec_ctx_p;
-       temp _td td_p; temp _opt_ctx nullval;
-       temp _ptr (offset_val ((tag_len + len_len)%Z) (Vptr b i));
-       temp _size (Vint (Int.repr (if size - tag_len - len_len >? tlv_len
-                                   then tlv_len
-                                   else size - ((tag_len + len_len)%Z))));
-       temp _tag_mode (Vint (Int.repr 0)); temp _last_tag_form (Vint (Int.repr 0));
-       temp _last_length last_length_p; temp _opt_tlv_form nullval)
-       SEP (data_at Tsh (Tstruct _asn_codec_ctx_s noattr) (Vint (Int.repr max_stack_size))
-              opt_codec_ctx_p; data_at_ Tsh (Tstruct _asn_dec_rval_s noattr) v_rval__12;
-       data_at_ Tsh (Tstruct _asn_dec_rval_s noattr) v_rval__11;
-       data_at_ Tsh (Tstruct _asn_dec_rval_s noattr) v_rval__10;
-       data_at_ Tsh (Tstruct _asn_dec_rval_s noattr) v_rval__9;
-       data_at_ Tsh (Tstruct _asn_dec_rval_s noattr) v_rval__8;
-       data_at_ Tsh (Tstruct _asn_dec_rval_s noattr) v_rval__7;
-       data_at_ Tsh (Tstruct _asn_dec_rval_s noattr) v_rval__6;
-       data_at_ Tsh (Tstruct _asn_dec_rval_s noattr) v_rval__5;
-       data_at_ Tsh (Tstruct _asn_dec_rval_s noattr) v_rval__4;
-       data_at_ Tsh (Tstruct _asn_dec_rval_s noattr) v_rval__3;
-       data_at_ Tsh (Tstruct _asn_dec_rval_s noattr) v_rval__2;
-       data_at_ Tsh (Tstruct _asn_dec_rval_s noattr) v_rval__1;
-       data_at_ Tsh (Tstruct _asn_dec_rval_s noattr) v_rval;
-        data_at Tsh tint (Vint (Int.repr tlv_len)) v_tlv_len ;
-        data_at Tsh tuint (Vint (tlv_tag)) v_tlv_tag;
-       data_at Tsh (tarray tuchar (len ptr)) (map Vint ptr) (Vptr b i);
-       field_at Tsh (Tstruct _asn_TYPE_descriptor_s noattr) (DOT _tags) tags_p td_p;
-       field_at Tsh (Tstruct _asn_TYPE_descriptor_s noattr) (DOT _tags_count)
-         (Vint (Int.repr (len (tags td)))) td_p;
-       data_at Tsh (tarray tuint (len (tags td))) (map Vint (map Int.repr (tags td))) tags_p;
-       data_at_ Tsh asn_dec_rval_s res_p; data_at_ Tsh tint last_length_p))
-                             break: (
+    temp _size (Vint (if (i3 < Int.repr size - (i0 + i2))%int 
+                      then i3
+                      else (Int.repr size - (i0 + i2))%int));
+    temp _limit_len (Vint i3);
+  temp _consumed_myself (Vint (i0 + i2)%int);
+  temp _ptr (Vptr b (i + Ptrofs.of_intu (i0 + i2)%int)%ptrofs);
+  lvar _rval__12 (Tstruct _asn_dec_rval_s noattr) v_rval__12;
+  lvar _rval__11 (Tstruct _asn_dec_rval_s noattr) v_rval__11;
+  lvar _rval__10 (Tstruct _asn_dec_rval_s noattr) v_rval__10;
+  lvar _rval__9 (Tstruct _asn_dec_rval_s noattr) v_rval__9;
+  lvar _rval__8 (Tstruct _asn_dec_rval_s noattr) v_rval__8;
+  lvar _rval__7 (Tstruct _asn_dec_rval_s noattr) v_rval__7;
+  lvar _rval__6 (Tstruct _asn_dec_rval_s noattr) v_rval__6;
+  lvar _rval__5 (Tstruct _asn_dec_rval_s noattr) v_rval__5;
+  lvar _rval__4 (Tstruct _asn_dec_rval_s noattr) v_rval__4;
+  lvar _rval__3 (Tstruct _asn_dec_rval_s noattr) v_rval__3;
+  lvar _rval__2 (Tstruct _asn_dec_rval_s noattr) v_rval__2;
+  lvar _rval__1 (Tstruct _asn_dec_rval_s noattr) v_rval__1;
+  lvar _rval (Tstruct _asn_dec_rval_s noattr) v_rval;
+  lvar _tlv_len tint v_tlv_len; lvar _tlv_tag tuint v_tlv_tag;
+  temp __res res_p; temp _opt_codec_ctx opt_codec_ctx_p;
+     temp _td td_p; temp _opt_ctx nullval;
+  temp _tag_mode (Vint (Int.repr 0));
+     temp _last_tag_form (Vint (Int.repr 0));
+     temp _last_length last_length_p;
+     temp _opt_tlv_form nullval)
+  SEP (data_at Tsh
+         (tarray tuchar (len (sublist (Int.unsigned i0) (len ptr) ptr)))
+         (map Vint (sublist (Int.unsigned i0) (len ptr) ptr))
+         (Vptr b (i + Ptrofs.repr (Int.unsigned i0))%ptrofs);
+  data_at Tsh tint (Vint i3) v_tlv_len;
+  data_at Tsh tuchar (Vint (Znth 0 ptr)) (Vptr b i);
+  if (0 < i0)%int
+  then data_at Tsh tuint (Vint (snd (Exec.ber_fetch_tags ptr size))) v_tlv_tag
+  else data_at_ Tsh tuint v_tlv_tag;
+  data_at Tsh (Tstruct _asn_codec_ctx_s noattr)
+    (Vint (Int.repr max_stack_size)) opt_codec_ctx_p;
+  data_at_ Tsh (Tstruct _asn_dec_rval_s noattr) v_rval__12;
+  data_at_ Tsh (Tstruct _asn_dec_rval_s noattr) v_rval__11;
+  data_at_ Tsh (Tstruct _asn_dec_rval_s noattr) v_rval__10;
+  data_at_ Tsh (Tstruct _asn_dec_rval_s noattr) v_rval__9;
+  data_at_ Tsh (Tstruct _asn_dec_rval_s noattr) v_rval__8;
+  data_at_ Tsh (Tstruct _asn_dec_rval_s noattr) v_rval__7;
+  data_at_ Tsh (Tstruct _asn_dec_rval_s noattr) v_rval__6;
+  data_at_ Tsh (Tstruct _asn_dec_rval_s noattr) v_rval__5;
+  data_at_ Tsh (Tstruct _asn_dec_rval_s noattr) v_rval__4;
+  data_at_ Tsh (Tstruct _asn_dec_rval_s noattr) v_rval__3;
+  data_at_ Tsh (Tstruct _asn_dec_rval_s noattr) v_rval__2;
+  data_at_ Tsh (Tstruct _asn_dec_rval_s noattr) v_rval__1;
+  data_at_ Tsh (Tstruct _asn_dec_rval_s noattr) v_rval;
+  field_at Tsh (Tstruct _asn_TYPE_descriptor_s noattr) (DOT _tags) tags_p td_p;
+  field_at Tsh (Tstruct _asn_TYPE_descriptor_s noattr) 
+    (DOT _tags_count) (Vint (Int.repr (len (tags td)))) td_p;
+  data_at Tsh (tarray tuint (len (tags td)))
+    (map Vint (map Int.repr (tags td))) tags_p;
+  data_at_ Tsh asn_dec_rval_s res_p; data_at_ Tsh tint last_length_p))
+    (*                         break: (
      let (tag_len, tlv_tag) := Exec.ber_fetch_tags ptr
                                                    size in
      let (len_len, tlv_len) := Exec.ber_fetch_len (sublist 1 (len ptr) (map Int.unsigned ptr)) 0 0 
@@ -514,7 +515,6 @@ Proof.
              (map Vint (map Int.repr (tags td))) tags_p;
      data_at_ Tsh asn_dec_rval_s res_p; 
      data_at_ Tsh tint last_length_p)) *)
-           (PROP()LOCAL()SEP())
                break: (PROP()LOCAL()SEP())
        end.
        +++ (* Pre -> LI *)
@@ -884,7 +884,7 @@ Proof.
                destruct_orb_hyp.
                generalize H12.
                erewrite H15.
-               erewrite H51. 
+               erewrite H50. 
                congruence.
                }
              erewrite N.        
@@ -991,6 +991,10 @@ Proof.
  
                forward_empty_while_break (PROP ()
      LOCAL (
+        temp _tagno (Vint (Int.repr 0));
+       temp _step (Vint (Int.repr 0)); 
+       temp _tlv_constr (Vint (Int.repr (0)));
+       temp _expect_00_terminators (Vint (Int.repr 0));
        temp _consumed_myself (Vint (i0 + i2)%int);
        temp _size 
             (Vint (Int.repr size - (i0 + i2))%int);
@@ -1013,7 +1017,13 @@ Proof.
      lvar _rval__2 (Tstruct _asn_dec_rval_s noattr) v_rval__2;
      lvar _rval__1 (Tstruct _asn_dec_rval_s noattr) v_rval__1;
      lvar _rval (Tstruct _asn_dec_rval_s noattr) v_rval;
-     lvar _tlv_len tint v_tlv_len; lvar _tlv_tag tuint v_tlv_tag)
+     lvar _tlv_len tint v_tlv_len; lvar _tlv_tag tuint v_tlv_tag;
+     temp __res res_p; temp _opt_codec_ctx opt_codec_ctx_p;
+     temp _td td_p; temp _opt_ctx nullval;
+     temp _tag_mode (Vint (Int.repr 0));
+     temp _last_tag_form (Vint (Int.repr 0));
+     temp _last_length last_length_p;
+     temp _opt_tlv_form nullval)
      SEP (data_at Tsh (tarray tuchar (len (sublist (Int.unsigned i0)
                                                    (len ptr) ptr)))
                   (map Vint (sublist (Int.unsigned i0) (len ptr) ptr))
@@ -1061,9 +1071,28 @@ Proof.
                forward_if.
                 {
                    (* z3 < size - i0 - i2 *) 
-                 forward.
+                  deadvars!.
+                  forward.
+                 
+                 entailer!.
+                 cbn.
+                 
+                 cbn in Heqp0. erewrite Heqp0.
+                 auto.
+                 cbn in H14.
+                 erewrite Heqp0 in *.
+                 eapply typed_true_of_bool in H14.
+                 autorewrite with norm in H14.
+                 replace (i3 + i0 + i2 - (i0 + i2))%int
+                         with i3 in H14 by admit.
+                 erewrite H14. 
+                 admit. (* should be solved by auto *)
+                 entailer!.
+                 erewrite Heqp.
+                 entailer!.
                  (* CONTINUE *)
-                 admit. }
+                  }
+                
   (*               erewrite Heqp0.
                  cbn.
                  lia.
@@ -1126,20 +1155,30 @@ Proof.
                  admit. } *)
                {
                  forward.
+                 erewrite Heqp0 in *.
+                 simpl in Heqp0.
+                 entailer!.
+                 autorewrite with norm in H14.
+                 replace (i3 + i0 + i2 - (i0 + i2))%int
+                         with i3 in H14 by admit.
+                 erewrite H14.
                  admit.
-                 }
-               admit.
-           * Zbool_to_Prop.
-              simpl.
-             Intros.
-             Zbool_to_Prop.
-             forward.
-(*           forward_if.
+                 erewrite Heqp in *.
+                 entailer!.
+               }
+               admit. (* data_at_app proof *)
+         * Zbool_to_Prop.
+           simpl.
+           Intros.
+           Zbool_to_Prop.
+           forward.
+           forward_if.
            strip_repr.
            forward.
            assert (z = 1) as Z by lia.
            erewrite Z.
-           entailer!.
+           (* BREAK *)
+           admit.
            (* do 2 f_equal. try lia. *)
       +++  (* CONTINUE  to LI *)
           repeat break_let.
@@ -1150,16 +1189,14 @@ Proof.
           repeat break_let.
           entailer!.
           simpl.
-
-        (*  break_if; Zbool_to_Prop; try lia.
-          break_if; Zbool_to_Prop; try lia.          
-          entailer!.   *) 
-          (* CHECK i0 z3 vars *)
+          repeat split; auto.
           admit.
           simpl.
-          entailer!. (* z1 and z3 *)
+          replace (0 < i0)%int with true.
+          entailer!.
           admit.
-      +++ (* BREAK to rest *)
+          admit.
+      +++ (* (* BREAK to rest *)
           repeat break_let.
           forward_if True; try contradiction.
           forward.
