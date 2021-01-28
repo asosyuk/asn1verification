@@ -289,13 +289,14 @@ Proof.
      PROP ( 0 <= z <= 1;
             if z =? 0 then
               True else
-           0 < Int.unsigned tag_len /\
-           0 < Int.unsigned len_len /\
-           0 < Int.unsigned tlv_len /\
+           0 < Int.signed tag_len /\
+           0 < Int.signed len_len /\
+           0 < Int.signed tlv_len /\
            tag_len <> 0%int /\
+           tag_len <> Int.repr (-1) /\
            len_len <> Int.repr (-1) /\
            len_len <> Int.repr 0 /\ 
-           tlv_tag = (Int.repr (nth O (tags td) 0)))
+           tlv_tag = (Int.repr (Znth 0 (tags td))))
      LOCAL (
      temp _tagno (Vint (Int.repr z));
      temp _step (Vint (Int.repr z)); 
@@ -370,12 +371,13 @@ Proof.
                    (Int.repr size - i0)%int
                    (Int.repr (sizeof tuint)) 
                    (Int.repr Int.max_signed) in
-  PROP (0 < Int.unsigned i0 /\
-       0 < Int.unsigned i2 /\
-       0 < Int.unsigned i3 /\
+  PROP (0 < Int.signed i0 /\
+       0 < Int.signed i2 /\
+       0 < Int.signed i3 /\
        i0 <> 0%int /\
+       i0 <> Int.repr (-1) /\
        i2 <> Int.repr (-1) /\
-       i2 <> Int.repr 0 /\ i1 = Int.repr (nth 0 (tags td) 0))
+       i2 <> Int.repr 0 /\ i1 = Int.repr (Znth 0 (tags td)))
   LOCAL (
      temp _tagno (Vint (Int.repr 0)); 
        temp _step (Vint (Int.repr 0)); 
@@ -437,32 +439,29 @@ Proof.
   data_at Tsh (tarray tuint (len (tags td)))
     (map Vint (map Int.repr (tags td))) tags_p;
   data_at_ Tsh asn_dec_rval_s res_p; data_at_ Tsh tint last_length_p))
-    (*                         break: (
-     let (tag_len, tlv_tag) := Exec.ber_fetch_tags ptr
-                                                   size in
-     let (len_len, tlv_len) := Exec.ber_fetch_len (sublist 1 (len ptr) (map Int.unsigned ptr)) 0 0 
-                                                  (size - tag_len) (Int.repr (sizeof tuint)) (Int.repr Int.max_signed) in
-     PROP (0 < tag_len;
-           0 < len_len;
-           0 < tlv_len;
-           tag_len <> 0;
-           len_len <> -1;
-           len_len <> 0;
-           tlv_tag = Int.repr (nth O (tags td) 0))
-     LOCAL (temp _t'10
-              (force_val
-                 (sem_cast tint tbool
-                    (eval_binop Oeq tint tint (Vint (Int.repr 0))
-                       (eval_cast tuint tint (Vint (Int.repr (len (tags td))))))));
+    break: (
+     let (tag_len, tlv_tag) := Exec.ber_fetch_tags ptr size in
+     let (len_len, tlv_len) := 
+         Exec.ber_fetch_len
+           (sublist (Int.unsigned tag_len)
+           (len ptr) ptr) 0 0%int 
+           (Int.repr size - tag_len)%int (Int.repr (sizeof tuint)) 
+           (Int.repr Int.max_signed) in
+     PROP (0 < Int.signed tag_len;
+           0 < Int.signed len_len;
+           0 < Int.signed tlv_len;
+           tag_len <> Int.repr (-1);
+           tag_len <> 0%int;
+           len_len <> Int.repr (-1);
+           len_len <> 0%int;
+           tlv_tag = Int.repr (Znth 0 (tags td)))
+     LOCAL (
      temp _tagno (Vint (Int.repr 1));
-     temp _t'4 Vzero;
-     temp _t'3 (Vint (Int.repr 0));
      temp _step (Vint (Int.repr 1)); 
-     temp _t'1 Vzero; 
      temp _tlv_constr (Vint (Int.repr 0));
      temp _expect_00_terminators (Vint (Int.repr 0));
-     temp _limit_len (Vint ((Int.repr (tlv_len (* + tag_len + len_len *))))); 
-     temp _consumed_myself (Vint (Int.repr (tag_len + len_len)));
+     temp _limit_len (Vint (tlv_len (* + tag_len + len_len *))); 
+     temp _consumed_myself (Vint (tag_len + len_len)%int);
      lvar _rval__12 (Tstruct _asn_dec_rval_s noattr) v_rval__12;
      lvar _rval__11 (Tstruct _asn_dec_rval_s noattr) v_rval__11;
      lvar _rval__10 (Tstruct _asn_dec_rval_s noattr) v_rval__10;
@@ -480,10 +479,11 @@ Proof.
      lvar _tlv_tag tuint v_tlv_tag; 
      temp __res res_p; temp _opt_codec_ctx opt_codec_ctx_p;
      temp _td td_p; temp _opt_ctx nullval;
-     temp _ptr (offset_val (tag_len + len_len) (Vptr b i));
-     temp _size (Vint (Int.repr ((if size - tag_len - len_len >? tlv_len
-                                  then tlv_len
-                                  else size - ((tag_len + len_len)%Z)))));
+     temp _ptr (offset_val (Int.unsigned (tag_len + len_len)%int)
+                           (Vptr b i));
+     temp _size (Vint (if (tlv_len < Int.repr size - (tag_len + len_len))%int 
+                       then tlv_len
+                       else (Int.repr size - (tag_len + len_len))%int));
      temp _tag_mode (Vint (Int.repr 0));
      temp _last_tag_form (Vint (Int.repr 0));
      temp _last_length last_length_p;
@@ -504,18 +504,18 @@ Proof.
      data_at_ Tsh (Tstruct _asn_dec_rval_s noattr) v_rval__2;
      data_at_ Tsh (Tstruct _asn_dec_rval_s noattr) v_rval__1;
      data_at_ Tsh (Tstruct _asn_dec_rval_s noattr) v_rval;
-     data_at Tsh tint (Vint (Int.repr tlv_len)) v_tlv_len;
-     data_at Tsh tuint (Vint (tlv_tag)) v_tlv_tag;
+     data_at Tsh tint (Vint tlv_len) v_tlv_len;
+     data_at Tsh tuint (Vint tlv_tag) v_tlv_tag;
      data_at Tsh (tarray tuchar (len ptr)) 
              (map Vint ptr) (Vptr b i);
-     field_at Tsh (Tstruct _asn_TYPE_descriptor_s noattr) (DOT _tags) tags_p td_p;
-     field_at Tsh (Tstruct _asn_TYPE_descriptor_s noattr) (DOT _tags_count)
-       (Vint (Int.repr (len (tags td)))) td_p;
+     field_at Tsh (Tstruct _asn_TYPE_descriptor_s noattr)
+              (DOT _tags) tags_p td_p;
+     field_at Tsh (Tstruct _asn_TYPE_descriptor_s noattr) 
+              (DOT _tags_count) (Vint (Int.repr (len (tags td)))) td_p;
      data_at Tsh (tarray tuint (len (tags td))) 
              (map Vint (map Int.repr (tags td))) tags_p;
      data_at_ Tsh asn_dec_rval_s res_p; 
-     data_at_ Tsh tint last_length_p)) *)
-               break: (PROP()LOCAL()SEP())
+     data_at_ Tsh tint last_length_p)) 
        end.
        +++ (* Pre -> LI *)
         (* Exists 0.
@@ -970,15 +970,22 @@ Proof.
              forward_if True; try contradiction.
              forward.
              entailer!. 
-             forward_if (temp _limit_len
-                              (Vint (i3 + i0 +  i2)%int));
+             forward_if (temp _t'26 Vone);
                try contradiction.
              forward.
+             entailer!.
              forward.
              entailer!.
-             admit. (* bounds: CHECK CODE *)
+             admit.
+           (*  forward_if True.
+               try contradiction.
+             forward.
+             entailer!.
+             forward.
+             entailer!.
+             admit. (* UB *)
              forward_if True; try contradiction.
-             admit. (* limit_len < 0 is false *)
+             admit. (* UB *)
              forward.
              entailer!.
              entailer!.
@@ -988,8 +995,27 @@ Proof.
              auto.                  
              discriminate.  
              deadvars!.
- 
-               forward_empty_while_break (PROP ()
+             assert (0 <= Int.signed i0 <= size) as SS.
+                 replace i0 with (fst (i0, i1)) by auto.
+                 erewrite <- Heqp.
+                 eapply Exec.ber_fetch_tags_bounds.
+                 lia. 
+                 assert
+                   (0 <= Int.signed i2 <= size - Int.signed i0)
+                   as TS.
+                 replace i2 with (fst (i2, i3)) by auto.
+                 erewrite <- Heqp0.
+                 replace (Int.repr size - i0)%int
+                   with (Int.repr (size - Int.signed i0)).
+                 eapply Exec.ber_fetch_len_bounds.
+                 lia. 
+                 rep_lia.
+                  erewrite Int.sub_signed.
+                 strip_repr.
+              
+             (* ADVANCE *)
+     forward_empty_while_break
+     (PROP ()
      LOCAL (
         temp _tagno (Vint (Int.repr 0));
        temp _step (Vint (Int.repr 0)); 
@@ -1056,8 +1082,11 @@ Proof.
      data_at Tsh (tarray tuint (len (tags td)))
        (map Vint (map Int.repr (tags td))) tags_p;
      data_at_ Tsh asn_dec_rval_s res_p; data_at_ Tsh tint last_length_p)).
-               
-               admit. (* bounds as before *)
+               erewrite H10 in *.
+               simpl in Heqp0.
+               repeat erewrite Heqp0 in *.
+               simpl.
+               rep_lia.
                repeat forward.
                erewrite H10 in *.
                repeat erewrite Heqp in *.
@@ -1067,7 +1096,9 @@ Proof.
                 simpl in Heqp, Heqp0.
                repeat erewrite Heqp in *.
                repeat erewrite Heqp0 in *.
-               admit. (* bounds as before *)
+               simpl.
+               split; try rep_lia.
+               admit. (* UB *)
                forward_if.
                 {
                    (* z3 < size - i0 - i2 *) 
@@ -1196,13 +1227,14 @@ Proof.
           entailer!.
           admit.
           admit.
-      +++ (* (* BREAK to rest *)
+      +++  (* BREAK to rest *)
           repeat break_let.
           forward_if True; try contradiction.
           forward.
           entailer!.
           
-          forward_if_add_sep (data_at Tsh tint (Vint (Int.repr z1)) last_length_p) 
+          forward_if_add_sep (data_at Tsh tint 
+                                      (Vint i3) last_length_p) 
                              last_length_p; try contradiction.
           forward.
           forward.
@@ -1218,7 +1250,7 @@ Proof.
           discriminate.
           forward_if_add_sep
             (data_at Tsh (Tstruct _asn_dec_rval_s noattr)
-                     (Vint (Int.repr 0), (Vint (Int.repr (z + i0))))
+                     (Vint (Int.repr 0), (Vint (i0 + i2)%int))
                      v_rval__12) v_rval__12. 
           forward.
           entailer!.
@@ -1226,15 +1258,35 @@ Proof.
           repeat forward.
           assert (ber_check_tags_primitive
                     ptr td max_stack_size size (Int.repr (sizeof tuint))
-                    (Int.repr Int.max_signed) = Some (z1, z + i0)) as B.
+                    (Int.repr Int.max_signed) = Some (i3, (i0 + i2)%int)) as B.
           {  unfold ber_check_tags_primitive.             
              erewrite Heqp.
-           (*  erewrite Heqp0.
-             repeat rewrite_if_b.            
-             repeat break_if;
-               try destruct_orb_hyp;
-               repeat rewrite_if_b; symmetry; repeat Zbool_to_Prop;
-                 try lia; auto. *) admit. }
+             erewrite Heqp0.
+             repeat rewrite_if_b.
+             erewrite H1.
+             simpl.
+             replace ((i0 == Int.repr (-1)) || (i0 == 0%int))%bool with false.
+             unfold Znth.
+             simpl.
+             setoid_rewrite if_true. 
+             replace ((i2 == Int.repr (-1)) || (i2 == 0%int))%bool with false.
+             simpl.
+             replace (i3 + i0 + i2 < 0)%int with false.
+             auto.
+             symmetry.
+             unfold Int.lt.
+             break_if.
+             replace (Int.signed 0%int) with 0 in *.
+             admit.
+             auto with ints. auto.
+             symmetry.
+             eapply orb_false_intro;
+             eapply Int.eq_false; auto.
+             reflexivity.
+              symmetry.
+             eapply orb_false_intro;
+             eapply Int.eq_false; auto.
+              }
           erewrite B.
           entailer!.  *)
 Admitted.

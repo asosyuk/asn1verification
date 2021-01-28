@@ -39,6 +39,36 @@ Definition ber_check_tags_primitive ts td ctx size sizeofval sizemax:
          else None
   else None.
 
+Lemma ber_fetch_len_bounds : 
+  forall ptr isc len_r size sizeofval,
+   0 <= size <= Int.max_signed ->
+   Int.min_signed <= Int.signed len_r <= Int.max_signed ->
+   0 <= Int.signed  
+                      (fst (ber_fetch_len ptr isc len_r (Int.repr size)
+                                          sizeofval 
+                                          (Int.repr Int.max_signed)))
+    <= size.
+Proof.
+  intros. 
+  unfold ber_fetch_len.
+  Require Import Core.Tactics.
+  repeat break_match; simpl;
+    subst;
+    try replace (Int.signed 0%int) with 0%Z by auto with ints;
+     try replace (Int.signed 1%int) with 1%Z by auto with ints;
+      try assert (Int.signed size <> 0%Z) by admit;
+     try rep_lia.
+  1-3: unfold Int.neg; strip_repr.
+  Admitted.
+
+Lemma ber_fetch_tags_bounds : 
+  forall ptr size,
+    0 <= size <= Int.max_signed ->
+   0 <= Int.signed (fst (Exec.ber_fetch_tags ptr size)) 
+   <= size.
+Proof.
+ Admitted. 
+
 (*Lemma ber_check_tags_primitive_bounds_fst : 
   forall ts td ctx size sizeofval p,  
     ber_check_tags_primitive ts td ctx size sizeofval (Int.repr Int.max_signed)
