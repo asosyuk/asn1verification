@@ -970,25 +970,98 @@ Proof.
              forward_if True; try contradiction.
              forward.
              entailer!. 
-             forward_if (temp _t'26 Vone);
+             forward_if (temp _t'26 (if (127 <? Int.signed i0) 
+                                    then Vone
+                                    else (Val.of_bool (127 <? Int.signed i2))));
                try contradiction.
              forward.
+             rewrite_if_b.
              entailer!.
+             break_if; auto;
+               Zbool_to_Prop; try lia.
              forward.
              entailer!.
-             admit.
-           (*  forward_if True.
+             simpl in Heqp0. erewrite Heqp0.
+             unfold Int.lt.
+             strip_repr.
+             break_if; auto; strip_repr;
+                 Zbool_to_Prop; try lia.
+             f_equal.
+             break_if; auto; strip_repr;
+               Zbool_to_Prop; try lia.
+             forward_if (temp _t'27 (if ((127 <? Int.signed i0) || 
+                                                (127 <? Int.signed i2))%bool 
+                                    then Vone
+                                    else (Val.of_bool (Int.max_signed - 255
+                                                       <? Int.signed i3
+                                                       ))));
                try contradiction.
+            { forward.
+             entailer!.
+             generalize H14.
+             break_if.
+             simpl. auto.
+             unfold Val.of_bool.
+             break_if.
+             simpl. auto.
+             discriminate. }
+           { forward.
              forward.
              entailer!.
-             forward.
-             entailer!.
-             admit. (* UB *)
+             generalize H14.
+             break_if.
+             discriminate.
+             unfold Val.of_bool.
+             break_if.
+             simpl. discriminate.
+             simpl.
+             unfold Int.lt.
+             strip_repr.
+             repeat break_if; repeat Zbool_to_Prop; try discriminate; try rep_lia;
+             auto.
+             }
              forward_if True; try contradiction.
-             admit. (* UB *)
+             { (* RC_FAIL *)
+               forward_empty_while.
+              rewrite_if_b. 
+              forward_if True; try contradiction.
+              forward.
+               entailer!. 
+              forward_if (temp _t'25 Vzero);
+               try forward; try entailer!.
+             forward_if_add_sep (data_at Tsh 
+                                         (Tstruct _asn_dec_rval_s noattr)
+                                         (Vint (Int.repr 2), Vint (Int.repr 0))
+                                         v_rval__10) v_rval__10; 
+               try forward; try entailer!.
+             repeat forward. 
+             assert (ber_check_tags_primitive 
+                       ptr td max_stack_size
+                       size (Int.repr (sizeof tuint))
+                       (Int.repr Int.max_signed) = None) as N.
+             { unfold ber_check_tags_primitive.
+               erewrite H1.
+               erewrite Heqp.
+               simpl.
+               break_if; auto.
+               break_if; auto.
+               simpl in Heqp0; erewrite Heqp0.
+               break_if; auto.
+               generalize H14.
+               break_if.
+               Zbool_to_Prop.
+               destruct_orb_hyp; repeat Zbool_to_Prop;
+                  break_if; auto; try discriminate.
+               eapply typed_true_of_bool in H14.
+               erewrite H14. auto. }
+             erewrite N.
+             erewrite H10.
+             entailer!.
+             admit. (* data_at proof *)
+             }
              forward.
              entailer!.
-             entailer!.
+   (*          entailer!.
              f_equal.
              simpl in Heqp0.
              erewrite Heqp0.

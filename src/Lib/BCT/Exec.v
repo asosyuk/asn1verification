@@ -33,8 +33,10 @@ Definition ber_check_tags_primitive ts td ctx size sizeofval sizemax:
                                                 sizeofval sizemax in
            if (len_len == Int.repr (-1)) || (len_len == 0%int) then None 
            else 
-             let limit_len := (tlv_len + tag_len + len_len)%int in
-             if (limit_len < 0)%int then None
+             if ((127 <? Int.signed tag_len) ||
+                 (127 <? Int.signed len_len) ||
+                  (Int.max_signed - 255 <? Int.signed tlv_len))
+             then None 
              else Some (tlv_len, tag_len + len_len)%int
          else None
   else None.
