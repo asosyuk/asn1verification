@@ -18,7 +18,7 @@ Definition ber_fetch_tag_spec : ident * funspec :=
          tag_p : val
     PRE [tptr tvoid, tuint, tptr tuint]
       PROP (0 <= size <= Int.max_unsigned;
-            Forall (fun x => 0 <= Int.unsigned x <= Byte.max_unsigned) data;
+            Forall (fun x => 0 <= Int.signed x <= Byte.max_signed) data;
             Ptrofs.unsigned i + (Zlength data) < Ptrofs.modulus;
             0 < len data <= Int.max_unsigned)
       PARAMS (Vptr b i; Vint (Int.repr size); tag_p)

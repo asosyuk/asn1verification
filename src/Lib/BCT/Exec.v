@@ -25,7 +25,7 @@ Definition ber_check_tags_primitive ts td ctx size sizeofval sizemax:
          if (tlv_tag == Int.repr (Znth 0 (tags td))) 
          then
            let (len_len, tlv_len) := ber_fetch_len 
-                                       (sublist (Int.unsigned tag_len)
+                                       (sublist (Int.signed tag_len)
                                                 (len ts) ts)
                                                 0 0%int
                                        (Int.repr size -
@@ -45,8 +45,7 @@ Lemma ber_fetch_len_bounds :
   forall ptr isc len_r size sizeofval,
    0 <= size <= Int.max_signed ->
    Int.min_signed <= Int.signed len_r <= Int.max_signed ->
-   0 <= Int.signed  
-                      (fst (ber_fetch_len ptr isc len_r (Int.repr size)
+   0 <= Int.signed (fst (ber_fetch_len ptr isc len_r (Int.repr size)
                                           sizeofval 
                                           (Int.repr Int.max_signed)))
     <= size.
@@ -62,6 +61,33 @@ Proof.
      try rep_lia.
   1-3: unfold Int.neg; strip_repr.
   Admitted.
+
+Lemma ber_fetch_len_bounds_snd : 
+  forall ptr len_r size sizeofval,
+   0 <= Int.signed len_r <= Int.max_signed ->
+   (0 <= Int.signed (snd (ber_fetch_len ptr 0 len_r (Int.repr size)
+                                          sizeofval 
+                                          (Int.repr Int.max_signed))))%Z.
+Proof.
+  intros. 
+  unfold ber_fetch_len.
+  Require Import Core.Tactics.
+  repeat break_match; simpl;
+    subst;
+    try replace (Int.signed 0%int) with 0%Z by auto with ints;
+     try replace (Int.signed 1%int) with 1%Z by auto with ints;
+     try rep_lia.
+  admit.
+  simpl in Heqb. discriminate.
+  destruct_orb_hyp.
+  Zbool_to_Prop.
+  generalize H1.
+  unfold Int.lt.
+  break_if. discriminate.
+  generalize g.
+  replace (Int.signed 0%int) with 0%Z by auto with ints.
+  strip_repr.
+Admitted.
 
 Lemma ber_fetch_tags_bounds : 
   forall ptr size,

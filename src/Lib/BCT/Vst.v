@@ -87,9 +87,9 @@ Definition ber_check_tags_spec : ident * funspec :=
            let (tag_len, tlv_tag) 
                := Exec.ber_fetch_tags ptr size in
            if (0 < tag_len)%int then 
-           (Znth (Int.unsigned tag_len)
+           (Znth (Int.signed tag_len)
                  ptr & Int.repr 128)%int = 0%int /\
-           0 < len ptr - Int.unsigned tag_len
+           0 < len ptr - Int.signed tag_len
            else True;
            (* short definite length *)
             tag_mode = 0;
@@ -100,7 +100,7 @@ Definition ber_check_tags_spec : ident * funspec :=
             nullval = opt_tlv_form_p;
             1 = len (tags td);
             0 <= Ptrofs.unsigned i + len ptr <= Ptrofs.max_unsigned;
-            Forall (fun x => 0 <= Int.unsigned x <= Byte.max_unsigned) ptr;
+            Forall (fun x => 0 <= Int.signed x <= Byte.max_signed) ptr;
             0 <= size <= Int.max_signed)
       PARAMS (res_p; opt_codec_ctx_p; td_p; opt_ctx_p; (Vptr b i); 
                 Vint (Int.repr size);
@@ -279,7 +279,7 @@ Proof.
      EX z : Z,
      let (tag_len, tlv_tag) := Exec.ber_fetch_tags ptr size in
      let (len_len, tlv_len) := Exec.ber_fetch_len 
-                                 (sublist (Int.unsigned tag_len)
+                                 (sublist (Int.signed tag_len)
                                           (len ptr) ptr) 0 0%int
                                  (Int.repr size - tag_len)%int
                                  (Int.repr (sizeof tuint)) 
@@ -289,9 +289,9 @@ Proof.
      PROP ( 0 <= z <= 1;
             if z =? 0 then
               True else
-           0 < Int.signed tag_len /\
-           0 < Int.signed len_len /\
-           0 < Int.signed tlv_len /\
+           0 < Int.signed tag_len <= 127 /\
+           0 < Int.signed len_len <= 127 /\
+           0 < Int.signed tlv_len <= Int.max_signed - 255 /\
            tag_len <> 0%int /\
            tag_len <> Int.repr (-1) /\
            len_len <> Int.repr (-1) /\
@@ -321,12 +321,14 @@ Proof.
      lvar _tlv_tag tuint v_tlv_tag; 
      temp __res res_p; temp _opt_codec_ctx opt_codec_ctx_p;
      temp _td td_p; temp _opt_ctx nullval;
-     temp _ptr (offset_val (Int.unsigned cm) (Vptr b i));
-     temp _size (Vint (Int.repr (if z =? 0 
-                                 then (size - Int.unsigned cm)
-                                 else if (tlv_len < (Int.repr size - tag_len - len_len))%int
-                                   then Int.unsigned tlv_len
-                                   else (size - ((Int.unsigned tag_len + Int.unsigned len_len)%Z)))));
+     temp _ptr (offset_val (Int.signed cm) (Vptr b i));
+     temp _size (Vint (if z =? 0 
+                       then (Int.repr size - cm)%int
+                       else if (tlv_len < (Int.repr size - 
+                                           (tag_len + len_len)))%int
+                            then tlv_len
+                            else (Int.repr size -
+                                  ((tag_len + len_len)))%int));
      temp _tag_mode (Vint (Int.repr 0));
      temp _last_tag_form (Vint (Int.repr 0));
      temp _last_length last_length_p;
@@ -366,14 +368,14 @@ Proof.
              let (i0, i1) := Exec.ber_fetch_tags ptr size in
              let (i2, i3) :=
                  Exec.ber_fetch_len 
-                   (sublist (Int.unsigned i0)
+                   (sublist (Int.signed i0)
                             (len ptr) ptr) 0 0%int
                    (Int.repr size - i0)%int
                    (Int.repr (sizeof tuint)) 
                    (Int.repr Int.max_signed) in
-  PROP (0 < Int.signed i0 /\
-       0 < Int.signed i2 /\
-       0 < Int.signed i3 /\
+  PROP (0 < Int.signed i0 <= 127 /\
+       0 < Int.signed i2 <= 127 /\
+       0 < Int.signed i3 <= Int.max_signed - 255 /\
        i0 <> 0%int /\
        i0 <> Int.repr (-1) /\
        i2 <> Int.repr (-1) /\
@@ -410,11 +412,12 @@ Proof.
      temp _last_length last_length_p;
      temp _opt_tlv_form nullval)
   SEP (data_at Tsh
-         (tarray tuchar (len (sublist (Int.unsigned i0) (len ptr) ptr)))
-         (map Vint (sublist (Int.unsigned i0) (len ptr) ptr))
-         (Vptr b (i + Ptrofs.repr (Int.unsigned i0))%ptrofs);
+         (tarray tuchar (len (sublist (Int.signed i0) (len ptr) ptr)))
+         (map Vint (sublist (Int.signed i0) (len ptr) ptr))
+         (Vptr b (i + Ptrofs.repr (Int.signed i0))%ptrofs);
   data_at Tsh tint (Vint i3) v_tlv_len;
-  data_at Tsh tuchar (Vint (Znth 0 ptr)) (Vptr b i);
+  data_at Tsh (tarray tuchar (Int.signed i0))
+    (map Vint (sublist 0 (Int.signed i0) ptr)) (Vptr b i);
   if (0 < i0)%int
   then data_at Tsh tuint (Vint (snd (Exec.ber_fetch_tags ptr size))) v_tlv_tag
   else data_at_ Tsh tuint v_tlv_tag;
@@ -443,13 +446,13 @@ Proof.
      let (tag_len, tlv_tag) := Exec.ber_fetch_tags ptr size in
      let (len_len, tlv_len) := 
          Exec.ber_fetch_len
-           (sublist (Int.unsigned tag_len)
+           (sublist (Int.signed tag_len)
            (len ptr) ptr) 0 0%int 
            (Int.repr size - tag_len)%int (Int.repr (sizeof tuint)) 
            (Int.repr Int.max_signed) in
-     PROP (0 < Int.signed tag_len;
-           0 < Int.signed len_len;
-           0 < Int.signed tlv_len;
+     PROP (0 < Int.signed tag_len <= 127;
+           0 < Int.signed len_len <= 127;
+           0 < Int.signed tlv_len <= Int.max_signed - 255;
            tag_len <> Int.repr (-1);
            tag_len <> 0%int;
            len_len <> Int.repr (-1);
@@ -479,7 +482,7 @@ Proof.
      lvar _tlv_tag tuint v_tlv_tag; 
      temp __res res_p; temp _opt_codec_ctx opt_codec_ctx_p;
      temp _td td_p; temp _opt_ctx nullval;
-     temp _ptr (offset_val (Int.unsigned (tag_len + len_len)%int)
+     temp _ptr (offset_val (Int.signed (tag_len + len_len)%int)
                            (Vptr b i));
      temp _size (Vint (if (tlv_len < Int.repr size - (tag_len + len_len))%int 
                        then tlv_len
@@ -551,7 +554,6 @@ Proof.
                   by admit
               end
             end.
-           Set Ltac Backtrace.
            forward_if (temp _t'13
                             (if i0 == Int.repr (-1) 
                              then Vint 1 
@@ -638,13 +640,13 @@ Proof.
                forward.
                entailer!.
                unfold is_int.
-               assert (0 <= Int.unsigned (Znth 0 ptr) <= Byte.max_unsigned) as B.
+               assert (0 <= Int.signed (Znth 0 ptr) <= Byte.max_signed) as B.
                { eapply Forall_Znth.
                  eassumption.
                  lia.
                   }
-               repeat erewrite Znth_map; auto; try nia.
-               strip_repr.
+               unfold Int.signed in B.
+               break_if; rep_lia.
                forward_if (temp _t'14 Vzero).
              ** (*  assert ((Znth 0 ptr & Int.repr 32) <> 0)%int as Z.
                 { generalize H12.
@@ -734,19 +736,54 @@ Proof.
                  isc : Z, buf_b : block, buf_ofs : ptrofs,      
                  res_v : Z, res_ptr : val *)   
                erewrite Heqptr'.
-               replace (data_at Tsh (tarray tuchar (len ptr))
-                       (map Vint ptr) (Vptr b i))
-                       with
-                        (data_at Tsh tuchar (Vint (Znth 0 ptr))
-                                   (Vptr b i) * 
-                         data_at Tsh (tarray tuchar 
- (len (sublist (Int.unsigned i0) (len ptr) ptr))) 
-                                 (map Vint ((sublist (Int.unsigned i0) (len ptr) ptr)))
-                                 (Vptr b (i + 
-                                          (Ptrofs.repr (Int.unsigned i0)))%ptrofs))%logic.
+                  assert (0 < Int.signed i0) as II.
+               {  Ltac strip_repr_signed :=
+                 autorewrite with norm;
+                 try erewrite Int.add_signed;
+                 try erewrite Int.sub_signed;
+                 try erewrite Int.mul_signed;
+                 try erewrite Int.signed_one in *;
+                 try erewrite Int.signed_zero in *;
+                 repeat rewrite Int.signed_repr;  
+                 repeat rewrite Int.signed_repr;     
+                 try rep_lia; auto.
+                generalize H10.
+                unfold Int.lt.
+                break_if; auto. 
+                strip_repr_signed.
+                  discriminate. }
+               erewrite H10 in H. inversion H.
+               assert
+                 (data_at Tsh (tarray tuchar (len ptr))
+                          (map Vint ptr) (Vptr b i)
+                       =
+                 (data_at Tsh (tarray tuchar (Int.signed i0))
+                          (map Vint ((sublist 0 (Int.signed i0) ptr)))
+                          (Vptr b i) 
+                         *    
+                 data_at Tsh (tarray tuchar 
+                              (len (sublist (Int.signed i0) (len ptr) ptr))) 
+                         (map Vint ((sublist (Int.signed i0) (len ptr) ptr)))
+                         (Vptr b (i + 
+                                  (Ptrofs.repr (Int.signed i0)))%ptrofs))%logic)
+                 as D.           
+             { Require Import SepLemmas.
+               erewrite <- data_at_app_gen.
+               auto.
+               all: autorewrite with sublist; 
+                 try erewrite Zlength_sublist_correct;
+                 auto; try rep_lia.
+               do 2 erewrite <- sublist_map.
+               erewrite sublist_rejoin.
+               autorewrite with sublist.
+               auto.
+               lia.
+               erewrite Zlength_map. lia. }
+               erewrite D.
                autorewrite with norm.
                erewrite Heqp.
                 
+             
                match goal with
             | [ _ : _ |-  semax _ (PROPx ?P (LOCALx ?Q (SEPx ?R))) ?C ?Post ] =>
             replace (PROPx P (LOCALx Q (SEPx R))) with
@@ -756,9 +793,9 @@ Proof.
                               temp _size (Vint (Int.repr size));
                               lvar _tlv_len tint v_tlv_len] (SEPx R)))
                 by admit;
-              forward_call (0, b, (i +  (Ptrofs.repr (Int.unsigned i0)))%ptrofs, 
+              forward_call (0, b, (i +  (Ptrofs.repr (Int.signed i0)))%ptrofs, 
                               (Int.repr size - i0)%int, 
-                             sublist (Int.unsigned i0) (len ptr) ptr, v_tlv_len);
+                             sublist (Int.signed i0) (len ptr) ptr, v_tlv_len);
               try Intro v;
               try match goal with
               | [ _ : _ |-  semax _ (PROPx ?P2 (LOCALx ?Q2 (SEPx ?R2))) 
@@ -768,10 +805,11 @@ Proof.
                   by admit
               end
             end.
-               admit.
+              
                unfold Frame.
                instantiate (1 := 
-  [data_at Tsh tuchar (Vint (Znth 0 ptr)) (Vptr b i) *
+  [data_at Tsh (tarray tuchar (Int.signed i0))
+    (map Vint (sublist 0 (Int.signed i0) ptr)) (Vptr b i) *
   (if (0 < i0)%int
    then data_at Tsh tuint (Vint (snd (i0, i1))) v_tlv_tag
    else data_at_ Tsh tuint v_tlv_tag) *
@@ -800,19 +838,17 @@ Proof.
                 simpl.
                 autorewrite with sublist.                
                 entailer!.
-                
-                erewrite H10 in H.
-                inversion H.
                 repeat split; auto.
                 erewrite Znth_sublist.
                 autorewrite with norm.
-                auto.
-                rep_lia.
-                rep_lia.
-              { autorewrite with sublist. strip_repr_ptr.
-                erewrite Zlength_sublist_correct.
-                rep_lia.
-                rep_lia. lia. }
+                  auto.
+                  rep_lia.
+              { autorewrite with sublist. strip_repr_ptr. }
+              strip_repr_ptr.
+              erewrite Zlength_sublist_correct.
+              rep_lia.
+              rep_lia.
+              rep_lia.
               { eapply Forall_sublist.
                 eassumption.
               }
@@ -825,25 +861,27 @@ Proof.
                 { Intros.
                   forward.
                   entailer!.
-                  erewrite Heqp0 in H12.
-                  simpl in H12.
-                  erewrite H12.
+                  erewrite Heqp0 in H14.
+                  simpl in H14.
+                  erewrite H14.
                   simpl. auto. }
                 
                 { Intros.
                   forward.
                   entailer!.
-                  erewrite Heqp0 in H12.
+                  erewrite Heqp0 in H14.
                   simpl in Heqp0.
                   erewrite Heqp0.
                   simpl.
-                  simpl in H12.
-                  erewrite H12.
+                  simpl in H14.
+                  erewrite H14.
                   unfold Val.of_bool.
                   replace (Int.repr 0) with 0%int 
                     by auto with ints.
                   break_if; reflexivity. }
-                forward_if True.
+                forward_if (((i2 == 0%int) 
+                             || (i2 == Int.repr (-1)))%bool =
+                            false).
                {
                  (* RC FAIL *)
               
@@ -882,30 +920,35 @@ Proof.
                break_if; auto.
                break_if. auto.
                destruct_orb_hyp.
-               generalize H12.
-               erewrite H15.
-               erewrite H50. 
+               generalize H14.
+               erewrite H17.
+               erewrite H53. 
                congruence.
                }
              erewrite N.        
              assert (((i2 == 0%int)
                       || (i2 == Int.repr (-1)))%bool = true)
                as I2.
-             { generalize H12.
+             { generalize H14.
                break_if.
                auto. erewrite orb_true_r. auto. 
                break_if; auto. }
              erewrite I2.
-             entailer.
-             admit. (* true: data_at_app proof *) }
+             entailer!.
+             erewrite D.
+             entailer!. }
              forward.
              entailer!.
+             generalize H14.
+             repeat break_if; try discriminate;
+               auto.
              Intros.
+             assert (0 < Int.signed i2) as III by admit.
+             (* true from bounds lemma *)
              erewrite Heqp0.
              simpl.
-             replace ((i2 == 0%int) 
-                      || (i2 == Int.repr (-1)))%bool
-               with false by admit. (* add to if-postcondition *)
+             erewrite H14.
+             simpl.
              forward.
              forward_if.
              assert (ber_fetch_len_bounds :
@@ -921,50 +964,38 @@ Proof.
                repeat break_match; simpl; try rep_lia; try discriminate.
                eassumption.
                all: destruct_orb_hyp.
-               eapply lt_false_inv in H16.
+               eapply lt_false_inv in H19.
                unfold not. intro G.
                replace i5 with 
                    (Int.repr (Int.signed i5)) in G by auto with ints.
                inversion G.
-               erewrite Int.Z_mod_modulus_eq in H19.
-               erewrite Zmod_small in H19.
+               erewrite Int.Z_mod_modulus_eq in H22.
+               erewrite Zmod_small in H22.
                rep_lia.
-               eapply lt_false_inv in H17.
-               generalize H17.
+               eapply lt_false_inv in H20.
+               generalize H20.
                strip_repr. intro. strip_repr.
                replace (Int.signed 0%int) with 0 in * by auto with ints.
                rep_lia. }
              pose proof (ber_fetch_len_bounds 
-                           (sublist (Int.unsigned i0) (len ptr) ptr) 
+                           (sublist (Int.signed i0) (len ptr) ptr) 
              (Int.repr size - i0)%int (Int.repr (sizeof tuint)))
                as BL.
              erewrite Heqp0 in *.
              simpl in BL.
-             erewrite H13 in BL.
+             erewrite H16 in BL.
              destruct BL.
-             erewrite H10 in H.
-             inversion H.
              erewrite Zlength_sublist_correct; try lia.
-             rep_lia.
              unfold not. intro G.
              erewrite Znth_sublist in G.
              autorewrite with norm in G.
-             Search Forall Znth.
              erewrite Forall_Znth in H8.
-             pose proof (H8 (Int.unsigned i0)) as G'.
+             pose proof (H8 (Int.signed i0)) as G'.
              destruct G'.
-             erewrite H10 in H.
-             inversion H.
              rep_lia.
-             replace (Znth (Int.unsigned i0) ptr) with
-                 (Int.repr (Int.unsigned (Znth (Int.unsigned i0) ptr))) in G by auto with ints.
-             inversion G.
-             erewrite Int.Z_mod_modulus_eq in H17.
-             erewrite Zmod_small in H17.
+             erewrite G in H17.
+             strip_repr.
              rep_lia.
-             all: try rep_lia.
-              erewrite H10 in H.
-             inversion H.
              rep_lia.
              reflexivity.
              forward_if True; try contradiction.
@@ -998,7 +1029,7 @@ Proof.
                try contradiction.
             { forward.
              entailer!.
-             generalize H14.
+             generalize H17.
              break_if.
              simpl. auto.
              unfold Val.of_bool.
@@ -1008,7 +1039,7 @@ Proof.
            { forward.
              forward.
              entailer!.
-             generalize H14.
+             generalize H17.
              break_if.
              discriminate.
              unfold Val.of_bool.
@@ -1020,7 +1051,9 @@ Proof.
              repeat break_if; repeat Zbool_to_Prop; try discriminate; try rep_lia;
              auto.
              }
-             forward_if True; try contradiction.
+             forward_if ((Int.signed i0 <= 127) /\ (Int.signed i2 <= 127)
+                         /\ (Int.signed i3 <= Int.max_signed - 255));
+              try contradiction.
              { (* RC_FAIL *)
                forward_empty_while.
               rewrite_if_b. 
@@ -1047,27 +1080,27 @@ Proof.
                break_if; auto.
                simpl in Heqp0; erewrite Heqp0.
                break_if; auto.
-               generalize H14.
+               generalize H17.
                break_if.
                Zbool_to_Prop.
                destruct_orb_hyp; repeat Zbool_to_Prop;
                   break_if; auto; try discriminate.
-               eapply typed_true_of_bool in H14.
-               erewrite H14. auto. }
+               eapply typed_true_of_bool in H17.
+               erewrite H17. auto. }
              erewrite N.
              erewrite H10.
+             erewrite D.
              entailer!.
-             admit. (* data_at proof *)
              }
              forward.
              entailer!.
-   (*          entailer!.
-             f_equal.
-             simpl in Heqp0.
-             erewrite Heqp0.
-             auto.                  
-             discriminate.  
-             deadvars!.
+             eapply typed_false_tint_e in H17.
+             generalize H17.
+             break_if. discriminate.
+             destruct_orb_hyp; repeat Zbool_to_Prop.
+             unfold Val.of_bool.
+             break_if. discriminate. Zbool_to_Prop.
+             intro. repeat split; try rep_lia.
              assert (0 <= Int.signed i0 <= size) as SS.
                  replace i0 with (fst (i0, i1)) by auto.
                  erewrite <- Heqp.
@@ -1085,10 +1118,41 @@ Proof.
                  rep_lia.
                   erewrite Int.sub_signed.
                  strip_repr.
-              
+                 assert (0 <= Int.signed i3).
+                 {  
+                   replace i3 with (snd (i2, i3)) by auto.
+                   erewrite <- Heqp0. 
+                   replace (Int.repr size - i0)%int
+                     with (Int.repr (size - Int.signed i0)).
+                   eapply Exec.ber_fetch_len_bounds_snd.
+                   replace (Int.signed 0%int) with 0%Z by auto with ints.
+                   rep_lia.
+                   erewrite Int.sub_signed.
+                   strip_repr.
+                   
+                 }
+             
+             forward_if (temp _limit_len (Vint (i3 + i0 + i2)%int));
+               try contradiction; break_and.
+
+             forward.
+             forward.
+             entailer!.
+             simpl in Heqp0.
+             erewrite Heqp0.
+             simpl.
+             break_and.
+             erewrite Int.add_signed.
+             strip_repr.
+            
+                 erewrite Heqp0 in *.
+                 entailer!.
+                 discriminate.
+                 deadvars!.
              (* ADVANCE *)
      forward_empty_while_break
-     (PROP ()
+     (PROP (Int.signed i0 <= 127 /\
+           Int.signed i2 <= 127 /\ Int.signed i3 <= Int.max_signed - 255)
      LOCAL (
         temp _tagno (Vint (Int.repr 0));
        temp _step (Vint (Int.repr 0)); 
@@ -1123,12 +1187,13 @@ Proof.
      temp _last_tag_form (Vint (Int.repr 0));
      temp _last_length last_length_p;
      temp _opt_tlv_form nullval)
-     SEP (data_at Tsh (tarray tuchar (len (sublist (Int.unsigned i0)
+     SEP (data_at Tsh (tarray tuchar (len (sublist (Int.signed i0)
                                                    (len ptr) ptr)))
-                  (map Vint (sublist (Int.unsigned i0) (len ptr) ptr))
-            (Vptr b (i + Ptrofs.repr (Int.unsigned i0))%ptrofs);
+                  (map Vint (sublist (Int.signed i0) (len ptr) ptr))
+            (Vptr b (i + Ptrofs.repr (Int.signed i0))%ptrofs);
      data_at Tsh tint (Vint i3) v_tlv_len;
-     data_at Tsh tuchar (Vint (Znth 0 ptr)) (Vptr b i);
+     data_at Tsh (tarray tuchar (Int.signed i0))
+    (map Vint (sublist 0 (Int.signed i0) ptr)) (Vptr b i);
      if (0 < i0)%int
      then
       data_at Tsh tuint (Vint (snd (Exec.ber_fetch_tags ptr size))) v_tlv_tag
@@ -1155,7 +1220,7 @@ Proof.
      data_at Tsh (tarray tuint (len (tags td)))
        (map Vint (map Int.repr (tags td))) tags_p;
      data_at_ Tsh asn_dec_rval_s res_p; data_at_ Tsh tint last_length_p)).
-               erewrite H10 in *.
+               break_and.
                simpl in Heqp0.
                repeat erewrite Heqp0 in *.
                simpl.
@@ -1165,112 +1230,49 @@ Proof.
                repeat erewrite Heqp in *.
                repeat erewrite Heqp0 in *.
                entailer!.
-                erewrite H10 in *.
-                simpl in Heqp, Heqp0.
+               simpl in Heqp, Heqp0.
                repeat erewrite Heqp in *.
                repeat erewrite Heqp0 in *.
                simpl.
                split; try rep_lia.
-               admit. (* UB *)
+               do 4 strip_repr_signed.
+               break_and.
                forward_if.
                 {
                    (* z3 < size - i0 - i2 *) 
-                  deadvars!.
-                  forward.
+                 deadvars!.
+                 forward.
                  
                  entailer!.
                  cbn.
                  
                  cbn in Heqp0. erewrite Heqp0.
                  auto.
-                 cbn in H14.
+                 cbn in H32.
                  erewrite Heqp0 in *.
-                 eapply typed_true_of_bool in H14.
-                 autorewrite with norm in H14.
+                 eapply typed_true_of_bool in H32.
+                 autorewrite with norm in H32.
                  replace (i3 + i0 + i2 - (i0 + i2))%int
-                         with i3 in H14 by admit.
-                 erewrite H14. 
-                 admit. (* should be solved by auto *)
-                 entailer!.
-                 erewrite Heqp.
-                 entailer!.
-                 (* CONTINUE *)
-                  }
+                         with i3 in H32.
+                 erewrite H32.
                 
-  (*               erewrite Heqp0.
-                 cbn.
-                 lia.
-                 assert (ber_fetch_len_bounds :
-                           forall (ptr : list Z) (isc len_r size sizeofval rssizem : Z),
-                          0 <=  len_r <= 255 ->
-                         Forall (fun x => 0 <= x <= Byte.max_unsigned) ptr ->
-                         snd (Exec.ber_fetch_len ptr isc len_r size sizeofval rssizem) <> -1 ->
-                        0 <= snd (Exec.ber_fetch_len ptr isc len_r size sizeofval rssizem) 
-                        <= Byte.max_unsigned).
-                 { intros.
-                   unfold Exec.ber_fetch_len in H46.
-                    unfold Exec.ber_fetch_len.
-                   repeat break_if; cbn; try lia.
-                   admit.
-                   admit.
-                   repeat break_let.
-                   admit. }
-                 eapply ber_fetch_len_bounds.
-                 lia.
-                 (* add to PRE:
-                   Forall (fun x : Z => 0 <= x <= Byte.max_unsigned) ptr
-                  also precondition to fetch length *)
-                 admit.
-                 
-                 eapply repr_neq_e in H11.
-                 generalize H11.
-                 rewrite Byte.unsigned_repr.
-                 easy.
-                 admit.
-                 cbn.
+                 admit. (* should be solved by auto *)
+                 do 3 strip_repr_signed.
+                 replace i3 with (Int.repr (Int.signed i3)) by auto with ints.
                  f_equal.
-                 strip_repr.
-                 (* NEED: 0 <= i0 + z2 <= Int.max_unsigned *)
-                 admit.
-                 replace (size - i0 - z2 >? z3) with true. 
-                  (* true  *)
-                 admit.
-                   (* true  *)
-                 symmetry.
-                 generalize H17.
-                 rewrite Byte.unsigned_repr.
-                 simpl in Heqp0.
-                 erewrite Heqp0.
-                 strip_repr.
-                 intro.
-                 erewrite Z.gtb_lt.
-                 lia.
-                 (* Int.min_signed <= size - (i0 + z2) <= Int.max_signed *)
-                 admit.
-                 admit.
-                 erewrite Heqp0.
+                 strip_repr_signed.
                  erewrite Heqp.
-                 simpl.
                  entailer!.
-                 admit. *)
-             (*    replace (0 <? fst (Exec.ber_fetch_tags ptr size)) with true.
-                 entailer!.
-                 admit.
-                 admit. } *)
-               {
-                 forward.
-                 erewrite Heqp0 in *.
-                 simpl in Heqp0.
-                 entailer!.
-                 autorewrite with norm in H14.
-                 replace (i3 + i0 + i2 - (i0 + i2))%int
-                         with i3 in H14 by admit.
-                 erewrite H14.
-                 admit.
-                 erewrite Heqp in *.
-                 entailer!.
-               }
-               admit. (* data_at_app proof *)
+(*                 (* CONTINUE *)
+                  }
+                forward.
+                entailer!.
+                erewrite Heqp0 in *. 
+                simpl in Heqp0.
+                erewrite Heqp0 in *. 
+                admit. (* true *)
+                erewrite Heqp.
+                entailer!.
          * Zbool_to_Prop.
            simpl.
            Intros.
@@ -1281,9 +1283,7 @@ Proof.
            forward.
            assert (z = 1) as Z by lia.
            erewrite Z.
-           (* BREAK *)
-           admit.
-           (* do 2 f_equal. try lia. *)
+           entailer!.
       +++  (* CONTINUE  to LI *)
           repeat break_let.
           forward.
@@ -1293,7 +1293,12 @@ Proof.
           repeat break_let.
           entailer!.
           simpl.
-          repeat split; auto.
+          (*  0 < Int.signed i0 /\
+  0 < Int.signed i2 /\
+  0 < Int.signed i3 /\
+  i0 <> 0 /\
+  i0 <> Int.repr (-1) /\
+  i2 <> Int.repr (-1) /\ i2 <> Int.repr 0 /\ i1 = Int.repr (Znth 0 (tags td)) *)
           admit.
           simpl.
           replace (0 < i0)%int with true.
@@ -1317,7 +1322,7 @@ Proof.
           forward_if True; try contradiction.
           forward.
           entailer!.
-          forward_if (temp _t'27 Vone); try contradiction.
+          forward_if (temp _t'29 Vone); try contradiction.
           forward.
           entailer!.
           discriminate.
@@ -1350,8 +1355,15 @@ Proof.
              unfold Int.lt.
              break_if.
              replace (Int.signed 0%int) with 0 in *.
-             admit.
+             { repeat destruct_orb_hyp;
+               Zbool_to_Prop; try rep_lia. } 
              auto with ints. auto.
+             symmetry.
+             unfold Int.lt.
+             break_if; auto.
+             strip_repr_signed.
+             generalize l.
+             do 3 strip_repr_signed.
              symmetry.
              eapply orb_false_intro;
              eapply Int.eq_false; auto.

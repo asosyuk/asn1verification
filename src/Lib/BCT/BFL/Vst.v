@@ -24,7 +24,7 @@ Definition ber_fetch_len_spec : ident * funspec :=
              (* primitive tag *)
             c = 0;
             Ptrofs.unsigned i + len data < Ptrofs.modulus;
-            Forall (fun x => 0 <= Int.unsigned x <= Byte.max_unsigned) data;
+            Forall (fun x => 0 <= Int.signed x <= Byte.max_signed) data;
             0 < len data)
       PARAMS (Vint (Int.repr 0); (Vptr b i); Vint size; len_r)
       GLOBALS ()
@@ -81,6 +81,8 @@ Proof.
   forward.
   entailer!.
   eapply Forall_Znth with (i0 := 0) in H2; try lia.
+  unfold Int.signed in H2.
+  break_if; rep_lia.
   forward_if; try contradiction.
   forward.
   forward.
