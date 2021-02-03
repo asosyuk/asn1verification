@@ -41,7 +41,7 @@ Theorem ber_tlv_tag_serialize_correct :
   semax_body Vprog Gprog (normalize_function f_ber_tlv_tag_serialize composites)
              ber_tlv_tag_serialize_spec.
 Proof.
-  start_function.
+ (* start_function.
   remember (Int.shru tag (Int.repr 2)) as tval.
   remember (Int.zero_ext 8 (((tag & Int.repr 3) << Int.repr 6) or tval)) as e0. 
   remember (default_val (tarray tuchar buf_size)) as default_list.
@@ -716,6 +716,6 @@ Proof.
                all: try assert (r = len ls + 1) as RLS by admit;
                  try erewrite <- RLS; try lia.
                all: subst; try  setoid_rewrite LB; try lia.
-             *** subst. rep_lia. 
+             *** subst. rep_lia. *)
 Admitted.
 

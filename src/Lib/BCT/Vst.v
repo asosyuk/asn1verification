@@ -180,7 +180,7 @@ Theorem ber_check_tags_correctness :
              (normalize_function f_ber_check_tags composites) 
              ber_check_tags_spec.
 Proof.
-  start_function.
+(*  start_function.
   subst.
   repeat forward.
   forward_if (temp _t'1 Vzero).
@@ -1505,7 +1505,7 @@ Proof.
              eapply Int.eq_false; auto.
               }
           erewrite B.
-          entailer!.   
+          entailer!.   *)
 Admitted.
 
 End Ber_check_tags.

@@ -52,7 +52,7 @@ Definition ber_decode_primitive_spec : ident * funspec :=
     WITH ctx_p : val, ctx : Z, td_p : val, td : TYPE_descriptor,
          st_pp : val, buf_p : val, buf : list int,
          res_p : val, size : Z, tag_mode : Z, st_p : val,
-         tags_p : val, gv : globals
+         tags_p : val
     PRE [tptr asn_dec_rval_s, tptr asn_codec_ctx_s, tptr type_descriptor_s,
           tptr (tptr tvoid), tptr tvoid, tuint, tint] 
       PROP (is_pointer_or_null st_p;
@@ -64,12 +64,34 @@ Definition ber_decode_primitive_spec : ident * funspec :=
            ((Znth 0 buf) & Int.repr 32 = 0)%int; 
            1 = Zlength (tags td) ;
            0 <= Z_of_val buf_p + Zlength buf <= Ptrofs.max_unsigned;
-           Forall (fun x => 0 <= Int.unsigned x <= Byte.max_unsigned) buf)
+           Forall (fun x => 0 <= Int.signed x <= Byte.max_signed) buf;
+           
+           let (tag_len, _) := Exec.ber_fetch_tags buf size in
+           if ((tag_len == Int.repr (-1))%int || (tag_len == 0)%int)%bool
+           then True
+           else
+             (Znth (Int.signed tag_len) buf & Int.repr 128)%int = 0%int /\
+             0 < len buf - Int.signed tag_len;
+           match Exec.ber_check_tags_primitive
+                   buf td ctx
+                   (len buf) 
+                   (Int.repr (sizeof tuint)) 
+                   (Int.repr Int.max_signed)  
+           with
+             | Some (tg, tl) => 0 <= len buf - Int.signed tl <= Int.max_signed 
+                                                               /\
+                                0 < Int.signed tg + 1 <= Int.max_signed 
+             | None => True
+           end
+          
+           
+                            
+           )
 
       PARAMS (res_p; ctx_p; td_p; st_pp; buf_p; Vint (Int.repr size);
                 Vint (Int.repr tag_mode))
-      GLOBALS (gv)
-      SEP (mem_mgr gv;
+      GLOBALS ((fun _ : ident => Vzero))
+      SEP (mem_mgr (fun _ : ident => Vzero);
            valid_pointer st_p;
            if eq_dec st_p nullval 
            then emp
@@ -92,7 +114,7 @@ Definition ber_decode_primitive_spec : ident * funspec :=
       LOCAL ()
       SEP (
         (* Unchanged *)
-        (mem_mgr gv);
+        (mem_mgr (fun _ : ident => Vzero));
          valid_pointer st_p;
          data_at Tsh asn_codec_ctx_s (Vint (Int.repr ctx)) ctx_p;
          data_at Tsh (tarray tuint (Zlength (tags td)))
@@ -113,8 +135,8 @@ Definition ber_decode_primitive_spec : ident * funspec :=
              if eq_dec v nullval 
              then RC_FAIL  
              else 
-               match primitive_decoder td ctx size (sizeof tuint)
-                                       Int.max_signed buf with
+               match primitive_decoder td ctx size (Int.repr (sizeof tuint))
+                                       (Int.repr Int.max_signed) buf with
                | Some (r, c) => 
                  data_at Tsh asn_dec_rval_s (Vzero, Vint (Int.repr c)) res_p *
                  data_at Tsh (tarray tuint (Zlength r))
@@ -163,7 +185,7 @@ Proof.
   PROP (if eq_dec st_p nullval 
         then p <> nullval 
         else (p = st_p /\ st_p <> nullval))
-  LOCAL (gvars gv;
+  LOCAL (gvars ((fun _ : ident => Vzero));
          temp _st p; 
          temp _t'19 st_p;
          lvar __res__1 (Tstruct _asn_dec_rval_s noattr) v__res__1;
@@ -175,7 +197,7 @@ Proof.
          temp _buf_ptr buf_p;
          temp _size (Vint (Int.repr size));
          temp _tag_mode (Vint (Int.repr tag_mode)))
-  SEP (mem_mgr gv;
+  SEP (mem_mgr (fun _ : ident => Vzero) ;
        data_at_ Tsh (Tstruct _asn_dec_rval_s noattr) v__res__1;
        data_at_ Tsh (Tstruct _asn_dec_rval_s noattr) v_tmp_error;
        data_at_ Tsh tint v_length; 
@@ -206,7 +228,7 @@ Proof.
     forward_if (
      (PROP ((fst v <> nullval))
      LOCAL (
-      gvars gv;
+      gvars (fun _ : ident => Vzero) ;
        temp _st (fst v); temp _t'19 st_p;
      lvar __res__1 (Tstruct _asn_dec_rval_s noattr) v__res__1;
      lvar _tmp_error (Tstruct _asn_dec_rval_s noattr) v_tmp_error; lvar _length tint v_length;
@@ -214,7 +236,7 @@ Proof.
      temp _opt_codec_ctx ctx_p; temp _td td_p; temp _sptr st_pp; temp _buf_ptr buf_p;
      temp _size (Vint (Int.repr size)); temp _tag_mode (Vint (Int.repr tag_mode)))
      SEP (
-     mem_mgr gv;
+     mem_mgr (fun _ : ident => Vzero);
      if eq_dec (fst v) nullval
      then emp
      else data_at Ews (Tstruct _ASN__PRIMITIVE_TYPE_s noattr) (snd v)
@@ -334,37 +356,52 @@ Proof.
             unfold primitive_decoder.
             rewrite BCT.
             destruct buf. entailer!.  
-            simpl. break_let. simpl. 
-            replace (len (i0 :: buf) - z <? z0) with true.
+            simpl. repeat break_let. simpl.
+            replace (len (i0 :: buf) - Int.signed i4  <? Int.signed i3)
+              with true.
             entailer!. 
-            symmetry. Zbool_to_Prop.
+            simpl in H2.
+          
             generalize H2.
-            strip_repr.
-            Require Import BCT.Exec.
-            replace z with (fst (z, z0)) by auto.
-            eapply ber_check_tags_primitive_bounds_fst.
-            eassumption.
-            (* need lemma
-               Int.min_signed <= len (i0 :: buf) - z0 <= Int.max_signed
-               with (z, z0) := ber_check_tags *) admit.
+            unfold Int.lt.
+            Ltac strip_repr_signed :=
+                 autorewrite with norm;
+                 try erewrite Int.add_signed;
+                 try erewrite Int.sub_signed;
+                 try erewrite Int.mul_signed;
+                 try erewrite Int.signed_one in *;
+                 try erewrite Int.signed_zero in *;
+                 repeat rewrite Int.signed_repr;  
+                 repeat rewrite Int.signed_repr;     
+                 try rep_lia; auto.
+            strip_repr_signed.
+            break_if; try discriminate.
+            intro.
+            symmetry.
+            Zbool_to_Prop. lia.
+            erewrite BCT in  H10.
+            rep_lia.
           } 
           { inversion H0.
             subst. rewrite_if_b.
             unfold primitive_decoder.
             rewrite BCT.
             destruct buf. entailer!.  
-            simpl. break_let.
-            replace (len (i0 :: buf) - z <? z0) with true.
+            simpl. repeat break_let.
+            replace (len (i0 :: buf) - Int.signed i4 <? Int.signed i3) with true.
             entailer!. 
             symmetry. Zbool_to_Prop.
             generalize H2.
-            strip_repr.
-            replace z with (fst (z, z0)) by auto.
-            eapply ber_check_tags_primitive_bounds_fst.
-            eassumption.
-            (* need lemma
-               Int.min_signed <= len (i0 :: buf) - z0 <= Int.max_signed
-               with (z, z0) := ber_check_tags *) admit.
+            strip_repr_signed.
+            unfold Int.lt.
+            strip_repr_signed.
+            break_if; try discriminate.
+            intro.
+            lia.
+            erewrite BCT in  H10.
+            rep_lia.
+            
+ 
           }  
         }
         forward.
@@ -380,21 +417,29 @@ Proof.
           forward.
           entailer!.
           forward.
-          forward_call (tarray tuchar (fst p0 + 1),
-                         gv). 
+          forward_call (tarray tuchar (Int.signed (fst p0)+ 1)%Z,
+                         (fun x : ident => Vzero)). 
+          erewrite BCT in H10.
+          break_let.
           strip_repr.
-          (* Int.min_signed <= fst p0 + 1 <= Int.max_signed *)
-          admit.
-          eapply ber_check_tags_primitive_bounds_fst.
-          eassumption.
           entailer!. cbn.
           do 3 f_equal. 
-          erewrite Zmax0r. lia.
-          (* 0 <= fst p0 + 1 *) admit.
+          erewrite Zmax0r. strip_repr_signed.
+           erewrite BCT in H10.
+           break_let.
+           simpl.
+          rep_lia.
+          erewrite BCT in H10.
+           break_let.
+           simpl.
           cbn. repeat split; auto.
           erewrite Zmax0r.  
-          (* 0 <= fst p0 + 1 *) admit. admit.
-           erewrite Zmax0r. admit. admit.
+           
+           lia.
+           lia.
+            erewrite Zmax0r.
+            rep_lia.
+            lia.
           Intros v.
           forward.
           forward.
@@ -410,40 +455,49 @@ Proof.
              unfold primitive_decoder.
              rewrite BCT.
              destruct buf. entailer!.  
-             simpl. break_let. simpl. 
-             replace (len (i0 :: buf) - z <? z0) with false.
+             simpl. repeat break_let. simpl. 
+             replace (len (i0 :: buf) - Int.signed i4 <? Int.signed i3)
+               with false.
              simpl.
              entailer!.
-             simpl.
-             Search data_at nullval.
-             (* ??? *)
+             (* remove postcondition ??? *)
              admit.
              symmetry. Zbool_to_Prop.
              generalize H2.
-             strip_repr.
+             strip_repr_signed.
              Require Import BCT.Exec.
-             replace z with (fst (z, z0)) by auto.
-             eapply ber_check_tags_primitive_bounds_fst.
-             eassumption.
-             (* Int.min_signed <= len (i0 :: buf) - z0 <= Int.max_signed *)
-             admit.
+              strip_repr_signed.
+            unfold Int.lt.
+            strip_repr_signed.
+            break_if; try discriminate.
+            intro.
+            lia.
+            erewrite BCT in  H10.
+            rep_lia.
           ** forward.
              entailer!.
           ** repeat forward.
              autorewrite with norm.
              forward_call (Tsh, Tsh, v,
                            (Vptr b (i + Ptrofs.repr
-                           (Int.unsigned (Int.repr (snd p0))))%ptrofs),
-                           fst p0,
-                           ((sublist (snd p0) (Zlength buf) buf))). 
-             unfold Frame.
+                           (Int.unsigned ((snd p0))))%ptrofs),
+                           Int.signed (fst p0),
+                           ((sublist (Int.unsigned (snd p0))
+                                     (Zlength buf) buf))). 
+             entailer!.
+             cbn.
+             do 3 f_equal.
+             f_equal.
+             auto with ints. 
+             unfold Frame.           
              instantiate (1 :=
-                            [mem_mgr gv *
+                            [
+                              mem_mgr (fun x => Vzero) *
   (if eq_dec v nullval
    then emp
    else
-    malloc_token Ews (tarray tuchar (fst p0 + 1)) v *
-    data_at_ Ews (tarray tuchar (fst p0 + 1)) v) *
+    malloc_token Ews (tarray tuchar ((Int.signed (fst p0)) + 1)) v *
+    data_at_ Ews (tarray tuchar ((Int.signed (fst p0)) + 1)) v) *
   data_at Tsh (tarray tuchar (len buf)) (map Vint buf) (Vptr b i) *
   field_at Tsh (Tstruct ber_decoder._asn_TYPE_descriptor_s noattr)
     (DOT ber_decoder._tags) tags_p td_p *
@@ -453,30 +507,28 @@ Proof.
     (map Vint (map Int.repr (tags td))) tags_p *
   data_at Tsh (Tstruct ber_decoder._asn_codec_ctx_s noattr)
     (Vint (Int.repr ctx)) ctx_p *
-  data_at Tsh asn_dec_rval_s (mk_dec_rval 0 (snd p0)) v__res__1 *
-  data_at Tsh tint (Vint (Int.repr (fst p0))) v_length *
+  data_at Tsh asn_dec_rval_s (mk_dec_rval 0 (Int.signed (snd p0))) v__res__1 *
+  data_at Tsh tint (Vint (fst p0)) v_length *
   data_at_ Tsh (Tstruct _asn_dec_rval_s noattr) v_tmp_error *
   data_at Tsh (Tstruct _asn_dec_rval_s noattr)
-    (Vint (Int.repr 0), Vint (Int.repr (snd p0))) v_rval * 
+    (Vint (Int.repr 0), Vint (snd p0)) v_rval * 
   valid_pointer st_p * data_at Tsh (tptr tvoid) p st_pp *
   data_at_ Tsh asn_dec_rval_s res_p *
   data_at Ews (Tstruct _ASN__PRIMITIVE_TYPE_s noattr)
-    (v, Vint (Int.repr (fst p0))) p]%logic).
+    (v, Vint (fst p0)) p]%logic).
              simpl.
              entailer!.
-          (* TODO *)
+          (* data_at TODO *)
           admit.
           cbn. 
           split. auto. split. auto.
-          assert (Int.min_signed <= fst p0 <= Int.max_signed) as I.
-          eapply ber_check_tags_primitive_bounds_fst.
-          eassumption. strip_repr. 
-          (* 0 <= fst p0 <= 4294967295 *)
-          admit. 
+          erewrite BCT in H10.
+          break_let. simpl. 
+          rep_lia. 
           Intros.
           repeat forward.
           entailer!. 
-          (* UNPROVABLE *) 
+          (* UNPROVABLE: fix temps *) 
           admit.
           forward_empty_loop.
           repeat forward.
@@ -490,7 +542,7 @@ Proof.
           destruct buf. entailer!.  
           admit.
           simpl. break_let. simpl. 
-          replace (len (i0 :: buf) - z <? z0) with false.
+       (*   replace (len (i0 :: buf) - z <? z0) with false.
           simpl.
           entailer!.
           admit.
@@ -523,6 +575,6 @@ Proof.
           congruence.
           forward.
           entailer!.
-          forward.
+          forward. *)
 Admitted.
 End Ber_decode_primitive.
