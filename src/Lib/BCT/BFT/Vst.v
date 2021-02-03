@@ -32,9 +32,10 @@ Definition ber_fetch_tag_spec : ident * funspec :=
       LOCAL (temp ret_temp (Vint (fst r)))
       SEP (data_at Tsh (tarray tuchar (Zlength data)) 
                    (map Vint data) (Vptr b i);
-           if (0 < fst r)%int 
-           then data_at Tsh tuint (Vint ((snd r))) tag_p
-           else data_at_ Tsh tuint tag_p).
+           if ((fst r == Int.repr (-1)) ||
+               (fst r == 0%int))%bool 
+           then data_at_ Tsh tuint tag_p
+           else data_at Tsh tuint (Vint ((snd r))) tag_p).
 
 Definition Gprog := ltac:(with_library prog [ber_fetch_tag_spec]).
 
