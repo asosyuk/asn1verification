@@ -7,13 +7,15 @@ RUN apt update && apt install -y software-properties-common && add-apt-repositor
     opam init --disable-sandboxing && eval $(opam env)
 
 # clightgen installation
-RUN opam pin add coq 8.11.0 --yes && opam install menhir --yes && \
-    opam repo add coq-released https://coq.inria.fr/opam/released && \
+RUN opam repo add coq-released https://coq.inria.fr/opam/released && \
     opam repo add coq-extra-dev https://coq.inria.fr/opam/extra-dev && \
-    opam install coq-compcert.3.7 --yes
+    opam update && \
+    opam pin add coq 8.12.2 --yes && opam install menhir --yes && \   
+    opam install coq-compcert.3.7+8.12~coq_platform  --yes
 
 # vst installation
-RUN opam install coq-struct-tact coq-ext-lib --yes
+RUN opam pin add coq-struct-tact https://github.com/uwplse/StructTact.git -k git
+RUN opam install coq-ext-lib --yes
 RUN opam install coq-vst.2.6 --yes
 
 RUN apt update && apt install -y gcc-multilib lcov libasan*
