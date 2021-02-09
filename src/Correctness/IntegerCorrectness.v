@@ -14,7 +14,7 @@ Require Import VST.floyd.library.
 
                  (* C <-> EXECUTIVE SPEC *) 
      
-Inductive C_to_ESPEC_correctness (f : function) (f_spec : ident * funspec) 
+(* Inductive C_to_ESPEC_correctness (f : function) (f_spec : ident * funspec) 
       (aux_fs : list (function * (ident * funspec)))
       (V : varspecs) (G : list (ident * funspec)) : Prop :=
 | NoAuxCorr (C : compspecs) : aux_fs = [] -> 
@@ -270,3 +270,4 @@ Lemma int_roundtrip : forall td ls struct_len ctx size li z,
                       (map Byte.repr (map Int.unsigned ls))
     = Some (li, z).
 Admitted.
+*)

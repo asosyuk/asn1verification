@@ -20,12 +20,12 @@ Definition primitive_decoder td ctx size sizeofval sizemax ls :
   option (list int * Z) :=
     match ls with
     | [] => None
-    | _ => '(c, l) <- ber_check_tags_primitive ls
+    | _ => '(length, consumed) <- ber_check_tags_primitive ls
            td ctx size sizeofval sizemax ;;
-           if (Zlength ls - Int.signed l <? Int.signed c)
-           then None 
-           else let y := skipn (Z.to_nat (Int.signed c)) ls in
-                Some (y, Int.signed c + 1)%Z    
+           if (Zlength ls - Int.signed consumed <? Int.signed length)
+           then None                 
+           else let y := skipn (Z.to_nat (Int.signed consumed)) ls in
+                Some (y, Int.signed consumed + Int.unsigned length)%Z  
     end.
 
 End Decoder.

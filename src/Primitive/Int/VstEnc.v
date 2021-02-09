@@ -154,7 +154,8 @@ Theorem int_der_encode_correctness : semax_body Vprog Gprog
                                                          composites)
                                      int_der_encode_spec.
 
-Proof.
+Admitted. 
+(* Proof.
   Time start_function. 
   rename H into DT.
   remember (Vptr tag_b tag_ofs) as buf_p.
@@ -1024,6 +1025,6 @@ Proof.
                rewrite e in *. autorewrite with sublist in n0. contradiction.
                all: try lia.  } 
 Qed.
-
+*)
 End Integer_der_encode.
 

@@ -131,10 +131,14 @@ Definition ber_decode_primitive_spec : ident * funspec :=
              data_at Tsh asn_dec_rval_s (Vint (Int.repr 2), Vzero) res_p in
          EX v : val, 
          EX s : reptype (Tstruct _ASN__PRIMITIVE_TYPE_s noattr),
+         EX mv : val,
              data_at Tsh (tptr tvoid) v st_pp *
              if eq_dec v nullval 
              then RC_FAIL  
-             else 
+             else if eq_dec mv nullval
+                  then RC_FAIL * 
+                       data_at Ews (Tstruct _ASN__PRIMITIVE_TYPE_s noattr) s v
+                  else
                match primitive_decoder td ctx size (Int.repr (sizeof tuint))
                                        (Int.repr Int.max_signed) buf with
                | Some (r, c) => 
@@ -175,11 +179,12 @@ Theorem ber_decode_primitive_correctness : semax_body Vprog Gprog
            (normalize_function f_ber_decode_primitive composites) 
            ber_decode_primitive_spec.
 Proof.
-  start_function.
+ (* start_function.
   rename H0 into DT.
   rename H1 into Size.
   rename H2 into Len.
   repeat forward.
+  deadvars!.
   forward_if 
   (EX p : val, EX s : reptype (Tstruct _ASN__PRIMITIVE_TYPE_s noattr),
   PROP (if eq_dec st_p nullval 
@@ -187,7 +192,6 @@ Proof.
         else (p = st_p /\ st_p <> nullval))
   LOCAL (gvars ((fun _ : ident => Vzero));
          temp _st p; 
-         temp _t'19 st_p;
          lvar __res__1 (Tstruct _asn_dec_rval_s noattr) v__res__1;
          lvar _tmp_error (Tstruct _asn_dec_rval_s noattr) v_tmp_error;
          lvar _length tint v_length; temp __res res_p; 
@@ -220,16 +224,18 @@ Proof.
        else data_at_ Ews (Tstruct _ASN__PRIMITIVE_TYPE_s noattr) st_p
        ))%assert; try congruence.
   *  (* _st = NULL *)   
+    erewrite H0.
+    rewrite_if_b.
     forward_call (1, sizeof (Tstruct _ASN__PRIMITIVE_TYPE_s noattr),
                   (Tstruct _ASN__PRIMITIVE_TYPE_s noattr)).
     cbn; try nia.
-    Intros v.
+    Intros v.    
     repeat forward.
     forward_if (
      (PROP ((fst v <> nullval))
      LOCAL (
       gvars (fun _ : ident => Vzero) ;
-       temp _st (fst v); temp _t'19 st_p;
+       temp _st (fst v); 
      lvar __res__1 (Tstruct _asn_dec_rval_s noattr) v__res__1;
      lvar _tmp_error (Tstruct _asn_dec_rval_s noattr) v_tmp_error; lvar _length tint v_length;
      lvar _rval (Tstruct _asn_dec_rval_s noattr) v_rval; temp __res res_p;
@@ -245,9 +251,6 @@ Proof.
      data_at_ Tsh (Tstruct _asn_dec_rval_s noattr) v_tmp_error;
      data_at Tsh tint (Vint (Int.repr 0)) v_length;
      data_at_ Tsh (Tstruct _asn_dec_rval_s noattr) v_rval; valid_pointer st_p;
-     if eq_dec st_p nullval then 
-       emp else 
-       data_at_ Ews (Tstruct _ASN__PRIMITIVE_TYPE_s noattr) st_p;
      data_at Tsh asn_codec_ctx_s (Vint (Int.repr ctx)) ctx_p;
      data_at Tsh (tarray tuint (Zlength (tags td)))
              (map Vint (map Int.repr (tags td))) tags_p;
@@ -258,16 +261,16 @@ Proof.
                    (Vint (Int.repr (Zlength (tags td)))) td_p; 
      data_at Tsh (tarray tuchar (Zlength buf)) (map Vint buf)
              buf_p;
-     data_at Tsh (tptr tvoid) st_p st_pp; data_at_ Tsh asn_dec_rval_s res_p))). 
-    break_if. erewrite e. entailer!. entailer!.
+     data_at Tsh (tptr tvoid) st_p st_pp; data_at_ Tsh asn_dec_rval_s res_p ))). 
+   break_if. erewrite e. entailer!. entailer!.
     Require Import Forward.
     match goal with
     | [ _ : _ |- semax _ ?Pre ((Sloop _ Sbreak)) _ ] =>
       forward_loop Pre 
     end. 
     entailer!.
-    (* st_p = nullval *)
-    -- (* malloc returned null *)
+    (* st_p = nullval, fst v = nullval *)
+    -- (* calloc returned null *)
       repeat forward.
       match goal with
       | [ _ : _ |- semax _ ?Pre _ _ ] =>
@@ -276,14 +279,14 @@ Proof.
       entailer!.
       forward. entailer!.
       repeat forward. 
-      Exists nullval. Exists (snd v).
+      Exists nullval. Exists (snd v). EExists.
       repeat rewrite_if_b.
       entailer!.
-    -- (* maloc returned non-null value *)
+    -- (* caloc returned non-null value *)
       forward.
       entailer!.
     -- forward.
-       Exists (fst v) (snd v).
+       Exists (fst v) (snd v). 
        erewrite H0 in *.
        repeat rewrite_if_b.
        entailer!.
@@ -293,11 +296,12 @@ Proof.
     Exists st_p. Exists (Vundef, Vundef).
     repeat rewrite if_false by assumption.
     entailer!.
-  * (* after if *)
+  * (* after if, calloc succesful or st_p <> nullval *)   
     Intros p s.
+    break_if. (* st_p = nullval, p <> nullval (calloc succesful) *)
+    ** 
     forward_empty_loop.
     destruct buf_p; cbn in H3; try contradiction.
-    deadvars!.
     forward_call (ctx_p,
                   td_p, td, tags_p, Vzero, b, i, buf,
                   v__res__1, size, tag_mode, 0, v_length, Vzero, ctx%Z).
@@ -313,21 +317,9 @@ Proof.
         repeat forward.
         all: forward_if; [|discriminate];
           repeat forward.
-        Exists p s.
-        break_if.
-        { rewrite if_false by assumption.
-          unfold primitive_decoder.
-          rewrite Heqo.
-          destruct buf. entailer!.  
-          simpl. entailer!. } 
-        { inversion H0.
-          subst. rewrite_if_b.
-          unfold primitive_decoder.
-          rewrite Heqo.
-          destruct buf. entailer!.  
-          simpl. entailer!. 
-        }  
-      }
+        Exists p s. EExists.
+        repeat rewrite_if_b.       
+        entailer!. }
       { (* If ber_check_tags succeded *)
         rename Heqo into BCT; cbn in Size; subst.
         autorewrite with norm.
@@ -350,39 +342,38 @@ Proof.
           forward.
           entailer!.
           repeat forward.
-          Exists p s.
-          break_if.
-          { rewrite if_false by assumption.
-            unfold primitive_decoder.
-            rewrite BCT.
-            destruct buf. entailer!.  
-            simpl. repeat break_let. simpl.
-            replace (len (i0 :: buf) - Int.signed i4  <? Int.signed i3)
-              with true.
-            entailer!. 
-            simpl in H2.
-          
-            generalize H2.
-            unfold Int.lt.
-            Ltac strip_repr_signed :=
-                 autorewrite with norm;
-                 try erewrite Int.add_signed;
-                 try erewrite Int.sub_signed;
-                 try erewrite Int.mul_signed;
-                 try erewrite Int.signed_one in *;
-                 try erewrite Int.signed_zero in *;
-                 repeat rewrite Int.signed_repr;  
-                 repeat rewrite Int.signed_repr;     
-                 try rep_lia; auto.
-            strip_repr_signed.
-            break_if; try discriminate.
-            intro.
-            symmetry.
-            Zbool_to_Prop. lia.
-            erewrite BCT in  H10.
-            rep_lia.
-          } 
-          { inversion H0.
+          Exists p s.  EExists.
+          rewrite_if_b.
+          break_if. entailer!.
+          unfold primitive_decoder.
+          rewrite BCT.
+          destruct buf. entailer!.  
+          simpl. repeat break_let. simpl.
+          replace (len (i0 :: buf) - Int.signed i4  <? Int.signed i3)
+            with true.
+          entailer!. 
+          simpl in H2.          
+          generalize H2.
+          unfold Int.lt.
+          Ltac strip_repr_signed :=
+            autorewrite with norm;
+            try erewrite Int.add_signed;
+            try erewrite Int.sub_signed;
+            try erewrite Int.mul_signed;
+            try erewrite Int.signed_one in *;
+            try erewrite Int.signed_zero in *;
+            repeat rewrite Int.signed_repr;  
+            repeat rewrite Int.signed_repr;     
+            try rep_lia; auto.
+          strip_repr_signed.
+          break_if; try discriminate.
+          intro.
+          symmetry.
+          Zbool_to_Prop. lia.
+          erewrite BCT in  H10.
+          rep_lia. }
+           
+     (*     { inversion H0.
             subst. rewrite_if_b.
             unfold primitive_decoder.
             rewrite BCT.
@@ -402,103 +393,107 @@ Proof.
             rep_lia.
             
  
-          }  
-        }
+          }   *)
+        
+        repeat forward.
+        forward_if [temp _t'2 Vfalse].
+        congruence.
+        forward; entailer!.
+        forward_if True. 
+        repeat forward.
+        forward_empty_loop.
+        repeat forward.
         forward.
-        break_if.
-        * forward.
-          forward_if [temp _t'2 Vfalse].
-          congruence.
-          forward; entailer!.
-          forward_if True. 
-          repeat forward.
-          forward_empty_loop.
-          repeat forward.
-          forward.
-          entailer!.
-          forward.
-          forward_call (tarray tuchar (Int.signed (fst p0)+ 1)%Z,
-                         (fun x : ident => Vzero)). 
-          erewrite BCT in H10.
-          break_let.
-          strip_repr.
-          entailer!. cbn.
-          do 3 f_equal. 
-          erewrite Zmax0r. strip_repr_signed.
-           erewrite BCT in H10.
-           break_let.
-           simpl.
-          rep_lia.
-          erewrite BCT in H10.
-           break_let.
-           simpl.
-          cbn. repeat split; auto.
-          erewrite Zmax0r.  
-           
-           lia.
-           lia.
-            erewrite Zmax0r.
-            rep_lia.
-            lia.
-          Intros v.
-          forward.
-          forward.
-          forward_if True.
-          { break_if. subst. entailer!.
-            entailer!. }
-          ** repeat forward.
+        entailer!.
+        forward.
+        forward_call (tarray tuchar (Int.signed (fst p0)+ 1)%Z,
+                      (fun x : ident => Vzero)). 
+        erewrite BCT in H10.
+        break_let.
+        strip_repr.
+        entailer!. cbn.
+        do 3 f_equal. 
+        erewrite Zmax0r. strip_repr_signed.
+        erewrite BCT in H10.
+        break_let.
+        simpl.
+        rep_lia.
+        erewrite BCT in H10.
+        break_let.
+        simpl.
+        cbn. repeat split; auto.
+        erewrite Zmax0r.         
+        lia.
+        lia.
+        erewrite Zmax0r.
+        rep_lia.
+        lia.        
+        Intros v.
+        forward.
+        forward.
+        forward_if (v <> nullval).
+        { break_if. subst. entailer!.
+          entailer!. }
+          ** (* stp = nullval, p <> nullval, v = nullval *)
+             repeat forward.
              forward_empty_loop.
              repeat forward.
-             EExists. EExists.
+             Exists p. EExists. Exists nullval.
+             repeat rewrite_if_b.            
              entailer!.
-             rewrite_if_b.
-             unfold primitive_decoder.
-             rewrite BCT.
-             destruct buf. entailer!.  
-             simpl. repeat break_let. simpl. 
-             replace (len (i0 :: buf) - Int.signed i4 <? Int.signed i3)
-               with false.
-             simpl.
-             entailer!.
-             (* remove postcondition ??? *)
-             admit.
-             symmetry. Zbool_to_Prop.
-             generalize H2.
-             strip_repr_signed.
-             Require Import BCT.Exec.
-              strip_repr_signed.
-            unfold Int.lt.
-            strip_repr_signed.
-            break_if; try discriminate.
-            intro.
-            lia.
-            erewrite BCT in  H10.
-            rep_lia.
           ** forward.
              entailer!.
           ** repeat forward.
              autorewrite with norm.
-             forward_call (Tsh, Tsh, v,
+             deadvars!.
+             remember (snd p0) as consumed.
+             remember (fst p0) as length.
+             Require Import SepLemmas.
+       (*      erewrite data_at_app_gen 
+               with (j1 := Int.unsigned consumed)
+                    (ls1 := sublist 0 (Int.unsigned consumed) (map Vint buf))
+                    (j2 := len buf - Int.unsigned consumed)
+                    (ls2 := sublist (Int.unsigned consumed) (len buf)
+                                    (map Vint buf)).
+             remember (Int.unsigned consumed + Int.unsigned length) as cl.
+             erewrite data_at_app_gen 
+               with (j1 := cl)
+                    (ls1 := sublist 0 cl (map Vint buf))
+                    (j2 := len buf - Int.unsigned consumed - 
+                           Int.unsigned length)
+                    (ls2 := sublist cl (len buf)
+                                    (map Vint buf)) at 1.  *)
+             
+             (* v <> nullval *)
+             forward_call (Tsh, Ews, v,
                            (Vptr b (i + Ptrofs.repr
-                           (Int.unsigned ((snd p0))))%ptrofs),
-                           Int.signed (fst p0),
-                           ((sublist (Int.unsigned (snd p0))
-                                     (Zlength buf) buf))). 
+                           (Int.unsigned consumed)))%ptrofs,
+                           (Int.signed length),
+                           ((sublist (Int.unsigned consumed)
+                                     (Int.unsigned consumed + 
+                                      Int.unsigned length) buf))). 
              entailer!.
              cbn.
              do 3 f_equal.
              f_equal.
              auto with ints. 
-             unfold Frame.           
+             unfold Frame. 
+             
              instantiate (1 :=
-                            [
-                              mem_mgr (fun x => Vzero) *
-  (if eq_dec v nullval
-   then emp
-   else
-    malloc_token Ews (tarray tuchar ((Int.signed (fst p0)) + 1)) v *
-    data_at_ Ews (tarray tuchar ((Int.signed (fst p0)) + 1)) v) *
-  data_at Tsh (tarray tuchar (len buf)) (map Vint buf) (Vptr b i) *
+   [data_at Tsh (tarray tuchar (len buf - 
+                                (Int.unsigned consumed + Int.unsigned length))%Z)
+    (sublist (Int.unsigned consumed + Int.unsigned length)(len buf)
+             (map Vint buf))
+    (Vptr b (i + Ptrofs.repr (Int.unsigned consumed + Int.unsigned length))%ptrofs)
+* data_at Tsh (tarray tuchar (Int.unsigned consumed))
+    (sublist 0 (Int.unsigned consumed) (map Vint buf)) 
+    (Vptr b i) *
+    mem_mgr (fun _ : ident => Vzero) *
+  malloc_token Ews (tarray tuchar (Int.signed length + 1)) v
+               *
+               data_at_ Ews (tarray tuchar 1) 
+                        (offset_val (Int.signed (fst p0)) v)
+   *
   field_at Tsh (Tstruct ber_decoder._asn_TYPE_descriptor_s noattr)
     (DOT ber_decoder._tags) tags_p td_p *
   field_at Tsh (Tstruct ber_decoder._asn_TYPE_descriptor_s noattr)
@@ -507,74 +502,115 @@ Proof.
     (map Vint (map Int.repr (tags td))) tags_p *
   data_at Tsh (Tstruct ber_decoder._asn_codec_ctx_s noattr)
     (Vint (Int.repr ctx)) ctx_p *
-  data_at Tsh asn_dec_rval_s (mk_dec_rval 0 (Int.signed (snd p0))) v__res__1 *
-  data_at Tsh tint (Vint (fst p0)) v_length *
+  data_at Tsh asn_dec_rval_s (Vzero, Vint consumed) v__res__1 *
+  data_at Tsh tint (Vint length) v_length *
   data_at_ Tsh (Tstruct _asn_dec_rval_s noattr) v_tmp_error *
-  data_at Tsh (Tstruct _asn_dec_rval_s noattr)
-    (Vint (Int.repr 0), Vint (snd p0)) v_rval * 
-  valid_pointer st_p * data_at Tsh (tptr tvoid) p st_pp *
+  data_at Tsh (Tstruct _asn_dec_rval_s noattr) (Vint 0%int, Vint consumed)
+    v_rval * valid_pointer nullval * data_at Tsh (tptr tvoid) p st_pp *
   data_at_ Tsh asn_dec_rval_s res_p *
-  data_at Ews (Tstruct _ASN__PRIMITIVE_TYPE_s noattr)
-    (v, Vint (fst p0)) p]%logic).
-             simpl.
-             entailer!.
-          (* data_at TODO *)
+  data_at Ews (Tstruct _ASN__PRIMITIVE_TYPE_s noattr) (v, Vint length) p]%logic).
+          simpl.
+          repeat rewrite_if_b.
+          entailer!.
+          replace (data_at_ Ews (tarray tuchar (Int.signed (fst p0) + 1)) v)
+                  with
+                    (data_at_ Ews (tarray tuchar (Int.signed (fst p0))) v *
+         data_at_ Ews (tarray tuchar 1) (offset_val (Int.signed (fst p0)) v)).
+          entailer!.
+          erewrite memory_block_data_at__tarray_tuchar_eq.
+          entailer!.
+          erewrite sepcon_comm.
+          erewrite <- sepcon_assoc.         
+          remember (snd p0) as consumed.
+          remember (fst p0) as length.       
+          rewrite <- data_at_app_gen 
+            with (ls := sublist 0 (Int.unsigned consumed +
+                                   Int.unsigned length)  
+                                (map Vint buf))
+                 (j :=  (Int.unsigned consumed +
+                                 Int.unsigned length))
+                 (j1 := (Int.unsigned consumed))
+                 (j2 := (Int.signed length)). 
+          erewrite <- data_at_app_gen.
+          entailer!.
+          1-10: assert (0 <= Int.unsigned consumed + 
+                            Int.unsigned length <= len buf )
+            by admit;
+            assert (0 <= Int.unsigned consumed + 
+                            Int.unsigned length <= len (map Vint buf))
+            by admit; simpl; autorewrite with sublist; try rep_lia.
+          auto.
+          cbn in H7. rep_lia.
+          erewrite Zlength_sublist_correct; try rep_lia.
+          erewrite Zlength_sublist_correct; try rep_lia.
+            admit. (* Int.signed length vs Int.unsigned *)
+            admit.
+            repeat erewrite <- sublist_map.
+              erewrite sublist_rejoin; autorewrite with sublist; try rep_lia.
+          auto. 
+          
+          repeat  erewrite Zlength_sublist_correct; try rep_lia.
+          cbn in H7. rep_lia.
+           (* lemma *)
           admit.
-          cbn. 
-          split. auto. split. auto.
-          erewrite BCT in H10.
-          break_let. simpl. 
-          rep_lia. 
-          Intros.
+          destruct v ; cbn in H12; try contradiction.
+          repeat erewrite data_at__tarray.
+         erewrite <- data_at_app_gen.
+         reflexivity.
+         erewrite Zlength_list_repeat. auto.
+         admit.
+         erewrite Zlength_list_repeat. auto.
+         lia. auto.
+         erewrite list_repeat_app. 
+         erewrite Z2Nat.inj_add. auto.
+         admit. (* 0 <= Int.signed (fst p0) *)
+         lia.
+         repeat erewrite Zlength_list_repeat; try rep_lia.
+         admit.
+         split. auto. split. auto. 
+         (* 0 <= Int.signed length <= Int.max_unsigned *)
+         erewrite BCT in H10.
+          break_let. simpl.
+         admit. 
+         Intros.
+         forward.
+         forward.
+         replace (data_at Ews (tarray tuchar (Int.signed length))
+       (map Vint
+          (sublist (Int.unsigned consumed)
+             (Int.unsigned consumed + Int.unsigned length) buf)) v)
+                 with
+                   (data_at Ews (tarray tuchar (Int.signed length + 1))
+                   ((map Vint
+                        (sublist (Int.unsigned consumed)
+                                 (Int.unsigned consumed + Int.unsigned length) buf))++[Vundef]) v).
+         forward.
+         entailer!.        
+          (* Int.
+             unsigned (fst p0) < Int.signed (fst p0) + 1 ?? *) 
+         admit.
           repeat forward.
-          entailer!. 
-          (* UNPROVABLE: fix temps *) 
-          admit.
           forward_empty_loop.
-          repeat forward.
-          EExists. EExists.
-          entailer!.
-          break_if.
-          ++ 
+          forward.
+          forward.
+          forward.
+          forward.
+          forward.
+          Exists p. Exists (v, Vint (fst p0)). Exists v.
           repeat rewrite_if_b.
           unfold primitive_decoder.
           rewrite BCT.
-          destruct buf. entailer!.  
-          admit.
-          simpl. break_let. simpl. 
-       (*   replace (len (i0 :: buf) - z <? z0) with false.
-          simpl.
+          destruct buf.
+          { list_solve. }
+          simpl. repeat break_let.
+          replace (len (i0 :: buf) -
+                   Int.signed i4 <? Int.signed i3) with false.
           entailer!.
           admit.
-          admit.
-          ++ 
-          repeat rewrite_if_b.
-          unfold primitive_decoder.
-          rewrite BCT.
-          destruct buf. entailer!.  
-          admit.
-          simpl. break_let. simpl. 
-          replace (len (i0 :: buf) - z <? z0) with false.
-          simpl.
-          entailer!.
-          admit.
-          admit.
-        * inversion H0.
-          subst.
-          forward.
-          forward_if [temp _t'2 Vfalse].
-          congruence.
-          forward; entailer!.
-          forward_if True. 
-          repeat forward.
-          match goal with
-          | [ _ : _ |- semax _ ?Pre _ _ ] =>
-            forward_loop Pre break: Pre
-          end. 
-          entailer!. congruence.
-          congruence.
-          forward.
-          entailer!.
-          forward. *)
+          admit. }
+    ** forward_empty_loop.
+       admit. (* another branch *) *)
+
 Admitted.
+
 End Ber_decode_primitive.
