@@ -8,7 +8,6 @@ RUN apt update && apt install -y software-properties-common && add-apt-repositor
 
 # clightgen installation
 RUN opam repo add coq-released https://coq.inria.fr/opam/released && \
-    opam repo add coq-extra-dev https://coq.inria.fr/opam/extra-dev && \
     opam update && \
     opam pin add coq 8.12.2 --yes && opam install menhir --yes && \   
     opam install coq-compcert.3.7+8.12~coq_platform  --yes
