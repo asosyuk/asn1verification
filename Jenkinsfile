@@ -1,0 +1,94 @@
+/* Change this variable to your baranch name if you want build it. */
+BUILD_IF_BRANCH = 'feature/int_correctness'
+REPO_DIR = 'asn1verification'
+
+pipeline {
+    agent { 
+        dockerfile {
+               filename 'Dockerfile'
+               label 'DOCKER_HOST' 
+               args '-u root:sudo --privileged'
+        }
+    }
+
+    environment {
+              BITBUCKET_CREDS = credentials('df542c98-02fc-4d7e-b9c7-a321275b084f')
+   }
+
+   stages {
+      stage('Build') {
+        when {
+          branch "${BUILD_IF_BRANCH}"
+        }
+        steps {
+            script {
+                env.GIT_COMMIT_MSG = sh (script: 'git log -1 --pretty=%B ${GIT_COMMIT}', returnStdout: true).trim()
+                env.GIT_AUTHOR = sh (script: 'git log -1 --pretty=%cn ${GIT_COMMIT}', returnStdout: true).trim()
+            }
+            sh '''
+                eval `ssh-agent`
+                eval $(opam env)
+		export WORKDIR=`pwd`
+                cd ..
+                git clone https://${BITBUCKET_CREDS}@bitbucket.org/codeminders/asn1c.git
+		cd asn1c
+		git fetch -a 
+                git checkout vst_modifications
+		cd $WORKDIR/src
+                make clight
+                make 
+               '''
+            }
+        }
+    }
+    post {
+       always {
+	   /* Use slackNotifier.groovy from shared library and provide current build result as parameter */
+           //notifySlack(currentBuild.result)
+           cleanWs()
+       }
+   }
+}
+
+/*   Functions   */
+/* ----------------------------------------------------------------------------------------------------  */
+
+def notifySlack(String buildStatus = 'STARTED') {
+    // Build status of null means success.
+    buildStatus = buildStatus ?: 'SUCCESS'
+
+    def color
+
+    if (buildStatus == 'STARTED') {
+        color = '#D4DADF'
+    } else if (buildStatus == 'SUCCESS') {
+        color = '#BDFFC3'
+    } else if (buildStatus == 'UNSTABLE') {
+        color = '#FFFE89'
+    } else {
+        color = '#FF9FA1'
+    }
+
+    def msg = "Build <${env.BUILD_URL}|#${env.BUILD_NUMBER}> (${getSlackRepoURL()}) of ${env.JOB_NAME} (${env.GIT_BRANCH}) by ${env.GIT_AUTHOR} ${buildStatus} in ${currentBuild.durationString.minus(' and counting')}"
+	if (env.BRANCH_NAME == "${BUILD_IF_BRANCH}" ) {
+	    slackSend(color: color, message: msg, channel: '#bitbucket-activity')
+    }
+}
+
+def getRepoURL() {
+  sh "git config --get remote.origin.url > .git/remote-url"
+  return readFile(".git/remote-url").trim()
+}
+
+def getRepoSHA() {
+  sh "git rev-parse HEAD > .git/current-commit"
+  return readFile(".git/current-commit").trim()
+}
+
+def getSlackRepoURL() {
+  repoURL = getRepoURL()
+  repoURL = repoURL.take(repoURL.length()-4) + "/commit"
+  repoSHA = getRepoSHA()
+  
+	return "<${repoURL}|${getRepoSHA().take(7)}>"
+}
