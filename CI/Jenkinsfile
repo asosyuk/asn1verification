@@ -7,7 +7,7 @@ def BUILD_IF_BRANCH = ['feature/int_correctness']
 pipeline {
     agent { 
         dockerfile {
-               filename 'Dockerfile'
+               filename 'CI/Dockerfile'
                label 'DOCKER_HOST' 
                args '-u root:sudo --privileged'
         }
