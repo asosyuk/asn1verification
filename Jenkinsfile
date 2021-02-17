@@ -12,7 +12,9 @@ pipeline {
                args '-u root:sudo --privileged'
         }
     }
-
+    environment {
+        BITBUCKET_CREDS = credentials('df542c98-02fc-4d7e-b9c7-a321275b084f')
+    }
     stages {
 		stage('Prepare') {
 			steps {
@@ -40,16 +42,16 @@ pipeline {
 					if (env.SKIP_CI != "true" && env.SKIP_BRANCH == "false") {
 						sh '''
 						    eval `ssh-agent`
-                            eval $(opam env)
-		                    export WORKDIR=`pwd`
-                            cd ..
-                            git clone https://${BITBUCKET_CREDS}@bitbucket.org/codeminders/asn1c.git
-		                    cd asn1c
-		                    git fetch -a
-                            git checkout vst_modifications
-		                    cd $WORKDIR/src
-                            make clight
-                            make
+                                                    eval $(opam env)
+		                                    export WORKDIR=`pwd`
+                                                    cd ..
+                                                    git clone https://${BITBUCKET_CREDS}@bitbucket.org/codeminders/asn1c.git
+		                                    cd asn1c
+		                                    git fetch -a
+                                                    git checkout vst_modifications
+		                                    cd $WORKDIR/src
+                                                    make clight
+                                                    make
 						  '''
 					}
 				}
